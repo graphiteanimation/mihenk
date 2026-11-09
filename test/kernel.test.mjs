@@ -35,7 +35,7 @@ const doc = { params: [{ name: 'L', expr: '100' }, { name: 'H', expr: 'L/5' }], 
   { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', dist: 'H', op: 'new' },
 ] };
 let out = await K.rebuild(doc);
-ok(out.status.e1.ok, 'extrude: ' + out.status.e1.error); ok(out.bodies.length === 1, 'tek gövde');
+ok(out.status.e1.ok, 'extrude: ' + out.status.e1.error?.code); ok(out.bodies.length === 1, 'tek gövde');
 near(out.bodies[0].volume, 100 * 60 * 20, 'hacim (tüm profiller = dolu)');
 doc.features[1].profiles = [reg0idx(doc.features[0])];
 function reg0idx(s) { const r = findRegions(s).regions; return r.findIndex((x) => x.holes.length); }
@@ -48,31 +48,34 @@ ok(top !== -1, 'üst yüz +Z normal'); near(top.fp[2], 20, 'üst yüz z');
 const r2 = rect(20, 20, 'q', 5, 5);
 doc.features.push({ id: 's2', type: 'sketch', plane: { kind: 'face', ref: top }, points: r2.pts, ents: r2.ents });
 doc.features.push({ id: 'e2', type: 'extrude', sketch: 's2', profiles: 'all', dist: '5', flip: true, op: 'cut' });
-out = await K.rebuild(doc); ok(out.status.e2.ok, 'cut: ' + out.status.e2.error);
+out = await K.rebuild(doc); ok(out.status.e2.ok, 'cut: ' + out.status.e2.error?.code);
 near(out.bodies[0].volume, (6000 - Math.PI * 100) * 20 - 20 * 20 * 5, 'cep sonrası hacim');
 near(out.sketches.s2.plane.o[2], 20, 'yüz düzlemi orijini');
 // fillet: dikey kenarlar
 const edges = []; for (let i = 0; i < out.bodies[0].nEdges; i++) { const d = K.describe({ body: bid, idx: i }, 'edge'); if (d.geom === 'LINE' && Math.abs(d.length - 20) < 1e-6 && Math.abs(d.start[2] - d.end[2]) > 19 && Math.abs(d.start[0] - 50) > 20) edges.push(d); }
 ok(edges.length === 4, 'dört dikey kenar: ' + edges.length);
 doc.features.push({ id: 'f1', type: 'fillet', edges, r: '5' });
-out = await K.rebuild(doc); ok(out.status.f1.ok, 'fillet: ' + out.status.f1.error);
+out = await K.rebuild(doc); ok(out.status.f1.ok, 'fillet: ' + out.status.f1.error?.code);
 const vBefore = (6000 - Math.PI * 100) * 20 - 2000; near(out.bodies[0].volume, vBefore - (4 - Math.PI) * 25 * 20, 'fillet hacmi');
 // parametre değişimi: topoloji aynı -> seçimler korunur
 doc.params[0].expr = '120';
 // sketch noktaları arayüzde çözülür; burada elle güncelle
 doc.features[0].points.p2.x = 120; doc.features[0].points.p3.x = 120;
-out = await K.rebuild(doc); ok(out.status.f1.ok && out.status.e2.ok, 'parametre sonrası: ' + (out.status.f1.error || out.status.e2.error));
+out = await K.rebuild(doc); ok(out.status.f1.ok && out.status.e2.ok, 'parametre sonrası: ' + (out.status.f1.error?.code || out.status.e2.error?.code));
 near(out.bodies[0].bbox[1][2], 24, 'yeni yükseklik H=L/5');
 // delik + dairesel desen
 doc.features.push({ id: 's3', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: 'H' }, points: { h1: { x: 100, y: 30 } }, ents: [{ id: 'hp', type: 'point', p: 'h1' }] });
 doc.features.push({ id: 'h1', type: 'hole', sketch: 's3', kind: 'cbore', dia: '6.6', extent: 'all', cboreDia: '11', cboreDepth: '6.5', thread: null });
-out = await K.rebuild(doc); ok(out.status.h1.ok, 'delik: ' + out.status.h1.error); const v1 = out.bodies[0].volume;
+out = await K.rebuild(doc); ok(out.status.h1.ok, 'delik: ' + out.status.h1.error?.code); const v1 = out.bodies[0].volume;
 ok(out.holes.length === 1 && out.holes[0].dia === 6.6, 'delik verisi');
 doc.features.push({ id: 'pt', type: 'pattern', kind: 'rect', source: { kind: 'feature', id: 'h1' }, count1: '1', step1: '0', count2: '2', step2: '-10', dir1: 'X', dir2: 'Y' });
-out = await K.rebuild(doc); ok(out.status.pt.ok, 'desen: ' + out.status.pt.error); ok(out.bodies[0].volume < v1 - 100, 'desen hacmi azalttı');
+out = await K.rebuild(doc); ok(out.status.pt.ok, 'desen: ' + out.status.pt.error?.code); ok(out.bodies[0].volume < v1 - 100, 'desen hacmi azalttı');
 // hatalı özellik geri alınır, diğerleri devam eder
 doc.features.push({ id: 'bad', type: 'fillet', edges: [{ ...edges[0] }], r: '500' });
 out = await K.rebuild(doc); ok(!out.status.bad.ok, 'büyük fillet hata vermeli'); ok(out.bodies.length === 1, 'gövde korunur');
+// hatalar metin değil {code, params} taşır (i18n sözleşmesi)
+ok(out.status.bad.error && typeof out.status.bad.error.code === 'string' && typeof out.status.bad.error.params === 'object', 'hata {code, params}: ' + JSON.stringify(out.status.bad.error));
+ok(!JSON.stringify(out.status.bad.error).match(/[ğüşıöçĞÜŞİÖÇ]/), 'hata nesnesinde metin yok');
 doc.features.pop();
 // revolve + ilkel + combine + mirror + shell
 const d2 = { params: [], features: [
@@ -85,7 +88,7 @@ const d2 = { params: [], features: [
 ] };
 const K2 = await initKernel(opencascade, () => wasm);
 out = await K2.rebuild(d2);
-for (const f of d2.features) ok(out.status[f.id].ok, f.id + ': ' + out.status[f.id].error);
+for (const f of d2.features) ok(out.status[f.id].ok, f.id + ': ' + out.status[f.id].error?.code);
 ok(out.bodies.length === 1, 'tek gövde (join)');
 const ring = Math.PI * (15 * 15 - 5 * 5) * 30, plate = 100 * 100 * 10, hole = Math.PI * 16 * 10;
 near(out.bodies[0].volume, ring + plate - Math.PI * 0 - 4 * hole, 'revolve+plaka-4 delik (mirror, desenle çakışır)', 2e-3);
@@ -93,11 +96,47 @@ near(out.bodies[0].volume, ring + plate - Math.PI * 0 - 4 * hole, 'revolve+plaka
 const d3 = { params: [], features: [{ id: 'b', type: 'primitive', kind: 'box', w: '50', d: '40', h: '30', op: 'new' }] };
 out = await K2.rebuild(d3); let tf; for (let i = 0; i < 6; i++) { const d = K2.describe({ body: 'b', idx: i }, 'face'); if (d.normal[2] > 0.9) tf = d; }
 d3.features.push({ id: 'sh', type: 'shell', faces: [tf], t: '2' });
-out = await K2.rebuild(d3); ok(out.status.sh.ok, 'kabuk: ' + out.status.sh.error); near(out.bodies[0].volume, 50 * 40 * 30 - 46 * 36 * 28, 'kabuk hacmi');
+out = await K2.rebuild(d3); ok(out.status.sh.ok, 'kabuk: ' + out.status.sh.error?.code); near(out.bodies[0].volume, 50 * 40 * 30 - 46 * 36 * 28, 'kabuk hacmi');
 // STEP dışa/içe
 const step = await K2.exportFile('step'); ok(step.length > 1000, 'STEP boyutu');
 const stl = await K2.exportFile('stl'); ok(stl.length > 500, 'STL boyutu');
 const d4 = { params: [], features: [{ id: 'imp', type: 'import', format: 'step', name: 'parça', data: Buffer.from(step).toString('base64') }] };
-out = await K2.rebuild(d4); ok(out.status.imp.ok, 'STEP içe: ' + out.status.imp.error); near(out.bodies[0].volume, 50 * 40 * 30 - 46 * 36 * 28, 'içe alınan hacim');
+out = await K2.rebuild(d4); ok(out.status.imp.ok, 'STEP içe: ' + out.status.imp.error?.code); near(out.bodies[0].volume, 50 * 40 * 30 - 46 * 36 * 28, 'içe alınan hacim');
 const pr = K2.bodyProps(out.bodies[0].id); ok(pr.area > 0 && pr.com.length === 3, 'kütle özellikleri');
+// --- çok büyük fillet / pah: kod fillet.too_big, chamfer.too_big
+const d6 = { params: [], features: [{ id: 'b', type: 'primitive', kind: 'box', w: '50', d: '40', h: '30', op: 'new' }] };
+await K2.rebuild(d6);
+const ed = K2.describe({ body: 'b', idx: 0 }, 'edge');
+d6.features.push({ id: 'ff', type: 'fillet', edges: [ed], r: '500' }, { id: 'cc', type: 'chamfer', edges: [ed], d: '500' });
+out = await K2.rebuild(d6);
+ok(!out.status.ff.ok && out.status.ff.error.code === 'fillet.too_big', 'fillet.too_big: ' + JSON.stringify(out.status.ff.error));
+ok(!out.status.cc.ok && out.status.cc.error.code === 'chamfer.too_big', 'chamfer.too_big: ' + JSON.stringify(out.status.cc.error));
+ok(out.bodies.length === 1 && out.bodies[0].volume > 59000, 'hatalı fillet/pah gövdeyi bozmaz');
+
+// --- hata kodları ve yapılandırılmış hata parametreleri
+const d5 = { params: [{ name: 'L', expr: '10' }], features: [
+  { id: 'x1', type: 'extrude', sketch: 'yok', profiles: 'all', dist: '5', op: 'new' },
+  { id: 'x2', type: 'primitive', kind: 'box', w: 'Q', d: '5', h: '5', op: 'new' },
+  { id: 'x3', type: 'primitive', kind: 'box', w: '5', d: '5', h: '5', op: 'new' },
+  { id: 'x4', type: 'fillet', edges: [], r: '1' },
+  { id: 'x5', type: 'combine', target: 'yok', tools: [], op: 'join' },
+  { id: 'x6', type: 'bilinmeyen' },
+] };
+out = await K2.rebuild(d5);
+const code = (id) => out.status[id].error?.code;
+ok(code('x1') === 'sketch.not_found', 'sketch.not_found: ' + code('x1'));
+ok(code('x2') === 'expr.in_field' && out.status.x2.error.params.field === 'ef.width' && out.status.x2.error.params.inner.code === 'expr.unknown_param' && out.status.x2.error.params.inner.params.name === 'Q', 'alan + iç hata: ' + JSON.stringify(out.status.x2.error));
+ok(out.status.x3.ok && out.bodies.length === 1, 'geçerli özellik etkilenmez');
+ok(code('x4') === 'fc.no_edges', 'fc.no_edges: ' + code('x4'));
+ok(code('x5') === 'combine.no_target', 'combine.no_target: ' + code('x5'));
+ok(code('x6') === 'feature.unknown' && out.status.x6.error.params.type === 'bilinmeyen', 'feature.unknown');
+ok(out.bodies[0].name === null && out.bodies[0].auto && out.bodies[0].auto.code === 'n', 'gövde adı yapılandırılmış: ' + JSON.stringify(out.bodies[0].auto));
+// ifade hataları
+try { evalExpr('(1+2', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'expr.paren', 'expr.paren: ' + e.code); }
+try { evalExpr('foo(1)', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'expr.unknown_fn' && e.params.name === 'foo', 'expr.unknown_fn'); }
+try { evalExpr('', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'expr.empty', 'expr.empty'); }
+try { evalExpr('1/0', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'expr.not_number', 'expr.not_number'); }
+// sorgu hataları
+try { K2.describe({ body: 'yok', idx: 0 }, 'face'); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'body_none', 'describe body_none'); }
+try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'export.no_body', 'export.no_body'); }
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

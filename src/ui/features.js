@@ -1,12 +1,15 @@
 // Özellik şemaları: varsayılanlar, alan tanımları, adlandırma, bağımlılık taraması.
-export const TYPE_LABEL = {
-  sketch: 'Sketch', extrude: 'Extrude', revolve: 'Revolve', hole: 'Delik', fillet: 'Yuvarlat', chamfer: 'Pah', shell: 'Kabuk',
-  combine: 'Birleştir', move: 'Taşı/Kopyala', pattern: 'Desen', mirror: 'Ayna', import: 'İçe Aktarılan',
+// Etiketler sözlük anahtarıdır (tk); panel t() ile çevirir. Varsayılan adlar oluşturulduğu andaki dilde yazılır.
+import { t, tk } from '../shared/i18n.js';
+
+export const TYPE_KEY = {
+  sketch: tk('feat.sketch'), extrude: tk('feat.extrude'), revolve: tk('feat.revolve'), hole: tk('feat.hole'), fillet: tk('feat.fillet'), chamfer: tk('feat.chamfer'), shell: tk('feat.shell'),
+  combine: tk('feat.combine'), move: tk('feat.move'), pattern: tk('feat.pattern'), mirror: tk('feat.mirror'), import: tk('feat.import'),
 };
-export const KIND_LABEL = { box: 'Kutu', cylinder: 'Silindir', sphere: 'Küre' };
+export const KIND_KEY = { box: tk('feat.box'), cylinder: tk('feat.cylinder'), sphere: tk('feat.sphere') };
 const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', box: 'box', cylinder: 'cyl', sphere: 'sph' };
 
-export const featLabel = (f) => (f.type === 'primitive' ? KIND_LABEL[f.kind] || 'Kutu' : TYPE_LABEL[f.type] || f.type);
+export const featLabel = (f) => (f.type === 'primitive' ? t(KIND_KEY[f.kind] || KIND_KEY.box) : TYPE_KEY[f.type] ? t(TYPE_KEY[f.type]) : f.type);
 
 export function newId(doc, type, kind) {
   const pre = ID_PREFIX[type === 'primitive' ? kind : type] || 'f';
@@ -20,8 +23,9 @@ export function autoName(doc, type, kind) {
   return base + ' ' + n;
 }
 
-export const OPS = [['new', 'Yeni gövde'], ['join', 'Ekle'], ['cut', 'Kes'], ['intersect', 'Kesişim']];
-export const AXES = [['X', 'X'], ['Y', 'Y'], ['Z', 'Z']];
+// Seçenek etiketleri sözlük anahtarıdır (panel t() ile çevirir); null = olduğu gibi göster.
+export const OPS = [['new', tk('op.new')], ['join', tk('op.join')], ['cut', tk('op.cut')], ['intersect', tk('op.intersect')]];
+export const AXES = [['X', null], ['Y', null], ['Z', null]];
 // Kaba diş tablosu (ad, adım, nominal çap)
 export const THREADS = [['M3', 0.5, 3], ['M4', 0.7, 4], ['M5', 0.8, 5], ['M6', 1, 6], ['M8', 1.25, 8], ['M10', 1.5, 10], ['M12', 1.75, 12], ['M14', 2, 14], ['M16', 2, 16], ['M20', 2.5, 20], ['M24', 3, 24]]
   .map(([designation, pitch, major]) => ({ designation, pitch, major }));
@@ -60,58 +64,58 @@ export const patternSources = (doc) => doc.features.filter((f) => ['extrude', 'r
 // Alan tanımları (panel formu bunlardan üretilir). t: expr | select | check | sketch | profiles | axis | sel | source | thread | note
 export function fieldsFor(f, ctx) {
   const F = [];
-  const opField = (label = 'İşlem') => ({ t: 'select', k: 'op', label, opts: OPS });
+  const opField = (label = tk('fld.op')) => ({ t: 'select', k: 'op', label, opts: OPS });
   switch (f.type) {
     case 'primitive':
-      F.push({ t: 'expr', k: 'x', label: 'Konum X', unit: 'mm' }, { t: 'expr', k: 'y', label: 'Konum Y', unit: 'mm' }, { t: 'expr', k: 'z', label: 'Konum Z', unit: 'mm' });
-      if (f.kind === 'box') F.push({ t: 'expr', k: 'w', label: 'Genişlik (X)', unit: 'mm' }, { t: 'expr', k: 'd', label: 'Derinlik (Y)', unit: 'mm' }, { t: 'expr', k: 'h', label: 'Yükseklik (Z)', unit: 'mm' });
-      else if (f.kind === 'cylinder') F.push({ t: 'expr', k: 'dia', label: 'Çap', unit: 'mm' }, { t: 'expr', k: 'h', label: 'Yükseklik', unit: 'mm' }, { t: 'select', k: 'axis', label: 'Eksen', opts: AXES });
-      else F.push({ t: 'expr', k: 'dia', label: 'Çap', unit: 'mm' });
+      F.push({ t: 'expr', k: 'x', label: tk('fld.pos_x'), unit: 'mm' }, { t: 'expr', k: 'y', label: tk('fld.pos_y'), unit: 'mm' }, { t: 'expr', k: 'z', label: tk('fld.pos_z'), unit: 'mm' });
+      if (f.kind === 'box') F.push({ t: 'expr', k: 'w', label: tk('fld.width'), unit: 'mm' }, { t: 'expr', k: 'd', label: tk('fld.depth_y'), unit: 'mm' }, { t: 'expr', k: 'h', label: tk('fld.height_z'), unit: 'mm' });
+      else if (f.kind === 'cylinder') F.push({ t: 'expr', k: 'dia', label: tk('fld.dia'), unit: 'mm' }, { t: 'expr', k: 'h', label: tk('fld.height'), unit: 'mm' }, { t: 'select', k: 'axis', label: tk('fld.axis'), opts: AXES });
+      else F.push({ t: 'expr', k: 'dia', label: tk('fld.dia'), unit: 'mm' });
       F.push(opField());
       break;
     case 'extrude':
-      F.push({ t: 'sketch', k: 'sketch', label: 'Sketch' }, { t: 'profiles', k: 'profiles', label: 'Profiller' }, opField(),
-        { t: 'select', k: 'dir', label: 'Yön', opts: [['one', 'Tek yön'], ['sym', 'Simetrik'], ['two', 'İki yön']] },
-        { t: 'select', k: 'extent', label: 'Kapsam', opts: [['dist', 'Mesafe'], ['all', 'Tümü']] });
-      if (f.extent !== 'all') F.push({ t: 'expr', k: 'dist', label: f.dir === 'two' ? 'Mesafe 1' : 'Mesafe', unit: 'mm' });
-      if (f.dir === 'two' && f.extent !== 'all') F.push({ t: 'expr', k: 'dist2', label: 'Mesafe 2', unit: 'mm' });
-      F.push({ t: 'check', k: 'flip', label: 'Ters çevir' });
+      F.push({ t: 'sketch', k: 'sketch', label: tk('fld.sketch') }, { t: 'profiles', k: 'profiles', label: tk('fld.profiles') }, opField(),
+        { t: 'select', k: 'dir', label: tk('fld.dir'), opts: [['one', tk('dir.one')], ['sym', tk('dir.sym')], ['two', tk('dir.two')]] },
+        { t: 'select', k: 'extent', label: tk('fld.extent'), opts: [['dist', tk('extent.dist')], ['all', tk('extent.all')]] });
+      if (f.extent !== 'all') F.push({ t: 'expr', k: 'dist', label: tk(f.dir === 'two' ? 'fld.dist1' : 'fld.dist'), unit: 'mm' });
+      if (f.dir === 'two' && f.extent !== 'all') F.push({ t: 'expr', k: 'dist2', label: tk('fld.dist2'), unit: 'mm' });
+      F.push({ t: 'check', k: 'flip', label: tk('fld.flip') });
       break;
     case 'revolve':
-      F.push({ t: 'sketch', k: 'sketch', label: 'Sketch' }, { t: 'profiles', k: 'profiles', label: 'Profiller' }, { t: 'axis', k: 'axis', label: 'Eksen' }, { t: 'expr', k: 'angle', label: 'Açı', unit: '°' }, opField());
+      F.push({ t: 'sketch', k: 'sketch', label: tk('fld.sketch') }, { t: 'profiles', k: 'profiles', label: tk('fld.profiles') }, { t: 'axis', k: 'axis', label: tk('fld.axis') }, { t: 'expr', k: 'angle', label: tk('fld.angle'), unit: '°' }, opField());
       break;
     case 'hole':
-      F.push({ t: 'sketch', k: 'sketch', label: 'Sketch', need: 'points' },
-        { t: 'select', k: 'kind', label: 'Tip', opts: [['simple', 'Düz'], ['cbore', 'Silindirik havşa'], ['csink', 'Konik havşa']] },
-        { t: 'thread', k: 'thread', label: 'Diş' }, { t: 'expr', k: 'dia', label: 'Çap', unit: 'mm' },
-        { t: 'select', k: 'extent', label: 'Kapsam', opts: [['dist', 'Derinlik'], ['all', 'Tümü (delip geçer)']] });
-      if (f.extent !== 'all') F.push({ t: 'expr', k: 'depth', label: 'Derinlik', unit: 'mm' }, { t: 'expr', k: 'tipAngle', label: 'Uç açısı', unit: '°' });
-      if (f.kind === 'cbore') F.push({ t: 'expr', k: 'cboreDia', label: 'Havşa çapı', unit: 'mm' }, { t: 'expr', k: 'cboreDepth', label: 'Havşa derinliği', unit: 'mm' });
-      if (f.kind === 'csink') F.push({ t: 'expr', k: 'csinkDia', label: 'Havşa çapı', unit: 'mm' }, { t: 'expr', k: 'csinkAngle', label: 'Havşa açısı', unit: '°' });
-      F.push({ t: 'check', k: 'flip', label: 'Ters çevir' });
+      F.push({ t: 'sketch', k: 'sketch', label: tk('fld.sketch'), need: 'points' },
+        { t: 'select', k: 'kind', label: tk('fld.hole_type'), opts: [['simple', tk('hole.simple')], ['cbore', tk('hole.cbore')], ['csink', tk('hole.csink')]] },
+        { t: 'thread', k: 'thread', label: tk('fld.thread') }, { t: 'expr', k: 'dia', label: tk('fld.dia'), unit: 'mm' },
+        { t: 'select', k: 'extent', label: tk('fld.extent'), opts: [['dist', tk('extent.depth')], ['all', tk('extent.through')]] });
+      if (f.extent !== 'all') F.push({ t: 'expr', k: 'depth', label: tk('fld.depth'), unit: 'mm' }, { t: 'expr', k: 'tipAngle', label: tk('fld.tip_angle'), unit: '°' });
+      if (f.kind === 'cbore') F.push({ t: 'expr', k: 'cboreDia', label: tk('fld.cbore_dia'), unit: 'mm' }, { t: 'expr', k: 'cboreDepth', label: tk('fld.cbore_depth'), unit: 'mm' });
+      if (f.kind === 'csink') F.push({ t: 'expr', k: 'csinkDia', label: tk('fld.csink_dia'), unit: 'mm' }, { t: 'expr', k: 'csinkAngle', label: tk('fld.csink_angle'), unit: '°' });
+      F.push({ t: 'check', k: 'flip', label: tk('fld.flip') });
       break;
-    case 'fillet': F.push({ t: 'sel', k: 'edges', label: 'Kenarlar', kind: 'edge' }, { t: 'expr', k: 'r', label: 'Yarıçap', unit: 'mm' }); break;
-    case 'chamfer': F.push({ t: 'sel', k: 'edges', label: 'Kenarlar', kind: 'edge' }, { t: 'expr', k: 'd', label: 'Mesafe', unit: 'mm' }); break;
-    case 'shell': F.push({ t: 'sel', k: 'faces', label: 'Açılacak yüzler', kind: 'face' }, { t: 'expr', k: 't', label: 'Kalınlık', unit: 'mm' }); break;
+    case 'fillet': F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'expr', k: 'r', label: tk('fld.radius'), unit: 'mm' }); break;
+    case 'chamfer': F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'expr', k: 'd', label: tk('fld.dist'), unit: 'mm' }); break;
+    case 'shell': F.push({ t: 'sel', k: 'faces', label: tk('fld.faces_open'), kind: 'face' }, { t: 'expr', k: 't', label: tk('fld.thickness'), unit: 'mm' }); break;
     case 'combine':
-      F.push({ t: 'sel', k: 'target', label: 'Hedef gövde', kind: 'body', single: true }, { t: 'sel', k: 'tools', label: 'Takım gövdeler', kind: 'body' },
-        { t: 'select', k: 'op', label: 'İşlem', opts: [['join', 'Birleştir'], ['cut', 'Kes'], ['intersect', 'Kesişim']] }, { t: 'check', k: 'keepTools', label: 'Takım gövdeleri koru' });
+      F.push({ t: 'sel', k: 'target', label: tk('fld.target'), kind: 'body', single: true }, { t: 'sel', k: 'tools', label: tk('fld.tools'), kind: 'body' },
+        { t: 'select', k: 'op', label: tk('fld.op'), opts: [['join', tk('op.combine_join')], ['cut', tk('op.cut')], ['intersect', tk('op.intersect')]] }, { t: 'check', k: 'keepTools', label: tk('fld.keep_tools') });
       break;
     case 'move':
-      F.push({ t: 'sel', k: 'bodies', label: 'Gövdeler', kind: 'body' }, { t: 'expr', k: 'dx', label: 'Öteleme X', unit: 'mm' }, { t: 'expr', k: 'dy', label: 'Öteleme Y', unit: 'mm' }, { t: 'expr', k: 'dz', label: 'Öteleme Z', unit: 'mm' },
-        { t: 'expr', k: 'angle', label: 'Döndürme', unit: '°' }, { t: 'select', k: 'axis', label: 'Dönme ekseni', opts: AXES },
-        { t: 'expr', k: 'cx', label: 'Merkez X', unit: 'mm' }, { t: 'expr', k: 'cy', label: 'Merkez Y', unit: 'mm' }, { t: 'expr', k: 'cz', label: 'Merkez Z', unit: 'mm' }, { t: 'check', k: 'copy', label: 'Kopyala (aslını koru)' });
+      F.push({ t: 'sel', k: 'bodies', label: tk('fld.bodies'), kind: 'body' }, { t: 'expr', k: 'dx', label: tk('fld.tr_x'), unit: 'mm' }, { t: 'expr', k: 'dy', label: tk('fld.tr_y'), unit: 'mm' }, { t: 'expr', k: 'dz', label: tk('fld.tr_z'), unit: 'mm' },
+        { t: 'expr', k: 'angle', label: tk('fld.rotation'), unit: '°' }, { t: 'select', k: 'axis', label: tk('fld.rot_axis'), opts: AXES },
+        { t: 'expr', k: 'cx', label: tk('fld.c_x'), unit: 'mm' }, { t: 'expr', k: 'cy', label: tk('fld.c_y'), unit: 'mm' }, { t: 'expr', k: 'cz', label: tk('fld.c_z'), unit: 'mm' }, { t: 'check', k: 'copy', label: tk('fld.copy') });
       break;
     case 'pattern':
-      F.push({ t: 'source', k: 'source', label: 'Kaynak' }, { t: 'select', k: 'kind', label: 'Tür', opts: [['rect', 'Dikdörtgen'], ['circ', 'Dairesel']] });
-      if (f.kind === 'circ') F.push({ t: 'expr', k: 'count', label: 'Adet' }, { t: 'expr', k: 'total', label: 'Toplam açı', unit: '°' }, { t: 'select', k: 'axis', label: 'Eksen', opts: AXES },
-        { t: 'expr', k: 'cx', label: 'Merkez X', unit: 'mm' }, { t: 'expr', k: 'cy', label: 'Merkez Y', unit: 'mm' }, { t: 'expr', k: 'cz', label: 'Merkez Z', unit: 'mm' });
-      else F.push({ t: 'expr', k: 'count1', label: 'Adet 1' }, { t: 'expr', k: 'step1', label: 'Aralık 1', unit: 'mm' }, { t: 'select', k: 'dir1', label: 'Yön 1', opts: AXES },
-        { t: 'expr', k: 'count2', label: 'Adet 2' }, { t: 'expr', k: 'step2', label: 'Aralık 2', unit: 'mm' }, { t: 'select', k: 'dir2', label: 'Yön 2', opts: AXES });
-      if (f.source?.kind === 'body') F.push({ t: 'check', k: 'join', label: 'Gövdeye birleştir' });
+      F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'kind', label: tk('fld.pat_type'), opts: [['rect', tk('pat.rect')], ['circ', tk('pat.circ')]] });
+      if (f.kind === 'circ') F.push({ t: 'expr', k: 'count', label: tk('fld.count') }, { t: 'expr', k: 'total', label: tk('fld.total_angle'), unit: '°' }, { t: 'select', k: 'axis', label: tk('fld.axis'), opts: AXES },
+        { t: 'expr', k: 'cx', label: tk('fld.c_x'), unit: 'mm' }, { t: 'expr', k: 'cy', label: tk('fld.c_y'), unit: 'mm' }, { t: 'expr', k: 'cz', label: tk('fld.c_z'), unit: 'mm' });
+      else F.push({ t: 'expr', k: 'count1', label: tk('fld.count1') }, { t: 'expr', k: 'step1', label: tk('fld.step1'), unit: 'mm' }, { t: 'select', k: 'dir1', label: tk('fld.dir1'), opts: AXES },
+        { t: 'expr', k: 'count2', label: tk('fld.count2') }, { t: 'expr', k: 'step2', label: tk('fld.step2'), unit: 'mm' }, { t: 'select', k: 'dir2', label: tk('fld.dir2'), opts: AXES });
+      if (f.source?.kind === 'body') F.push({ t: 'check', k: 'join', label: tk('fld.join_body') });
       break;
     case 'mirror':
-      F.push({ t: 'source', k: 'source', label: 'Kaynak' }, { t: 'select', k: 'plane', label: 'Ayna düzlemi', opts: [['XY', 'XY (Üst)'], ['XZ', 'XZ (Ön)'], ['YZ', 'YZ (Sağ)']] }, { t: 'expr', k: 'offset', label: 'Ofset', unit: 'mm' });
+      F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')]] }, { t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' });
       break;
   }
   return F;

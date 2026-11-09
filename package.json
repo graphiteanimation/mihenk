@@ -9,6 +9,7 @@
   "dist": "vite build && electron-builder --win dir --x64 && cd build && NSISDIR=$HOME/.cache/electron-builder/nsis-3.0.4.1/nsis-3.0.4.1-1mx3n && $NSISDIR/linux/makensis -V2 installer.nsi",
   "preview": "vite preview",
   "test": "node test/kernel.test.mjs && node test/solver.test.mjs",
+  "test:all": "node test/i18n.test.mjs && node test/kernel.test.mjs && node test/solver.test.mjs && npm run build && python3 test/sketcher.test.py && python3 test/app.test.py",
   "electron": "electron ."
  },
  "keywords": [],

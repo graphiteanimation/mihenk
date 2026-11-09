@@ -1,13 +1,14 @@
 // Sketch kısıt çözücüsü: FreeCAD PlaneGCS (WASM). Sketch modelini planegcs ilkel listesine çevirir.
 import { init_planegcs_module, GcsWrapper } from '@salusoft89/planegcs';
 import { evalExpr } from '../shared/expr.js';
+import { toErr } from '../shared/errors.js';
 
 let modPromise = null;
 export function initSolver(locate) { if (!modPromise) modPromise = init_planegcs_module(locate ? { locateFile: locate } : undefined); return modPromise; }
 
 const TAU = Math.PI * 2;
 // sk: {points:{id:{x,y,fixed}}, ents:[], cons:[]}
-// Döner: {ok, dof, conflicting:[ids], redundant:[ids], error}
+// Döner: {ok, dof, conflicting:[ids], redundant:[ids], errors:[{id?, code, params}]}
 export async function solveSketch(sk, vars = {}, drag = null) {
   const mod = await initSolver();
   const gcs = new GcsWrapper(new mod.GcsSystem());
@@ -29,7 +30,7 @@ export async function solveSketch(sk, vars = {}, drag = null) {
         prims.push({ id: e.id + '_rules', type: 'arc_rules', a_id: e.id });
       }
     }
-    const val = (c) => { try { return evalExpr(c.expr, vars); } catch (err) { errs.push({ id: c.id, msg: err.message }); return null; } };
+    const val = (c) => { try { return evalExpr(c.expr, vars); } catch (err) { errs.push({ id: c.id, ...toErr(err) }); return null; } };
     const T = (id) => entById[id]?.type;
     for (const c of sk.cons || []) {
       const base = { id: c.id };
@@ -101,6 +102,6 @@ export async function solveSketch(sk, vars = {}, drag = null) {
     }
     return { ok: ok && !errs.length, dof, conflicting, redundant, errors: errs };
   } catch (e) {
-    return { ok: false, dof: null, conflicting: [], redundant: [], errors: [{ msg: e.message || String(e) }] };
+    return { ok: false, dof: null, conflicting: [], redundant: [], errors: [toErr(e)] };
   } finally { try { gcs.destroy_gcs_module(); } catch (e) {} }
 }

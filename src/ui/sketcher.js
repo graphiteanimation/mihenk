@@ -3,27 +3,27 @@ import { THREE, COL, planeMatrix, sketchPolylines } from './viewport.js';
 import { solveSketch } from './solver.js';
 import { findRegions, arcGeom } from '../shared/profiles.js';
 import { evalExpr } from '../shared/expr.js';
+import { t, tk, errText, fmtNum } from '../shared/i18n.js';
+import { toErr } from '../shared/errors.js';
 import * as V from '../shared/vec.js';
 
 const SNAP_PX = 8, ANG_TOL = 3, TAU = Math.PI * 2, DEG = Math.PI / 180;
 const TOOLS = ['select', 'line', 'rect', 'circle', 'arc', 'point', 'dim', 'hdim', 'vdim'];
 const DIM_TYPES = new Set(['dist', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
-const NAMES = {
-  horizontal: 'Yatay', vertical: 'Dikey', horizontal_pp: 'Yatay (iki nokta)', vertical_pp: 'Dikey (iki nokta)', coincident: 'Çakışık',
-  parallel: 'Paralel', perpendicular: 'Dik', equal: 'Eşit', tangent: 'Teğet', pointOn: 'Nokta üzerinde', midpoint: 'Orta nokta', symmetric: 'Simetri',
-  dist: 'Uzunluk', hdist: 'Yatay ölçü', vdist: 'Dikey ölçü', pldist: 'Nokta-çizgi mesafesi', radius: 'Yarıçap', diameter: 'Çap', angle: 'Açı',
+// Kısıt adları sözlük anahtarıdır (con.<tip>); metin t() ile üretilir.
+const NAME_KEY = {
+  horizontal: tk('con.horizontal'), vertical: tk('con.vertical'), horizontal_pp: tk('con.horizontal_pp'), vertical_pp: tk('con.vertical_pp'), coincident: tk('con.coincident'),
+  parallel: tk('con.parallel'), perpendicular: tk('con.perpendicular'), equal: tk('con.equal'), tangent: tk('con.tangent'), pointOn: tk('con.pointOn'), midpoint: tk('con.midpoint'), symmetric: tk('con.symmetric'),
+  dist: tk('con.dist'), hdist: tk('con.hdist'), vdist: tk('con.vdist'), pldist: tk('con.pldist'), radius: tk('con.radius'), diameter: tk('con.diameter'), angle: tk('con.angle'),
 };
+const nameOf = (type) => (NAME_KEY[type] ? t(NAME_KEY[type]) : type);
 const GLYPH = { horizontal: 'H', vertical: 'V', horizontal_pp: 'H', vertical_pp: 'V', coincident: '●', parallel: '∥', perpendicular: '⊥', equal: '=', tangent: 'T', pointOn: '◦', midpoint: 'M', symmetric: '⇋' };
-const HINTS = {
-  select: 'Seç: nesneye tıklayın (Shift ile çoklu seçim). Nokta ya da çizgiyi sürükleyerek taşıyın. Delete siler.',
-  line: 'Çizgi: başlangıç noktasını tıklayın. Zinciri bitirmek için Esc, çift tık ya da sağ tık.',
-  rect: 'Dikdörtgen: ilk köşeyi tıklayın.', circle: 'Daire: merkezi tıklayın.', arc: 'Yay: merkezi tıklayın.',
-  point: 'Nokta: konumu tıklayın (delik merkezi için).',
-  dim: 'Ölçü: bir çizgi, daire ya da yay tıklayın; iki nokta ya da nokta + çizgi ya da iki çizgi de seçebilirsiniz.',
-  hdim: 'Yatay ölçü: iki nokta ya da bir çizgi tıklayın.', vdim: 'Dikey ölçü: iki nokta ya da bir çizgi tıklayın.',
+const HINT_KEY = {
+  select: tk('hint.select'), line: tk('hint.line'), rect: tk('hint.rect'), circle: tk('hint.circle'), arc: tk('hint.arc'), point: tk('hint.point'),
+  dim: tk('hint.dim'), hdim: tk('hint.hdim'), vdim: tk('hint.vdim'),
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
-const fmt = (v) => String(+Number(v).toFixed(3));
+const fmt = (v) => fmtNum(Number(v), 3);
 const norm = (a) => { a %= TAU; return a < 0 ? a + TAU : a; };
 const normId = (id) => String(id).replace(/_(b|rules)$/, '');
 const entPts = (e) => (e.type === 'line' ? [e.a, e.b] : e.type === 'circle' ? [e.c] : e.type === 'arc' ? [e.c, e.a, e.b] : e.type === 'point' ? [e.p] : []);
@@ -64,7 +64,8 @@ const arcPts = (c, r, a0, sweep) => { const n = Math.max(8, Math.ceil((Math.abs(
 export class Sketcher {
   constructor({ viewport, overlayEl, getVars, setHint, setStatus, onChange } = {}) {
     this.vp = viewport; this.overlayEl = overlayEl; this.getVars = getVars || (() => ({}));
-    this.setHint = setHint || (() => {}); this.setStatus = setStatus || (() => {}); this.onChange = onChange || (() => {});
+    this._setHint = setHint || (() => {}); this._setStatus = setStatus || (() => {}); this.onChange = onChange || (() => {});
+    this._hintSpec = null; this._statusSpec = null;
     this.active = false; this.tool = 'select'; this.selection = []; this.lastSolve = null;
     this.sk = null; this.consMode = false; this._q = Promise.resolve(); this._sid = 0;
   }
@@ -88,12 +89,12 @@ export class Sketcher {
     this.vp.onCamera = () => { this._prevCam && this._prevCam(); this._onCamera(); };
     this.active = true; this.tool = 'select'; this._resetDraw();
     this.vp.lookAtPlane(plane); this.vp.fit();
-    this.setHint(HINTS.select);
+    this.setHint(HINT_KEY.select);
     this._refresh();
     const sid = this._sid;
     this._q = this._q.then(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; this._statusDof(r); } catch (e) { this._status('Sketch çözülemedi: ' + e.message); }
+      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; this._statusDof(r); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
       this._refresh();
     });
     return this._q;
@@ -120,7 +121,7 @@ export class Sketcher {
     if (!TOOLS.includes(name)) return;
     this._closeInput(); this._resetDraw(); this.tool = name;
     this.vp.renderer.domElement.style.cursor = name === 'select' ? 'default' : 'crosshair';
-    this.setHint(HINTS[name]);
+    this.setHint(HINT_KEY[name]);
     if (['dim', 'hdim', 'vdim'].includes(name) && this.selection.length) this._dimEval(); else if (name !== 'select' && this.selection.length && !['dim', 'hdim', 'vdim'].includes(name)) this.selection = [];
     this._renderGL(); this._renderPreview(); this.onChange();
   }
@@ -133,12 +134,23 @@ export class Sketcher {
     while (used(prefix + n) || used(prefix + n + '_b') || used(prefix + n + '_rules')) n++;
     return prefix + n;
   }
-  _status(m) { this.setStatus(m); }
+  // İpucu ve durum satırı: anahtar (ya da metin üreten işlev) saklanır; dil değişince relang() yeniden yazar.
+  setHint(k, params) {
+    this._hintSpec = k ? (typeof k === 'function' ? k : () => t(k, params)) : null;
+    this._setHint(this._hintSpec ? this._hintSpec() : '');
+  }
+  _status(k, params) {
+    this._statusSpec = k ? (typeof k === 'function' ? k : () => t(k, params)) : null;
+    this._setStatus(this._statusSpec ? this._statusSpec() : '');
+  }
+  relang() {
+    this.setHint(this._hintSpec); this._status(this._statusSpec);
+    if (this.active) { this._buildOverlay(); this.onChange(); }
+  }
   _statusDof(r) {
-    if (!this.sk.ents.length) return this._status('Boş sketch: bir çizim aracı seçin.');
-    let m = r.dof === 0 ? 'Tam tanımlı' : 'Serbestlik derecesi: ' + r.dof;
-    if (r.redundant && r.redundant.length) m += ' (gereksiz kısıt var)';
-    this._status(m);
+    if (!this.sk.ents.length) return this._status('sk.empty');
+    const red = !!(r.redundant && r.redundant.length);
+    this._status(() => (r.dof === 0 ? t('sk.dof_full') : t('sk.dof', { n: r.dof })) + (red ? t('sk.redundant_suffix') : ''));
   }
   _snapStr() { return JSON.stringify({ points: this.sk.points, ents: this.sk.ents, cons: this.sk.cons }); }
   _restore(s) { this.sk = JSON.parse(s); this.selection = this.selection.filter((x) => this._exists(x)); this.hover = null; }
@@ -146,29 +158,30 @@ export class Sketcher {
   _badSet() { const r = this.lastSolve; return new Set([...((r && r.conflicting) || []), ...((r && r.redundant) || [])].map(normId)); }
 
   // Değişikliği hemen uygular, arkadan çözer; olmazsa geri alır. Sonuç: Promise<{ok,msg}>
-  _apply(mutate, { strict = false, kind = 'işlem' } = {}) {
-    if (!this.active) return Promise.resolve({ ok: false, msg: 'Sketch etkin değil.' });
+  _apply(mutate, { strict = false, kind = tk('sk.kind.op') } = {}) {
+    if (!this.active) return Promise.resolve({ ok: false, msg: t('sk.inactive') });
     const before = this._snapStr();
     const abort = mutate(this.sk);
-    if (typeof abort === 'string') { this._restore(before); this._status(abort); this._refresh(); return Promise.resolve({ ok: false, msg: abort }); }
+    if (typeof abort === 'function') { this._restore(before); this._status(abort); this._refresh(); return Promise.resolve({ ok: false, msg: abort() }); }
     const entry = { s: before }; this._undo.push(entry); if (this._undo.length > 200) this._undo.shift(); this._redo = [];
     this._refresh();
     const sid = this._sid;
     const run = async () => {
       if (this._sid !== sid || !this.active) return { ok: false };
-      const prev = this._badSet(); let r, msg = null;
-      try { r = await solveSketch(this.sk, this.getVars()); } catch (e) { r = { ok: false, errors: [{ msg: e.message }] }; }
+      const prev = this._badSet(); let r, mk = null;
+      try { r = await solveSketch(this.sk, this.getVars()); } catch (e) { r = { ok: false, errors: [toErr(e)] }; }
       if (this._sid !== sid || !this.active) return { ok: false };
       const newBad = [...(r.conflicting || []), ...(r.redundant || [])].map(normId).filter((id) => !prev.has(id));
-      if (r.errors && r.errors.length) msg = r.errors[0].msg;
-      else if (!r.ok) msg = r.conflicting && r.conflicting.length ? (strict ? `Bu ${kind} mevcut kısıtlarla çelişiyor; eklenmedi. Çelişen kısıtı silin ya da farklı bir değer girin.` : `Bu ${kind} mevcut kısıtlarla çelişiyor; geri alındı.`) : `Bu ${kind} için çözüm bulunamadı; geri alındı. Farklı bir değer deneyin.`;
+      const K = () => ({ kind: t(kind) });
+      if (r.errors && r.errors.length) { const er = r.errors[0]; mk = () => errText(er); }
+      else if (!r.ok) mk = r.conflicting && r.conflicting.length ? (strict ? () => t('sk.conflict_strict', K()) : () => t('sk.conflict_undone', K())) : () => t('sk.no_solution', K());
       else if (strict && newBad.length) {
         const conflict = (r.conflicting || []).map(normId).some((id) => !prev.has(id));
-        msg = conflict ? `Bu ${kind} mevcut kısıtlarla çelişiyor; eklenmedi. Çelişen kısıtı silin ya da farklı bir değer girin.` : `Bu ${kind} zaten başka kısıtlarla belirlenmiş (gereksiz); eklenmedi.`;
+        mk = conflict ? () => t('sk.conflict_strict', K()) : () => t('sk.redundant_con', K());
       }
-      if (msg) {
+      if (mk) {
         this._restore(before); const i = this._undo.indexOf(entry); if (i >= 0) this._undo.splice(i, 1);
-        this._resetDraw(); this._status(msg); this._refresh(); return { ok: false, msg };
+        this._resetDraw(); this._status(mk); this._refresh(); return { ok: false, msg: mk() };
       }
       this.lastSolve = r; this._statusDof(r); this._refresh(); return { ok: true };
     };
@@ -183,11 +196,11 @@ export class Sketcher {
     });
   }
   undo() {
-    if (!this.active) return; if (!this._undo.length) return this._status('Geri alınacak işlem yok.');
+    if (!this.active) return; if (!this._undo.length) return this._status('msg.nothing_undo');
     this._redo.push({ s: this._snapStr() }); this._restore(this._undo.pop().s); this._resetDraw(); this._refresh(); this._resolveOnly();
   }
   redo() {
-    if (!this.active) return; if (!this._redo.length) return this._status('Yinelenecek işlem yok.');
+    if (!this.active) return; if (!this._redo.length) return this._status('msg.nothing_redo');
     this._undo.push({ s: this._snapStr() }); this._restore(this._redo.pop().s); this._resetDraw(); this._refresh(); this._resolveOnly();
   }
 
@@ -247,7 +260,7 @@ export class Sketcher {
     return true;
   }
   _rightClick() { if (this.tool === 'line' && this._ln) this._endChain(); else if (this.tool !== 'select') this._cancelStage(); }
-  _cancelStage() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this.setHint(HINTS[this.tool]); this._renderPreview(); }
+  _cancelStage() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this.setHint(HINT_KEY[this.tool]); this._renderPreview(); }
 
   _down(loc, ev) {
     const t = this.tool;
@@ -326,7 +339,7 @@ export class Sketcher {
       if (this._sid !== sid || !this.active) return;
       if (!d.moved) return;
       const r = await solveSketch(this.sk, this.getVars());
-      if (!r.ok) { this._restore(d.before); this._status('Taşıma çözülemedi; geri alındı.'); }
+      if (!r.ok) { this._restore(d.before); this._status('sk.drag_failed'); }
       else { this._undo.push({ s: d.before }); this._redo = []; this.lastSolve = r; this._statusDof(r); }
       this._refresh();
     });
@@ -335,7 +348,7 @@ export class Sketcher {
   // ---- çizgi
   _lineClick(s) {
     const st = this._ln;
-    if (!st) { this._ln = { start: s, firstPid: s.pid || null, n: 0 }; this.setHint('Çizgi: sonraki noktayı tıklayın. Bitirmek için Esc, çift tık ya da sağ tık.'); return; }
+    if (!st) { this._ln = { start: s, firstPid: s.pid || null, n: 0 }; this.setHint('hint.line_next'); return; }
     s = this._alignEnd(st.start, s);
     if (Math.hypot(s.x - st.start.x, s.y - st.start.y) < 1e-6 || (s.pid && s.pid === st.start.pid)) return; // sıfır uzunluk
     const closing = !!(s.pid && s.pid === st.firstPid);
@@ -346,75 +359,75 @@ export class Sketcher {
       bId = this._ptFor(s);
       const l = this._addEnt({ type: 'line', a: aId, b: bId });
       if (s.align === 'h') this._addCon('horizontal', l); else if (s.align === 'v') this._addCon('vertical', l);
-    }, { kind: 'çizgi' });
+    }, { kind: tk('sk.kind.line') });
     st.n++;
-    if (closing) { this._ln = null; this.setHint('Profil kapandı. ' + HINTS.line); } else st.start = { x: s.x, y: s.y, pid: bId };
+    if (closing) { this._ln = null; this.setHint(() => t('hint.closed') + ' ' + t(HINT_KEY.line)); } else st.start = { x: s.x, y: s.y, pid: bId };
     return res;
   }
-  _endChain() { if (this._ln) { this._ln = null; this.setHint(HINTS.line); this._renderPreview(); } }
+  _endChain() { if (this._ln) { this._ln = null; this.setHint(HINT_KEY.line); this._renderPreview(); } }
 
   // ---- dikdörtgen
   _rectClick(s) {
-    if (!this._rc) { this._rc = { c1: s }; this.setHint('Dikdörtgen: karşı köşeyi tıklayın.'); return; }
+    if (!this._rc) { this._rc = { c1: s }; this.setHint('hint.rect_next'); return; }
     const c1 = this._rc.c1, w = Math.abs(s.x - c1.x), h = Math.abs(s.y - c1.y);
-    if (w < 1e-6 || h < 1e-6) { this._status('Dikdörtgenin eni ve boyu sıfırdan büyük olmalı; karşı köşeyi farklı bir yere tıklayın.'); return; }
-    this._rc = null; this.setHint(HINTS.rect);
+    if (w < 1e-6 || h < 1e-6) { this._status('sk.rect_zero'); return; }
+    this._rc = null; this.setHint(HINT_KEY.rect);
     this._apply(() => {
       const p1 = this._ptFor(c1), p3 = this._ptFor(s);
       const p2 = this._newPt(s.x, c1.y), p4 = this._newPt(c1.x, s.y);
       const l1 = this._addEnt({ type: 'line', a: p1, b: p2 }), l2 = this._addEnt({ type: 'line', a: p2, b: p3 });
       const l3 = this._addEnt({ type: 'line', a: p3, b: p4 }), l4 = this._addEnt({ type: 'line', a: p4, b: p1 });
       this._addCon('horizontal', l1); this._addCon('vertical', l2); this._addCon('horizontal', l3); this._addCon('vertical', l4);
-    }, { kind: 'dikdörtgen' });
+    }, { kind: tk('sk.kind.rect') });
   }
 
   // ---- daire
   _circleClick(s) {
-    if (!this._ci) { this._ci = { c: s }; this.setHint('Daire: yarıçapı belirleyen noktayı tıklayın.'); return; }
+    if (!this._ci) { this._ci = { c: s }; this.setHint('hint.circle_next'); return; }
     const c = this._ci.c, r = Math.hypot(s.x - c.x, s.y - c.y);
-    if (r < 1e-6) { this._status('Yarıçap sıfırdan büyük olmalı; merkezden uzakta bir nokta tıklayın.'); return; }
-    this._ci = null; this.setHint(HINTS.circle);
-    this._apply(() => { const cp = this._ptFor(c); this._addEnt({ type: 'circle', c: cp, r }); }, { kind: 'daire' });
+    if (r < 1e-6) { this._status('sk.radius_zero'); return; }
+    this._ci = null; this.setHint(HINT_KEY.circle);
+    this._apply(() => { const cp = this._ptFor(c); this._addEnt({ type: 'circle', c: cp, r }); }, { kind: tk('sk.kind.circle') });
   }
 
   // ---- yay (merkez, başlangıç, bitiş; saat yönü tersi)
   _arcClick(s) {
     const st = this._ar;
-    if (!st) { this._ar = { c: s }; this.setHint('Yay: başlangıç noktasını tıklayın (yarıçapı belirler).'); return; }
+    if (!st) { this._ar = { c: s }; this.setHint('hint.arc_start'); return; }
     if (!st.a) {
-      if (Math.hypot(s.x - st.c.x, s.y - st.c.y) < 1e-6) { this._status('Yarıçap sıfırdan büyük olmalı; merkezden uzakta bir nokta tıklayın.'); return; }
-      st.a = s; this.setHint('Yay: bitiş noktasını tıklayın (saat yönünün tersine çizilir).'); return;
+      if (Math.hypot(s.x - st.c.x, s.y - st.c.y) < 1e-6) { this._status('sk.radius_zero'); return; }
+      st.a = s; this.setHint('hint.arc_end'); return;
     }
     const r = Math.hypot(st.a.x - st.c.x, st.a.y - st.c.y), a0 = Math.atan2(st.a.y - st.c.y, st.a.x - st.c.x), a1 = Math.atan2(s.y - st.c.y, s.x - st.c.x);
-    if (norm(a1 - a0) < 1e-6 || norm(a1 - a0) > TAU - 1e-6) { this._status('Bitiş noktası başlangıçtan farklı bir yönde olmalı.'); return; }
+    if (norm(a1 - a0) < 1e-6 || norm(a1 - a0) > TAU - 1e-6) { this._status('sk.arc_same_dir'); return; }
     const bx = st.c.x + r * Math.cos(a1), by = st.c.y + r * Math.sin(a1);
-    this._ar = null; this.setHint(HINTS.arc);
+    this._ar = null; this.setHint(HINT_KEY.arc);
     this._apply(() => {
       const cp = this._ptFor(st.c), ap = this._ptFor(st.a);
       let bp = s.pid && Math.abs(Math.hypot(s.x - st.c.x, s.y - st.c.y) - r) < 1e-6 ? s.pid : this._newPt(bx, by);
       this._addEnt({ type: 'arc', c: cp, a: ap, b: bp });
-    }, { kind: 'yay' });
+    }, { kind: tk('sk.kind.arc') });
   }
 
   // ---- nokta
   _pointClick(s) {
     this._apply((sk) => {
       const pid = this._ptFor(s);
-      if (sk.ents.some((e) => e.type === 'point' && e.p === pid)) return 'Bu noktada zaten bir nokta var.';
+      if (sk.ents.some((e) => e.type === 'point' && e.p === pid)) return () => t('sk.point_exists');
       this._addEnt({ type: 'point', p: pid });
-    }, { kind: 'nokta' });
+    }, { kind: tk('sk.kind.point') });
   }
 
   // ---------- silme / yapı ----------
   deleteSelection() {
     if (!this.active) return;
-    if (!this.selection.length) return this._status('Silmek için önce bir nesne seçin.');
+    if (!this.selection.length) return this._status('sk.pick_first');
     const items = this.selection.slice(); let hadO = false;
-    if (items.every((i) => i.kind === 'point' && i.id === 'O')) return this._status('Orijin noktası silinemez.');
+    if (items.every((i) => i.kind === 'point' && i.id === 'O')) return this._status('sk.origin_nodelete');
     for (const i of items) if (i.kind === 'point' && i.id === 'O') hadO = true;
     this.selection = []; this.hover = null;
-    const res = this._apply((sk) => this._deleteItems(sk, items), { kind: 'silme' });
-    if (hadO) this._status('Orijin noktası silinemez; diğer nesneler silindi.');
+    const res = this._apply((sk) => this._deleteItems(sk, items), { kind: tk('sk.kind.delete') });
+    if (hadO) this._status('sk.origin_partial');
     this.onChange(); return res;
   }
   _deleteItems(sk, items) {
@@ -434,9 +447,9 @@ export class Sketcher {
     const ents = this.selection.filter((s) => s.kind === 'ent');
     if (!ents.length) {
       this.consMode = !this.consMode;
-      return this._status(this.consMode ? 'Yapı kipi açık: bundan sonra çizilenler yapı geometrisi olur. Mevcut nesneyi değiştirmek için önce seçin.' : 'Yapı kipi kapalı: bundan sonra çizilenler normal geometri olur.');
+      return this._status(this.consMode ? 'sk.cons_on' : 'sk.cons_off');
     }
-    this._apply((sk) => { for (const it of ents) { const e = sk.ents.find((x) => x.id === it.id); if (e) { if (e.cons) delete e.cons; else e.cons = true; } } }, { kind: 'değişiklik' });
+    this._apply((sk) => { for (const it of ents) { const e = sk.ents.find((x) => x.id === it.id); if (e) { if (e.cons) delete e.cons; else e.cons = true; } } }, { kind: tk('sk.kind.change') });
   }
 
   // ---------- kısıtlar ----------
@@ -446,82 +459,82 @@ export class Sketcher {
     const pts = sel.filter((s) => s.kind === 'point').map((s) => s.id);
     const ents = sel.filter((s) => s.kind === 'ent').map((s) => sk.ents.find((e) => e.id === s.id)).filter(Boolean);
     const lines = ents.filter((e) => e.type === 'line'), round = ents.filter((e) => e.type === 'circle' || e.type === 'arc');
-    const fail = (m) => { this._status(m); return Promise.resolve({ ok: false, msg: m }); };
+    const fail = (k, p) => { this._status(k, p); return Promise.resolve({ ok: false, msg: t(k, p) }); };
     let list = []; // eklenecek kısıtlar: [tip, a, b, extra]
     switch (type) {
       case 'horizontal': case 'vertical':
         if (lines.length && !pts.length && ents.length === lines.length) list = lines.map((l) => [type, l.id]);
         else if (pts.length === 2 && !ents.length) list = [[type + '_pp', pts[0], pts[1]]];
-        else return fail(`${type === 'horizontal' ? 'Yatay' : 'Dikey'} kısıt için bir ya da daha fazla çizgi veya iki nokta seçin.`);
+        else return fail(type === 'horizontal' ? 'sk.c_horizontal' : 'sk.c_vertical');
         break;
       case 'parallel': case 'perpendicular':
         if (lines.length === 2 && ents.length === 2 && !pts.length) list = [[type, lines[0].id, lines[1].id]];
-        else return fail(`${type === 'parallel' ? 'Paralel' : 'Dik'} kısıt için iki çizgi seçin.`);
+        else return fail(type === 'parallel' ? 'sk.c_parallel' : 'sk.c_perpendicular');
         break;
       case 'equal':
         if (!pts.length && ents.length >= 2 && (lines.length === ents.length || round.length === ents.length)) list = ents.slice(1).map((e) => ['equal', ents[0].id, e.id]);
-        else return fail('Eşit kısıt için aynı türden iki ya da daha fazla nesne seçin (çizgi-çizgi ya da daire/yay-daire/yay).');
+        else return fail('sk.c_equal');
         break;
       case 'tangent':
         if (!pts.length && ents.length === 2 && ((lines.length === 1 && round.length === 1) || round.length === 2)) list = [['tangent', ents[0].id, ents[1].id]];
-        else return fail('Teğet kısıt için bir çizgi ile bir daire/yay, ya da iki daire/yay seçin.');
+        else return fail('sk.c_tangent');
         break;
       case 'coincident':
-        if (pts.length === 2 && !ents.length) list = [['coincident', pts[0], pts[1]]]; else return fail('Çakışık kısıt için iki nokta seçin.');
+        if (pts.length === 2 && !ents.length) list = [['coincident', pts[0], pts[1]]]; else return fail('sk.c_coincident');
         break;
       case 'midpoint':
-        if (pts.length === 1 && lines.length === 1 && ents.length === 1) list = [['midpoint', pts[0], lines[0].id]]; else return fail('Orta nokta kısıtı için bir nokta ve bir çizgi seçin.');
+        if (pts.length === 1 && lines.length === 1 && ents.length === 1) list = [['midpoint', pts[0], lines[0].id]]; else return fail('sk.c_midpoint');
         break;
       case 'concentric':
         if (!pts.length && round.length === 2 && ents.length === 2) {
-          if (round[0].c === round[1].c) return fail('Bu iki nesne zaten aynı merkezi paylaşıyor.');
+          if (round[0].c === round[1].c) return fail('sk.c_concentric_same');
           list = [['coincident', round[0].c, round[1].c]];
-        } else return fail('Eş merkez kısıtı için iki daire/yay seçin.');
+        } else return fail('sk.c_concentric');
         break;
       case 'symmetric':
         if (pts.length === 2 && lines.length === 1 && ents.length === 1) list = [['symmetric', pts[0], pts[1], { c: lines[0].id }]];
-        else return fail('Simetri kısıtı için iki nokta ve simetri ekseni olacak bir çizgi seçin.');
+        else return fail('sk.c_symmetric');
         break;
       case 'pointOn':
-        if (pts.length === 1 && ents.length === 1 && (lines.length === 1 || round.length === 1)) list = [['pointOn', pts[0], ents[0].id]]; else return fail('Nokta üstünde kısıtı için bir nokta ve bir çizgi, daire ya da yay seçin.');
+        if (pts.length === 1 && ents.length === 1 && (lines.length === 1 || round.length === 1)) list = [['pointOn', pts[0], ents[0].id]]; else return fail('sk.c_pointOn');
         break;
       case 'fix': {
         const ids = new Set(pts); for (const e of ents) entPts(e).forEach((p) => ids.add(p)); ids.delete('O');
-        if (!ids.size) return fail('Sabitlemek için en az bir nokta (ya da çizgi, daire, yay) seçin.');
+        if (!ids.size) return fail('sk.c_fix');
         this.selection = []; this.onChange();
-        return this._apply((s) => { const all = [...ids].every((i) => s.points[i].fixed); for (const i of ids) { if (all) delete s.points[i].fixed; else s.points[i].fixed = true; } }, { kind: 'sabitleme', strict: true });
+        return this._apply((s) => { const all = [...ids].every((i) => s.points[i].fixed); for (const i of ids) { if (all) delete s.points[i].fixed; else s.points[i].fixed = true; } }, { kind: tk('sk.kind.fix'), strict: true });
       }
-      default: return fail('Bilinmeyen kısıt: ' + type);
+      default: return fail('sk.c_unknown', { type });
     }
     // aynısı varsa ekleme
     const sameCon = (c, t) => c.type === t[0] && ((c.a === t[1] && c.b === t[2]) || (['parallel', 'perpendicular', 'equal', 'tangent', 'coincident'].includes(c.type) && c.a === t[2] && c.b === t[1]));
     list = list.filter((t) => !sk.cons.some((c) => sameCon(c, t)));
-    if (!list.length) return fail('Bu kısıt zaten var.');
+    if (!list.length) return fail('sk.c_exists');
     this.selection = []; this.onChange();
-    return this._apply((s) => { for (const [t, a, b, ex] of list) this._addCon(t, a, b, ex || {}); }, { strict: true, kind: 'kısıt' });
+    return this._apply((s) => { for (const [t, a, b, ex] of list) this._addCon(t, a, b, ex || {}); }, { strict: true, kind: tk('sk.kind.constraint') });
   }
   constraintsList() {
     if (!this.sk) return [];
     const out = this.sk.cons.map((c) => ({ id: c.id, label: this._conLabel(c) }));
-    for (const [id, p] of Object.entries(this.sk.points)) if (p.fixed && id !== 'O') out.push({ id: 'fix:' + id, label: 'Sabit nokta: ' + id });
+    for (const [id, p] of Object.entries(this.sk.points)) if (p.fixed && id !== 'O') out.push({ id: 'fix:' + id, label: t('sk.fixed_pt', { id }) });
     return out;
   }
   _conLabel(c) {
-    let s = NAMES[c.type] || c.type;
+    let s = nameOf(c.type);
     if (DIM_TYPES.has(c.type)) s += ': ' + this._dimText(c).text;
     return s + ' (' + conRefs(c).join(', ') + ')';
   }
   removeConstraint(id) {
     if (!this.active) return;
-    if (String(id).startsWith('fix:')) { const pid = id.slice(4); if (!this.sk.points[pid]) return; return this._apply((s) => { delete s.points[pid].fixed; }, { kind: 'değişiklik' }); }
+    if (String(id).startsWith('fix:')) { const pid = id.slice(4); if (!this.sk.points[pid]) return; return this._apply((s) => { delete s.points[pid].fixed; }, { kind: tk('sk.kind.change') }); }
     if (!this.sk.cons.some((c) => c.id === id)) return;
-    return this._apply((s) => { s.cons = s.cons.filter((c) => c.id !== id); }, { kind: 'değişiklik' });
+    return this._apply((s) => { s.cons = s.cons.filter((c) => c.id !== id); }, { kind: tk('sk.kind.change') });
   }
 
   // ---------- ölçü aracı ----------
   _dimDown(loc) {
     const hit = this._hit(loc);
-    if (!hit) { this._setSel([]); this._status(''); this.setHint(HINTS[this.tool]); return; }
+    if (!hit) { this._setSel([]); this._status(''); this.setHint(HINT_KEY[this.tool]); return; }
     const it = { kind: hit.kind, id: hit.id };
     if (this._isSel(it)) return;
     this.selection = [...this.selection, it]; this._dimPending = true; // giriş kutusu fare bırakılınca açılır (odak kaybı olmasın)
@@ -539,7 +552,7 @@ export class Sketcher {
       if (items.length === 1 && ents.length === 1 && ents[0].type === 'line') { a = ents[0].a; b = ents[0].b; }
       else if (items.length === 1 && pts.length === 1) return null;
       else if (items.length === 2 && pts.length === 2) { a = pts[0].pt; b = pts[1].pt; }
-      else return { error: 'Yatay/dikey ölçü için iki nokta ya da bir çizgi seçin.' };
+      else return { error: tk('sk.dim_hv') };
       if (P(b)[k] - P(a)[k] < 0) [a, b] = [b, a];
       return { type: hv, a, b, value: P(b)[k] - P(a)[k], anchor: mid(a, b) };
     }
@@ -548,13 +561,13 @@ export class Sketcher {
       if (e.type === 'line') return { type: 'dist', a: e.a, b: e.b, value: lineLen(e), anchor: mid(e.a, e.b) };
       if (e.type === 'circle') return { type: 'diameter', a: e.id, value: 2 * e.r, anchor: entMid(sk, e) };
       if (e.type === 'arc') return { type: 'radius', a: e.id, value: arcGeom(sk, e).r, anchor: entMid(sk, e) };
-      return { error: 'Bu nesne için ölçü verilemez.' };
+      return { error: tk('sk.dim_none') };
     }
     if (items.length === 2) {
       if (pts.length === 2) return { type: 'dist', a: pts[0].pt, b: pts[1].pt, value: Math.hypot(P(pts[0].pt).x - P(pts[1].pt).x, P(pts[0].pt).y - P(pts[1].pt).y), anchor: mid(pts[0].pt, pts[1].pt) };
       if (pts.length === 1 && ents.length === 1 && ents[0].type === 'line') {
         const l = ents[0], p = P(pts[0].pt);
-        if (l.a === pts[0].pt || l.b === pts[0].pt) return { error: 'Çizginin kendi ucu ile çizgi arasında ölçü verilemez.' };
+        if (l.a === pts[0].pt || l.b === pts[0].pt) return { error: tk('sk.dim_own_end') };
         const pr = segProj([p.x, p.y], P(l.a), P(l.b)); const dx = P(l.b).x - P(l.a).x, dy = P(l.b).y - P(l.a).y;
         const dist = Math.abs(((p.x - P(l.a).x) * dy - (p.y - P(l.a).y) * dx) / (Math.hypot(dx, dy) || 1));
         return { type: 'pldist', a: pts[0].pt, b: l.id, value: dist, anchor: [(p.x + pr.x) / 2, (p.y + pr.y) / 2] };
@@ -568,7 +581,7 @@ export class Sketcher {
         return { type: 'angle', a: a.id, b: b.id, value: v, anchor: [(m1[0] + m2[0]) / 2, (m1[1] + m2[1]) / 2] };
       }
     }
-    return { error: 'Bu nesneler arasında ölçü verilemez.' };
+    return { error: tk('sk.dim_between') };
   }
   _dimEval() {
     const spec = this._dimSpec(this.tool, this.selection);
@@ -576,34 +589,34 @@ export class Sketcher {
     if (spec.error) { this._status(spec.error); return 'bad'; }
     // aynı ölçü varsa onu düzenle
     const ex = this.sk.cons.find((c) => c.type === spec.type && ((c.a === spec.a && c.b === spec.b) || (spec.b && c.a === spec.b && c.b === spec.a && spec.type !== 'angle')));
-    if (ex) { this._status('Bu nesne zaten ölçülü; değeri düzenleyebilirsiniz.'); this._editDim(ex.id); return 'ok'; }
+    if (ex) { this._status('sk.dim_exists'); this._editDim(ex.id); return 'ok'; }
     this._openInput({
-      anchor: spec.anchor, text: fmt(spec.value), label: NAMES[spec.type],
+      anchor: spec.anchor, text: fmt(spec.value), label: nameOf(spec.type),
       submit: (txt) => this._dimSubmit(spec, txt),
     });
-    this._status(NAMES[spec.type] + ': değeri ya da bir ifade (ör. L/2) yazıp Enter\'a basın.');
+    this._status('sk.dim_prompt', { name: nameOf(spec.type) });
     return 'ok';
   }
   _evalDim(type, txt) {
-    let v; try { v = evalExpr(txt, this.getVars()); } catch (e) { return { err: 'Geçersiz ifade: ' + e.message + '. Sayı ya da parametre adı yazın (ör. 40 ya da L/2).' }; }
-    if (['dist', 'pldist', 'radius', 'diameter'].includes(type) && !(v > 0)) return { err: 'Ölçü sıfırdan büyük olmalı.' };
-    if (type === 'angle' && (v === 0 || Math.abs(v) >= 360)) return { err: 'Açı 0 ile 360 derece arasında olmalı.' };
+    let v; try { v = evalExpr(txt, this.getVars()); } catch (e) { return { err: t('sk.bad_expr', { msg: errText(e) }) }; }
+    if (['dist', 'pldist', 'radius', 'diameter'].includes(type) && !(v > 0)) return { err: t('sk.dim_pos') };
+    if (type === 'angle' && (v === 0 || Math.abs(v) >= 360)) return { err: t('sk.angle_range') };
     return { v };
   }
   async _dimSubmit(spec, txt) {
-    const e = this._evalDim(spec.type, txt); if (e.err) { this._status(e.err); return e.err; }
+    const e = this._evalDim(spec.type, txt); if (e.err) { this._status(() => e.err); return e.err; }
     this.selection = []; this.onChange();
-    const r = await this._apply((sk) => { this._addCon(spec.type, spec.a, spec.b, { expr: String(txt).trim() }); }, { strict: true, kind: 'ölçü' });
+    const r = await this._apply((sk) => { this._addCon(spec.type, spec.a, spec.b, { expr: String(txt).trim() }); }, { strict: true, kind: tk('sk.kind.dim') });
     return r.ok ? null : r.msg;
   }
   _editDim(id) {
     const c = this.sk.cons.find((x) => x.id === id); if (!c) return;
     const m = this._dimAnchor(c);
     this._openInput({
-      anchor: m, text: String(c.expr), label: NAMES[c.type],
+      anchor: m, text: String(c.expr), label: nameOf(c.type),
       submit: async (txt) => {
-        const e = this._evalDim(c.type, txt); if (e.err) { this._status(e.err); return e.err; }
-        const r = await this._apply((sk) => { const k = sk.cons.find((x) => x.id === id); k.expr = String(txt).trim(); }, { strict: true, kind: 'ölçü' });
+        const e = this._evalDim(c.type, txt); if (e.err) { this._status(() => e.err); return e.err; }
+        const r = await this._apply((sk) => { const k = sk.cons.find((x) => x.id === id); k.expr = String(txt).trim(); }, { strict: true, kind: tk('sk.kind.dim') });
         return r.ok ? null : r.msg;
       },
     });
@@ -708,20 +721,20 @@ export class Sketcher {
   }
   _renderPreview() {
     if (!this.active) return; this._clearGroup(this.gPrev);
-    const cur = this.cursor, t = this.tool; let tip = '';
-    if (!cur || t === 'select' || t === 'dim' || t === 'hdim' || t === 'vdim') { this._hideTip(); this.vp.dirty = true; return; }
+    const cur = this.cursor, tool = this.tool; let tip = '';
+    if (!cur || tool === 'select' || tool === 'dim' || tool === 'hdim' || tool === 'vdim') { this._hideTip(); this.vp.dirty = true; return; }
     let s = cur; const B = 0x0b62d6;
-    if (t === 'line' && this._ln) {
+    if (tool === 'line' && this._ln) {
       s = this._alignEnd(this._ln.start, cur); const a = this._ln.start;
       this._line([[a.x, a.y], [s.x, s.y]], B);
       const len = Math.hypot(s.x - a.x, s.y - a.y); tip = fmt(len) + ' mm  ' + fmt(Math.atan2(s.y - a.y, s.x - a.x) / DEG) + '°';
-      if (s.align) tip += s.align === 'h' ? '  (yatay)' : '  (dikey)';
-    } else if (t === 'rect' && this._rc) {
+      if (s.align) tip += s.align === 'h' ? t('sk.tip_h') : t('sk.tip_v');
+    } else if (tool === 'rect' && this._rc) {
       const a = this._rc.c1; this._line([[a.x, a.y], [s.x, a.y], [s.x, s.y], [a.x, s.y], [a.x, a.y]], B);
       tip = fmt(Math.abs(s.x - a.x)) + ' × ' + fmt(Math.abs(s.y - a.y)) + ' mm';
-    } else if (t === 'circle' && this._ci) {
+    } else if (tool === 'circle' && this._ci) {
       const c = this._ci.c, r = Math.hypot(s.x - c.x, s.y - c.y); this._line(arcPts([c.x, c.y], r, 0, TAU), B); this._line([[c.x, c.y], [s.x, s.y]], B, true); tip = 'R ' + fmt(r) + '  Ø ' + fmt(2 * r) + ' mm';
-    } else if (t === 'arc' && this._ar) {
+    } else if (tool === 'arc' && this._ar) {
       const st = this._ar, c = st.c;
       if (!st.a) { const r = Math.hypot(s.x - c.x, s.y - c.y); this._line([[c.x, c.y], [s.x, s.y]], B, true); tip = 'R ' + fmt(r) + ' mm'; }
       else {
@@ -781,11 +794,11 @@ export class Sketcher {
       if (!conRefs(c).every((r) => r in this.sk.points || this.sk.ents.some((e) => e.id === r))) continue;
       const el = document.createElement('div');
       if (DIM_TYPES.has(c.type)) {
-        const d = this._dimText(c); el.className = 'dim' + (d.bad ? ' bad' : ''); el.textContent = d.text; el.title = NAMES[c.type] + ' - değiştirmek için çift tıklayın';
+        const d = this._dimText(c); el.className = 'dim' + (d.bad ? ' bad' : ''); el.textContent = d.text; el.title = t('sk.dim_tip', { name: nameOf(c.type) });
         el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); this._editDim(c.id); });
         el._loc = this._dimAnchor(c); el._off = this._dimOffset(c);
       } else {
-        el.className = 'cbadge'; el.textContent = GLYPH[c.type] || '?'; el.title = (NAMES[c.type] || c.type) + ' - silmek için tıklayın';
+        el.className = 'cbadge'; el.textContent = GLYPH[c.type] || '?'; el.title = t('sk.con_tip', { name: nameOf(c.type) });
         el.addEventListener('click', (ev) => { ev.stopPropagation(); this.removeConstraint(c.id); });
         el._loc = this._conAnchor(c); el._off = [0, -13];
       }

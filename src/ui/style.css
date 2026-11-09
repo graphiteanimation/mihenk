@@ -108,3 +108,8 @@ input, select { font:inherit; color:inherit; }
 .fld .selbox .cnt { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #toolbar.sk .tb { min-width:44px; padding:3px 2px; font-size:11px; }
 #toolbar.sk .group { padding:0 3px; }
+
+/* Alt menü (Görünüm → Dil) */
+.drop .has-sub { position:relative; }
+.drop .subdrop { position:absolute; left:100%; top:-5px; min-width:150px; background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:4px; z-index:51; display:none; }
+.drop .has-sub:hover > .subdrop, .drop .has-sub.open > .subdrop { display:block; }

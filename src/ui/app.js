@@ -7,6 +7,8 @@ import { initSolver, solveSketch } from './solver.js';
 import { evalExpr, resolveParams } from '../shared/expr.js';
 import { basePlane } from '../shared/vec.js';
 import { h, $, toast, modal, modalOpen, promptText, confirmBox, esc, fmt } from './dom.js';
+import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared/i18n.js';
+import { KErr, toErr } from '../shared/errors.js';
 import { defaults, newId, autoName, featLabel, dependents } from './features.js';
 import { initChrome } from './chrome.js';
 import { FeaturePanel, SketchPanel, SectionPanel, paramsModal, showBox, hideBox, measureRows, showProps } from './panels.js';
@@ -17,7 +19,7 @@ const SKETCHER = import.meta.glob('./sketcher.js');
 const clone = (v) => (Array.isArray(v) ? v.map(clone) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clone(x)])) : v);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const b64 = (bytes) => { let s = ''; const C = 0x8000; for (let i = 0; i < bytes.length; i += C) s += String.fromCharCode.apply(null, bytes.subarray(i, i + C)); return btoa(s); };
-const ACAD_FILTER = [{ name: 'AtolyeCAD belgesi', extensions: ['acad'] }];
+const acadFilter = () => [{ name: t('file.filter_acad'), extensions: ['acad'] }];
 const emptyDoc = () => ({ params: [], features: [], rollback: null });
 
 class App {
@@ -34,9 +36,12 @@ class App {
 
   // ------------------------------------------------------------ başlatma
   async init() {
+    document.documentElement.lang = getLang(); applyI18n();
     this.C = initChrome(this);
+    onLangChange(() => this.relang());
+    this.pushNativeStrings();
     try { this.viewport = new Viewport($('#viewport')); }
-    catch (e) { $('#loading').innerHTML = '<span style="color:#c62828;max-width:420px;text-align:center">3B görünüm başlatılamadı (WebGL yok ya da kapalı). Ekran kartı sürücüsünü güncelleyin. Ayrıntı: ' + esc(e.message) + '</span>'; this._readyRej(e); return; }
+    catch (e) { this.loadFail(t('ld.webgl', { detail: e.message }), 420); this._readyRej(e); return; }
     this.viewport.onPick = (hit, ev) => this.onPick(hit, ev);
     this.viewport.onCamera = () => {};
     this.C.renderViewBtns(); this.C.renderAll();
@@ -46,14 +51,38 @@ class App {
       this.startWorker();
       await Promise.all([this.call('ping'), initSolver(() => planegcsWasm)]);
       $('#loading').classList.add('hidden');
-      this.setLeft('Hazır');
+      this.setLeft(() => t('st.ready'));
       this._readyRes(true);
     } catch (e) {
-      $('#loading').innerHTML = '<span style="color:#c62828;max-width:460px;text-align:center">Geometri çekirdeği yüklenemedi: ' + esc(e.message || String(e)) + '<br>Uygulamayı kapatıp yeniden açın.</span>';
+      this.loadFail(t('ld.kernel_fail', { detail: errText(e) }), 460, t('ld.restart'));
       this._readyRej(e); return;
     }
-    if (window.native) { try { const f = await window.native.argvFile(); if (f) await this.openBytes(f.data, f.name, f.path); } catch (e) { toast('Dosya açılamadı: ' + e.message, true); } }
+    if (window.native) { try { const f = await window.native.argvFile(); if (f) await this.openBytes(f.data, f.name, f.path); } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); } }
     this.updateTitle();
+  }
+  // Başlangıç hatası: yükleme katmanında kırmızı metin (kullanıcı verisi textContent ile basılır).
+  loadFail(text, width, extra) {
+    const box = $('#loading'); box.replaceChildren();
+    const sp = h('span', { style: { color: '#c62828', maxWidth: width + 'px', textAlign: 'center' }, text });
+    if (extra) sp.append(h('br'), extra);
+    box.append(sp);
+  }
+
+  // ------------------------------------------------------------ dil
+  setLanguage(l) { setLang(l); }
+  // Electron ana süreci kapatma onayı gibi diyalog metinlerini buradan alır (tek sözlük).
+  pushNativeStrings() {
+    window.native?.setStrings?.({ closeMsg: t('native.close_msg'), closeDetail: t('native.close_detail'), closeCancel: t('native.close_cancel'), closeDiscard: t('native.close_discard') });
+  }
+  // Dil değişince her yer yeniden çizilir; açık panel, sketch, kesit, ölçü kutusu ve durum satırı dahil.
+  relang() {
+    this.pushNativeStrings();
+    this.C.relang(); this.updateTitle();
+    if (this.edit && !this.edit.closed) { this.edit.relang(); }
+    if (this.sketchSession) { this.sketchPanel?.render(); this.sketcher?.relang(); }
+    if (this.sectionPanel) this.sectionPanel.relang();
+    if (this.tool === 'measure') this.showMeasure(); else if (this.tool === 'props') { const id = this.selection.find((s) => s.kind === 'body')?.body; if (id) showProps(this, id); }
+    this.refreshHint(); this.refreshLeft();
   }
 
   // ------------------------------------------------------------ çekirdek köprüsü
@@ -61,14 +90,14 @@ class App {
     this.worker = new Worker(new URL('../kernel/worker.js', import.meta.url), { type: 'module' });
     this.worker.onmessage = (ev) => {
       const { id, result, error } = ev.data; const p = this._pending.get(id); if (!p) return;
-      this._pending.delete(id); error ? p.reject(new Error(error)) : p.resolve(result);
+      this._pending.delete(id); error ? p.reject(new KErr(error.code, error.params)) : p.resolve(result);
     };
-    const die = (msg) => {
-      for (const p of this._pending.values()) p.reject(new Error(msg)); this._pending.clear();
+    const die = (err) => {
+      for (const p of this._pending.values()) p.reject(err); this._pending.clear();
       try { this.worker.terminate(); } catch (e) { /* zaten kapalı */ }
       this.startWorker();
     };
-    this.worker.onerror = (e) => { console.error('worker hatası', e); die('Geometri çekirdeği beklenmedik şekilde durdu; yeniden başlatıldı. İşlemi tekrar deneyin.'); };
+    this.worker.onerror = (e) => { console.error('worker hatası', e); die(new KErr('worker.crashed')); };
   }
   call(cmd, args = {}) {
     return new Promise((resolve, reject) => { const id = ++this._wid; this._pending.set(id, { resolve, reject }); this.worker.postMessage({ id, cmd, args }); });
@@ -89,10 +118,10 @@ class App {
   pushUndo() { this.undoStack.push(clone(this.doc)); if (this.undoStack.length > 50) this.undoStack.shift(); this.redoStack.length = 0; }
   markDirty(v = true) { this.dirty = v; this.updateTitle(); }
   updateTitle() {
-    const t = (this.dirty ? '• ' : '') + (this.fileName || 'Başlıksız') + ' — AtolyeCAD';
-    document.title = t; this.C?.renderTitle(); if (window.native) { window.native.setTitle(t); window.native.setDirty?.(this.dirty); }
+    const title = this.docTitle() + ' — AtolyeCAD';
+    document.title = title; this.C?.renderTitle(); if (window.native) { window.native.setTitle(title); window.native.setDirty?.(this.dirty); }
   }
-  docTitle() { return (this.dirty ? '• ' : '') + (this.fileName || 'Başlıksız'); }
+  docTitle() { return (this.dirty ? '• ' : '') + (this.fileName || t('doc.untitled')); }
 
   // Belgeyi değiştir (geri alınabilir) ve yeniden hesapla.
   async commit(fn) {
@@ -103,17 +132,17 @@ class App {
     return this.requestRebuild();
   }
   guard() {
-    if (this.edit || this.sketchSession) { toast('Önce açık işlemi Tamam ya da İptal ile bitirin.'); return true; }
+    if (this.edit || this.sketchSession) { toast(t('msg.finish_first')); return true; }
     return false;
   }
   async undo() {
     if (this.sketchSession) { this.sketcher?.undo(); return; }
-    if (this.guard()) return; if (!this.undoStack.length) { toast('Geri alınacak işlem yok.'); return; }
+    if (this.guard()) return; if (!this.undoStack.length) { toast(t('msg.nothing_undo')); return; }
     this.endTool(true); this.redoStack.push(clone(this.doc)); this.doc = this.undoStack.pop(); this.markDirty(); this.C.renderAll(); return this.requestRebuild();
   }
   async redo() {
     if (this.sketchSession) { this.sketcher?.redo(); return; }
-    if (this.guard()) return; if (!this.redoStack.length) { toast('Yinelenecek işlem yok.'); return; }
+    if (this.guard()) return; if (!this.redoStack.length) { toast(t('msg.nothing_redo')); return; }
     this.endTool(true); this.undoStack.push(clone(this.doc)); this.doc = this.redoStack.pop(); this.markDirty(); this.C.renderAll(); return this.requestRebuild();
   }
   // Test ve dosya açma için: belgeyi tümden yükle
@@ -135,9 +164,9 @@ class App {
     for (const f of doc.features) {
       if (f.type !== 'sketch' || f.suppressed) continue;
       if (!(f.cons || []).some((c) => c.expr != null && c.expr !== '')) continue;
-      let r; try { r = await solveSketch(f, vars); } catch (e) { r = { ok: false, errors: [{ msg: e.message }] }; }
-      const msg = r.ok ? '' : (r.errors?.[0]?.msg || 'kısıtlar çözülemedi');
-      if (msg && this.problems[f.id] !== msg) toast(`"${f.name || f.id}" sketch'i güncellenemedi: ${msg}. Ölçüleri kontrol edin.`, true);
+      let r; try { r = await solveSketch(f, vars); } catch (e) { r = { ok: false, errors: [toErr(e)] }; }
+      const msg = r.ok ? '' : (r.errors?.[0] ? errText(r.errors[0]) : t('err.solver.unsolved'));
+      if (msg && this.problems[f.id] !== msg) toast(t('msg.sketch_update_failed', { name: f.name || f.id, msg }), true);
       this.problems[f.id] = msg;
     }
   }
@@ -160,7 +189,7 @@ class App {
       this.lastMs = performance.now() - t0;
       this.applyResult(res, false);
     } catch (err) {
-      console.error(err); toast('Hesaplama başarısız: ' + (err.message || err) + ' — son geçerli model gösteriliyor.', true);
+      console.error(err); toast(t('msg.rebuild_failed', { msg: errText(err) }), true);
     }
   }
   applyResult(res, preview) {
@@ -176,7 +205,7 @@ class App {
     if (this.edit && !this.edit.closed) this.edit.afterResult();
     if (!this.sketchSession) {
       const bad = this.doc.features.find((f) => res.status[f.id] && res.status[f.id].ok === false);
-      this.setLeft(this.edit ? 'Önizleme' : bad ? `Hata: "${bad.name || bad.id}": ${res.status[bad.id].error}` : 'Hazır');
+      this.setLeft(this.edit ? () => t('st.preview') : bad ? () => t('st.error', { name: bad.name || bad.id, msg: errText(this.result?.status[bad.id]?.error) }) : () => t('st.ready'));
     }
   }
   refreshSketches() {
@@ -184,8 +213,18 @@ class App {
     const list = this.doc.features.filter((f) => f.type === 'sketch').map((f) => ({ id: f.id, sk: f, plane: res.sketches?.[f.id]?.plane, visible: !this.hiddenSketches.has(f.id) && !(this.sketchSession && this.sketchSession.draft.id === f.id) }));
     this.viewport.setSketches(list);
   }
-  setHint(t) { $('#hint').textContent = t || ''; }
-  setLeft(t) { this.C.setLeft(t); }
+  setHint(text) { $('#hint').textContent = text || ''; }
+  // Durum satırı: metin ya da dil değişince yeniden çağrılacak işlev
+  setLeft(v) { this._left = v; this.C.setLeft(typeof v === 'function' ? v() : v || ''); }
+  refreshLeft() { if (typeof this._left === 'function') this.C.setLeft(this._left()); }
+  // Bağlama göre ipucu satırını yeniden yazar (dil değişince)
+  refreshHint() {
+    if (this.edit && !this.edit.closed) this.edit.updateViewport();
+    else if (this.sketchSession) { /* sketcher.relang() ipucunu kendisi yazar */ }
+    else if (this.tool === 'newsketch') this.setHint(t('hint.sketch_plane'));
+    else if (this.tool === 'measure') this.setHint(t('hint.measure'));
+    else if (this.tool === 'props') this.setHint(t('hint.props'));
+  }
   refreshToolbar() { this.C.renderToolbar(); }
   selectionCount() { if (this.edit) return this.edit.activeSel ? this.edit.getSel(this.edit.activeSel).length : 0; if (this.tool === 'measure') return this.measureSel.length; return this.selection.length; }
   get planesVisible() { return this.viewport?.planesVisible; }
@@ -193,13 +232,20 @@ class App {
 
   // ------------------------------------------------------------ gövde / seçim
   bodyName(id) {
-    return this.doc.bodyNames?.[id] || this.result?.bodies.find((b) => b.id === id)?.name || id;
+    const b = this.result?.bodies.find((x) => x.id === id);
+    return this.doc.bodyNames?.[id] || b?.name || (b?.auto ? this.autoBodyName(b.auto) : id);
+  }
+  // Çekirdekten gelen varsayılan gövde adı ({code, params}) geçerli dilde yazılır.
+  autoBodyName(a) {
+    if (typeof a === 'string') return a;
+    const p = { ...(a.params || {}) }; if (p.base != null) p.base = this.autoBodyName(p.base);
+    return t('body.' + a.code, p);
   }
   selectBody(id) { if (this.edit || this.sketchSession || this.tool) return; this.selection = [{ kind: 'body', body: id }]; this.viewport.setSelection(this.selection); this.C.renderBrowser(); this.C.renderStatus(); }
   toggleBody(id) { this.hiddenBodies.has(id) ? this.hiddenBodies.delete(id) : this.hiddenBodies.add(id); if (this.result) this.viewport.setBodies(this.result.bodies, this.hiddenBodies); this.C.renderBrowser(); }
   toggleSketch(id) { this.hiddenSketches.has(id) ? this.hiddenSketches.delete(id) : this.hiddenSketches.add(id); this.refreshSketches(); this.C.renderBrowser(); }
   async renameBody(id) {
-    const nm = await promptText('Gövdeyi yeniden adlandır', this.bodyName(id)); if (!nm) return;
+    const nm = await promptText(t('dlg.rename_body'), this.bodyName(id)); if (!nm) return;
     const base = id.split('#')[0]; const f = this.doc.features.find((x) => x.id === base && id === base && ['extrude', 'revolve', 'primitive'].includes(x.type));
     await this.commit((d) => {
       if (f) { d.features.find((x) => x.id === base).bodyName = nm; if (d.bodyNames) delete d.bodyNames[id]; }
@@ -224,10 +270,10 @@ class App {
   startFeature(type, kind) {
     if (this.guard()) return; this.endTool(true);
     const ctx = this.ctx();
-    if (['extrude', 'revolve'].includes(type) && !ctx.sketches.length) { toast('Önce bir sketch çizin: "Sketch" düğmesine basıp düzlem seçin, şekli çizin ve Sketch\'i Bitir deyin.', true); return; }
-    if (type === 'hole' && !ctx.sketches.length) { toast('Delik için önce konum belirten bir sketch çizin (Nokta ya da Daire aracı).', true); return; }
-    if (['fillet', 'chamfer', 'shell', 'combine', 'move'].includes(type) && !ctx.bodies.length) { toast('Önce bir gövde oluşturun.', true); return; }
-    if (type === 'combine' && ctx.bodies.length < 2) { toast('Birleştirmek için en az iki gövde gerekir.', true); return; }
+    if (['extrude', 'revolve'].includes(type) && !ctx.sketches.length) { toast(t('msg.need_sketch'), true); return; }
+    if (type === 'hole' && !ctx.sketches.length) { toast(t('msg.need_sketch_hole'), true); return; }
+    if (['fillet', 'chamfer', 'shell', 'combine', 'move'].includes(type) && !ctx.bodies.length) { toast(t('msg.need_body'), true); return; }
+    if (type === 'combine' && ctx.bodies.length < 2) { toast(t('msg.need_two_bodies'), true); return; }
     const draft = { id: newId(this.doc, type, kind), type, name: autoName(this.doc, type, kind), ...defaults(type, kind, ctx) };
     new FeaturePanel(this, draft, null).open();
     this.C.renderToolbar();
@@ -235,7 +281,7 @@ class App {
   editFeature(i) {
     if (this.guard()) return; const f = this.doc.features[i]; if (!f) return; this.endTool(true);
     if (f.type === 'sketch') return this.editSketch(i);
-    if (f.type === 'import') { toast('İçe aktarılan geometri düzenlenemez; yeniden adlandırabilir ya da silebilirsiniz.'); return; }
+    if (f.type === 'import') { toast(t('msg.import_noedit')); return; }
     this.selFeature = f.id; new FeaturePanel(this, clone(f), i).open(); this.C.renderAll();
   }
   async commitFeature(panel) {
@@ -247,14 +293,14 @@ class App {
   }
   endEdit() { this.idleView(); this.C.renderAll(); return this.requestRebuild(); }
   selectFeature(id) { this.selFeature = id; this.C.renderTimeline(); this.C.renderBrowser(); }
-  async renameFeature(i) { const f = this.doc.features[i]; const nm = await promptText('Özelliği yeniden adlandır', f.name || featLabel(f)); if (!nm) return; await this.commit((d) => { d.features[i].name = nm; }); }
+  async renameFeature(i) { const f = this.doc.features[i]; const nm = await promptText(t('dlg.rename_feature'), f.name || featLabel(f)); if (!nm) return; await this.commit((d) => { d.features[i].name = nm; }); }
   async toggleSuppress(i) { await this.commit((d) => { const f = d.features[i]; if (f.suppressed) delete f.suppressed; else f.suppressed = true; }); }
   async rollbackTo(n) { if (this.guard()) return; await this.commit((d) => { d.rollback = n == null || n >= d.features.length ? null : n; }); }
   async deleteFeature(i) {
     if (this.guard()) return; const f = this.doc.features[i]; if (!f) return;
     const deps = dependents(this.doc, f);
     if (deps.length) {
-      const ok = await confirmBox('Silinecek özellik kullanılıyor', `"${f.name || f.id}" şu özelliklerde kullanılıyor:\n• ${deps.map((x) => x.name || x.id).join('\n• ')}\n\nYine de silerseniz bunlar hata verir (kırmızı görünür); onları da silebilir ya da düzeltebilirsiniz.`, 'Yine de Sil');
+      const ok = await confirmBox(t('dlg.del_title'), t('dlg.del_body', { name: f.name || f.id, list: deps.map((x) => x.name || x.id).join('\n• ') }), t('dlg.del_yes'));
       if (!ok) return;
     }
     await this.commit((d) => { d.features.splice(i, 1); if (d.rollback != null) { if (i < d.rollback) d.rollback--; if (d.rollback >= d.features.length) d.rollback = null; } });
@@ -266,9 +312,9 @@ class App {
   async ensureSketcher() {
     if (this.sketcher) return this.sketcher;
     const loader = SKETCHER['./sketcher.js'];
-    if (!loader) throw new Error('Sketch ortamı dosyası (sketcher.js) bulunamadı');
+    if (!loader) throw new KErr('sketcher_missing');
     const mod = await loader();
-    this.sketcher = new mod.Sketcher({ viewport: this.viewport, overlayEl: $('#overlay'), getVars: () => this.vars(), setHint: (t) => this.setHint(t), setStatus: (t) => this.setLeft(t), onChange: () => this.onSketchChange() });
+    this.sketcher = new mod.Sketcher({ viewport: this.viewport, overlayEl: $('#overlay'), getVars: () => this.vars(), setHint: (x) => this.setHint(x), setStatus: (x) => this.setLeft(x), onChange: () => this.onSketchChange() });
     return this.sketcher;
   }
   startSketch() {
@@ -276,11 +322,11 @@ class App {
     this.endTool(true); this.tool = 'newsketch';
     if (!this.viewport.planesVisible) this.viewport.setPlanesVisible(true);
     this.viewport.pickPlanes = true; this.viewport.setFilter({ face: true });
-    this.setHint('Bir düzlem ya da düzlemsel yüz seçin'); this.C.renderAll();
+    this.setHint(t('hint.sketch_plane')); this.C.renderAll();
   }
   async beginSketch(draft, plane, idx) {
     try { await this.ensureSketcher(); }
-    catch (e) { console.error(e); this.endTool(); toast('Sketch ortamı yüklenemedi: ' + (e.message || e) + '. Model kipindeki işlemler çalışır; uygulamayı yeniden kurmayı deneyin.', true); return; }
+    catch (e) { console.error(e); this.endTool(); toast(t('msg.sketcher_failed', { msg: errText(e) }), true); return; }
     this.endTool(true);
     this.sketchSession = { draft, idx, isNew: idx == null, plane };
     this.viewport.pickPlanes = false; this.viewport.setFilter({}); this.viewport.setRegions(null, null); this.viewport.setSelection([]);
@@ -295,8 +341,8 @@ class App {
   async editSketch(i) {
     const f = this.doc.features[i]; this.selFeature = f.id;
     let plane = this.result?.sketches?.[f.id]?.plane;
-    if (!plane && f.plane?.kind === 'base') { try { plane = this.planeOf(f.plane); } catch (e) { toast('Düzlem ofseti hesaplanamadı: ' + e.message, true); return; } }
-    if (!plane) { toast('Bu sketch şu an hesaplanmış değil (geri sarılmış olabilir). "Sona git" deyip tekrar deneyin.', true); return; }
+    if (!plane && f.plane?.kind === 'base') { try { plane = this.planeOf(f.plane); } catch (e) { toast(t('msg.offset_failed', { msg: errText(e) }), true); return; } }
+    if (!plane) { toast(t('msg.sketch_not_computed'), true); return; }
     await this.beginSketch(clone(f), plane, i);
   }
   onSketchChange() {
@@ -304,12 +350,12 @@ class App {
     this._skRaf = requestAnimationFrame(() => { this._skRaf = 0; this.C.renderToolbar(); this.sketchPanel?.refresh(); });
   }
   sketchTool(id) { this.sketcher?.setTool(id); this.C.renderToolbar(); }
-  sketchConstraint(type) { try { this.sketcher?.applyConstraint(type); } catch (e) { toast('Kısıt uygulanamadı: ' + e.message, true); } this.onSketchChange(); }
+  sketchConstraint(type) { try { this.sketcher?.applyConstraint(type); } catch (e) { toast(t('msg.constraint_failed', { msg: errText(e) }), true); } this.onSketchChange(); }
   sketchConstruction() { this.sketcher?.toggleConstruction(); this.onSketchChange(); }
   async setSketchOffset(expr) {
     const s = this.sketchSession; if (!s || s.draft.plane.kind !== 'base') return;
     try { const pl = basePlane(s.draft.plane.name, evalExpr(expr, this.vars())); await this.sketcher.idle(); const f = this.sketcher.stop(); Object.assign(s.draft, { points: f.points, ents: f.ents, cons: f.cons || [] }); s.draft.plane.offset = expr; s.plane = pl; this.sketcher.start(clone(s.draft), pl); }
-    catch (e) { toast('Ofset geçersiz: ' + e.message, true); }
+    catch (e) { toast(t('msg.offset_invalid', { msg: errText(e) }), true); }
   }
   async finishSketch() {
     const s = this.sketchSession; if (!s) return;
@@ -319,16 +365,16 @@ class App {
     const merged = { ...s.draft, points: f.points, ents: f.ents, cons: f.cons || [] };
     this.idleView(); this.C.renderAll();
     if (s.isNew) {
-      if (!merged.ents.length) { toast('Boş sketch eklenmedi.'); this.refreshSketches(); return; }
+      if (!merged.ents.length) { toast(t('msg.empty_sketch')); this.refreshSketches(); return; }
       const at = this.doc.rollback ?? this.doc.features.length;
       await this.commit((d) => { d.features.splice(at, 0, merged); if (d.rollback != null) d.rollback = at + 1; });
     } else await this.commit((d) => { d.features[s.idx] = merged; });
-    this.selFeature = merged.id; this.setLeft('Hazır'); this.C.renderAll();
+    this.selFeature = merged.id; this.setLeft(() => t('st.ready')); this.C.renderAll();
   }
   cancelSketch() {
     const s = this.sketchSession; if (!s) return;
     try { this.sketcher.cancel(); } catch (e) { console.error(e); }
-    this.sketchSession = null; this.sketchPanel?.close(); this.sketchPanel = null; this.setHint(''); this.setLeft('Hazır');
+    this.sketchSession = null; this.sketchPanel?.close(); this.sketchPanel = null; this.setHint(''); this.setLeft(() => t('st.ready'));
     this.idleView(); this.refreshSketches(); this.C.renderAll();
   }
 
@@ -338,15 +384,15 @@ class App {
     if (this.guard()) return; this.endTool(true); this.tool = name; this.measureSel = [];
     if (name === 'measure') {
       this.viewport.setFilter({ face: true, edge: true }); this.viewport.setSelection([]);
-      this.setHint('Ölçmek için bir kenar ya da yüze tıklayın; ikinci seçim mesafe ve açıyı verir. Esc ile çıkın.');
-      showBox('Ölç', '<div class="note">Bir kenar ya da yüz seçin…</div>', () => this.endTool());
+      this.setHint(t('hint.measure'));
+      showBox(t('meas.title'), '<div class="note">' + t('meas.pick') + '</div>', () => this.endTool());
     } else if (name === 'props') {
       this.viewport.setFilter({ body: true });
       const vis = (this.result?.bodies || []).filter((b) => !this.hiddenBodies.has(b.id));
       const pre = this.selection.find((s) => s.kind === 'body')?.body || (vis.length === 1 ? vis[0].id : null);
-      if (!vis.length) { toast('Önce bir gövde oluşturun.', true); this.tool = null; this.C.renderToolbar(); return; }
-      this.setHint('Özelliklerini görmek için bir gövdeye tıklayın. Esc ile çıkın.');
-      if (pre) await showProps(this, pre); else showBox('Özellikler', '<div class="note">Bir gövde seçin…</div>', () => this.endTool());
+      if (!vis.length) { toast(t('msg.need_body'), true); this.tool = null; this.C.renderToolbar(); return; }
+      this.setHint(t('hint.props'));
+      if (pre) await showProps(this, pre); else showBox(t('props.title'), '<div class="note">' + t('props.pick') + '</div>', () => this.endTool());
     }
     this.C.renderToolbar();
   }
@@ -357,8 +403,8 @@ class App {
     if (!quiet) this.C.renderAll();
   }
   async toolPick(hit) {
-    const t = this.tool;
-    if (t === 'newsketch') {
+    const tool = this.tool;
+    if (tool === 'newsketch') {
       if (!hit) return;
       try {
         if (hit.kind === 'plane') { await this.beginSketch({ id: newId(this.doc, 'sketch'), type: 'sketch', name: autoName(this.doc, 'sketch'), plane: { kind: 'base', name: hit.name, offset: '0' }, points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [] }, basePlane(hit.name, 0), null); }
@@ -366,41 +412,41 @@ class App {
           const ref = await this.describe(hit, 'face'); const plane = await this.query('facePlane', { ref });
           await this.beginSketch({ id: newId(this.doc, 'sketch'), type: 'sketch', name: autoName(this.doc, 'sketch'), plane: { kind: 'face', ref }, points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [] }, plane, null);
         }
-      } catch (e) { toast('Bu yüze sketch çizilemez: ' + (e.message || e), true); }
+      } catch (e) { toast(t('msg.sketch_face_failed', { msg: errText(e) }), true); }
       return;
     }
-    if (t === 'measure') {
+    if (tool === 'measure') {
       if (!hit || (hit.kind !== 'face' && hit.kind !== 'edge')) return;
-      let d; try { d = await this.describe(hit, hit.kind); } catch (e) { toast('Ölçülemedi: ' + e.message, true); return; }
+      let d; try { d = await this.describe(hit, hit.kind); } catch (e) { toast(t('msg.measure_failed', { msg: errText(e) }), true); return; }
       const same = (x) => x.body === d.body && x.idx === d.idx && x.kind === d.kind;
       const at = this.measureSel.findIndex(same);
       if (at >= 0) this.measureSel.splice(at, 1); else { if (this.measureSel.length >= 2) this.measureSel = []; this.measureSel.push(d); }
       this.viewport.setSelection(this.measureSel.map((x) => ({ kind: x.kind, body: x.body, idx: x.idx })));
       await this.showMeasure(); this.C.renderStatus(); return;
     }
-    if (t === 'props') { if (hit && hit.kind === 'body') { this.selection = [{ kind: 'body', body: hit.body }]; this.viewport.setSelection(this.selection); await showProps(this, hit.body); } }
+    if (tool === 'props') { if (hit && hit.kind === 'body') { this.selection = [{ kind: 'body', body: hit.body }]; this.viewport.setSelection(this.selection); await showProps(this, hit.body); } }
   }
   async showMeasure() {
     const [a, b] = this.measureSel;
-    if (!a) { showBox('Ölç', '<div class="note">Bir kenar ya da yüz seçin…</div>', () => this.endTool()); return; }
-    let m = null; if (b) { try { m = await this.query('measure', { a, b }); } catch (e) { toast('Ölçülemedi: ' + e.message, true); } }
+    if (!a) { showBox(t('meas.title'), '<div class="note">' + t('meas.pick') + '</div>', () => this.endTool()); return; }
+    let m = null; if (b) { try { m = await this.query('measure', { a, b }); } catch (e) { toast(t('msg.measure_failed', { msg: errText(e) }), true); } }
     const rows = measureRows(a, b, m || { distance: NaN, centerDistance: NaN, delta: [NaN, NaN, NaN] });
-    showBox('Ölç', '<table>' + rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('') + '</table>', () => this.endTool());
+    showBox(t('meas.title'), '<table>' + rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('') + '</table>', () => this.endTool());
   }
   async runInterference() {
     if (this.guard()) return; this.endTool(true);
     const ids = (this.result?.bodies || []).filter((b) => !this.hiddenBodies.has(b.id)).map((b) => b.id);
-    if (ids.length < 2) { toast('Girişim kontrolü için en az iki görünür gövde gerekir.'); return; }
+    if (ids.length < 2) { toast(t('msg.interf_need2')); return; }
     try {
       const r = await this.query('interference', { ids });
-      const html = r.length ? '<table>' + r.map((x) => `<tr><td>${esc(this.bodyName(x.a))} ∩ ${esc(this.bodyName(x.b))}</td><td>${esc(fmt(x.volume, 3))} mm³</td></tr>`).join('') + '</table>' : '<div class="note" style="color:var(--ok)">Girişim yok: gövdeler birbirine girmiyor.</div>';
-      showBox('Girişim', (r.length ? `<div class="err">${r.length} çift gövde birbirine giriyor:</div>` : '') + html, () => hideBox());
-    } catch (e) { toast('Girişim hesaplanamadı: ' + e.message, true); }
+      const html = r.length ? '<table>' + r.map((x) => `<tr><td>${esc(this.bodyName(x.a))} ∩ ${esc(this.bodyName(x.b))}</td><td>${esc(fmt(x.volume, 3))} mm³</td></tr>`).join('') + '</table>' : '<div class="note" style="color:var(--ok)">' + t('interf.none') + '</div>';
+      showBox(t('interf.title'), (r.length ? `<div class="err">${t('interf.count', { n: r.length })}</div>` : '') + html, () => hideBox());
+    } catch (e) { toast(t('msg.interf_failed', { msg: errText(e) }), true); }
   }
   toggleSection() {
     if (this.sectionPanel) { this.sectionPanel.close(); this.C.renderToolbar(); return; }
     if (this.guard()) return; this.endTool(true);
-    if (!this.result?.bodies.length) { toast('Kesit için önce bir gövde oluşturun.'); return; }
+    if (!this.result?.bodies.length) { toast(t('msg.section_need_body')); return; }
     new SectionPanel(this).open(); this.C.renderToolbar();
   }
   openParams() { if (this.guard()) return; return paramsModal(this); }
@@ -408,26 +454,26 @@ class App {
   // ------------------------------------------------------------ dosya
   async confirmDiscard() {
     if (!this.dirty) return true;
-    return confirmBox('Kaydedilmemiş değişiklikler', 'Belgede kaydedilmemiş değişiklikler var. Devam ederseniz kaybolur.', 'Kaydetmeden Devam Et', 'Vazgeç');
+    return confirmBox(t('dlg.discard_title'), t('dlg.discard_body'), t('dlg.discard_yes'), t('common.giveup'));
   }
   async newDoc() { if (this.guard()) return; if (!(await this.confirmDiscard())) return; await this.loadDoc(emptyDoc()); this.viewport.view('iso', true); }
   fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: 'AtolyeCAD', version: 1, doc: this.doc })); }
-  async writeOut(bytes, defaultName, filters, path) {
-    if (window.native) return window.native.saveFile({ defaultName, filters, data: bytes, path });
+  async writeOut(bytes, defaultName, filters, path, title) {
+    if (window.native) return window.native.saveFile({ defaultName, filters, data: bytes, path, title });
     const a = h('a', { href: URL.createObjectURL(new Blob([bytes])), download: defaultName }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     return defaultName;
   }
   async save(as = false) {
-    if (this.sketchSession || this.edit) { toast('Önce açık işlemi bitirin, sonra kaydedin.'); return; }
+    if (this.sketchSession || this.edit) { toast(t('msg.finish_before_save')); return; }
     try {
       const name = (this.fileName || 'Belge').replace(/\.acad$/i, '') + '.acad';
-      const p = await this.writeOut(this.fileBytes(), name, ACAD_FILTER, as ? undefined : this.filePath);
+      const p = await this.writeOut(this.fileBytes(), name, acadFilter(), as ? undefined : this.filePath, t('dlg.t_save'));
       if (!p) return;
-      this.filePath = window.native ? p : null; this.fileName = String(p).split(/[\\/]/).pop(); this.markDirty(false); toast('Kaydedildi: ' + this.fileName);
-    } catch (e) { toast('Kaydedilemedi: ' + (e.message || e) + '. Başka bir konuma kaydetmeyi deneyin.', true); }
+      this.filePath = window.native ? p : null; this.fileName = String(p).split(/[\\/]/).pop(); this.markDirty(false); toast(t('msg.saved', { name: this.fileName }));
+    } catch (e) { toast(t('msg.save_failed', { msg: errText(e) }), true); }
   }
-  async pickFile(accept, filters) {
-    if (window.native) { const r = await window.native.openFile(filters); return r ? { name: r.name, path: r.path, data: new Uint8Array(r.data) } : null; }
+  async pickFile(accept, filters, title) {
+    if (window.native) { const r = await window.native.openFile(filters, title); return r ? { name: r.name, path: r.path, data: new Uint8Array(r.data) } : null; }
     return new Promise((resolve) => {
       const inp = h('input', { type: 'file', accept, style: { display: 'none' } }); document.body.append(inp);
       inp.addEventListener('change', async () => { const f = inp.files[0]; inp.remove(); resolve(f ? { name: f.name, path: null, data: new Uint8Array(await f.arrayBuffer()) } : null); });
@@ -437,51 +483,52 @@ class App {
   }
   async openFile() {
     if (this.guard()) return; if (!(await this.confirmDiscard())) return;
-    const f = await this.pickFile('.acad', ACAD_FILTER); if (!f) return;
+    const f = await this.pickFile('.acad', acadFilter(), t('dlg.t_open')); if (!f) return;
     await this.openBytes(f.data, f.name, f.path);
   }
   async openBytes(bytes, name, path) {
-    let j; try { j = JSON.parse(new TextDecoder().decode(bytes)); } catch (e) { toast('Bu dosya okunamadı: AtolyeCAD belgesi değil ya da bozuk.', true); return; }
-    if (!j || j.app !== 'AtolyeCAD' || !j.doc) { toast('Bu dosya bir AtolyeCAD belgesi değil.', true); return; }
-    if ((j.version || 1) > 1) toast('Bu belge daha yeni bir sürümle kaydedilmiş; bazı özellikler eksik olabilir.', true);
-    await this.loadDoc(j.doc, { name, path }); toast('Açıldı: ' + name);
+    let j; try { j = JSON.parse(new TextDecoder().decode(bytes)); } catch (e) { toast(t('msg.file_unreadable'), true); return; }
+    if (!j || j.app !== 'AtolyeCAD' || !j.doc) { toast(t('msg.file_not_doc'), true); return; }
+    if ((j.version || 1) > 1) toast(t('msg.file_newer'), true);
+    await this.loadDoc(j.doc, { name, path }); toast(t('msg.opened', { name }));
     const bad = this.doc.features.filter((f) => this.result?.status[f.id]?.ok === false).length;
-    if (bad) toast(`${bad} özellik hata veriyor; zaman çizelgesinde kırmızı görünür.`, true);
+    if (bad) toast(t('msg.n_bad', { n: bad }), true);
   }
   async importFile(format) {
     if (this.guard()) return;
-    const f = await this.pickFile(format === 'step' ? '.step,.stp' : '.stl', [{ name: format === 'step' ? 'STEP' : 'STL', extensions: format === 'step' ? ['step', 'stp'] : ['stl'] }]); if (!f) return;
+    const f = await this.pickFile(format === 'step' ? '.step,.stp' : '.stl', [{ name: format === 'step' ? 'STEP' : 'STL', extensions: format === 'step' ? ['step', 'stp'] : ['stl'] }], t('dlg.t_import')); if (!f) return;
     const id = newId(this.doc, 'import'); const nm = f.name.replace(/\.[^.]+$/, '');
     const at = this.doc.rollback ?? this.doc.features.length;
     await this.commit((d) => { d.features.splice(at, 0, { id, type: 'import', name: nm, format, data: b64(f.data) }); if (d.rollback != null) d.rollback = at + 1; });
     const st = this.result?.status[id];
-    if (!st || st.ok === false) { await this.undo(); toast('İçe aktarılamadı: ' + (st?.error || 'dosya geçerli bir ' + format.toUpperCase() + ' dosyası değil') + '.', true); return; }
-    this.needFit = true; this.viewport.fit(); toast(`${nm} içe aktarıldı.`);
+    if (!st || st.ok === false) { await this.undo(); toast(t('msg.import_failed', { reason: st?.error ? errText(st.error) : t('msg.import_invalid', { fmt: format.toUpperCase() }) }), true); return; }
+    this.needFit = true; this.viewport.fit(); toast(t('msg.imported', { name: nm }));
   }
   async exportFile(format) {
     if (this.guard()) return;
     const ids = (this.result?.bodies || []).filter((b) => !this.hiddenBodies.has(b.id)).map((b) => b.id);
-    if (!ids.length) { toast('Dışa aktarılacak görünür gövde yok.', true); return; }
+    if (!ids.length) { toast(t('msg.export_none'), true); return; }
     try {
-      const data = await this.query('export', { format, ids });
+      const names = Object.fromEntries(ids.map((id) => [id, this.bodyName(id)]));
+      const data = await this.query('export', { format, ids, names });
       const name = (this.fileName || 'Belge').replace(/\.acad$/i, '') + '.' + format;
-      const p = await this.writeOut(data, name, [{ name: format.toUpperCase(), extensions: format === 'step' ? ['step', 'stp'] : ['stl'] }]);
-      if (p) toast(`${format.toUpperCase()} dosyası kaydedildi (${Math.round(data.length / 1024)} KB).`);
-    } catch (e) { toast('Dışa aktarılamadı: ' + (e.message || e), true); }
+      const p = await this.writeOut(data, name, [{ name: format.toUpperCase(), extensions: format === 'step' ? ['step', 'stp'] : ['stl'] }], undefined, t('dlg.t_export'));
+      if (p) toast(t('msg.exported', { fmt: format.toUpperCase(), kb: Math.round(data.length / 1024) }));
+    } catch (e) { toast(t('msg.export_failed', { msg: errText(e) }), true); }
   }
 
   // ------------------------------------------------------------ yardım pencereleri
   showShortcuts() {
-    const rows = [['Ctrl+S', 'Kaydet'], ['Ctrl+Z / Ctrl+Y', 'Geri al / Yinele'], ['F', 'Görünümü sığdır'], ['Enter / Esc', 'Panelde Tamam / İptal'], ['Sağ tuş sürükle', 'Döndür'], ['Orta tuş sürükle', 'Kaydır'], ['Tekerlek', 'Yakınlaştır'],
-      ['L, R, C, A, D', 'Sketch: çizgi, dikdörtgen, daire, yay, ölçü'], ['Delete', 'Sketch: seçileni sil'], ['Çift tık', 'Zaman çizelgesinde düzenle'], ['Sağ tık', 'Zaman çizelgesi menüsü']];
-    return modal({ title: 'Kısayollar', content: h('table', {}, rows.map(([k, v]) => h('tr', {}, h('td', { style: { fontWeight: 600, paddingRight: '18px', whiteSpace: 'nowrap' }, text: k }), h('td', { text: v })))), buttons: [{ label: 'Kapat', cls: 'pri', value: true }] });
+    const rows = [['Ctrl+S', t('sc.save')], ['Ctrl+Z / Ctrl+Y', t('sc.undo')], ['F', t('sc.fit')], ['Enter / Esc', t('sc.panel')], [t('sc.k_rdrag'), t('sc.rotate')], [t('sc.k_mdrag'), t('sc.pan')], [t('sc.k_wheel'), t('sc.zoom')],
+      ['L, R, C, A, D', t('sc.sketch_keys')], ['Delete', t('sc.sketch_del')], [t('sc.k_dbl'), t('sc.dbl')], [t('sc.k_rclick'), t('sc.rclick')]];
+    return modal({ title: t('sc.title'), content: h('table', {}, rows.map(([k, v]) => h('tr', {}, h('td', { style: { fontWeight: 600, paddingRight: '18px', whiteSpace: 'nowrap' }, text: k }), h('td', { text: v })))), buttons: [{ label: t('common.close'), cls: 'pri', value: true }] });
   }
   showAbout() {
     const dep = (n) => String(pkg.dependencies[n] || '').replace('^', '');
     const el = (window.native?.versions?.electron) || (/Electron\/([\d.]+)/.exec(navigator.userAgent) || [])[1];
-    const rows = [['AtolyeCAD', pkg.version], ['Geometri çekirdeği: Open CASCADE (OCCT) + replicad', `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], ['Sketch çözücü: PlaneGCS (FreeCAD)', `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], ['3B görünüm: three.js', `r${THREE.REVISION} — MIT`], ['Masaüstü kabuğu: Electron', `${el || '—'} — MIT`]];
-    return modal({ title: 'AtolyeCAD Hakkında', content: h('div', {}, h('div', { class: 'note', text: 'Parametrik katı modelleme — CNC atölyeleri için.' }), h('table', {}, rows.map(([k, v]) => h('tr', {}, h('td', { text: k }), h('td', { style: { fontWeight: 600 }, text: v })))),
-      h('div', { class: 'note', style: { marginTop: '8px' }, text: 'Open CASCADE ve PlaneGCS, LGPL lisanslı kütüphanelerdir; kaynak kodları ilgili projelerin sayfalarında bulunur. three.js ve Electron MIT lisanslıdır.' })), buttons: [{ label: 'Kapat', cls: 'pri', value: true }] });
+    const rows = [['AtolyeCAD', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`]];
+    return modal({ title: t('about.title'), content: h('div', {}, h('div', { class: 'note', text: t('about.tagline') }), h('table', {}, rows.map(([k, v]) => h('tr', {}, h('td', { text: k }), h('td', { style: { fontWeight: 600 }, text: v })))),
+      h('div', { class: 'note', style: { marginTop: '8px' }, text: t('about.license') })), buttons: [{ label: t('common.close'), cls: 'pri', value: true }] });
   }
 
   // ------------------------------------------------------------ klavye

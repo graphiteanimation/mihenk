@@ -28,7 +28,10 @@ if not port_open():
 try:
   with sync_playwright() as p:
     br = p.chromium.launch(channel='chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'])
-    page = br.new_page(viewport={'width': 1100, 'height': 760})
+    # Durum/ipucu metinleri Türkçe beklenir: dil tercihi sabitlenir (varsayılan dil işletim sisteminden gelir).
+    ctx = br.new_context(viewport={'width': 1100, 'height': 760}, locale='tr-TR')
+    ctx.add_init_script("try { localStorage.setItem('atolye.lang', 'tr'); } catch (e) {}")
+    page = ctx.new_page()
     errs = []
     page.on('pageerror', lambda e: errs.append(str(e)))
     page.on('console', lambda m: errs.append(m.text) if m.type == 'error' and 'Failed to load resource' not in m.text else None)

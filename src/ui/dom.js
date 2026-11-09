@@ -1,4 +1,6 @@
 // Küçük DOM yardımcıları: öğe üretimi, kip pencere (modal), bildirim (toast), bağlam menüsü.
+import { t, fmtNum } from '../shared/i18n.js';
+
 export function h(tag, attrs = {}, ...kids) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
@@ -18,8 +20,8 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&am
 
 let toastTimer = 0;
 export function toast(msg, bad = false) {
-  const t = $('#toast'); t.textContent = msg; t.classList.toggle('bad', !!bad); t.classList.remove('hidden');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), bad ? 7000 : 3800);
+  const el = $('#toast'); el.textContent = msg; el.classList.toggle('bad', !!bad); el.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), bad ? 7000 : 3800);
 }
 
 // Kip pencere. buttons: [{label, cls, value, keep?:fn}] → seçilen değer ile çözülen Promise.
@@ -28,7 +30,7 @@ export function modal({ title, content, buttons }) {
   const root = $('#modal');
   return new Promise((resolve) => {
     const close = (v) => { root.classList.add('hidden'); root.replaceChildren(); document.removeEventListener('keydown', onKey, true); resolve(v); };
-    const btns = (buttons || [{ label: 'Tamam', cls: 'pri', value: true }]).map((b) => h('button', {
+    const btns = (buttons || [{ label: t('common.ok'), cls: 'pri', value: true }]).map((b) => h('button', {
       class: 'btn ' + (b.cls || ''), 'data-v': String(b.value),
       onclick: () => { if (b.check && b.check() === false) return; close(b.value); },
     }, b.label));
@@ -45,12 +47,12 @@ export function modal({ title, content, buttons }) {
 }
 export const modalOpen = () => !$('#modal').classList.contains('hidden');
 
-export async function promptText(title, value = '', label = 'Ad') {
+export async function promptText(title, value = '', label = t('common.name')) {
   const inp = h('input', { type: 'text', value, style: { width: '100%', padding: '5px 7px', border: '1px solid var(--line)', borderRadius: '4px' } });
-  const r = await modal({ title, content: h('div', {}, h('div', { class: 'note', text: label }), inp), buttons: [{ label: 'İptal', value: null }, { label: 'Tamam', cls: 'pri', value: 'ok' }] });
+  const r = await modal({ title, content: h('div', {}, h('div', { class: 'note', text: label }), inp), buttons: [{ label: t('common.cancel'), value: null }, { label: t('common.ok'), cls: 'pri', value: 'ok' }] });
   return r === 'ok' ? inp.value.trim() : null;
 }
-export const confirmBox = (title, text, yes = 'Evet', no = 'Vazgeç') =>
+export const confirmBox = (title, text, yes = t('common.yes'), no = t('common.giveup')) =>
   modal({ title, content: h('div', { style: { whiteSpace: 'pre-wrap', maxWidth: '460px' }, text }), buttons: [{ label: no, value: false }, { label: yes, cls: 'pri', value: true }] }).then((v) => v === true);
 
 // Bağlam menüsü: items [{label, run, sep?}]
@@ -67,4 +69,4 @@ export function ctxMenu(x, y, items) {
 export function hideCtx() { $('#ctx').classList.add('hidden'); }
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#ctx')) hideCtx(); });
 
-export const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? '—' : String(Math.round(v * 10 ** d) / 10 ** d).replace('.', ','));
+export const fmt = (v, d = 3) => fmtNum(v, d);
