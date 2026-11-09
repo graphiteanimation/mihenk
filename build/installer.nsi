@@ -1,5 +1,6 @@
 Unicode true
 !include "MUI2.nsh"
+!include "LogicLib.nsh"
 !define APP "AtolyeCAD"
 !ifndef VERSION
 !define VERSION "0.1.0"
@@ -16,6 +17,8 @@ SetCompressor /SOLID lzma
 !define MUI_LANGDLL_REGISTRY_KEY "Software\${APP}"
 !define MUI_LANGDLL_REGISTRY_VALUENAME "InstallerLanguage"
 !insertmacro MUI_PAGE_WELCOME
+; Seçilen dizinin sonuna otomatik "\AtolyeCAD" eklenir (kaldırıcı kullanıcının klasörünü asla silmesin)
+!define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirLeave
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP}.exe"
@@ -28,17 +31,44 @@ LangString SEC_PROGRAM ${LANG_TURKISH} "Program"
 LangString SEC_PROGRAM ${LANG_ENGLISH} "Program"
 LangString LNK_UNINSTALL ${LANG_TURKISH} "${APP} Kaldır"
 LangString LNK_UNINSTALL ${LANG_ENGLISH} "Uninstall ${APP}"
+
+; $INSTDIR "\AtolyeCAD" ile bitmiyorsa ekler (sondaki "\" atılır)
+Function EnsureSubdir
+  StrCpy $0 $INSTDIR 1 -1
+  ${If} $0 == "\"
+    StrCpy $INSTDIR $INSTDIR -1
+  ${EndIf}
+  StrCpy $0 $INSTDIR 10 -10
+  ${If} $0 != "\${APP}"
+    StrCpy $INSTDIR "$INSTDIR\${APP}"
+  ${EndIf}
+FunctionEnd
+Function DirLeave
+  Call EnsureSubdir
+FunctionEnd
 Function .onInit
   !insertmacro MUI_LANGDLL_DISPLAY
+  Call EnsureSubdir
 FunctionEnd
 Function un.onInit
   !insertmacro MUI_UNGETLANGUAGE
 FunctionEnd
+
 Section "$(SEC_PROGRAM)"
   SetOutPath "$INSTDIR"
   File /r "..\release\win-unpacked\*.*"
   WriteRegStr HKCU "Software\${APP}" "InstallDir" "$INSTDIR"
   WriteUninstaller "$INSTDIR\Kaldir.exe"
+  ; Kurulum dili uygulamanın ilk açılış diline aktarılır: kurulum dizininde "lang" dosyası (tr | en)
+  ${If} $LANGUAGE == ${LANG_TURKISH}
+    StrCpy $0 "tr"
+  ${Else}
+    StrCpy $0 "en"
+  ${EndIf}
+  FileOpen $1 "$INSTDIR\lang" w
+  FileWrite $1 $0
+  FileClose $1
+  WriteRegStr HKCU "Software\${APP}" "Lang" $0
   CreateShortCut "$DESKTOP\${APP}.lnk" "$INSTDIR\${APP}.exe"
   CreateDirectory "$SMPROGRAMS\${APP}"
   CreateShortCut "$SMPROGRAMS\${APP}\${APP}.lnk" "$INSTDIR\${APP}.exe"
@@ -47,14 +77,37 @@ Section "$(SEC_PROGRAM)"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "UninstallString" "$\"$INSTDIR\Kaldir.exe$\""
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayIcon" "$INSTDIR\${APP}.exe"
+  ; .acad ilişkilendirmesi: mevcut başka bir ilişkilendirme yedeklenir, kaldırmada geri yüklenir
+  ReadRegStr $2 HKCU "Software\Classes\.acad" ""
+  ${If} $2 != ""
+  ${AndIf} $2 != "AtolyeCAD.Belge"
+    WriteRegStr HKCU "Software\${APP}" "PrevAcadAssoc" $2
+  ${EndIf}
   WriteRegStr HKCU "Software\Classes\.acad" "" "AtolyeCAD.Belge"
   WriteRegStr HKCU "Software\Classes\AtolyeCAD.Belge\shell\open\command" "" "$\"$INSTDIR\${APP}.exe$\" $\"%1$\""
 SectionEnd
+
+; Kaldırıcı YALNIZ kurulumun yazdığı dosyaları siler (liste scripts/gen-uninstall-list.mjs ile üretilir).
+; "RMDir /r" yok: kurulum klasörü boş değilse (kullanıcı dosyası varsa) klasör silinmez.
 Section "Uninstall"
-  RMDir /r "$INSTDIR"
+  !include "..\release\uninstall-files.nsh"
+  Delete "$INSTDIR\lang"
+  Delete "$INSTDIR\Kaldir.exe"
+  RMDir "$INSTDIR"
   Delete "$DESKTOP\${APP}.lnk"
-  RMDir /r "$SMPROGRAMS\${APP}"
+  Delete "$SMPROGRAMS\${APP}\${APP}.lnk"
+  Delete "$SMPROGRAMS\${APP}\$(LNK_UNINSTALL).lnk"
+  RMDir "$SMPROGRAMS\${APP}"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}"
+  ReadRegStr $2 HKCU "Software\Classes\.acad" ""
+  ${If} $2 == "AtolyeCAD.Belge"
+    ReadRegStr $3 HKCU "Software\${APP}" "PrevAcadAssoc"
+    ${If} $3 != ""
+      WriteRegStr HKCU "Software\Classes\.acad" "" $3
+    ${Else}
+      DeleteRegKey HKCU "Software\Classes\.acad"
+    ${EndIf}
+  ${EndIf}
   DeleteRegKey HKCU "Software\${APP}"
   DeleteRegKey HKCU "Software\Classes\AtolyeCAD.Belge"
 SectionEnd

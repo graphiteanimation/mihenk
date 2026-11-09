@@ -1,20 +1,30 @@
-// Arayüze güvenli köprü: yerel dosya diyalogları, ayarlar. contextIsolation açık, nodeIntegration kapalı.
+// Arayüze güvenli köprü: yerel dosya diyalogları, ayarlar. contextIsolation + sandbox açık, nodeIntegration kapalı.
+// Köprü YALNIZ app://atolye/ kökeninde kurulur; başka bir sayfa (gezinti engellense de) hiçbir işlev görmez.
+// Yol parametresi YOKTUR: dosya yolunu yalnız ana süreç bilir (diyalogla seçilen / açılan).
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('native', {
-  // filters: [{name, extensions:[...]}], title: diyalog başlığı → {path, name, data:Uint8Array} | null
-  openFile: (filters, title) => ipcRenderer.invoke('native:open', filters, title),
-  // {defaultName, filters, data:Uint8Array, path?, title?} → kaydedilen yol | null
-  saveFile: (opts) => ipcRenderer.invoke('native:save', opts),
-  setTitle: (t) => ipcRenderer.send('native:title', String(t)),
-  // komut satırından (çift tık) açılan .acad dosyası → {path,name,data} | null
-  argvFile: () => ipcRenderer.invoke('native:argv'),
-  // arayüz kaydedilmemiş değişiklik durumunu bildirir (kapatırken onay için)
-  setDirty: (d) => ipcRenderer.send('native:dirty', !!d),
-  // ayarlar (userData/settings.json): getSetting eşzamanlıdır (arayüz ilk çizimden önce dili okur)
-  getSetting: (key) => ipcRenderer.sendSync('native:getSetting', String(key)),
-  setSetting: (key, value) => ipcRenderer.send('native:setSetting', String(key), value),
-  // ana sürecin diyalog metinleri (kapatma onayı): arayüz sözlüğünden gelir
-  setStrings: (o) => ipcRenderer.send('native:strings', o),
-  versions: { electron: process.versions.electron, chrome: process.versions.chrome },
-});
+if (location.protocol === 'app:' && location.host === 'atolye') {
+  contextBridge.exposeInMainWorld('native', {
+    // kind: 'acad' | 'step' | 'stl' → {name, data:Uint8Array} | null (ana süreç diyalog açar)
+    openFile: (kind) => ipcRenderer.invoke('native:open', String(kind)),
+    // {saveAs:boolean, data:Uint8Array, defaultName:string, kind:'acad'|'step'|'stl'} → kaydedilen yol | null
+    saveFile: (opts) => ipcRenderer.invoke('native:save', opts),
+    // belge durumu: 'opened' (az önce açılan dosya yüklendi) | 'new' (yeni belge): geçerli belge yolunu ana süreç günceller
+    docState: (s) => ipcRenderer.send('native:docState', String(s)),
+    setTitle: (t) => ipcRenderer.send('native:title', String(t)),
+    // komut satırından (çift tık) açılan .acad dosyası → {name,data} | null
+    argvFile: () => ipcRenderer.invoke('native:argv'),
+    // arayüz kaydedilmemiş değişiklik durumunu bildirir (kapatırken onay için)
+    setDirty: (d) => ipcRenderer.send('native:dirty', !!d),
+    // ayarlar (userData/settings.json): getSetting eşzamanlıdır (arayüz ilk çizimden önce dili okur)
+    getSetting: (key) => ipcRenderer.sendSync('native:getSetting', String(key)),
+    setSetting: (key, value) => ipcRenderer.send('native:setSetting', String(key), value),
+    // ana sürecin diyalog metinleri (kapatma onayı, dosya süzgeçleri): arayüz sözlüğünden gelir
+    setStrings: (o) => ipcRenderer.send('native:strings', o),
+    // otomatik kurtarma dosyası (userData/recovery/autosave.acad)
+    recoverySave: (data) => ipcRenderer.invoke('native:recoverySave', data),
+    recoveryLoad: () => ipcRenderer.invoke('native:recoveryLoad'),
+    recoveryClear: () => ipcRenderer.invoke('native:recoveryClear'),
+    versions: { electron: process.versions.electron, chrome: process.versions.chrome },
+  });
+}

@@ -33,7 +33,10 @@ try:
     br = p.chromium.launch(channel='chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'])
     # Arayüz dili: Türkçe sabitlenir (kayıtlı tercih yoksa); dil testi en sonda (bölüm H) tercihin saklanmasını da sınar.
     ctx = br.new_context(viewport={'width': 1400, 'height': 860}, accept_downloads=True, locale='tr-TR')
-    ctx.add_init_script("try { if (!localStorage.getItem('atolye.lang')) localStorage.setItem('atolye.lang', 'tr'); } catch (e) {}")
+    # otomatik kurtarma zamanlayıcısı bu testte kapalı (60 sn'lik zamanlayıcı bölüm S'de ayrı bağlamda sınanır)
+    ctx.add_init_script("try { if (!localStorage.getItem('atolye.lang')) localStorage.setItem('atolye.lang', 'tr'); localStorage.setItem('atolye.recoveryMs', '0'); } catch (e) {}")
+    # CSP ihlali dinleyicisi: sıkı CSP (meta) altında uygulama hiçbir ihlal olmadan çalışmalı
+    ctx.add_init_script("window.__csp = []; document.addEventListener('securitypolicyviolation', (e) => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI + ' ' + (e.sample || '')));")
     page = ctx.new_page()
     errs = []
     page.on('pageerror', lambda e: errs.append('pageerror: ' + str(e) + ' ' + str(getattr(e,'stack','') or '')[:400]))
@@ -63,7 +66,7 @@ try:
     def toast_text(): return ev('document.querySelector("#toast").classList.contains("hidden") ? "" : document.querySelector("#toast").textContent')
 
     page.goto(f'http://127.0.0.1:{PORT}/')
-    page.wait_for_function('window.app', timeout=30000)
+    page.wait_for_function('() => (window.app)', timeout=30000)
     ev('app.ready')
     check('uygulama açıldı, çekirdek yüklendi', ev('document.querySelector("#loading").classList.contains("hidden")'))
     check('menü başlıkları', ev('[...document.querySelectorAll("#menubar .menu > button")].map(b => b.textContent).join(",")') == 'Dosya,Düzen,Görünüm,Yardım')
@@ -89,7 +92,7 @@ try:
     # kenar seç (sol-ön dikey kenar) gerçek tıklama ile
     tb('fillet'); page.wait_for_selector('#panel [data-k="edges"]')
     click_world([0, 0, 10])
-    page.wait_for_function('document.querySelector("#panel .selbox[data-k=edges]").dataset.count === "1"', timeout=8000)
+    page.wait_for_function('() => (document.querySelector("#panel .selbox[data-k=edges]").dataset.count === "1")', timeout=8000)
     fill('r', 5); idle()
     shot('03_yuvarlat_secim')
     ok()
@@ -100,7 +103,7 @@ try:
     # yüz seç: üst yüz, kabuk
     tb('shell'); page.wait_for_selector('#panel [data-k="faces"]')
     click_world([50, 30, 20])
-    page.wait_for_function('document.querySelector("#panel .selbox[data-k=faces]").dataset.count === "1"', timeout=8000)
+    page.wait_for_function('() => (document.querySelector("#panel .selbox[data-k=faces]").dataset.count === "1")', timeout=8000)
     fill('t', 2); idle()
     ok()
     st = ev('app.result.status[app.doc.features[2].id]')
@@ -111,7 +114,7 @@ try:
     print('hata: büyük yuvarlatma')
     tb('fillet'); page.wait_for_selector('#panel [data-k="edges"]')
     # kabuktan önceki kutu yerine yeni belgede deneyelim: kutu üzerinde dış alt kenar
-    click_world([50, 0, 0]); page.wait_for_function('document.querySelector("#panel .selbox[data-k=edges]").dataset.count === "1"', timeout=8000)
+    click_world([50, 0, 0]); page.wait_for_function('() => (document.querySelector("#panel .selbox[data-k=edges]").dataset.count === "1")', timeout=8000)
     fill('r', 500); idle(); page.wait_for_timeout(300)
     errtxt = ev('document.querySelector("#p-err").textContent')
     check('hatalı özellik panelde kırmızı hata gösterir', len(errtxt) > 5, errtxt)
@@ -296,20 +299,20 @@ try:
         {'id': 'b2', 'type': 'primitive', 'name': 'Kutu 2', 'kind': 'box', 'x': '80', 'y': '10', 'z': '0', 'w': '40', 'd': '40', 'h': '30', 'op': 'new'}]}
     ev('(d) => app.loadDoc(d)', docE); idle()
     tb('measure'); page.wait_for_selector('#measurebox:not(.hidden)')
-    click_world([50, 0, 10]); page.wait_for_function('document.querySelector("#measurebox").textContent.includes("Alan")', timeout=8000)
+    click_world([50, 0, 10]); page.wait_for_function('() => (document.querySelector("#measurebox").textContent.includes("Alan"))', timeout=8000)
     check('ölç: tek yüz (tür, alan)', '2.000' in page.inner_text('#measurebox').replace(',', '.') or '2000' in page.inner_text('#measurebox').replace('.', ''), page.inner_text('#measurebox'))
-    click_world([0, 30, 10]); page.wait_for_function('document.querySelector("#measurebox").textContent.includes("En kısa mesafe")', timeout=8000)
+    click_world([0, 30, 10]); page.wait_for_function('() => (document.querySelector("#measurebox").textContent.includes("En kısa mesafe"))', timeout=8000)
     bx = page.inner_text('#measurebox')
     check('ölç: iki yüz (mesafe, açı, ΔX/ΔY/ΔZ)', 'Açı' in bx and 'ΔX' in bx and '90' in bx, bx)
     shot('13_olc')
     page.keyboard.press('Escape')
     check('Esc ölçüyü kapatır', ev('document.querySelector("#measurebox").classList.contains("hidden")') and ev('app.tool') is None)
     ev('app.selection = [{kind: "body", body: "b1"}]')
-    tb('props'); page.wait_for_function('document.querySelector("#measurebox").textContent.includes("Hacim")', timeout=8000)
+    tb('props'); page.wait_for_function('() => (document.querySelector("#measurebox").textContent.includes("Hacim"))', timeout=8000)
     page.fill('#dens', '7,85'); pt = page.inner_text('#measurebox')
     check('özellikler: hacim, alan, ağırlık merkezi, kutu, kütle', all(w in pt for w in ['Hacim', 'Yüzey alanı', 'Ağırlık merkezi', 'Kutu ölçüleri']) and ('942' in pt or '942,0' in pt), pt)
     shot('14_ozellikler'); page.click('#mb-close')
-    tb('interf'); page.wait_for_function('document.querySelector("#measurebox").textContent.includes("mm³")', timeout=10000)
+    tb('interf'); page.wait_for_function('() => (document.querySelector("#measurebox").textContent.includes("mm³"))', timeout=10000)
     ti = page.inner_text('#measurebox')
     check('girişim: iki kutu kesişiyor (20x40x20=16000)', '16.000' in ti.replace(' ', '') or '16000' in ti.replace('.', ''), ti)
     page.click('#mb-close')
@@ -325,7 +328,7 @@ try:
     menu('Dosya', 'Yeni'); idle()
     tb('sketch'); page.wait_for_timeout(300)
     check('sketch: düzlem seç ipucu', 'düzlem' in ev('document.querySelector("#hint").textContent'))
-    click_world([50, 55, 0]); page.wait_for_function('app.sketchSession', timeout=10000); ev('app.sketcher.idle()')
+    click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
     check('sketch kipine girildi (XY düzlemi)', ev('app.sketcher.active') and ev('app.sketchSession.draft.plane.name') == 'XY', ev('JSON.stringify([app.sketcher.active, app.sketchSession.draft.plane])'))
     check('sketch araç çubuğu: ÇİZ, ÖLÇÜ, KISIT', page.locator('#toolbar button[data-act="rect"]').count() == 1 and page.locator('#toolbar button[data-act="c-parallel"]').count() == 1 and page.locator('#sk-finish').count() >= 1)
     def sk_px(u, v):
@@ -349,7 +352,7 @@ try:
     check('extrude: 50x30x10 gövde', near(vol(), 15000), vol())
     # üst yüzde ikinci sketch -> kes
     tb('sketch'); page.wait_for_timeout(300)
-    click_world([25, 15, 10]); page.wait_for_function('app.sketchSession', timeout=10000); ev('app.sketcher.idle()')
+    click_world([25, 15, 10]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
     check('yüz üstüne sketch (düzlem yüzden)', ev('app.sketchSession.draft.plane.kind') == 'face' and near(ev('app.sketchSession.plane.o[2]'), 10))
     tb('circle'); page.wait_for_timeout(200)
     sk_click(25, 15); sk_click(30, 15); page.wait_for_timeout(200)
@@ -361,7 +364,7 @@ try:
     check('kesme: cep hacmi', near(vol(), 15000 - math.pi * 25 * 4, 5e-3), vol())
     shot('18_sketch_kes')
     # sketch düzenle (tarayıcıdan çift tık), iptal
-    page.locator('#browser [data-sketch]').first.dblclick(); page.wait_for_function('app.sketchSession', timeout=8000); ev('app.sketcher.idle()')
+    page.locator('#browser [data-sketch]').first.dblclick(); page.wait_for_function('() => (app.sketchSession)', timeout=8000); ev('app.sketcher.idle()')
     check('sketch düzenleme kipi', ev('app.sketchSession.idx') == 0 and ev('app.sketcher.active'))
     page.click('#toolbar button[data-act="sk-cancel"]'); idle()
     check('sketch iptali', ev('!app.sketchSession') and nbodies() == 1)
@@ -370,7 +373,7 @@ try:
     print('G: sketch kısıtları')
     ev('app.loadDoc({params: [], features: []})'); idle(); ev('app.viewport.view("iso", true)'); page.wait_for_timeout(300)
     tb('sketch'); page.wait_for_timeout(300)
-    click_world([50, 55, 0]); page.wait_for_function('app.sketchSession', timeout=10000); ev('app.sketcher.idle()')
+    click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
     def sk_px(u, v):
         return ev('([u, v]) => { const V = app.sketcher.plane; const w = [V.o[0] + V.x[0]*u + V.y[0]*v, V.o[1] + V.x[1]*u + V.y[1]*v, V.o[2] + V.x[2]*u + V.y[2]*v]; const [x, y] = app.viewport.project(w); const r = app.viewport.renderer.domElement.getBoundingClientRect(); return [r.left + x, r.top + y]; }', [u, v])
     def sk_click(u, v):
@@ -430,6 +433,129 @@ try:
     check('panelden kısıt silme', page.locator('#sk-cons .row').count() == n0 - 1)
     page.click('#sk-cancel'); idle()
 
+    # ---------------------------------------------------------------- S: güvenlik (S-02 içe aktarma önbelleği, S-12 şema, S-05 CSP, S-06 kurtarma)
+    print('S: güvenlik')
+    import base64, hashlib
+    def step_b64(w):
+        return ev('''async (w) => { await app.loadDoc({ params: [], features: [{ id: 'b1', type: 'primitive', name: 'K', kind: 'box', x: '0', y: '0', z: '0', w: String(w), d: String(w), h: String(w), op: 'new' }] });
+            await app.whenIdle(); const d = await app.query('export', { format: 'step', ids: [app.result.bodies[0].id] }); let s = ''; for (const c of d) s += String.fromCharCode(c); return btoa(s); }''', w)
+    stepA = os.path.join(TMP, 'sec_A.step'); stepB = os.path.join(TMP, 'sec_B.step')
+    open(stepA, 'wb').write(base64.b64decode(step_b64(10))); open(stepB, 'wb').write(base64.b64decode(step_b64(20)))
+    ev('app.markDirty(false)')
+    def do_import(path):
+        with page.expect_file_chooser() as fc: menu('Dosya', 'STEP İçe Aktar…')
+        fc.value.set_files(path); page.wait_for_timeout(400); idle()
+    # S-02: Yeni -> A içe aktar -> Yeni -> B içe aktar (hacim 8000 beklenir)
+    menu('Dosya', 'Yeni'); idle(); ev('window.__w0 = app.worker'); do_import(stepA)
+    idA = ev('app.doc.features[0].id'); hashA = ev('app.doc.features[0].hash'); volA = vol()
+    check('S-02: A (10 mm küp) içe aktarıldı, hacim 1000', near(volA, 1000, 5e-3), str(volA))
+    ev('app.markDirty(false)'); menu('Dosya', 'Yeni'); idle()
+    check('S-02: Yeni belgede çekirdek işçisi sıfırlandı (yeniden başlatıldı)', ev('app.worker !== window.__w0'))
+    do_import(stepB)
+    idB = ev('app.doc.features[0].id'); hashB = ev('app.doc.features[0].hash'); volB = vol()
+    check('S-02: B (20 mm küp) içe aktarıldı, hacim 8000 (eski önbellekteki A DEĞİL)', near(volB, 8000, 5e-3), str(volB))
+    check('S-02: içe aktarma kimlikleri benzersiz (imp1 değil)', idA != idB and idA != 'imp1' and idB != 'imp1' and idA.startswith('imp_'), f'{idA} {idB}')
+    dataB = ev('app.doc.features[0].data')
+    check('S-02: hash = verinin SHA-256\'sı', hashB == hashlib.sha256(base64.b64decode(dataB)).hexdigest() and hashA != hashB and len(hashB) == 64, hashB)
+    # içe aktar -> geri al -> başka dosya içe aktar
+    ev('app.markDirty(false)'); menu('Dosya', 'Yeni'); idle(); do_import(stepA); ev('app.undo()'); idle(); do_import(stepB)
+    check('S-02: içe aktar, geri al, başka dosya içe aktar: B geometrisi', near(vol(), 8000, 5e-3), str(vol()))
+    # eski biçim: iki .acad dosyasında aynı kimlik (imp1) + farklı veri
+    def legacy(path, stp):
+        d = base64.b64encode(open(stp, 'rb').read()).decode()
+        json.dump({'app': 'AtolyeCAD', 'version': 1, 'doc': {'params': [], 'features': [{'id': 'imp1', 'type': 'import', 'name': 'x', 'format': 'step', 'data': d}]}}, open(path, 'w'))
+    accA = os.path.join(TMP, 'sec_A.acad'); accB = os.path.join(TMP, 'sec_B.acad'); legacy(accA, stepA); legacy(accB, stepB)
+    def open_acad(path):
+        ev('app.markDirty(false)')
+        with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
+        fc.value.set_files(path); page.wait_for_timeout(500); idle()
+    open_acad(accA); v1 = vol(); open_acad(accB); v2 = vol()
+    check('S-02: A.acad aç, B.acad aç (ikisinde de imp1): 1000 sonra 8000', near(v1, 1000, 5e-3) and near(v2, 8000, 5e-3), f'{v1} {v2}')
+
+    # S-12: şema doğrulaması, mevcut belge korunur
+    ev('(d) => app.loadDoc(d)', {'params': [], 'features': [{'id': 'b1', 'type': 'primitive', 'name': 'K', 'kind': 'box', 'x': '0', 'y': '0', 'z': '0', 'w': '40', 'd': '30', 'h': '20', 'op': 'new'}]}); idle()
+    snap = ev('JSON.stringify(app.doc)')
+    box0 = json.loads(snap)['features'][0]
+    deep = None
+    for _ in range(300): deep = [deep]
+    bads = {
+        'doc sayı': 5, 'params=[null]': {'params': [None], 'features': []}, 'features=[null]': {'params': [], 'features': [None]},
+        'bilinmeyen tür': {'params': [], 'features': [{'id': 'x', 'type': 'warp'}]}, 'ents=5': {'params': [], 'features': [{'id': 's', 'type': 'sketch', 'ents': 5}]},
+        'desen 200000': {'params': [], 'features': [box0, {'id': 'p1', 'type': 'pattern', 'kind': 'rect', 'source': {'kind': 'feature', 'id': 'b1'}, 'count1': '200000', 'count2': '1'}]},
+        'iç içe 300': {'params': [], 'features': [dict(box0, note=deep)]}, 'rollback=-5': dict({'params': [], 'features': [box0]}, rollback=-5),
+        'yinelenen kimlik': {'params': [], 'features': [box0, box0]}, 'içe aktarma özeti yanlış': {'params': [], 'features': [{'id': 'imp_1', 'type': 'import', 'name': 'x', 'format': 'step', 'data': base64.b64encode(open(stepA, 'rb').read()).decode(), 'hash': '0' * 64}]},
+    }
+    for nm, doc in bads.items():
+        pth = os.path.join(TMP, 'sec_bad.acad'); json.dump({'app': 'AtolyeCAD', 'version': 1, 'doc': doc}, open(pth, 'w'))
+        ev('app.markDirty(false)'); ev('document.querySelector("#toast").classList.add("hidden")')
+        with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
+        fc.value.set_files(pth); page.wait_for_timeout(500); idle()
+        check(f'şema: "{nm}" reddedildi, uyarı gösterildi, mevcut belge aynen korundu', ev('JSON.stringify(app.doc)') == snap and 'açılamadı' in toast_text() and not page.is_visible('#modal:not(.hidden)'), toast_text())
+    # daha yeni sürüm: uyarı penceresi; vazgeç = yüklenmez, "Yine de Aç" = yüklenir
+    pth = os.path.join(TMP, 'sec_new.acad'); json.dump({'app': 'AtolyeCAD', 'version': 2, 'doc': {'params': [], 'features': [dict(box0, id='nb1', w='77')]}}, open(pth, 'w'))
+    ev('app.markDirty(false)')
+    with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
+    fc.value.set_files(pth); page.wait_for_selector('#modal:not(.hidden)')
+    check('daha yeni sürüm dosyası: "daha yeni bir sürümle kaydedilmiş" uyarısı', 'daha yeni bir sürümle kaydedilmiş' in page.inner_text('#modal'), page.inner_text('#modal'))
+    page.click('#modal button[data-v="false"]'); page.wait_for_timeout(300); idle()
+    check('daha yeni sürüm: vazgeçince yüklenmedi', ev('JSON.stringify(app.doc)') == snap)
+    ev('app.markDirty(false)')
+    with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
+    fc.value.set_files(pth); page.wait_for_selector('#modal:not(.hidden)'); page.click('#modal button[data-v="true"]'); page.wait_for_timeout(500); idle()
+    check('daha yeni sürüm: "Yine de Aç" ile yüklendi', ev('app.doc.features[0].id') == 'nb1')
+    # S-08 (arayüz tarafı): desen adedi üst sınırı panelde (Tamam engellenir; çekirdek tarafı ayrıca düzeltilecek)
+    ev('(d) => app.loadDoc(d)', {'params': [], 'features': [box0]}); idle()
+    ev("app.startFeature('pattern')"); page.wait_for_selector('#panel [data-k="count1"]'); fill('count1', 200000); idle()
+    page.click('#p-ok'); page.wait_for_timeout(300)
+    check('desen adedi 200000: panelde hata, Tamam engellendi (çekirdek kilitlenmedi)', ev('!!app.edit') and '2000' in toast_text() and ev('app.doc.features.length') == 1, toast_text())
+    ev('app.edit.cancel()'); idle()
+    # sürükle-bırak: sayfa gezinmez (varsayılan eylem iptal)
+    check('sürükle-bırak: drop olayı varsayılan eylemi iptal edildi', ev('(() => { const dt = new DataTransfer(); dt.items.add(new File(["x"], "a.html")); const e = new DragEvent("drop", { dataTransfer: dt, cancelable: true, bubbles: true }); window.dispatchEvent(e); return e.defaultPrevented; })()'))
+
+    # S-05: CSP meta etiketi ve ihlal yok (satır içi stil dahil: style-src'de unsafe-inline yok)
+    csp_meta = ev('document.querySelector(\'meta[http-equiv="Content-Security-Policy"]\').content')
+    check('CSP meta etiketi: sıkı ilke (unsafe-eval / unsafe-inline yok, default-src none)', "default-src 'none'" in csp_meta and "'unsafe-eval'" not in csp_meta and "'unsafe-inline'" not in csp_meta and "form-action 'none'" in csp_meta, csp_meta)
+    # not: CDP "evaluate" CSP eval engelini atlar; Playwright'ın dizge ifadeli wait_for_function sorgusu ise sayfa bağlamında eval kullanır ve engellenir
+    csp_before = ev('window.__csp.slice()')
+    try: page.wait_for_function('document.querySelector("#viewport").dataset.zzz === "1"', timeout=3000); evalblocked = False
+    except Exception as e: evalblocked = 'unsafe-eval' in str(e) and 'Content Security Policy' in str(e)
+    check('CSP: sayfada eval (dizgeden betik) engelli: EvalError üretildi', evalblocked)
+    page.evaluate("() => { const s = document.createElement('script'); s.textContent = 'window.__inl = 1'; document.body.append(s); }")
+    check('CSP: satır içi <script> çalışmadı', ev('window.__inl') is None)
+    check('CSP: uygulama tüm akış boyunca (kasıtlı sınamalar öncesi) HİÇ CSP ihlali üretmedi', len(csp_before) == 0, str(csp_before[:3]))
+    ev('window.__csp = []')
+
+
+    # S-06: otomatik kurtarma (tarayıcı kipi: IndexedDB). Varsayılan ayarlı ayrı bağlam (60 sn zamanlayıcı açık)
+    print('S: otomatik kurtarma (tarayıcı)')
+    c3 = br.new_context(viewport={'width': 1300, 'height': 800}, accept_downloads=True, locale='tr-TR')
+    c3.add_init_script("try { if (!localStorage.getItem('atolye.lang')) localStorage.setItem('atolye.lang', 'tr'); } catch (e) {} window.__ints = []; const si = window.setInterval.bind(window); window.setInterval = (f, ms, ...a) => { window.__ints.push([f, ms]); return si(f, ms, ...a); };")
+    p3 = c3.new_page(); p3.on('dialog', lambda d: d.accept()); ev3 = p3.evaluate
+    p3.goto(f'http://127.0.0.1:{PORT}/'); p3.wait_for_function('() => window.app', timeout=30000); ev3('app.ready')
+    def idb_has(): return ev3("""() => new Promise((res) => { const r = indexedDB.open('atolyecad-recovery', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => { const g = r.result.transaction('kv').objectStore('kv').get('autosave'); g.onsuccess = () => { r.result.close(); res(g.result ? g.result.byteLength : 0); }; }; r.onerror = () => res(-1); })""")
+    p3.wait_for_function('() => window.app._recTimer'); check('kurtarma: zamanlayıcı 60 sn aralıkla kuruldu', ev3('app.recoveryMs') == 60000 and ev3('window.__ints.some(([f, ms]) => ms === 60000)'))
+    ev3('(d) => app.loadDoc(d)', {'params': [], 'features': [box0]}); ev3('app.whenIdle()')
+    ev3('window.__ints.find(([f, ms]) => ms === 60000)[0]()'); p3.wait_for_timeout(300)
+    check('kurtarma: temiz belgede zamanlayıcı bir şey yazmaz', idb_has() == 0)
+    ev3('app.doc.features[0].w = "91"; app.markDirty(true)'); ev3('window.__ints.find(([f, ms]) => ms === 60000)[0]()'); p3.wait_for_timeout(500)
+    check('kurtarma: değişiklik varken zamanlayıcı geri çağrısı yedeği yazdı', idb_has() > 100, str(idb_has()))
+    p3.reload(); p3.wait_for_function('() => window.app', timeout=30000); ev3('app.ready'); p3.wait_for_selector('#modal:not(.hidden)', timeout=10000)
+    check('kurtarma: yeniden açılışta kullanıcıya soruldu', 'Kurtarma dosyası bulundu' in p3.inner_text('#modal h3') or 'Kurtarma dosyası bulundu' in p3.inner_text('#modal'), p3.inner_text('#modal')[:80])
+    p3.click('#modal button.pri'); p3.wait_for_function('() => window.app.doc.features.length === 1'); ev3('app.whenIdle()')
+    check('kurtarma: Kurtar -> belge geri geldi (w=91), değişmiş durumda, hacim hesaplandı', ev3('app.doc.features[0].w') == '91' and ev3('app.dirty') and abs(ev3('app.result.bodies[0].volume') - 91*30*20) < 1)
+    check('kurtarma: kaydedilene kadar yedek durur', idb_has() > 100)
+    with p3.expect_download() as dl: ev3('app.save()')
+    p3.wait_for_timeout(500)
+    check('kurtarma: kaydedince yedek silindi', idb_has() == 0 and not ev3('app.dirty'))
+    ev3('app.doc.features[0].w = "92"; app.markDirty(true)'); ev3('window.__ints.find(([f, ms]) => ms === 60000)[0]()'); p3.wait_for_timeout(400)
+    p3.reload(); p3.wait_for_function('() => window.app', timeout=30000); ev3('app.ready'); p3.wait_for_selector('#modal:not(.hidden)', timeout=10000)
+    p3.click('#modal button:not(.pri)'); p3.wait_for_timeout(500)
+    check('kurtarma: "Sil" -> yedek silindi, boş belge', idb_has() == 0 and ev3('app.doc.features.length') == 0)
+    ev3('(d) => app.loadDoc(d)', {'params': [], 'features': [box0]}); ev3('app.whenIdle()'); ev3('app.markDirty(true)'); ev3('window.__ints.find(([f, ms]) => ms === 60000)[0]()'); p3.wait_for_timeout(400)
+    ev3('app.markDirty(false)'); ev3('app.newDoc()'); p3.wait_for_timeout(1500)
+    check('kurtarma: Yeni belge yedeği siler', idb_has() == 0)
+    c3.close()
+
     # ---------------------------------------------------------------- H: dil değiştirme (Türkçe -> English -> Türkçe)
     print('H: dil değiştirme')
     def menu_titles(): return ev('[...document.querySelectorAll("#menubar .menu > button")].map(b => b.textContent).join(",")')
@@ -444,7 +570,7 @@ try:
     # ilk açılış dili: işletim sistemi dili (kayıtlı tercih yok)
     for loc, want, word in [('en-US', 'en', 'File'), ('de-DE', 'en', 'File'), ('tr-TR', 'tr', 'Dosya')]:
         c2 = br.new_context(viewport={'width': 1200, 'height': 800}, locale=loc)
-        p2 = c2.new_page(); p2.goto(f'http://127.0.0.1:{PORT}/'); p2.wait_for_function('window.app && document.querySelector("#menubar button")', timeout=30000)
+        p2 = c2.new_page(); p2.goto(f'http://127.0.0.1:{PORT}/'); p2.wait_for_function('() => (window.app && document.querySelector("#menubar button"))', timeout=30000)
         got = p2.evaluate('[...document.querySelectorAll("#menubar .menu > button")][0].textContent')
         check(f'ilk açılış ({loc}): menü "{word}", tercih yazılmadı', got == word and p2.evaluate("localStorage.getItem('atolye.lang')") is None and p2.evaluate('document.documentElement.lang') == want, got)
         c2.close()
@@ -452,7 +578,7 @@ try:
     ev('app.loadDoc({params: [], features: []})'); idle(); ev('app.viewport.view("iso", true)')
     check('H başlangıç: Türkçe', menu_titles() == 'Dosya,Düzen,Görünüm,Yardım' and stored_lang() == 'tr')
     tb('sketch'); page.wait_for_timeout(300)
-    click_world([50, 55, 0]); page.wait_for_function('app.sketchSession', timeout=10000); ev('app.sketcher.idle()')
+    click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
     tb('rect'); page.wait_for_timeout(300)
     sk_click(0, 0); sk_click(40, 30); page.wait_for_timeout(300)
     check('H: sketch kipi Türkçe (kısıt, durum)', btn_text('c-perpendicular') == 'Dik' and 'Serbestlik' in left_text(), left_text())
@@ -493,7 +619,7 @@ try:
 
     # çekirdek hatası: çok büyük fillet, İngilizce panel + zaman çizelgesi
     tb('fillet'); page.wait_for_selector('#panel [data-k="edges"]')
-    click_world([0, 0, 5]); page.wait_for_function('document.querySelector("#panel .selbox[data-k=edges]").dataset.count === "1"', timeout=8000)
+    click_world([0, 0, 5]); page.wait_for_function('() => (document.querySelector("#panel .selbox[data-k=edges]").dataset.count === "1")', timeout=8000)
     fill('r', 500); idle(); page.wait_for_timeout(300)
     err_en = ev('document.querySelector("#p-err").textContent')
     check('İngilizce: çekirdek hatası panelde (fillet.too_big)', err_en == 'Fillet failed: the value may be too large for these edges', err_en)
@@ -542,14 +668,15 @@ try:
 
     # tercih saklanır: sayfayı yeniden yükle
     ev('app.markDirty(false)')
-    page.reload(); page.wait_for_function('window.app', timeout=30000); ev('app.ready')
+    page.reload(); page.wait_for_function('() => (window.app)', timeout=30000); ev('app.ready')
     check('yeniden yükleme: İngilizce korundu', menu_titles() == 'File,Edit,View,Help' and ev('document.documentElement.lang') == 'en' and stored_lang() == 'en', menu_titles())
     check('yeniden yükleme: yükleme metni/ayarlar İngilizce', group_titles() == 'Create,Modify,Inspect' and page.inner_text('#st-left').strip() == 'Ready', group_titles())
     lang_menu('tr')
     check('Türkçeye dön: menü, araç çubuğu, tercih', menu_titles() == 'Dosya,Düzen,Görünüm,Yardım' and group_titles().lower().startswith('oluştur,düzenle,') and stored_lang() == 'tr' and ev('document.documentElement.lang') == 'tr', menu_titles())
-    page.reload(); page.wait_for_function('window.app', timeout=30000); ev('app.ready')
+    page.reload(); page.wait_for_function('() => (window.app)', timeout=30000); ev('app.ready')
     check('yeniden yükleme: Türkçe korundu', menu_titles() == 'Dosya,Düzen,Görünüm,Yardım' and page.inner_text('#st-left').strip() == 'Hazır', menu_titles())
 
+    check('CSP: dil değiştirme dahil son aşamada da ihlal yok', ev('window.__csp.length') == 0, str(ev('window.__csp')[:3]))
     print('\nkonsol hataları:', [e for e in errs if 'GL Driver' not in e][:5])
     check('konsolda sayfa hatası yok', not [e for e in errs if e.startswith('pageerror')], str([e for e in errs if e.startswith('pageerror')][:3]))
     br.close()

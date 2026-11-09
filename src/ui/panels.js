@@ -4,6 +4,7 @@ import { t, tk, errText } from '../shared/i18n.js';
 import { toErr } from '../shared/errors.js';
 import { fieldsFor, featLabel, THREADS, patternSources } from './features.js';
 import { evalExpr, resolveParams } from '../shared/expr.js';
+import { LIMITS } from '../shared/schema.js';
 import { basePlane } from '../shared/vec.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -36,6 +37,12 @@ export class FeaturePanel {
     if (['extrude', 'revolve', 'hole'].includes(d.type)) {
       if (!d.sketch || !this.ctx().sketches.some((s) => s.id === d.sketch)) return { code: 'val.no_sketch', params: {} };
       if (d.type !== 'hole' && Array.isArray(d.profiles) && !d.profiles.length) return { code: 'val.no_profile', params: {} };
+    }
+    if (d.type === 'pattern') {
+      // desen adedi üst sınırı (kilitlenmeyi önler); çözülemeyen ifadeyi çekirdek bildirir
+      const vars = this.app.vars(); const num = (x) => { try { return Number(evalExpr(x, vars)); } catch (e) { return NaN; } };
+      const n = d.kind === 'circ' ? num(d.count) : num(d.count1) * (d.count2 === undefined || d.count2 === '' ? 1 : num(d.count2));
+      if (n > LIMITS.patternCount) return { code: 'val.pattern_too_big', params: { max: LIMITS.patternCount } };
     }
     return null;
   }

@@ -9,6 +9,8 @@ import { basePlane } from '../shared/vec.js';
 import { h, $, toast, modal, modalOpen, promptText, confirmBox, esc, fmt } from './dom.js';
 import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared/i18n.js';
 import { KErr, toErr } from '../shared/errors.js';
+import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS } from '../shared/schema.js';
+import { recovery } from './recovery.js';
 import { defaults, newId, autoName, featLabel, dependents } from './features.js';
 import { initChrome } from './chrome.js';
 import { FeaturePanel, SketchPanel, SectionPanel, paramsModal, showBox, hideBox, measureRows, showProps } from './panels.js';
@@ -19,8 +21,16 @@ const SKETCHER = import.meta.glob('./sketcher.js');
 const clone = (v) => (Array.isArray(v) ? v.map(clone) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clone(x)])) : v);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const b64 = (bytes) => { let s = ''; const C = 0x8000; for (let i = 0; i < bytes.length; i += C) s += String.fromCharCode.apply(null, bytes.subarray(i, i + C)); return btoa(s); };
-const acadFilter = () => [{ name: t('file.filter_acad'), extensions: ['acad'] }];
 const emptyDoc = () => ({ params: [], features: [], rollback: null });
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const hex = (buf) => [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, '0')).join('');
+// İçe aktarılan verinin SHA-256'sı (S-02): özelliğe `hash` olarak yazılır; yükleme sırasında doğrulanır.
+export async function sha256Hex(bytes) { return hex(await crypto.subtle.digest('SHA-256', bytes)); }
+// Benzersiz içe aktarma kimliği: belge değişse de çekirdek önbelleğinde çakışmaz (eski: her belgede 'imp1').
+const importId = (doc) => { const used = new Set(doc.features.map((f) => f.id)); for (;;) { const r = crypto.getRandomValues(new Uint32Array(2)); const id = 'imp_' + hex(r.buffer); if (!used.has(id)) return id; } };
+// Otomatik kurtarma aralığı (60 sn). Yalnız tarayıcı/test kipinde localStorage ile geçersiz kılınabilir (0 = kapalı).
+const RECOVERY_MS = 60000;
+const recoveryInterval = () => { if (window.native) return RECOVERY_MS; try { const v = localStorage.getItem('atolye.recoveryMs'); return v == null ? RECOVERY_MS : Math.max(0, Number(v) || 0); } catch (e) { return RECOVERY_MS; } };
 
 class App {
   constructor() {
@@ -29,7 +39,7 @@ class App {
     this.selection = []; this.selFeature = null; this.hiddenBodies = new Set(); this.hiddenSketches = new Set();
     this.edit = null; this.tool = null; this.measureSel = []; this.sketchSession = null; this.sketcher = null; this.sectionPanel = null;
     this._seq = 0; this._chain = Promise.resolve(); this._timer = 0; this._pending = new Map(); this._wid = 0; this.needFit = true; this.regionCount = null;
-    this.problems = {};
+    this.problems = {}; this._rev = 0; this._recRev = -1; this._resetP = Promise.resolve(); this.recoveryMs = RECOVERY_MS; this._recTimer = 0;
     this.ready = new Promise((res, rej) => { this._readyRes = res; this._readyRej = rej; });
     this.ready.catch(() => {});
   }
@@ -46,6 +56,8 @@ class App {
     this.viewport.onCamera = () => {};
     this.C.renderViewBtns(); this.C.renderAll();
     this.bindKeys();
+    // sürükle-bırak ile dosyaya gezinmeyi engelle (S-03); gezinti ayrıca ana süreçte de engellidir
+    for (const ev of ['dragover', 'drop']) window.addEventListener(ev, (e) => e.preventDefault());
     if (!window.native) window.addEventListener('beforeunload', (e) => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
     try {
       this.startWorker();
@@ -57,7 +69,11 @@ class App {
       this.loadFail(t('ld.kernel_fail', { detail: errText(e) }), 460, t('ld.restart'));
       this._readyRej(e); return;
     }
-    if (window.native) { try { const f = await window.native.argvFile(); if (f) await this.openBytes(f.data, f.name, f.path); } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); } }
+    let recovered = false;
+    try { recovered = await this.offerRecovery(); } catch (e) { console.error(e); }
+    if (window.native && !recovered) { try { const f = await window.native.argvFile(); if (f) await this.openBytes(f.data, f.name, f.name); } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); } }
+    this.recoveryMs = recoveryInterval();
+    if (this.recoveryMs > 0) this._recTimer = setInterval(() => this.recoveryTick(), this.recoveryMs);
     this.updateTitle();
   }
   // Başlangıç hatası: yükleme katmanında kırmızı metin (kullanıcı verisi textContent ile basılır).
@@ -72,7 +88,8 @@ class App {
   setLanguage(l) { setLang(l); }
   // Electron ana süreci kapatma onayı gibi diyalog metinlerini buradan alır (tek sözlük).
   pushNativeStrings() {
-    window.native?.setStrings?.({ closeMsg: t('native.close_msg'), closeDetail: t('native.close_detail'), closeCancel: t('native.close_cancel'), closeDiscard: t('native.close_discard') });
+    window.native?.setStrings?.({ closeMsg: t('native.close_msg'), closeDetail: t('native.close_detail'), closeCancel: t('native.close_cancel'), closeDiscard: t('native.close_discard'),
+      filterAcad: t('file.filter_acad'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
   }
   // Dil değişince her yer yeniden çizilir; açık panel, sketch, kesit, ölçü kutusu ve durum satırı dahil.
   relang() {
@@ -99,6 +116,18 @@ class App {
     };
     this.worker.onerror = (e) => { console.error('worker hatası', e); die(new KErr('worker.crashed')); };
   }
+  // Çekirdek önbelleğini sıfırlar (S-02): işçi sonlandırılıp yeniden başlatılır (worker'a `reset` komutu eklenene kadar).
+  async resetKernel() {
+    clearTimeout(this._timer); this._timer = 0; await this.whenIdle();
+    const p = this._resetWorker(); this._resetP = p.catch(() => {}); await p;
+  }
+  async _resetWorker() {
+    const err = new KErr('worker.crashed');
+    for (const p of this._pending.values()) p.reject(err); this._pending.clear();
+    try { this.worker.terminate(); } catch (e) { /* zaten kapalı */ }
+    this.startWorker();
+    await this.call('ping');
+  }
   call(cmd, args = {}) {
     return new Promise((resolve, reject) => { const id = ++this._wid; this._pending.set(id, { resolve, reject }); this.worker.postMessage({ id, cmd, args }); });
   }
@@ -116,7 +145,7 @@ class App {
     return d;
   }
   pushUndo() { this.undoStack.push(clone(this.doc)); if (this.undoStack.length > 50) this.undoStack.shift(); this.redoStack.length = 0; }
-  markDirty(v = true) { this.dirty = v; this.updateTitle(); }
+  markDirty(v = true) { this.dirty = v; if (v) this._rev++; this.updateTitle(); }
   updateTitle() {
     const title = this.docTitle() + ' — AtolyeCAD';
     document.title = title; this.C?.renderTitle(); if (window.native) { window.native.setTitle(title); window.native.setDirty?.(this.dirty); }
@@ -146,7 +175,8 @@ class App {
     this.endTool(true); this.undoStack.push(clone(this.doc)); this.doc = this.redoStack.pop(); this.markDirty(); this.C.renderAll(); return this.requestRebuild();
   }
   // Test ve dosya açma için: belgeyi tümden yükle
-  async loadDoc(doc, { name = null, path = null } = {}) {
+  async loadDoc(doc, { name = null, path = null, reset = false } = {}) {
+    if (reset) await this.resetKernel();
     if (this.edit) this.edit.cancel(); if (this.sketchSession) this.cancelSketch(); this.endTool(true); if (this.sectionPanel) this.sectionPanel.close();
     this.doc = this.normalize(doc); this.undoStack = []; this.redoStack = []; this.fileName = name; this.filePath = path; this.selection = []; this.selFeature = null;
     this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.needFit = true; this.markDirty(false); this.C.renderAll();
@@ -157,7 +187,7 @@ class App {
   requestRebuild() { const seq = ++this._seq; this._chain = this._chain.then(() => this._rebuildTask(seq)).catch((e) => console.error(e)); return this.whenIdle(); }
   previewSoon(ms = 250) { clearTimeout(this._timer); this._timer = setTimeout(() => { this._timer = 0; this.requestRebuild(); }, ms); }
   async flushPreview() { if (this._timer) { clearTimeout(this._timer); this._timer = 0; this.requestRebuild(); } return this.whenIdle(); }
-  async whenIdle() { for (;;) { const c = this._chain; await c; if (c === this._chain && !this._timer) return; await sleep(0); } }
+  async whenIdle() { for (;;) { const r = this._resetP; await r; const c = this._chain; await c; if (r === this._resetP && c === this._chain && !this._timer) return; await sleep(0); } }
 
   async prepare(doc) {
     const vars = resolveParams(doc.params).vars;
@@ -439,7 +469,7 @@ class App {
     if (ids.length < 2) { toast(t('msg.interf_need2')); return; }
     try {
       const r = await this.query('interference', { ids });
-      const html = r.length ? '<table>' + r.map((x) => `<tr><td>${esc(this.bodyName(x.a))} ∩ ${esc(this.bodyName(x.b))}</td><td>${esc(fmt(x.volume, 3))} mm³</td></tr>`).join('') + '</table>' : '<div class="note" style="color:var(--ok)">' + t('interf.none') + '</div>';
+      const html = r.length ? '<table>' + r.map((x) => `<tr><td>${esc(this.bodyName(x.a))} ∩ ${esc(this.bodyName(x.b))}</td><td>${esc(fmt(x.volume, 3))} mm³</td></tr>`).join('') + '</table>' : '<div class="note ok-text">' + t('interf.none') + '</div>';
       showBox(t('interf.title'), (r.length ? `<div class="err">${t('interf.count', { n: r.length })}</div>` : '') + html, () => hideBox());
     } catch (e) { toast(t('msg.interf_failed', { msg: errText(e) }), true); }
   }
@@ -456,24 +486,31 @@ class App {
     if (!this.dirty) return true;
     return confirmBox(t('dlg.discard_title'), t('dlg.discard_body'), t('dlg.discard_yes'), t('common.giveup'));
   }
-  async newDoc() { if (this.guard()) return; if (!(await this.confirmDiscard())) return; await this.loadDoc(emptyDoc()); this.viewport.view('iso', true); }
-  fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: 'AtolyeCAD', version: 1, doc: this.doc })); }
-  async writeOut(bytes, defaultName, filters, path, title) {
-    if (window.native) return window.native.saveFile({ defaultName, filters, data: bytes, path, title });
+  async newDoc() {
+    if (this.guard()) return; if (!(await this.confirmDiscard())) return;
+    await this.loadDoc(emptyDoc(), { reset: true }); this.viewport.view('iso', true);
+    window.native?.docState('new'); this.clearRecovery();
+  }
+  fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: 'AtolyeCAD', version: FILE_VERSION, doc: this.doc })); }
+  // kind: 'acad' | 'step' | 'stl'. Electron'da yol HİÇ gönderilmez; ana süreç diyalog açar ya da bu oturumdaki geçerli belge yoluna yazar.
+  async writeOut(bytes, defaultName, kind, saveAs) {
+    if (window.native) return window.native.saveFile({ saveAs: !!saveAs, data: bytes, defaultName, kind });
     const a = h('a', { href: URL.createObjectURL(new Blob([bytes])), download: defaultName }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     return defaultName;
   }
   async save(as = false) {
     if (this.sketchSession || this.edit) { toast(t('msg.finish_before_save')); return; }
     try {
-      const name = (this.fileName || 'Belge').replace(/\.acad$/i, '') + '.acad';
-      const p = await this.writeOut(this.fileBytes(), name, acadFilter(), as ? undefined : this.filePath, t('dlg.t_save'));
+      const name = (this.fileName || 'Belge').replace(/\.acad$/i, '') + '.acad'; // i18n-ignore: yedek dosya adı
+      const p = await this.writeOut(this.fileBytes(), name, 'acad', as || !this.filePath);
       if (!p) return;
       this.filePath = window.native ? p : null; this.fileName = String(p).split(/[\\/]/).pop(); this.markDirty(false); toast(t('msg.saved', { name: this.fileName }));
+      this.clearRecovery();
     } catch (e) { toast(t('msg.save_failed', { msg: errText(e) }), true); }
   }
-  async pickFile(accept, filters, title) {
-    if (window.native) { const r = await window.native.openFile(filters, title); return r ? { name: r.name, path: r.path, data: new Uint8Array(r.data) } : null; }
+  // kind: 'acad' | 'step' | 'stl' (Electron: ana süreç diyaloğu; tarayıcı: <input type=file>)
+  async pickFile(accept, kind) {
+    if (window.native) { const r = await window.native.openFile(kind); return r ? { name: r.name, path: kind === 'acad' ? r.name : null, data: new Uint8Array(r.data) } : null; }
     return new Promise((resolve) => {
       const inp = h('input', { type: 'file', accept, style: { display: 'none' } }); document.body.append(inp);
       inp.addEventListener('change', async () => { const f = inp.files[0]; inp.remove(); resolve(f ? { name: f.name, path: null, data: new Uint8Array(await f.arrayBuffer()) } : null); });
@@ -483,26 +520,69 @@ class App {
   }
   async openFile() {
     if (this.guard()) return; if (!(await this.confirmDiscard())) return;
-    const f = await this.pickFile('.acad', acadFilter(), t('dlg.t_open')); if (!f) return;
+    const f = await this.pickFile('.acad', 'acad'); if (!f) return;
     await this.openBytes(f.data, f.name, f.path);
   }
+  // İçe aktarma özetlerini doğrula (hash alanı varsa)
+  async verifyImports(doc) {
+    for (const f of doc.features) {
+      if (f.type !== 'import' || typeof f.hash !== 'string' || !f.hash) continue;
+      let ok = false; try { ok = (await sha256Hex(unb64(f.data))) === f.hash; } catch (e) { ok = false; }
+      if (!ok) throw new KErr('schema.hash_mismatch', { name: f.name || f.id });
+    }
+  }
+  // Ham baytlardan belge: ŞEMA doğrulanır, sonra mevcut belge değiştirilir (hata olursa mevcut belge olduğu gibi kalır).
   async openBytes(bytes, name, path) {
-    let j; try { j = JSON.parse(new TextDecoder().decode(bytes)); } catch (e) { toast(t('msg.file_unreadable'), true); return; }
-    if (!j || j.app !== 'AtolyeCAD' || !j.doc) { toast(t('msg.file_not_doc'), true); return; }
-    if ((j.version || 1) > 1) toast(t('msg.file_newer'), true);
-    await this.loadDoc(j.doc, { name, path }); toast(t('msg.opened', { name }));
+    if (bytes.byteLength > LIMITS.fileBytes) { toast(t('msg.file_invalid', { msg: errText(new KErr('schema.file_too_big', { mb: Math.round(LIMITS.fileBytes / 1048576) })) }), true); return false; }
+    let j; try { j = JSON.parse(new TextDecoder().decode(bytes)); } catch (e) { toast(t('msg.file_unreadable'), true); return false; }
+    try {
+      const env = checkEnvelope(j);
+      validateDoc(j.doc, { byteLength: bytes.byteLength });
+      await this.verifyImports(j.doc);
+      if (env.newer && !(await confirmBox(t('dlg.newer_title'), t('msg.file_newer'), t('dlg.newer_yes'), t('common.giveup')))) return false;
+    } catch (e) { toast(t('msg.file_invalid', { msg: errText(e) }), true); return false; }
+    try { await this.loadDoc(j.doc, { name, path, reset: true }); }
+    catch (e) { console.error(e); toast(t('msg.open_failed', { msg: errText(e) }), true); return false; }
+    window.native?.docState('opened'); this.clearRecovery();
+    toast(t('msg.opened', { name }));
     const bad = this.doc.features.filter((f) => this.result?.status[f.id]?.ok === false).length;
     if (bad) toast(t('msg.n_bad', { n: bad }), true);
+    return true;
   }
   async importFile(format) {
     if (this.guard()) return;
-    const f = await this.pickFile(format === 'step' ? '.step,.stp' : '.stl', [{ name: format === 'step' ? 'STEP' : 'STL', extensions: format === 'step' ? ['step', 'stp'] : ['stl'] }], t('dlg.t_import')); if (!f) return;
-    const id = newId(this.doc, 'import'); const nm = f.name.replace(/\.[^.]+$/, '');
+    const f = await this.pickFile(format === 'step' ? '.step,.stp' : '.stl', format); if (!f) return;
+    // benzersiz kimlik + içerik özeti: önbellek, belge değişse de başka verinin geometrisini göstermez (S-02)
+    const id = importId(this.doc); const nm = f.name.replace(/\.[^.]+$/, ''); const hash = await sha256Hex(f.data);
     const at = this.doc.rollback ?? this.doc.features.length;
-    await this.commit((d) => { d.features.splice(at, 0, { id, type: 'import', name: nm, format, data: b64(f.data) }); if (d.rollback != null) d.rollback = at + 1; });
+    await this.commit((d) => { d.features.splice(at, 0, { id, type: 'import', name: nm, format, hash, data: b64(f.data) }); if (d.rollback != null) d.rollback = at + 1; });
     const st = this.result?.status[id];
     if (!st || st.ok === false) { await this.undo(); toast(t('msg.import_failed', { reason: st?.error ? errText(st.error) : t('msg.import_invalid', { fmt: format.toUpperCase() }) }), true); return; }
     this.needFit = true; this.viewport.fit(); toast(t('msg.imported', { name: nm }));
+  }
+
+  // ------------------------------------------------------------ otomatik kurtarma (S-06)
+  // Değişiklik varsa (ve son yazmadan beri değiştiyse) kurtarma dosyasını yazar. 60 sn'de bir çağrılır.
+  async recoveryTick() {
+    if (!this.dirty || this._rev === this._recRev) return false;
+    const rev = this._rev;
+    try {
+      const bytes = new TextEncoder().encode(JSON.stringify({ app: 'AtolyeCAD', version: FILE_VERSION, doc: this.doc, fileName: this.fileName }));
+      await recovery.save(bytes); this._recRev = rev; return true;
+    } catch (e) { console.error('recovery save failed', e); return false; }
+  }
+  clearRecovery() { this._recRev = -1; return recovery.clear().catch((e) => console.error('recovery clear failed', e)); }
+  // Açılışta kurtarma dosyası varsa kullanıcıya sorar. true = kurtarıldı.
+  async offerRecovery() {
+    const bytes = await recovery.load().catch(() => null); if (!bytes) return false;
+    let j; try { j = JSON.parse(new TextDecoder().decode(bytes)); checkEnvelope(j); validateDoc(j.doc, { byteLength: bytes.byteLength }); await this.verifyImports(j.doc); }
+    catch (e) { await this.clearRecovery(); return false; } // bozuk yedek: sessizce at
+    const nm = typeof j.fileName === 'string' && j.fileName ? j.fileName : t('doc.untitled');
+    const yes = await confirmBox(t('rec.title'), t('rec.body', { name: nm }), t('rec.yes'), t('rec.no'));
+    if (!yes) { await this.clearRecovery(); return false; }
+    await this.loadDoc(j.doc, { name: typeof j.fileName === 'string' ? j.fileName : null, path: null, reset: true });
+    window.native?.docState('new'); this.markDirty(true); toast(t('msg.recovered'));
+    return true;
   }
   async exportFile(format) {
     if (this.guard()) return;
@@ -512,7 +592,7 @@ class App {
       const names = Object.fromEntries(ids.map((id) => [id, this.bodyName(id)]));
       const data = await this.query('export', { format, ids, names });
       const name = (this.fileName || 'Belge').replace(/\.acad$/i, '') + '.' + format;
-      const p = await this.writeOut(data, name, [{ name: format.toUpperCase(), extensions: format === 'step' ? ['step', 'stp'] : ['stl'] }], undefined, t('dlg.t_export'));
+      const p = await this.writeOut(data, name, format, true);
       if (p) toast(t('msg.exported', { fmt: format.toUpperCase(), kb: Math.round(data.length / 1024) }));
     } catch (e) { toast(t('msg.export_failed', { msg: errText(e) }), true); }
   }
