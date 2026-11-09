@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AtolyeCAD</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="/src/ui/style.css" />
+</head>
+<body>
+<div id="app">
+  <header id="menubar"></header>
+  <div id="toolbar"></div>
+  <div id="main">
+    <aside id="browser"></aside>
+    <div id="viewwrap">
+      <div id="viewport"></div>
+      <div id="overlay"></div>
+      <div id="viewbtns"></div>
+      <div id="hint"></div>
+      <div id="measurebox" class="hidden"></div>
+      <div id="loading"><div class="spinner"></div><span>Geometri çekirdeği yükleniyor…</span></div>
+    </div>
+    <aside id="panel" class="hidden"></aside>
+  </div>
+  <div id="timeline"></div>
+  <footer id="status"><span id="st-left"></span><span id="st-right"></span></footer>
+</div>
+<div id="ctx" class="hidden"></div>
+<div id="modal" class="hidden"></div>
+<div id="toast" class="hidden"></div>
+<script type="module" src="/src/ui/app.js"></script>
+</body>
+</html>
