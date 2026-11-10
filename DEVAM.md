@@ -22,7 +22,7 @@ Bu dosya yeni oturumda kaldığı yerden devam etmek için yazıldı. Tek kaynak
 - Çekirdek düzeltmeleri BİTTİ (f7499ce): köken tabanlı kalıcı adlandırma, F-02…F-25 çoğu, S-02/S-08/S-14. test/models 1282/1282, kernel 104/104.
   Rapor: docs/KERNEL-FIXES.md. Açık: bellek ısınması +40 MB/150 tur (kararlı durumda sızıntı yok), F-15 (expr.js), F-26 (STL kiriş hatası).
 - Marka/tasarım BİTTİ. Güvenlik düzeltmeleri BİTTİ (8dc19db).
-- Sketch'in tamamlanması SÜRÜYOR (Sonnet). Ek zorunlu işler iletildi: (1) varlık kimlikleri asla yeniden kullanılmaz (artan sayaç),
+- Sketch BİTTİ (cfe4627): tüm komutlar, kararlı kimlik + profil seçimi, `npm run test:all` geçiyor (rapor: docs/SKETCH.md). ESKİ NOT: Ek zorunlu işler iletildi: (1) varlık kimlikleri asla yeniden kullanılmaz (artan sayaç),
   (2) profil seçimi sıra numarası yerine sınır varlık kümesiyle saklanır, (3) app.test.py G bölümü (açılır araç grupları) düzeltilip `npm run test:all` geçirilir,
   (4) elips/spline uçtan uca test. Durumu docs/SKETCH.md ve git log'dan oku.
 - Dokümana (Claude Docs) K-016…K-023 ve Aşama 9 kayıtları HÂLÂ işlenmedi.
