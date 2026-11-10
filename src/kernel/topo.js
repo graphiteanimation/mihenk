@@ -234,7 +234,9 @@ export function faceWrap(raw) { const O = oc(); return new R.Face(O.TopoDS.Face(
 export function edgeWrap(raw) { const O = oc(); return new R.Edge(O.TopoDS.Edge(raw)); }
 
 // Geçerlilik kapısı (F-05): BRepCheck + kapalı katı + sonlu kutu + hacim > 0
-export function validity(w) {
+const validCache = new WeakMap();
+export function validity(w) { if (validCache.has(w)) return validCache.get(w); const v = validity0(w); validCache.set(w, v); return v; }
+function validity0(w) {
   const O = oc(); const r = scope();
   try {
     const sh = w.wrapped; if (sh.IsNull()) return 'null';
@@ -247,6 +249,8 @@ export function validity(w) {
   } catch (e) { return 'exception'; }
   finally { r.done(); }
 }
+// eş düzlemli/eş yüzeyli komşu yüzleri birleştir (STL içe aktarma)
+export function unify(w) { const O = oc(); const r = scope(); try { const u = r(new O.ShapeUpgrade_UnifySameDomain(w.wrapped, true, true, false)); u.Build(); return wrap(u.Shape()); } finally { r.done(); } }
 export function faceValid(w) { const O = oc(); const r = scope(); try { return r(new O.BRepCheck_Analyzer(w.wrapped, true, false)).IsValid(); } catch (e) { return false; } finally { r.done(); } }
 export function solidsOf(w) { const s = new SubIndex(w.wrapped, 'solid'); const out = s.list.map((x) => wrap(x)); return out; }
 export const volume = (w) => { try { return R.measureVolume(w); } catch (e) { return NaN; } };

@@ -564,7 +564,7 @@ export default {
   "err.import.stl_bad": "The STL file is damaged",
   "err.import.stl_empty": "The STL file has no triangles",
   "err.import.stl_not_closed": "The STL is not a closed solid",
-  "err.import.stl_too_big": "The STL is too large (at most 200000 triangles)",
+  "err.import.stl_too_big": "The STL is too large (at most 50000 triangles; import takes about 1 s per 1000 triangles)",
   "err.mesh.failed": "The body display could not be created ({body})",
   "err.op.failed": "The geometry operation failed",
   "err.op.no_effect": "The operation did not change the body (the tool does not touch the material or lies fully inside); fix the position or operation",

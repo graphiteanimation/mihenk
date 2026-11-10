@@ -10,7 +10,7 @@ import { faceName, edgeName, resolveName, aliasSet, faceKey, vertKey } from './n
 import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 
 export { KErr };
-export const LIMITS = { minDim: 1e-3, maxDim: 1e5, maxPattern: 2000, maxStlTris: 200000 };
+export const LIMITS = { minDim: 1e-3, maxDim: 1e5, maxPattern: 2000, maxStlTris: 50000 };
 const AX = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] };
 const OPS = new Set(['new', 'join', 'cut', 'intersect']);
 
@@ -642,6 +642,7 @@ function stlToSolid(bin) {
     const ms = r(new oc.BRepBuilderAPI_MakeSolid(r(oc.TopoDS.Shell(shells.list[0])))); shells.list.forEach((x) => x.delete());
     let solid = TP.wrap(ms.Solid());
     if (!(TP.volume(solid) > 0)) { const rev = solid.wrapped.Reversed(); solid = TP.wrap(rev); }
+    try { const u = TP.unify(solid); if (Math.abs(TP.volume(u) - TP.volume(solid)) <= 1e-9 * Math.abs(TP.volume(solid))) solid = u; } catch (e) { /* birleştirilemezse üçgenli katı kalır */ }
     return solid;
   } finally { r.done(); }
 }
