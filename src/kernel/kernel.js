@@ -170,12 +170,10 @@ export class Kernel {
         if (!(hi - lo > 1e-12)) throw new KErr('extrude.zero_dist');
         // tek yönde ters (negatif) değer: başlangıç kapağı sketch düzleminde kalsın
         const fwd = dir === 'one' ? ((f.flip ? -d : d) > 0) : true;
-        const regs = this.regions(f, S);
-        const parts = this.sweepParts(f, S, regs, (face) => {
-          const off = dir === 'one' ? 0 : lo; const len = dir === 'one' ? (fwd ? hi : lo) : hi - lo;
-          const fc = off ? moveFace(face, V.mul(S.plane.n, off)) : face;
-          return TP.prism(fc, V.mul(S.plane.n, len));
-        }, 'side');
+        // simetrik/iki yön: profil yüzü doğrudan başlangıç ofsetinde kurulur (kenar→varlık eşlemesi aynı konumda kalsın)
+        const off = dir === 'one' ? 0 : lo; const len = dir === 'one' ? (fwd ? hi : lo) : hi - lo;
+        const regs = sketchFaces(S.sk, S.plane, f.profiles, off);
+        const parts = this.sweepParts(f, S, regs, (face) => TP.prism(face, V.mul(S.plane.n, len)), 'side');
         state.tools.set(f.id, { parts, op, targets: f.targets });
         return this.applyOp(state, parts, op, { id: f.id, name: f.bodyName, targets: f.targets });
       }
@@ -601,7 +599,6 @@ function unionBox(shapes) { const lo = [Infinity, Infinity, Infinity], hi = [-In
 function boxOut([a0, a1], [b0, b1], tol = 1e-7) { for (let i = 0; i < 3; i++) if (a1[i] < b0[i] - tol || b1[i] < a0[i] - tol) return true; return false; }
 const hasAny = (body, keys) => { if (!body) return false; const al = aliasSet(body); return keys.some((k) => al.has(k)); };
 function sketchScale(S) { let m = 1; for (const p of Object.values(S.sk.points || {})) if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) m = Math.max(m, Math.abs(p.x), Math.abs(p.y)); return m; }
-function moveFace(face, v) { const m = TP.transform({ shape: face, fn: [] }, [{ t: v }]); return m.shape; }
 
 const yieldTask = () => new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0)));
 // özellik önbellek anahtarı: içe aktarma verisi tam içerik özetiyle (F-02)

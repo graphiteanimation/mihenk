@@ -146,6 +146,19 @@ export async function checks(t) {
     t.ok(!o.status.sh.ok && o.status.sh.error.code === 'ref.changed', 'N5: aynı kimlikli varlık türü değişti (çizgi→yay) → ref.changed: ' + JSON.stringify(o.status.sh));
     if (o.status.sh.ok) tally.sessizYanlış++; else tally.reddedildi++;
   }
+  // ---------- N6: ad kapsamı: örnek parçaların (a–g) son gövdelerinde her yüz adlı; adsız/belirsiz kenar yalnız dejenere olabilir
+  {
+    const NM = await import(pathToFileURL(path.join(SRC, 'kernel/naming.js')).href); const { oc } = await import('./lib.mjs');
+    for (const p of 'abcdefg') {
+      const M = await import(`./part-${p}.mjs`); const K = newKernel(); const b = await M.build(K, M.defaults); await K.rebuild(b.doc);
+      for (const [id, body] of K.last.bodies) {
+        const T = TP.topoOf(body.shape); let fBad = 0, eBad = 0, eDeg = 0;
+        for (let i = 0; i < T.faces.size; i++) if (NM.faceName(body, i).error) fBad++;
+        for (let j = 0; j < T.edges.size; j++) if (NM.edgeName(body, j).error) { const e = oc.TopoDS.Edge(T.edges.list[j]); const deg = oc.BRep_Tool.Degenerated(e); e.delete(); if (deg) eDeg++; else eBad++; }
+        t.ok(fBad === 0 && eBad === 0, `N6 ${M.name}/${id}: ${T.faces.size} yüz, ${T.edges.size} kenar; adsız yüz ${fBad}, adsız (dejenere olmayan) kenar ${eBad}, dejenere ${eDeg}`);
+      }
+    }
+  }
   t.note('adlandırma-özet', tally); console.log('adlandırma özet', JSON.stringify(tally));
   t.ok(tally.sessizYanlış === 0, 'sessiz yanlış bağlanma = 0 (' + tally.sessizYanlış + ')');
 }
