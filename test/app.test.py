@@ -386,7 +386,10 @@ try:
     E = lambda i: {'kind': 'ent', 'id': i}; Pt = lambda i: {'kind': 'point', 'id': i}
     def cons(t): return ev('(t) => app.sketcher.sk.cons.filter(c => c.type === t).length', t)
     def apply(btn, t, label):
-        page.click(f'#toolbar button[data-act="c-{btn}"]'); ev('app.sketcher.idle()'); page.wait_for_timeout(250); ev('app.sketcher.idle()')
+        sel_ = f'#toolbar button[data-act="c-{btn}"]'
+        if page.locator(sel_).count() == 0:  # seyrek kısıtlar "Kısıt ▾" açılır grubunda
+            page.click('#toolbar button[data-act="dd-cons"]'); sel_ = f'#ddpop button[data-act="c-{btn}"]'
+        page.click(sel_); ev('app.sketcher.idle()'); page.wait_for_timeout(250); ev('app.sketcher.idle()')
         solved = ev('app.sketcher.lastSolve && app.sketcher.lastSolve.ok')
         check(f'kısıt düğmesi: {label}', cons(t) >= 1 and solved, f'cons={cons(t)} solve={ev("JSON.stringify(app.sketcher.lastSolve)")} status={ev("document.querySelector(\"#st-left\").textContent")}')
     A = draw_line((-40, -40), (-10, -36)); B = draw_line((-40, -28), (-10, -20))
@@ -585,8 +588,8 @@ try:
     lang_menu('en')
     check('İngilizce: menü başlıkları', menu_titles() == 'File,Edit,View,Help', menu_titles())
     check('İngilizce: html lang, tercih saklandı', ev('document.documentElement.lang') == 'en' and stored_lang() == 'en')
-    check('İngilizce: sketch araç çubuğu grupları', group_titles() == 'Draw,Dimension,Constrain,Sketch', group_titles())
-    check('İngilizce: sketch düğmeleri', btn_text('rect') == 'Rectangle' and btn_text('c-perpendicular') == 'Perpendicular' and btn_text('c-tangent') == 'Tangent' and btn_text('c-coincident') == 'Coincident' and btn_text('sk-finish') == 'Finish Sketch' and btn_text('c-construct') == 'Construction')
+    check('İngilizce: sketch araç çubuğu grupları', group_titles() == 'Draw,Edit,Dimension,Constrain,Sketch', group_titles())
+    check('İngilizce: sketch düğmeleri', btn_text('rect') == 'Rectangle' and btn_text('c-perpendicular') == 'Perpendicular' and btn_text('c-tangent') == 'Tangent' and btn_text('c-parallel') == 'Parallel' and btn_text('sk-finish') == 'Finish Sketch' and btn_text('c-construct') == 'Construction')
     check('İngilizce: sketch paneli (düzlem, kısıtlar)', page.inner_text('#panel h3').startswith('Sketch:') and 'Plane: XY' in page.inner_text('#panel') and 'Constraints' in page.inner_text('#panel'), page.inner_text('#panel'))
     check('İngilizce: sketch durumu', 'Degrees of freedom' in left_text() or 'Fully defined' in left_text(), left_text())
     check('İngilizce: sketch ipucu', ev('document.querySelector("#hint").textContent').startswith('Rectangle:'), ev('document.querySelector("#hint").textContent'))
@@ -648,7 +651,7 @@ try:
 
     # menüler (İngilizce) ve açık kip pencereler
     page.click('#menubar button[data-menu="file"]')
-    check('İngilizce: Dosya menüsü', page.locator('#menubar .menu.open .drop > button').all_inner_texts() == ['New', 'Open…', 'Save Ctrl+S', 'Save As…', 'Import STEP…', 'Import STL…', 'Export STEP…', 'Export STL…'] or page.locator('#menubar .menu.open .drop > button').count() == 8, str(page.locator('#menubar .menu.open .drop > button').all_inner_texts()))
+    check('İngilizce: Dosya menüsü', page.locator('#menubar .menu.open .drop > button').all_inner_texts() == ['New', 'Open…', 'Save Ctrl+S', 'Save As…', 'Import STEP…', 'Import STL…', 'Export STEP…', 'Export STL…'] or page.locator('#menubar .menu.open .drop > button').count() == 11, str(page.locator('#menubar .menu.open .drop > button').all_inner_texts()))
     page.keyboard.press('Escape'); page.mouse.click(700, 500)
     page.click('#menubar button[data-menu="help"]'); page.click('#menubar button[data-item="about"]'); page.wait_for_selector('#modal:not(.hidden)')
     check('İngilizce: Hakkında penceresi', page.inner_text('#modal h3') == 'About AtolyeCAD' and 'Parametric solid modeling' in page.inner_text('#modal'), page.inner_text('#modal h3'))
