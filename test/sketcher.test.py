@@ -323,6 +323,17 @@ try:
     def real(t): return [e for e in ents(t) if not e.get('cons')]
     def P_(s, pid): return (s['points'][pid]['x'], s['points'][pid]['y'])
 
+    print('Kimlik kalıcılığı')
+    fresh(); line((-30, 0), (10, 0))
+    id1 = ents('line')[0]['id']
+    ev('sk._setSel([{kind:"ent", id:"%s"}])' % id1); idle(); key('Delete')
+    check('çizgi silindi', len(ents('line')) == 0)
+    line((-30, 0), (10, 0))
+    id2 = ents('line')[0]['id']
+    check('sil -> yeniden çiz: kimlik farklı (yeniden kullanılmaz)', id1 != id2, (id1, id2))
+    s_ = S(); seq0 = s_.get('seq')
+    check('sayaç sketch içinde saklanıyor', ev('typeof sk.sk.seq') == 'number', seq0)
+
     print('Uzat')
     fresh(); line((-30, 0), (10, 0)); line((30, -20), (30, 20))
     tool('extend'); click(8, 0)

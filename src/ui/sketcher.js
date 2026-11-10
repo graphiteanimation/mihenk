@@ -178,7 +178,7 @@ export class Sketcher {
     if (r && r.dof === 0) { this.free = { dof: 0, freePts: new Set(), freeEnts: new Set() }; return; }
     this._probeT = setTimeout(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const f = await probeFree(this.sk, this.getVars()); if (this._sid === sid && this.active) { this.free = f && f.freePts ? f : null; this._renderGL(); this.onChange(); } } catch (e) { console.error('probe', e && e.message, e && e.stack); }
+      try { const f = await probeFree(this.sk, this.getVars()); if (this._sid === sid && this.active) { this.free = f && f.freePts ? f : null; this._renderGL(); this.onChange(); } } catch (e) { console.warn('probe', e && e.message); }
     }, 180);
   }
   // çelişen/gereksiz kısıtların okunur listesi

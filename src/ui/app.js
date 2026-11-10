@@ -10,6 +10,7 @@ import { h, $, toast, modal, modalOpen, promptText, confirmBox, esc, fmt } from 
 import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared/i18n.js';
 import { KErr, toErr } from '../shared/errors.js';
 import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS } from '../shared/schema.js';
+import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
 import { defaults, newId, autoName, featLabel, dependents } from './features.js';
@@ -179,6 +180,7 @@ class App {
   async loadDoc(doc, { name = null, path = null, reset = false } = {}) {
     if (reset) await this.resetKernel();
     if (this.edit) this.edit.cancel(); if (this.sketchSession) this.cancelSketch(); this.endTool(true); if (this.sectionPanel) this.sectionPanel.close();
+    try { upgradeDocProfiles(doc); } catch (e) { console.error('profile upgrade failed', e); }
     this.doc = this.normalize(doc); this.undoStack = []; this.redoStack = []; this.fileName = name; this.filePath = path; this.selection = []; this.selFeature = null;
     this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.needFit = true; this.markDirty(false); this.C.renderAll();
     await this.requestRebuild();

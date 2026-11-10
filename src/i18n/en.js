@@ -509,6 +509,8 @@ export default {
   "err.sketch.plane_unknown": "Unknown plane type",
   "err.sketch.no_profile": "There is no closed profile in the sketch",
   "err.sketch.profile_gone": "The selected profile no longer exists; edit the feature",
+  "err.profile.lost": "The selected profile no longer exists (the sketch changed); edit the feature and pick the profile again",
+  "err.profile.ambiguous": "The selected profile is ambiguous (several regions share the same boundary); edit the feature and pick the profile again",
   "err.sketch.not_found": "Sketch not found",
   "err.ref.body_missing": "The body of the selection was not found ({body})",
   "err.ref.lost_face": "The selected face was lost when the model changed; edit the feature and select it again",

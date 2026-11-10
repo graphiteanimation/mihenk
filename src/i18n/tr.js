@@ -509,6 +509,8 @@ export default {
   "err.sketch.plane_unknown": "Bilinmeyen düzlem tipi",
   "err.sketch.no_profile": "Sketch içinde kapalı profil yok",
   "err.sketch.profile_gone": "Seçilen profil artık yok; özelliği düzenleyin",
+  "err.profile.lost": "Seçilen profil artık yok (sketch değişti); özelliği düzenleyip profili yeniden seçin",
+  "err.profile.ambiguous": "Seçilen profil belirsiz (aynı sınıra uyan birden çok bölge); özelliği düzenleyip profili yeniden seçin",
   "err.sketch.not_found": "Sketch bulunamadı",
   "err.ref.body_missing": "Seçimin gövdesi bulunamadı ({body})",
   "err.ref.lost_face": "Seçilen yüz model değişince kayboldu; özelliği düzenleyip yeniden seçin",

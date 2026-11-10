@@ -6,6 +6,7 @@ import { fieldsFor, featLabel, THREADS, patternSources } from './features.js';
 import { evalExpr, resolveParams } from '../shared/expr.js';
 import { LIMITS } from '../shared/schema.js';
 import { basePlane } from '../shared/vec.js';
+import { findRegions, resolveProfiles, selectionFor } from '../shared/profiles.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const num = (v) => fmt(v, 4);
@@ -218,7 +219,9 @@ export class FeaturePanel {
     const d = this.draft;
     if (['extrude', 'revolve'].includes(d.type)) {
       const sk = this.refProfiles(); const pl = this.app.result?.sketches?.[d.sketch]?.plane;
-      this.app.regionCount = sk && pl ? vp.setRegions(pl, sk, d.profiles, true) : (vp.setRegions(null, null), null);
+      const rg = sk ? findRegions(sk).regions : [];
+      const selIdx = d.profiles === 'all' ? 'all' : resolveProfiles(rg, d.profiles).idx;
+      this.app.regionCount = sk && pl ? vp.setRegions(pl, sk, selIdx, true) : (vp.setRegions(null, null), null);
       this.refreshProfiles();
     } else vp.setRegions(null, null);
     this.app.setHint(this.hint());
@@ -242,10 +245,11 @@ export class FeaturePanel {
     const d = this.draft;
     if (hit.kind === 'region') {
       if (!['extrude', 'revolve'].includes(d.type)) return;
-      const total = this.app.regionCount || 0; let sel = d.profiles === 'all' ? Array.from({ length: total }, (_, i) => i) : (d.profiles || []).slice();
+      const rg = this.app.viewport.regions || []; const total = rg.length;
+      const sel = d.profiles === 'all' ? Array.from({ length: total }, (_, i) => i) : resolveProfiles(rg, d.profiles || []).idx.slice();
       const at = sel.indexOf(hit.idx); if (at >= 0) sel.splice(at, 1); else sel.push(hit.idx);
       sel.sort((a, b) => a - b);
-      d.profiles = sel.length === total ? 'all' : sel;
+      d.profiles = sel.length === total ? 'all' : sel.map((i) => selectionFor(rg[i]));
       this.updateViewport(); this.changed(); return;
     }
     const k = this.activeSel; if (!k) return;
