@@ -32,7 +32,42 @@ Araç çubuğunda sık araçlar doğrudan görünür; diğerleri "Çiz ▾", "D�
 
 Çizerken sayı yazmaya başlarsanız uzunluk/açı (çizgi), en/boy (dikdörtgen), yarıçap (daire) kutusu açılır; Tab alan değiştirir, Enter onaylar ve ilgili ölçü kısıtını ekler.
 
+## Kısıtlar ve ölçüler
+
+| Kısıt / ölçü | Uygulandığı öğeler | Not |
+|---|---|---|
+| Yatay, Dikey | çizgi ya da iki nokta | |
+| Paralel, Dik, Eşit | çizgi-çizgi; eşit: çizgi/daire/yay/elips | |
+| Çakışık (aynı doğru) | çizgi-çizgi | |
+| Eş merkezli | daire/yay/elips çiftleri | |
+| Teğet | çizgi-daire/yay, daire-daire, yay-yay | çizgi-elips ve spline teğeti çözücüde yok; uyarı verilir |
+| Üzerinde (nokta) | nokta-çizgi/daire/yay/elips | uç noktada olan kısıt sessizce temizlenir |
+| Sabit, Yapı geometrisi | nokta/öğe | |
+| Mesafe, Yatay/Dikey mesafe | nokta-nokta, nokta-çizgi, çizgi-çizgi (paralel), daire-daire | |
+| Açı | iki çizgi | |
+| Yarıçap, Çap | daire/yay | |
+| Referans ölçü | tüm ölçüler | sağ tık > Referans; parantezli gösterilir, çözümü etkilemez |
+
+Ölçü etiketleri sürüklenebilir (konum kısıt içinde saklanır). Çelişen kısıtlar panelde listelenir, satıra tıklayınca öğe vurgulanır. Her öğenin serbestlik durumu ayrı gösterilir.
+
+## DXF
+
+Dosya > DXF içe aktar / DXF dışa aktar (2000) / DXF dışa aktar (R12). Okunan: LINE, POINT, CIRCLE, ARC, LWPOLYLINE, POLYLINE/VERTEX (bulge dahil), ELLIPSE, SPLINE (fit ya da NURBS). Birim kodu okunur, birim penceresiyle ölçek seçilir. R12 çıktısında elips/spline POLYLINE olarak örneklenir; 2000 çıktısında ELLIPSE ve SPLINE yazılır. Bağımsız okuyucu ile gidiş-dönüş testi: `test/dxf.test.mjs`.
+
+## Kimlik ve profil kararlılığı
+
+- Öğe, nokta ve kısıt kimlikleri sketch içindeki kalıcı sayaçtan (`seq`) verilir; silinen kimlik bir daha kullanılmaz. Budama/bölme/uzatmada başlangıca yakın parça özgün kimliği korur, diğerleri yeni kimlik alır.
+- Extrude/Revolve profil seçimi `profiles: [{ents:[...], hint:[x,y]}]` olarak saklanır (sınır öğe kümesi + iç nokta ipucu). Çözümleme yalnızca küme tam olarak bir bölgeye uyuyorsa kabul edilir; aksi halde açık hata: `profile.lost` (kayıp) ya da `profile.ambiguous` (belirsiz). Eski sayısal dizinler dosya açılırken bir kez yükseltilir. Testler: `test/stability.test.mjs`.
+
 ## Yapılan / Kalan
 
-Yapılan: geom2d altyapısı, findRegions (F-04), budama + K-018 senaryosu (testli), uzatma, böl, ofset, köşe, ayna, desenler, dönüşümler, yeni çizim araçları, kısıt/ölçü genişletmeleri, nesne başına serbestlik (iç yöntem: her noktayı sabitleyip serbestlik düşüşüne bakma), sağ tık, sayısal giriş, çıkış uyarısı.
-Kalan / eksik: DXF içe/dışa aktarma, tüm komutlar için Playwright kapsamı, ekran görüntüleri.
+Yapılan: geom2d altyapısı, findRegions (F-04), budama + K-018 senaryosu (node, tarayıcı ve uygulama düzeyinde; Extrude hacmi analitik), uzatma, böl, ofset, köşe, ayna, desenler, dönüşümler, yeni çizim araçları, kısıt/ölçü genişletmeleri, nesne başına serbestlik, sağ tık, sayısal giriş, çıkış uyarısı, DXF, kararlı kimlik ve profil seçimi, elips/elips yayı/spline Extrude testleri.
+
+Bilinen sınırlar / yapılmayanlar:
+- Elektron içinde DXF kaydı doğrulanmadı (ana süreçte `dxf` türü yok; tarayıcı indirmesi kullanılır).
+- Pah (chamfer) ölçü kısıtı eklemez.
+- Taşı/Döndür/Ölçekle ağırlıkla sayısal girişlidir (taşı/kopyala iki tıklamayı da destekler).
+- Bağlı dairesel desen yardımcı yapı çizgileri kullanır (yaklaşık 120 nokta sınırı).
+- Spline teğeti ve elips-daire teğeti yok.
+- Gövde kenarı izdüşümü: eş düzlemli / tümü / seçili kenarlar; yüze tıklayarak seçim yok.
+- Spline hacim testi bağımsız alan olarak findRegions alanını kullanır (çokgen örnekleme); elips ve elips yayı için kapalı formül kullanılır.
