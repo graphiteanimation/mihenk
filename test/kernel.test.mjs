@@ -139,4 +139,56 @@ try { evalExpr('1/0', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code
 // sorgu hataları
 try { K2.describe({ body: 'yok', idx: 0 }, 'face'); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'body_none', 'describe body_none'); }
 try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'export.no_body', 'export.no_body'); }
+
+// --- v0.2 düzeltmeleri (docs/KERNEL-FIXES.md)
+{
+  const box = (id, o = {}) => ({ id, type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '10', d: '20', h: '30', op: 'new', ...o });
+  const K3 = await initKernel(opencascade, () => wasm);
+  // F-02/S-02: içe aktarma önbelleği içerik özetine bağlı; reset() durumu temizler
+  await K3.rebuild({ params: [], features: [box('b')] }); const stepA = await K3.exportFile('step');
+  await K3.rebuild({ params: [], features: [box('b', { w: '20' })] }); const stepB = await K3.exportFile('step');
+  const imp = (data) => ({ params: [], features: [{ id: 'import1', type: 'import', format: 'step', name: 'x', data }] });
+  let o = await K3.rebuild(imp(Buffer.from(stepA).toString('base64'))); near(o.bodies[0].volume, 6000, 'F-02 içe aktarma A');
+  o = await K3.rebuild(imp(Buffer.from(stepB).toString('base64'))); near(o.bodies[0].volume, 12000, 'F-02 aynı kimlik, farklı veri → kendi geometrisi');
+  o = await K3.rebuild(imp('Ym96dWs=')); ok(!o.status.import1.ok && o.bodies.length === 0, 'F-02 bozuk veri → ok:false, eski geometri yok');
+  ok(o.status.import1.error.code === 'import.load_failed', 'F-02 kod import.load_failed');
+  // reset: worker öldürülüp yeniden başlatılmış gibi; sonuçlar temiz çekirdekle aynı
+  const docR = { params: [{ name: 'W', expr: '40' }], features: [box('b', { w: 'W' })] };
+  await K3.rebuild(docR); K3.reset();
+  ok(K3.cache.length === 0 && K3.last === null && K3.imports.size === 0 && K3.upgrades.size === 0, 'reset: önbellek/son durum/içe aktarma/yükseltme boş');
+  const r1 = await K3.rebuild(docR); const r2 = await (await initKernel(opencascade, () => wasm)).rebuild(docR);
+  ok(r1.bodies[0].volume === r2.bodies[0].volume && JSON.stringify(r1.status) === JSON.stringify(r2.status), 'reset sonrası sonuç = temiz çekirdek');
+  try { K3.reset(); K3.describe({ body: 'b', idx: 0 }, 'face'); ok(false, 'reset sonrası eski gövde sorgusu hata vermeli'); } catch (e) { ok(e.code === 'body_none', 'reset sonrası sorgu body_none'); }
+  // F-03 iki yön + ters çevir
+  const sq = rect(20, 10);
+  o = await K3.rebuild({ params: [], features: [{ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '0' }, points: sq.pts, ents: sq.ents }, { id: 'e', type: 'extrude', sketch: 's', profiles: 'all', dist: '10', dist2: '5', dir: 'two', flip: true, op: 'new' }] });
+  near(o.bodies[0].volume, 3000, 'F-03 hacim'); near(o.bodies[0].bbox[0][2], -10, 'F-03 z min'); near(o.bodies[0].bbox[1][2], 5, 'F-03 z max');
+  // F-06 açı aralığı, F-10 boş profil, F-11 desen sınırı / ölçü sınırı, F-12 bilinmeyen op
+  const code2 = (out, id) => out.status[id].error?.code;
+  o = await K3.rebuild({ params: [], features: [{ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XZ' }, points: rect(5, 10, 'p', 2, 0).pts, ents: rect(5, 10, 'p', 2, 0).ents }, { id: 'r', type: 'revolve', sketch: 's', axis: { kind: 'sketchY' }, angle: '400', op: 'new' }, { id: 'e', type: 'extrude', sketch: 's', profiles: [], dist: '5', op: 'new' }, { id: 'x', type: 'extrude', sketch: 's', profiles: 'all', dist: '5', op: 'subtract' }, { id: 'big', type: 'primitive', kind: 'box', w: '2e5', d: '1', h: '1', op: 'new' }] });
+  ok(code2(o, 'r') === 'revolve.angle_range', 'F-06 400° → revolve.angle_range'); ok(code2(o, 'e') === 'sketch.no_profile_selected', 'F-10 boş profil'); ok(code2(o, 'x') === 'op.unknown', 'F-12 bilinmeyen op'); ok(code2(o, 'big') === 'value.out_of_range', 'F-11 ölçü sınırı');
+  // F-07 desen sonrası holes[] tüm örnekler; F-08 havadaki delik → ok:false
+  const hs = { points: { h: { x: 10, y: 10 } }, ents: [{ id: 'hp', type: 'point', p: 'h' }] };
+  const hd = (extra) => ({ params: [], features: [box('b', { w: '100', d: '100', h: '10' }), { id: 'hs', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '10' }, ...hs }, { id: 'h', type: 'hole', sketch: 'hs', kind: 'simple', dia: '4', extent: 'all' }, ...extra] });
+  o = await K3.rebuild(hd([{ id: 'p', type: 'pattern', kind: 'rect', source: { kind: 'feature', id: 'h' }, count1: '3', step1: '20', dir1: 'X', count2: '2', step2: '30', dir2: 'Y' }]));
+  const allPos = o.holes.flatMap((h) => h.positions.map((p) => p.map((x) => +x.toFixed(6)).join(',')));
+  ok(o.status.p.ok && allPos.length === 6 && new Set(allPos).size === 6 && allPos.includes('50,40,10'), 'F-07 holes[] 6 farklı konum: ' + allPos.join(' '));
+  ok(o.holes.every((h) => h.dirs.length === h.positions.length && h.dirs.every((d) => d[2] === -1)), 'F-07 her konum için yön');
+  o = await K3.rebuild(hd([{ id: 'p', type: 'pattern', kind: 'rect', source: { kind: 'feature', id: 'h' }, count1: '2', step1: '200', dir1: 'X', count2: '1', step2: '0' }]));
+  ok(['pattern.no_effect', 'op.cut_no_body'].includes(code2(o, 'p')) && o.holes.flatMap((h) => h.positions).length === 1, 'F-08 gövde dışındaki desen örneği → pattern.no_effect, hayalet delik yok');
+  o = await K3.rebuild(hd([{ id: 'p', type: 'pattern', kind: 'rect', source: { kind: 'feature', id: 'h' }, count1: '3000', step1: '0.5', dir1: 'X', count2: '1', step2: '0' }]));
+  ok(code2(o, 'p') === 'pattern.too_many', 'F-11/S-08 desen adedi ≤ 2000');
+  // F-09 move iki kez + kopya
+  const mv = { params: [], features: [box('b'), { id: 'm', type: 'move', bodies: ['b'], dx: '50' }] };
+  await K3.rebuild(mv); mv.features[1].dx = '70'; o = await K3.rebuild(mv); near(o.bodies[0].bbox[0][0], 70, 'F-09 move ikinci rebuild');
+  mv.features[1].copy = true; o = await K3.rebuild(mv); ok(o.status.m.ok && o.bodies.length === 2, 'F-09 move kopya');
+  // F-19 gövde-gövde ölçü, F-23 iç açı
+  const m = K3.measure({ body: 'b', kind: 'body' }, { body: 'm', kind: 'body' }); near(m.distance, 60, 'F-19 gövde-gövde mesafe');
+  // F-22 bozuk belge istisna fırlatmaz
+  for (const bad of [null, {}, { features: {} }, { params: [], features: [null, box('b')] }]) { let ex = null; try { const r = await K3.rebuild(bad); ok(r && Array.isArray(r.bodies), 'F-22 bozuk belge sonuç döner'); } catch (e) { ex = e; } ok(!ex, 'F-22 bozuk belge istisnasız: ' + (ex && ex.message)); }
+  // F-05 kendini kesen profil, kısa kenar
+  const bow = { points: { a: { x: 0, y: 0 }, b: { x: 20, y: 10 }, c: { x: 20, y: 0 }, d: { x: 0, y: 10 }, e: { x: -6, y: 3 } }, ents: [['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e'], ['e', 'a']].map(([a, b], i) => ({ id: 'l' + i, type: 'line', a, b })) };
+  o = await K3.rebuild({ params: [], features: [{ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY' }, ...bow }, { id: 'e', type: 'extrude', sketch: 's', profiles: 'all', dist: '5', op: 'new' }] });
+  ok(!o.status.e.ok || o.bodies.every((b) => b.volume > 0), 'F-05 kendini kesen profil: ok:false ya da geçerli bölünmüş bölgeler (' + code2(o, 'e') + ')');
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
