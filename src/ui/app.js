@@ -344,7 +344,7 @@ class App {
     const loader = SKETCHER['./sketcher.js'];
     if (!loader) throw new KErr('sketcher_missing');
     const mod = await loader();
-    this.sketcher = new mod.Sketcher({ viewport: this.viewport, overlayEl: $('#overlay'), getVars: () => this.vars(), setHint: (x) => this.setHint(x), setStatus: (x) => this.setLeft(x), onChange: () => this.onSketchChange() });
+    this.sketcher = new mod.Sketcher({ viewport: this.viewport, overlayEl: $('#overlay'), getVars: () => this.vars(), setHint: (x) => this.setHint(x), setStatus: (x) => this.setLeft(x), onChange: () => this.onSketchChange(), onRequestFinish: () => this.finishSketch(), getBodies: () => [...this.viewport.bodies.values()].filter((b) => b.grp.visible).map((b) => b.data) });
     return this.sketcher;
   }
   startSketch() {
@@ -390,6 +390,7 @@ class App {
   async finishSketch() {
     const s = this.sketchSession; if (!s) return;
     try { await this.sketcher.idle(); } catch (e) { /* çözüm hatası zaten bildirildi */ }
+    let warns = []; try { warns = this.sketcher.exitReport(); } catch (e) { /* bilgi amaçlı */ }
     const f = this.sketcher.stop() || s.draft;
     this.sketchSession = null; this.sketchPanel.close(); this.sketchPanel = null; this.setHint('');
     const merged = { ...s.draft, points: f.points, ents: f.ents, cons: f.cons || [] };
@@ -400,6 +401,7 @@ class App {
       await this.commit((d) => { d.features.splice(at, 0, merged); if (d.rollback != null) d.rollback = at + 1; });
     } else await this.commit((d) => { d.features[s.idx] = merged; });
     this.selFeature = merged.id; this.setLeft(() => t('st.ready')); this.C.renderAll();
+    if (warns.length) toast(t('sk.exit.title') + ' ' + warns.join(' · '));
   }
   cancelSketch() {
     const s = this.sketchSession; if (!s) return;

@@ -1,0 +1,5307 @@
+{
+ "src": "/tmp/snap/src",
+ "at": "2026-11-09T23:04:14.543Z",
+ "files": [
+  {
+   "file": "part-a.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 1.3,
+   "results": [
+    {
+     "name": "a-flans",
+     "pass": 19,
+     "fail": 1,
+     "fails": [
+      "A-holes: 6 cıvata deliği konumunun tamamı holes[] içinde olmalı; eksik 5/6 (holes[] 3 girdi: bore:1, bolt:1, pat:1 count=5)"
+     ],
+     "info": {
+      "nFaces": 21,
+      "nEdges": 45,
+      "volume": 170377.12570330975,
+      "expVolume": 170377.125738799,
+      "a-yüz-türleri": {
+       "PLANE": 3,
+       "TORUS": 1,
+       "CONE": 8,
+       "CYLINDRE": 9
+      }
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "part-b.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 2.1,
+   "results": [
+    {
+     "name": "b-yumusak-cene",
+     "pass": 26,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "nFaces": 21,
+      "nEdges": 47,
+      "volume": 178200.97972850376,
+      "expVolume": 178200.9797285038
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "part-c.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 3.6,
+   "results": [
+    {
+     "name": "c-ayna-adaptoru",
+     "pass": 24,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "nFaces": 22,
+      "nEdges": 56,
+      "volume": 316272.2379204548,
+      "expVolume": 316272.2379204548
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "part-d.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 3.5,
+   "results": [
+    {
+     "name": "d-cepli-adali-plaka",
+     "pass": 21,
+     "fail": 1,
+     "fails": [
+      "D-holes: 4 köşe deliği konumunun tamamı holes[] içinde olmalı; eksik 3/4"
+     ],
+     "info": {
+      "nFaces": 36,
+      "nEdges": 84,
+      "volume": 337118.2801167942,
+      "expVolume": 337118.2801167942
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "part-e.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 2.1,
+   "results": [
+    {
+     "name": "e-kademeli-mil",
+     "pass": 20,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "nFaces": 22,
+      "nEdges": 42,
+      "volume": 148925.6953862038,
+      "expVolume": 148925.69539298324
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "part-f.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 1.6,
+   "results": [
+    {
+     "name": "f-l-braket",
+     "pass": 27,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "nFaces": 15,
+      "nEdges": 39,
+      "volume": 76544.15944622511,
+      "expVolume": 76544.1594462251,
+      "f-shell-düz-hacim": 38574.21237390821,
+      "f-shell-düz-beklenen": 38574.21237390821,
+      "f-shell-tam-hacim": 42076.48802087188
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "part-g.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 2,
+   "results": [
+    {
+     "name": "g-kutu-govde",
+     "pass": 41,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "ÖNCE: nFaces": 44,
+      "ÖNCE: nEdges": 104,
+      "ÖNCE: volume": 39554.858836506515,
+      "ÖNCE: expVolume": 39554.85883650648,
+      "g-ÖNCE-SONRA-hacim-farkı": 521.911666617445,
+      "g-fark-beklenen": -521.9116666174123,
+      "SONRA R=1.5: nFaces": 40,
+      "SONRA R=1.5: nEdges": 92,
+      "SONRA R=1.5: volume": 40169.263894699645,
+      "SONRA R=1.5: expVolume": 40169.26389469958
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "part-h.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 17.4,
+   "results": [
+    {
+     "name": "h-step-dongusu",
+     "pass": 144,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "a-flans: stl-hacim-hatası": -0.00008927749314274953,
+      "a-flans: stl-içe-alma": "ok:false",
+      "b-yumusak-cene: stl-hacim-hatası": 0.000010337581132759543,
+      "b-yumusak-cene: stl-içe-alma": "ok:false",
+      "c-ayna-adaptoru: stl-hacim-hatası": -0.00008706280065763961,
+      "c-ayna-adaptoru: stl-içe-alma": "ok:false",
+      "d-cepli-adali-plaka: stl-hacim-hatası": -0.000016117557928863108,
+      "d-cepli-adali-plaka: stl-içe-alma": "ok:false",
+      "e-kademeli-mil: stl-hacim-hatası": -0.00036927190669681974,
+      "e-kademeli-mil: stl-içe-alma": "ok:false",
+      "f-l-braket: stl-hacim-hatası": 0.000009828006816270523,
+      "f-l-braket: stl-içe-alma": "ok:false",
+      "g-kutu-govde: stl-hacim-hatası": -0.00008267668158780183,
+      "g-kutu-govde: stl-içe-alma": "ok:false"
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "param-sweep.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 55.7,
+   "results": [
+    {
+     "name": "param-tarama",
+     "pass": 180,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "param-sınıf-sayıları": {
+       "DOĞRU": 169,
+       "REDDEDİLDİ(beklenmedi)": 5,
+       "REDDEDİLDİ(beklenen)": 1
+      },
+      "param-satırlar": [
+       {
+        "p": "a-flans",
+        "v": "N=3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 173546.99269078183,
+        "ev": 173546.9927262711
+       },
+       {
+        "p": "a-flans",
+        "v": "N=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 172490.37036162446,
+        "ev": 172490.37039711373
+       },
+       {
+        "p": "a-flans",
+        "v": "N=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 168263.88104499498,
+        "ev": 168263.88108048428
+       },
+       {
+        "p": "a-flans",
+        "v": "N=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 166150.6363866803,
+        "ev": 166150.63642216954
+       },
+       {
+        "p": "a-flans",
+        "v": "N=12",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 164037.39172836553,
+        "ev": 164037.3917638548
+       },
+       {
+        "p": "a-flans",
+        "v": "OD=130",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 3,
+        "fp": 0,
+        "sv": 193868.38477052742,
+        "ev": 193868.3848060167
+       },
+       {
+        "p": "a-flans",
+        "v": "OD=150",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 3,
+        "fp": 0,
+        "sv": 246505.76968142443,
+        "ev": 246505.76971691364
+       },
+       {
+        "p": "a-flans",
+        "v": "OD=160",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 3,
+        "fp": 0,
+        "sv": 275651.8955251037,
+        "ev": 275651.89556059346
+       },
+       {
+        "p": "a-flans",
+        "v": "PCD=86",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 170377.12570330975,
+        "ev": 170377.125738799
+       },
+       {
+        "p": "a-flans",
+        "v": "PCD=96",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 170377.12570330975,
+        "ev": 170377.125738799
+       },
+       {
+        "p": "a-flans",
+        "v": "PCD=98",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 170377.12570330975,
+        "ev": 170377.125738799
+       },
+       {
+        "p": "a-flans",
+        "v": "T=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 3,
+        "fp": 0,
+        "sv": 154175.93238874714,
+        "ev": 154175.9324242374
+       },
+       {
+        "p": "a-flans",
+        "v": "T=14",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 3,
+        "fp": 0,
+        "sv": 186578.31901787224,
+        "ev": 186578.31905336224
+       },
+       {
+        "p": "a-flans",
+        "v": "T=16",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 3,
+        "fp": 0,
+        "sv": 202779.5123324348,
+        "ev": 202779.51236792555
+       },
+       {
+        "p": "a-flans",
+        "v": "HH=24",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 155297.48096607873,
+        "ev": 155297.48100156797
+       },
+       {
+        "p": "a-flans",
+        "v": "HH=36",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 185456.7704405407,
+        "ev": 185456.77047603
+       },
+       {
+        "p": "a-flans",
+        "v": "HH=45",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 208076.23754638724,
+        "ev": 208076.2375818765
+       },
+       {
+        "p": "a-flans",
+        "v": "HD=50",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 154765.5648282417,
+        "ev": 154765.5648580239
+       },
+       {
+        "p": "a-flans",
+        "v": "HD=56",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 163793.2093466948,
+        "ev": 163793.209379901
+       },
+       {
+        "p": "a-flans",
+        "v": "HD=66",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 181101.2302547014,
+        "ev": 181101.23029361566
+       },
+       {
+        "p": "a-flans",
+        "v": "BD=12",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 176408.98359820212,
+        "ev": 176408.9836336914
+       },
+       {
+        "p": "a-flans",
+        "v": "BD=16",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 173770.04576918672,
+        "ev": 173770.04580467596
+       },
+       {
+        "p": "a-flans",
+        "v": "BD=24",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 166230.2234005712,
+        "ev": 166230.22343606048
+       },
+       {
+        "p": "a-flans",
+        "v": "BD=28",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 161329.33886097113,
+        "ev": 161329.33889646037
+       },
+       {
+        "p": "a-flans",
+        "v": "RF=1",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 170045.682933276,
+        "ev": 170045.68293712678
+       },
+       {
+        "p": "a-flans",
+        "v": "RF=2",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 170169.1457117612,
+        "ev": 170169.1457273501
+       },
+       {
+        "p": "a-flans",
+        "v": "RF=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 170671.43002125432,
+        "ev": 170671.43008508527
+       },
+       {
+        "p": "a-flans",
+        "v": "CH=0.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 171124.3011560885,
+        "ev": 171124.3011915778
+       },
+       {
+        "p": "a-flans",
+        "v": "CH=1",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 170843.39041298,
+        "ev": 170843.39044846926
+       },
+       {
+        "p": "a-flans",
+        "v": "CH=2",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 169727.07782340446,
+        "ev": 169727.07785889372
+       },
+       {
+        "p": "a-flans",
+        "v": "N=8,OD=140,PCD=100,HD=50",
+        "cls": "REDDEDİLDİ(beklenmedi)",
+        "stale": "ok:false",
+        "fresh": "ok",
+        "sf": [
+         "och",
+         "ifil"
+        ],
+        "bind": [
+         "och: kayıp",
+         "ifil: kayıp"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 202190.80878993674,
+        "ev": 201519.7939262984
+       },
+       {
+        "p": "a-flans",
+        "v": "bastır: pat (6→1 delik)",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 175660.23734909657,
+        "ev": 175660.23738458584
+       },
+       {
+        "p": "a-flans",
+        "v": "bastır: bore",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 179801.90366407912,
+        "ev": 179801.90369956836
+       },
+       {
+        "p": "a-flans",
+        "v": "bastır: bolt+pat",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 176716.85967825394,
+        "ev": 176716.8597137432
+       },
+       {
+        "p": "a-flans",
+        "v": "çıkar: bore + N=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "och: aynı",
+         "ifil: aynı"
+        ],
+        "idx": 0,
+        "fp": 3,
+        "sv": 177688.65900576438,
+        "ev": 177688.65904125365
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "L=120",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 141660.9797285037,
+        "ev": 141660.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "L=180",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 214740.9797285037,
+        "ev": 214740.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "L=200",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 239100.97972850373,
+        "ev": 239100.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "H=50",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 159455.97972850373,
+        "ev": 159455.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "H=60",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 196945.97972850376,
+        "ev": 196945.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "H=70",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 234435.9797285037,
+        "ev": 234435.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "SD=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 187200.97972850373,
+        "ev": 187200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "SD=6",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 182700.97972850376,
+        "ev": 182700.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "SD=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 173700.9797285038,
+        "ev": 173700.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "SH=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 184200.97972850373,
+        "ev": 184200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "SH=12",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 181800.97972850373,
+        "ev": 181800.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "SH=15",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 178200.97972850376,
+        "ev": 178200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "DV=3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 182250.97972850376,
+        "ev": 182250.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "DV=5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 179850.97972850376,
+        "ev": 179850.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "DV=7",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 176250.97972850373,
+        "ev": 176250.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "ZC=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 178200.97972850376,
+        "ev": 178200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "ZC=14",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 178200.97972850373,
+        "ev": 178200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "TK=20",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 137587.15224085568,
+        "ev": 137587.1522408557
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "TK=30",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 218814.80721615182,
+        "ev": 218814.80721615185
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "TK=35",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 259428.63470379985,
+        "ev": 259428.6347037999
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "CF=0.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 178353.56306183708,
+        "ev": 178353.5630618371
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "CF=1.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 177947.89639517033,
+        "ev": 177947.89639517045
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "CF=2",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 177595.31306183705,
+        "ev": 177595.3130618371
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "HX=20",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 178200.97972850376,
+        "ev": 178200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "HX=35",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 178200.97972850376,
+        "ev": 178200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "HX=40",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 178200.97972850376,
+        "ev": 178200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "bastır: step",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 5,
+        "sv": 196200.97972850376,
+        "ev": 196200.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "bastır: vee",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 5,
+        "sv": 183600.97972850376,
+        "ev": 183600.9797285038
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "bastır: hol",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 0,
+        "fp": 4,
+        "sv": 182646.33333333328,
+        "ev": 182646.33333333334
+       },
+       {
+        "p": "b-yumusak-cene",
+        "v": "L=180,TK=30,H=60,CF=2",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "back: ?fr.map is not a function",
+         "chf: aynı"
+        ],
+        "idx": 5,
+        "fp": 0,
+        "sv": 289889.14054948516,
+        "ev": 289889.1405494852
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "OD=150",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 279778.1909846063,
+        "ev": 279778.1909846063
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "OD=180",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 396328.9152627292,
+        "ev": 396328.9152627293
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "OD=200",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 485810.3705657728,
+        "ev": 485810.3705657729
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "T=12",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 258691.45752625418,
+        "ev": 258691.45752625418
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "T=18",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 373853.01831465564,
+        "ev": 373853.0183146556
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "T=20",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 412240.2052441229,
+        "ev": 412240.20524412283
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "SPD=60",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 303077.5487753777,
+        "ev": 303077.54877537774
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "SPD=70",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 309203.6544498778,
+        "ev": 309203.6544498778
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "SPD=76",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 313331.70719669486,
+        "ev": 313331.7071966948
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "SPH=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 306673.1015674112,
+        "ev": 306673.1015674113
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "SPH=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 325871.3742734985,
+        "ev": 325871.3742734984
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "SPH=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 335470.5106265421,
+        "ev": 335470.51062654203
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "SW=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 318894.5829451587,
+        "ev": 318894.5829451587
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "SW=12",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 313367.14955692797,
+        "ev": 313367.14955692785
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NS=2",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 319700.3351655511,
+        "ev": 319700.335165551
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NS=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 312844.1406753587,
+        "ev": 312844.14067535865
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NS=5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 309416.04343026254,
+        "ev": 309416.0434302625
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NS=6",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 305987.94618516637,
+        "ev": 305987.9461851663
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NS=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 299131.751694974,
+        "ev": 299131.75169497397
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NB=3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 317463.8832838697,
+        "ev": 317463.8832838696
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NB=6",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 313888.9471936254,
+        "ev": 313888.94719362527
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NB=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 311505.6564667957,
+        "ev": 311505.6564667957
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "BD=6.6",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 318165.0160783161,
+        "ev": 318165.01607831614
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "BD=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 314441.4748015753,
+        "ev": 314441.47480157536
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "FR=1",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 316593.74156715913,
+        "ev": 316593.74156715913
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "FR=3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 315738.60720335424,
+        "ev": 315738.6072033542
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "bastır: spg (fatura)",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 287474.82886132406,
+        "ev": 287474.828861324
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "bastır: spat (tek kanal)",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 323128.43241064716,
+        "ev": 323128.43241064716
+       },
+       {
+        "p": "c-ayna-adaptoru",
+        "v": "NS=4,OD=180,SPH=8",
+        "cls": "REDDEDİLDİ(beklenmedi)",
+        "stale": "ok:false",
+        "fresh": "ok",
+        "sf": [
+         "fil"
+        ],
+        "bind": [
+         "top: ?fr.map is not a function",
+         "fil: kayıp"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 402982.9628046218,
+        "ev": 402499.95437067666
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PW=180",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 308283.9438229379,
+        "ev": 308283.94382293784
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PW=220",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 365952.61641065066,
+        "ev": 365952.61641065066
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PW=260",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 423621.28899836336,
+        "ev": 423621.2889983635
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PH=100",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 293083.94382293784,
+        "ev": 293083.94382293784
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PH=140",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 381152.61641065066,
+        "ev": 381152.61641065066
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PT=16",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 242695.0944478824,
+        "ev": 242695.0944478824
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PT=24",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 431541.4657857061,
+        "ev": 431541.4657857061
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PT=30",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 573176.244289074,
+        "ev": 573176.2442890737
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "DEP=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 382272.1563777122,
+        "ev": 382272.1563777121
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "DEP=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 359695.2182472533,
+        "ev": 359695.21824725316
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "DEP=14",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 314541.34198633535,
+        "ev": 314541.34198633523
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "ISL=12",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 334048.4714602254,
+        "ev": 334048.4714602253
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "ISL=18",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 340866.6727865385,
+        "ev": 340866.6727865385
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "ISL=22",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 346920.1048111371,
+        "ev": 346920.1048111371
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "KR=5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 336720.9666577086,
+        "ev": 336720.9666577084
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "KR=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 337486.1646377541,
+        "ev": 337486.1646377539
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "FR=1",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 336770.29470055265,
+        "ev": 336770.2947005526
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "FR=3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 337698.2558105304,
+        "ev": 337698.2558105303
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "FR=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 338510.22178176086,
+        "ev": 338510.2217817608
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "HC=12",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 337118.2801167943,
+        "ev": 337118.2801167942
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "HC=18",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 337118.2801167943,
+        "ev": 337118.2801167942
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "bastır: hp (4→1 delik)",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 0,
+        "fp": 9,
+        "sv": 340134.20906424045,
+        "ev": 340134.20906424045
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "bastır: pk (cep yok → fillet reddedilmeli)",
+        "cls": "REDDEDİLDİ(beklenen)",
+        "stale": "ok:false",
+        "fresh": "ok:false",
+        "sf": [
+         "fil"
+        ],
+        "bind": [
+         "fil: kayıp"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 472115.92834455916,
+        "ev": 337118.2801167942
+       },
+       {
+        "p": "d-cepli-adali-plaka",
+        "v": "PW=220,PT=24,DEP=14,FR=3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "fil: aynı"
+        ],
+        "idx": 9,
+        "fp": 0,
+        "sv": 444821.76001016033,
+        "ev": 444821.76001016016
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "D1=16",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 146101.8484170669,
+        "ev": 146101.8484235935
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "D1=24",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 152377.86088605865,
+        "ev": 152377.86089309157
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "D2=26",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 141892.65201773503,
+        "ev": 141892.65202426113
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "D2=34",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 156965.70164516044,
+        "ev": 156965.70165219408
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "D3=36",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 134600.0328858343,
+        "ev": 134600.03289261376
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "D3=44",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 164759.32236029636,
+        "ev": 164759.3223670758
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "L2=30",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 142162.733998044,
+        "ev": 142162.73400482393
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "L2=50",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 155994.27885678082,
+        "ev": 155994.27886356198
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "L3=50",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 136359.32477184464,
+        "ev": 136359.32477862423
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "L3=70",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 161492.06600056295,
+        "ev": 161492.066007343
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "RF=0.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 148872.054295601,
+        "ev": 148872.05429727284
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "RF=1.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 149016.2015509117,
+        "ev": 149016.20156637335
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "CH=0.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 148975.69906927345,
+        "ev": 148975.69907605284
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "CH=1.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 148844.27577659825,
+        "ev": 148844.2757833777
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "KW=6",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 149140.67120701773,
+        "ev": 149140.67121379718
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "KW=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 148727.34215108043,
+        "ev": 148727.34215785985
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "KD=3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 149165.6953862038,
+        "ev": 149165.69539298324
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "KD=5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 148685.69538620382,
+        "ev": 148685.6953929832
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "kademe kaldır: D3=D2 (profil 4 kademe)",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 2,
+        "sv": 115897.91865920105,
+        "ev": 115897.91866208374
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "kademe kaldır: D4=D3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "ch: aynı"
+        ],
+        "idx": 0,
+        "fp": 2,
+        "sv": 168147.42345728632,
+        "ev": 168147.423462117
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "kademe kaldır: D5=D4 (uç radyüs değişir)",
+        "cls": "REDDEDİLDİ(beklenmedi)",
+        "stale": "ok:false",
+        "fresh": "ok",
+        "sf": [
+         "ch"
+        ],
+        "bind": [
+         "ch: kayıp"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 156610.30439486852,
+        "ev": 156533.85897884256
+       },
+       {
+        "p": "e-kademeli-mil",
+        "v": "L1=20,D1=14",
+        "cls": "REDDEDİLDİ(beklenmedi)",
+        "stale": "ok:false",
+        "fresh": "ok",
+        "sf": [
+         "ch"
+        ],
+        "bind": [
+         "ch: kayıp"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 144211.71313325528,
+        "ev": 144155.85418778725
+       },
+       {
+        "p": "f-l-braket",
+        "v": "BL=90",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 71744.15944622511,
+        "ev": 71744.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "BL=120",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 86144.15944622508,
+        "ev": 86144.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "BT=6",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 59478.11958466882,
+        "ev": 59478.11958466883
+       },
+       {
+        "p": "f-l-braket",
+        "v": "BT=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 93130.19930778135,
+        "ev": 93130.19930778137
+       },
+       {
+        "p": "f-l-braket",
+        "v": "LH=50",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 71744.15944622512,
+        "ev": 71744.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "LH=80",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 86144.15944622512,
+        "ev": 86144.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "W=70",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 88704.15944622504,
+        "ev": 88704.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "W=80",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 100864.15944622507,
+        "ev": 100864.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "GX=30,GZ=30",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 73844.1594462251,
+        "ev": 73844.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "GX=50,GZ=45",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 77894.15944622512,
+        "ev": 77894.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "GT=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 74744.1594462251,
+        "ev": 74744.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "GT=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 78344.1594462251,
+        "ev": 78344.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "HD=6.6",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 77265.21779207702,
+        "ev": 77265.21779207703
+       },
+       {
+        "p": "f-l-braket",
+        "v": "HD=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 75846.72587712819,
+        "ev": 75846.72587712816
+       },
+       {
+        "p": "f-l-braket",
+        "v": "LZ=30",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 76544.15944622514,
+        "ev": 76544.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "LZ=45",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 76544.1594462251,
+        "ev": 76544.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "bastır: rib",
+        "cls": "REDDEDİLDİ(beklenmedi)",
+        "stale": "ok:false",
+        "fresh": "ok",
+        "sf": [
+         "s3",
+         "h1"
+        ],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 72052.07972311258,
+        "ev": 71144.1594462251
+       },
+       {
+        "p": "f-l-braket",
+        "v": "BT=10,LH=80,W=80",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topf: ?fr.map is not a function",
+         "legf: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 139130.1993077813,
+        "ev": 139130.19930778138
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "BW=90",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 6,
+        "fp": 0,
+        "sv": 36894.85883650648,
+        "ev": 36894.85883650648
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "BW=120",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 6,
+        "fp": 0,
+        "sv": 44874.858836506435,
+        "ev": 44874.85883650648
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "BD=50",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 6,
+        "fp": 0,
+        "sv": 36094.85883650649,
+        "ev": 36094.85883650648
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "BD=70",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 6,
+        "fp": 0,
+        "sv": 43014.85883650643,
+        "ev": 43014.85883650648
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "BH=37",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 6,
+        "fp": 0,
+        "sv": 37734.363277291144,
+        "ev": 37734.36327729111
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "BH=50",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 6,
+        "fp": 0,
+        "sv": 45623.17736722451,
+        "ev": 45623.17736722446
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "R=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 39839.85007551466,
+        "ev": 39839.85007551462
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "R=8",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 2,
+        "fp": 0,
+        "sv": 39256.1330799557,
+        "ev": 39256.13307995572
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "ST=1.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 31672.269268582328,
+        "ev": 31672.269268582266
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "ST=2.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 47233.90416237859,
+        "ev": 47233.90416237851
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "ST=3",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 1,
+        "fp": 0,
+        "sv": 54711.7614406886,
+        "ev": 54711.761440688526
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "TW=6",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 36915.92100749107,
+        "ev": 36915.92100749105
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "TW=10",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 42947.778902383485,
+        "ev": 42947.778902383456
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "RB=2",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 39855.13317038872,
+        "ev": 39855.133170388784
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "RB=4",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 0,
+        "sv": 39254.58450262417,
+        "ev": 39254.58450262417
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "bastır: tw0 (kule)",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "filB: aynı",
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 0,
+        "fp": 1,
+        "sv": 38190.38964891475,
+        "ev": 39554.85883650648
+       },
+       {
+        "p": "g-kutu-govde",
+        "v": "mod=after R=1.5",
+        "cls": "DOĞRU",
+        "stale": "ok",
+        "fresh": "ok",
+        "sf": [],
+        "bind": [
+         "topF: ?fr.map is not a function",
+         "rim: ?fr.map is not a function"
+        ],
+        "idx": 4,
+        "fp": 2,
+        "sv": 40169.263894699645,
+        "ev": 40169.26389469958
+       }
+      ]
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "param-random.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 89.3,
+   "results": [
+    {
+     "name": "param-rastgele",
+     "pass": 250,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "rastgele-özet": {
+       "a-flans": {
+        "tried": 40,
+        "valid": 34,
+        "doğru": 33,
+        "reddedildi": 1,
+        "yanlışBağ": 0,
+        "yanlışHacim": 0,
+        "idxFarkı": 0
+       },
+       "b-yumusak-cene": {
+        "tried": 40,
+        "valid": 37,
+        "doğru": 37,
+        "reddedildi": 0,
+        "yanlışBağ": 0,
+        "yanlışHacim": 0,
+        "idxFarkı": 0
+       },
+       "c-ayna-adaptoru": {
+        "tried": 40,
+        "valid": 33,
+        "doğru": 30,
+        "reddedildi": 3,
+        "yanlışBağ": 0,
+        "yanlışHacim": 0,
+        "idxFarkı": 0
+       },
+       "d-cepli-adali-plaka": {
+        "tried": 40,
+        "valid": 37,
+        "doğru": 37,
+        "reddedildi": 0,
+        "yanlışBağ": 0,
+        "yanlışHacim": 0,
+        "idxFarkı": 0
+       },
+       "e-kademeli-mil": {
+        "tried": 40,
+        "valid": 34,
+        "doğru": 34,
+        "reddedildi": 0,
+        "yanlışBağ": 0,
+        "yanlışHacim": 0,
+        "idxFarkı": 0
+       },
+       "f-l-braket": {
+        "tried": 40,
+        "valid": 35,
+        "doğru": 34,
+        "reddedildi": 1,
+        "yanlışBağ": 0,
+        "yanlışHacim": 0,
+        "idxFarkı": 0
+       },
+       "g-kutu-govde": {
+        "tried": 40,
+        "valid": 40,
+        "doğru": 40,
+        "reddedildi": 0,
+        "yanlışBağ": 0,
+        "yanlışHacim": 0,
+        "idxFarkı": 0
+       }
+      }
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "ref-adversarial.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 3.1,
+   "results": [
+    {
+     "name": "ref-kotu-senaryo",
+     "pass": 21,
+     "fail": 3,
+     "fails": [
+      "R1: sketch varlık sırası 1 kaydırıldı (aynı geometri): yuvarlatılan köşe değişmemeli; yuvarlatılan köşeler [(100,0),(0,0),(0,60),(100,60)] = false,false,false,true",
+      "R1: sketch varlık sırası 2 kaydırıldı (aynı geometri): yuvarlatılan köşe değişmemeli; yuvarlatılan köşeler [(100,0),(0,0),(0,60),(100,60)] = false,false,true,false",
+      "R1: sketch varlık sırası 3 kaydırıldı (aynı geometri): yuvarlatılan köşe değişmemeli; yuvarlatılan köşeler [(100,0),(0,0),(0,60),(100,60)] = false,true,false,false"
+     ],
+     "info": {
+      "R3-flip": {
+       "chamferedTop": false,
+       "chamferedBottom": true,
+       "bbox": [
+        [
+         0,
+         0,
+         -20
+        ],
+        [
+         100,
+         60,
+         0
+        ]
+       ]
+      },
+      "R4-fp": [
+       {
+        "idx": 4,
+        "fp": [
+         50,
+         50.00000000000001,
+         30
+        ],
+        "area": 7172.566611769185
+       },
+       {
+        "idx": 9,
+        "fp": [
+         50,
+         50,
+         29.999999999999996
+        ],
+        "area": 1256.6370614359173
+       }
+      ]
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "edge-cases.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 105.4,
+   "results": [
+    {
+     "name": "sinir-ve-hata",
+     "pass": 180,
+     "fail": 36,
+     "fails": [
+      "V16 [değer] küre çap 1e6: KİLİTLENME(zaman aşımı) süreç sonlandı code=null sig=SIGKILL",
+      "V31 [değer] ifade -2^2 (beklenen -4 → mesafe -4): YANLIŞ-SONUÇ -2^2 = +4 olarak hesaplandı (gövde z üstü 4); doğrusu -4",
+      "V32 [değer] ifade max(10,5) (virgül ondalık sanılıyor): YANLIŞ-SONUÇ max(10,5) → 10.5 (beklenen 10; ya hata verilmeli ya 10)",
+      "V33 [değer] ifade tan(90): SESSİZ-HATA ok:true döndü, gövde 1, hacim 97987436119172220000",
+      "V35 [değer] parametre adı çakışması pi: YANLIŞ-SONUÇ parametre \"pi\"=3 tanımlandı ama kullanıldığında 3.141592653589793 (sessizce yok sayıldı)",
+      "S02 [sketch] asimetrik papyon profil: YANLIŞ-SONUÇ e1: BRepCheck geçersiz",
+      "S09 [sketch] üst üste iki aynı dikdörtgen (yinelenen çizgiler): YANLIŞ-SONUÇ geçerli girdi ok:false ile reddedildi: e1",
+      "S11 [sketch] dikdörtgene içten teğet daire (delik kenara değiyor), yalnız delikli bölge: YANLIŞ-SONUÇ e1: BRepCheck geçersiz",
+      "S16 [sketch] extrude profiller: [] (boş liste): İSTİSNA TypeError: Cannot read properties of null (reading 'boundingBox') |     at Kernel.rebuild (file:///tmp/snap/src/kernel/kernel.js:332:28)",
+      "S21 [sketch] sketch düzlemi bilinmeyen ad: SESSİZ-HATA ok:true döndü, gövde 1, hacim 60000",
+      "S28 [sketch] çokgende 1e-6 uzunluklu kenar: YANLIŞ-SONUÇ e1: BRepCheck geçersiz; hacim 916.6666666666665 beklenen 1000",
+      "R01 [revolve] açı 400: YANLIŞ-SONUÇ açı 400: hacim 73.30382858376186 beklenen 659.7344572538566",
+      "R04 [revolve] açı 0: SESSİZ-HATA ok:true döndü, gövde 1, hacim 0",
+      "R17 [revolve] revolve profili [] boş: İSTİSNA TypeError: Cannot read properties of null (reading 'boundingBox') |     at Kernel.rebuild (file:///tmp/snap/src/kernel/kernel.js:332:28)",
+      "B03 [boolean] kes: takım bbox içinde ama gövdeye değmiyor (L oyuğu): SESSİZ-HATA ok:true döndü, gövde 1, hacim 2999.999999999999",
+      "B04 [boolean] kes: L-parça boşluğunda takım (sessiz no-op?): SESSİZ-HATA ok:true döndü, gövde 1, hacim 11999.999999999996",
+      "B05 [boolean] kes: takım yalnız bir yüzle değiyor (hacim ortak yok): SESSİZ-HATA ok:true döndü, gövde 1, hacim 999.9999999999998",
+      "B13 [boolean] kesişim: ayrık bbox çakışıyor ama kesişim boş: SESSİZ-HATA ok:true döndü, gövde 0, hacim undefined",
+      "B14 [boolean] kesişim: yalnız yüz paylaşan: SESSİZ-HATA ok:true döndü, gövde 0, hacim undefined",
+      "B17 [boolean] combine: hedef = takım (birleştir): YANLIŞ-SONUÇ tüm özellikler ok:true ama hiç gövde yok; hacim undefined beklenen 1000",
+      "B20 [boolean] combine: bilinmeyen op (\"xor\") → sessizce birleştirir: SESSİZ-HATA ok:true döndü, gövde 1, hacim 1500",
+      "B21 [boolean] extrude op bilinmeyen (\"subtract\") → : SESSİZ-HATA ok:true döndü, gövde 1, hacim 249.99999999999994",
+      "H06 [delik] derinlik -5: SESSİZ-HATA ok:true döndü, gövde 1, hacim 3999.999999999999",
+      "H09 [delik] havşa derinliği > delik derinliği (kör): SESSİZ-HATA ok:true döndü, gövde 1, hacim 3592.842382189657",
+      "H10 [delik] konik havşa açısı 0 / 180: SESSİZ-HATA ok:true döndü, gövde 1, hacim 3874.3362938564082",
+      "H21 [delik] delik ters (flip) → havaya doğru: SESSİZ-HATA ok:true döndü, gövde 1, hacim 3999.999999999999",
+      "P16 [desen] adet 5000 (süre): KİLİTLENME(zaman aşımı) süreç sonlandı code=null sig=SIGKILL",
+      "H22 [delik] L-parçanın boş köşesine delik (malzeme yok): ok:true + holes[] hayalet delik: SESSİZ-HATA ok:true döndü, gövde 1, hacim 11999.999999999996",
+      "H23 [delik] iki noktadan biri malzemede, biri havada: YANLIŞ-SONUÇ holes[] havadaki delik konumunu da içeriyor: [[[5,5,10],[30,30,10]]]",
+      "I14 [içe aktarma] geçerli STEP: sayılar bozulmuş (yarıçap 0): YANLIŞ-SONUÇ imp1: ağ boş ya da NaN",
+      "I17 [içe aktarma] geçerli STL (kendi dışa aktarımı) içe alınır: YANLIŞ-SONUÇ geçerli girdi ok:false ile reddedildi: imp1",
+      "D05 [belge] özellik listesinde null: İSTİSNA TypeError: Cannot read properties of null (reading 'type') |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:295:13)",
+      "D06 [belge] features yok: İSTİSNA TypeError: doc.features is not iterable |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)",
+      "D08 [belge] belge null: İSTİSNA TypeError: Cannot read properties of null (reading 'features') |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)",
+      "D09 [belge] features dizi değil: İSTİSNA TypeError: doc.features is not iterable |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)",
+      "D21 [belge] move: kopya + büyük döndürme: İSTİSNA Error: This object has been deleted |     at get wrapped (file:///home/claude/atolyecad/node_modules/replicad/dist/casting-BnJHCnOw.js:34:37)"
+     ],
+     "info": {
+      "vaka-sayısı": 216,
+      "vaka-sonuçları": [
+       {
+        "id": "V01",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 13,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V02",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 19,
+        "f": []
+       },
+       {
+        "id": "V03",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 4,
+        "f": []
+       },
+       {
+        "id": "V04",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": []
+       },
+       {
+        "id": "V05",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V06",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V07",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V08",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V09",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 4,
+        "f": []
+       },
+       {
+        "id": "V10",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "V11",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "V12",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 4,
+        "f": []
+       },
+       {
+        "id": "V13",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "V14",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "V15",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 11,
+        "f": []
+       },
+       {
+        "id": "V16",
+        "g": "değer",
+        "v": "KİLİTLENME(zaman aşımı)",
+        "d": "süreç sonlandı code=null sig=SIGKILL"
+       },
+       {
+        "id": "V17",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "V18",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "V19",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "V20",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 23,
+        "f": []
+       },
+       {
+        "id": "V21",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V22",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V23",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": []
+       },
+       {
+        "id": "V24",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 3654,
+        "f": []
+       },
+       {
+        "id": "V25",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V26",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V27",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V28",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 4,
+        "f": []
+       },
+       {
+        "id": "V29",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V30",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V31",
+        "g": "değer",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 11,
+        "d": "-2^2 = +4 olarak hesaplandı (gövde z üstü 4); doğrusu -4",
+        "f": []
+       },
+       {
+        "id": "V32",
+        "g": "değer",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 3,
+        "d": "max(10,5) → 10.5 (beklenen 10; ya hata verilmeli ya 10)",
+        "f": []
+       },
+       {
+        "id": "V33",
+        "g": "değer",
+        "v": "SESSİZ-HATA",
+        "ms": 9,
+        "d": "ok:true döndü, gövde 1, hacim 97987436119172220000",
+        "f": []
+       },
+       {
+        "id": "V34",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V35",
+        "g": "değer",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 6,
+        "d": "parametre \"pi\"=3 tanımlandı ama kullanıldığında 3.141592653589793 (sessizce yok sayıldı)",
+        "f": []
+       },
+       {
+        "id": "S01",
+        "g": "sketch",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S02",
+        "g": "sketch",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 8,
+        "d": "e1: BRepCheck geçersiz",
+        "f": []
+       },
+       {
+        "id": "S03",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S04",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S05",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S06",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": []
+       },
+       {
+        "id": "S07",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": []
+       },
+       {
+        "id": "S08",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 65,
+        "f": []
+       },
+       {
+        "id": "S09",
+        "g": "sketch",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 0,
+        "d": "geçerli girdi ok:false ile reddedildi: e1",
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S10",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 31,
+        "f": []
+       },
+       {
+        "id": "S11",
+        "g": "sketch",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 11,
+        "d": "e1: BRepCheck geçersiz",
+        "f": []
+       },
+       {
+        "id": "S12",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 18,
+        "f": []
+       },
+       {
+        "id": "S13",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 48,
+        "f": []
+       },
+       {
+        "id": "S14",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": []
+       },
+       {
+        "id": "S15",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 34,
+        "f": []
+       },
+       {
+        "id": "S16",
+        "g": "sketch",
+        "v": "İSTİSNA",
+        "ms": 0,
+        "d": "TypeError: Cannot read properties of null (reading 'boundingBox') |     at Kernel.rebuild (file:///tmp/snap/src/kernel/kernel.js:332:28)"
+       },
+       {
+        "id": "S17",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S18",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 16,
+        "f": []
+       },
+       {
+        "id": "S19",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S20",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": []
+       },
+       {
+        "id": "S21",
+        "g": "sketch",
+        "v": "SESSİZ-HATA",
+        "ms": 2,
+        "d": "ok:true döndü, gövde 1, hacim 60000",
+        "f": []
+       },
+       {
+        "id": "S22",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "s1",
+         "e1"
+        ]
+       },
+       {
+        "id": "S23",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "s1",
+         "e1"
+        ]
+       },
+       {
+        "id": "S24",
+        "g": "sketch",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S25",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S26",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": []
+       },
+       {
+        "id": "S27",
+        "g": "sketch",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "S28",
+        "g": "sketch",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 7,
+        "d": "e1: BRepCheck geçersiz; hacim 916.6666666666665 beklenen 1000",
+        "f": []
+       },
+       {
+        "id": "S29",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "R01",
+        "g": "revolve",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 5,
+        "d": "açı 400: hacim 73.30382858376186 beklenen 659.7344572538566",
+        "f": []
+       },
+       {
+        "id": "R02",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": []
+       },
+       {
+        "id": "R03",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "R04",
+        "g": "revolve",
+        "v": "SESSİZ-HATA",
+        "ms": 3,
+        "d": "ok:true döndü, gövde 1, hacim 0",
+        "f": []
+       },
+       {
+        "id": "R05",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "R06",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "r1"
+        ]
+       },
+       {
+        "id": "R07",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": []
+       },
+       {
+        "id": "R08",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "R09",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": []
+       },
+       {
+        "id": "R10",
+        "g": "revolve",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 1,
+        "f": [
+         "r1"
+        ]
+       },
+       {
+        "id": "R11",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 4,
+        "f": []
+       },
+       {
+        "id": "R12",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "r1"
+        ]
+       },
+       {
+        "id": "R13",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "r1"
+        ]
+       },
+       {
+        "id": "R14",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "R15",
+        "g": "revolve",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "r1"
+        ]
+       },
+       {
+        "id": "R16",
+        "g": "revolve",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "r1"
+        ]
+       },
+       {
+        "id": "R17",
+        "g": "revolve",
+        "v": "İSTİSNA",
+        "ms": 0,
+        "d": "TypeError: Cannot read properties of null (reading 'boundingBox') |     at Kernel.rebuild (file:///tmp/snap/src/kernel/kernel.js:332:28)"
+       },
+       {
+        "id": "B01",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": [
+         "c"
+        ]
+       },
+       {
+        "id": "B02",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": [
+         "c"
+        ]
+       },
+       {
+        "id": "B03",
+        "g": "boolean",
+        "v": "SESSİZ-HATA",
+        "ms": 23,
+        "d": "ok:true döndü, gövde 1, hacim 2999.999999999999",
+        "f": []
+       },
+       {
+        "id": "B04",
+        "g": "boolean",
+        "v": "SESSİZ-HATA",
+        "ms": 33,
+        "d": "ok:true döndü, gövde 1, hacim 11999.999999999996",
+        "f": []
+       },
+       {
+        "id": "B05",
+        "g": "boolean",
+        "v": "SESSİZ-HATA",
+        "ms": 9,
+        "d": "ok:true döndü, gövde 1, hacim 999.9999999999998",
+        "f": []
+       },
+       {
+        "id": "B06",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 11,
+        "f": []
+       },
+       {
+        "id": "B07",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 16,
+        "f": []
+       },
+       {
+        "id": "B08",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 10,
+        "f": []
+       },
+       {
+        "id": "B09",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "B10",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 11,
+        "f": []
+       },
+       {
+        "id": "B11",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 14,
+        "f": [
+         "c"
+        ]
+       },
+       {
+        "id": "B12",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 19,
+        "f": []
+       },
+       {
+        "id": "B13",
+        "g": "boolean",
+        "v": "SESSİZ-HATA",
+        "ms": 36,
+        "d": "ok:true döndü, gövde 0, hacim undefined",
+        "f": []
+       },
+       {
+        "id": "B14",
+        "g": "boolean",
+        "v": "SESSİZ-HATA",
+        "ms": 11,
+        "d": "ok:true döndü, gövde 0, hacim undefined",
+        "f": []
+       },
+       {
+        "id": "B15",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 24,
+        "f": []
+       },
+       {
+        "id": "B16",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": [
+         "cm"
+        ]
+       },
+       {
+        "id": "B17",
+        "g": "boolean",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 2,
+        "d": "tüm özellikler ok:true ama hiç gövde yok; hacim undefined beklenen 1000",
+        "f": []
+       },
+       {
+        "id": "B18",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "cm"
+        ]
+       },
+       {
+        "id": "B19",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "cm"
+        ]
+       },
+       {
+        "id": "B20",
+        "g": "boolean",
+        "v": "SESSİZ-HATA",
+        "ms": 27,
+        "d": "ok:true döndü, gövde 1, hacim 1500",
+        "f": []
+       },
+       {
+        "id": "B21",
+        "g": "boolean",
+        "v": "SESSİZ-HATA",
+        "ms": 25,
+        "d": "ok:true döndü, gövde 1, hacim 249.99999999999994",
+        "f": []
+       },
+       {
+        "id": "B22",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "c"
+        ]
+       },
+       {
+        "id": "B23",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 49,
+        "f": []
+       },
+       {
+        "id": "B24",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 22,
+        "f": []
+       },
+       {
+        "id": "H01",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H02",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H03",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H04",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 7,
+        "f": []
+       },
+       {
+        "id": "H05",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H06",
+        "g": "delik",
+        "v": "SESSİZ-HATA",
+        "ms": 6,
+        "d": "ok:true döndü, gövde 1, hacim 3999.999999999999",
+        "f": []
+       },
+       {
+        "id": "H07",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": []
+       },
+       {
+        "id": "H08",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H09",
+        "g": "delik",
+        "v": "SESSİZ-HATA",
+        "ms": 20,
+        "d": "ok:true döndü, gövde 1, hacim 3592.842382189657",
+        "f": []
+       },
+       {
+        "id": "H10",
+        "g": "delik",
+        "v": "SESSİZ-HATA",
+        "ms": 10,
+        "d": "ok:true döndü, gövde 1, hacim 3874.3362938564082",
+        "f": []
+       },
+       {
+        "id": "H11",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H12",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H13",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 7,
+        "f": []
+       },
+       {
+        "id": "H14",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H15",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 15,
+        "f": []
+       },
+       {
+        "id": "H16",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 17,
+        "f": []
+       },
+       {
+        "id": "H17",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H18",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H19",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 9,
+        "f": []
+       },
+       {
+        "id": "H20",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 10,
+        "f": []
+       },
+       {
+        "id": "H21",
+        "g": "delik",
+        "v": "SESSİZ-HATA",
+        "ms": 4,
+        "d": "ok:true döndü, gövde 1, hacim 3999.999999999999",
+        "f": []
+       },
+       {
+        "id": "P01",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 7039,
+        "f": []
+       },
+       {
+        "id": "P02",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 5717,
+        "f": []
+       },
+       {
+        "id": "P03",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 13,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P04",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 16,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P05",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 12,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P06",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 16,
+        "f": []
+       },
+       {
+        "id": "P07",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 9,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P08",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P09",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 24,
+        "f": []
+       },
+       {
+        "id": "P10",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P11",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P12",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 18,
+        "f": []
+       },
+       {
+        "id": "P13",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P14",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 17,
+        "f": []
+       },
+       {
+        "id": "P15",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 13,
+        "f": []
+       },
+       {
+        "id": "P16",
+        "g": "desen",
+        "v": "KİLİTLENME(zaman aşımı)",
+        "d": "süreç sonlandı code=null sig=SIGKILL"
+       },
+       {
+        "id": "H22",
+        "g": "delik",
+        "v": "SESSİZ-HATA",
+        "ms": 300,
+        "d": "ok:true döndü, gövde 1, hacim 11999.999999999996",
+        "f": []
+       },
+       {
+        "id": "H23",
+        "g": "delik",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 179,
+        "d": "holes[] havadaki delik konumunu da içeriyor: [[[5,5,10],[30,30,10]]]",
+        "f": []
+       },
+       {
+        "id": "F01",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F02",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F03",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 82,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F04",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 63,
+        "f": []
+       },
+       {
+        "id": "F05",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 19,
+        "f": []
+       },
+       {
+        "id": "F06",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F07",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F08",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F09",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 18,
+        "f": []
+       },
+       {
+        "id": "F10",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "F11",
+        "g": "kabuk",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F12",
+        "g": "kabuk",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F13",
+        "g": "kabuk",
+        "v": "GEÇTİ",
+        "ms": 36,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F14",
+        "g": "kabuk",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 1,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F15",
+        "g": "kabuk",
+        "v": "GEÇTİ",
+        "ms": 50,
+        "f": []
+       },
+       {
+        "id": "F16",
+        "g": "kabuk",
+        "v": "GEÇTİ",
+        "ms": 57,
+        "f": []
+       },
+       {
+        "id": "F17",
+        "g": "kabuk",
+        "v": "GEÇTİ",
+        "ms": 68,
+        "f": []
+       },
+       {
+        "id": "F18",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 16,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F19",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F20",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F21",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 19,
+        "f": []
+       },
+       {
+        "id": "F22",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F23",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 11,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F24",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 1,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F25",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F26",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 14,
+        "f": []
+       },
+       {
+        "id": "F27",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 15,
+        "f": []
+       },
+       {
+        "id": "I01",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 27,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I02",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I03",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I04",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I05",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I06",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I07",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I08",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I09",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I10",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I11",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I12",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 11,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I13",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 147,
+        "f": []
+       },
+       {
+        "id": "I14",
+        "g": "içe aktarma",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 24,
+        "d": "imp1: ağ boş ya da NaN",
+        "f": []
+       },
+       {
+        "id": "I15",
+        "g": "içe aktarma",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 3739,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I16",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 20,
+        "f": []
+       },
+       {
+        "id": "I17",
+        "g": "içe aktarma",
+        "v": "YANLIŞ-SONUÇ",
+        "ms": 11,
+        "d": "geçerli girdi ok:false ile reddedildi: imp1",
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "I18",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 35,
+        "f": []
+       },
+       {
+        "id": "I19",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 21,
+        "f": []
+       },
+       {
+        "id": "I20",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 1,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "D01",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "x"
+        ]
+       },
+       {
+        "id": "D02",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "x"
+        ]
+       },
+       {
+        "id": "D03",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e"
+        ]
+       },
+       {
+        "id": "D04",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "e"
+        ]
+       },
+       {
+        "id": "D05",
+        "g": "belge",
+        "v": "İSTİSNA",
+        "ms": 0,
+        "d": "TypeError: Cannot read properties of null (reading 'type') |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:295:13)"
+       },
+       {
+        "id": "D06",
+        "g": "belge",
+        "v": "İSTİSNA",
+        "ms": 0,
+        "d": "TypeError: doc.features is not iterable |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)"
+       },
+       {
+        "id": "D07",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 10,
+        "f": []
+       },
+       {
+        "id": "D08",
+        "g": "belge",
+        "v": "İSTİSNA",
+        "ms": 0,
+        "d": "TypeError: Cannot read properties of null (reading 'features') |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)"
+       },
+       {
+        "id": "D09",
+        "g": "belge",
+        "v": "İSTİSNA",
+        "ms": 0,
+        "d": "TypeError: doc.features is not iterable |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)"
+       },
+       {
+        "id": "D10",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": []
+       },
+       {
+        "id": "D11",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": []
+       },
+       {
+        "id": "D12",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": []
+       },
+       {
+        "id": "D13",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": []
+       },
+       {
+        "id": "D14",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
+       },
+       {
+        "id": "D15",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": []
+       },
+       {
+        "id": "D16",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": []
+       },
+       {
+        "id": "D17",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "D18",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "D19",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": [
+         "mv"
+        ]
+       },
+       {
+        "id": "D20",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": [
+         "mv"
+        ]
+       },
+       {
+        "id": "D21",
+        "g": "belge",
+        "v": "İSTİSNA",
+        "ms": 2,
+        "d": "Error: This object has been deleted |     at get wrapped (file:///home/claude/atolyecad/node_modules/replicad/dist/casting-BnJHCnOw.js:34:37)"
+       },
+       {
+        "id": "D22",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "D23",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "s1",
+         "e1"
+        ]
+       },
+       {
+        "id": "D24",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
+        "id": "D25",
+        "g": "belge",
+        "v": "GEÇTİ",
+        "ms": 2,
+        "f": []
+       }
+      ],
+      "vaka-özet": {
+       "GEÇTİ": 171,
+       "KİLİTLENME(zaman aşımı)": 2,
+       "YANLIŞ-SONUÇ": 12,
+       "SESSİZ-HATA": 15,
+       "GEÇTİ(ok:false)": 9,
+       "İSTİSNA": 7
+      }
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "measure.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 1,
+   "results": [
+    {
+     "name": "olcum",
+     "pass": 59,
+     "fail": 2,
+     "fails": [
+      "M2: measure(gövde, gövde) istisna: Eleman yok",
+      "M6b: altıgen komşu yüzler arası iç açı 120° (normaller 60°); acos(|n1·n2|) 60° bildirir: bulunan 60 beklenen 120 (göreli -5.00e-1)"
+     ],
+     "info": {
+      "M6-not": "measure.angle = acos(|n1·n2|) ∈ [0,90]: 120° ya da 150° dihedral açıları 60°/30° bildirilir (tümler ayırt edilemez)"
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "profiles.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 0.5,
+   "results": [
+    {
+     "name": "profiller",
+     "pass": 66,
+     "fail": 16,
+     "fails": [
+      "P5 ortak kenar (yinelenen çizgi): bölge sayısı 1 (beklenen 2); open=false",
+      "P6 L düzeni 3 komşu: bölge sayısı 1 (beklenen 3); open=false",
+      "P7 T kavşak (düğümsüz, bölücü çizgi iki kenarın ortasında): bölge sayısı 1 (beklenen 2); open=true",
+      "P10 köşegenler kesişimde bölünmemiş (4 üçgen beklenir): bölge sayısı 1 (beklenen 4); open=false",
+      "P10 köşegenler kesişimde bölünmemiş (4 üçgen beklenir): net alan toplamı: bulunan 800 beklenen 1600 (göreli -5.00e-1)",
+      "P10b: çarpı köşegenli 40x40 dikdörtgenin tümü extrude (16000); üçgen bölgelerin biri kayboluyor: bulunan 8000 beklenen 16000 (göreli -5.00e-1)",
+      "P5b: iki bitişik kare, profil 0 seçili: tek kare (25000) beklenir; birleşik 50000 çıkıyor: bulunan 50000 beklenen 25000 (göreli 1.00e+0)",
+      "P11 dikdörtgeni kesen daire: 3 bölge beklenir (dikdörtgen-dışı, daire-dışı, kesişim); bulunan 2: net alanlar [1286.3,314.2]",
+      "P18 iki kimlik 2e-9 aralıklı (aynı nokta olmalı), x≈5e-6 sınırında: bölge 0",
+      "P18 iki kimlik 2e-7 aralıklı (aynı nokta olmalı), x≈5e-6 sınırında: bölge 0",
+      "P18 iki kimlik 0.000002 aralıklı (aynı nokta olmalı), x≈5e-6 sınırında: bölge 0",
+      "P18 iki kimlik 0.000004 aralıklı (aynı nokta olmalı), x≈5e-6 sınırında: bölge 0",
+      "P19: komşu bölge tek başına extrude",
+      "P19: sol kare hacmi: bulunan undefined beklenen 25000",
+      "P20: kesişen daire \"delik\" sayılıyor, ok:true; geçerli katı mı? e: BRepCheck geçersiz",
+      "P20: dikdörtgen−daire kesişimi hacmi (dikdörtgen bölgesi, daire ile ortak kısım hariç): bulunan 19141.592654 beklenen 13472.592196 (göreli 4.21e-1)"
+     ],
+     "info": {}
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "feature-geo.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 2.5,
+   "results": [
+    {
+     "name": "ozellik-geometri",
+     "pass": 51,
+     "fail": 2,
+     "fails": [
+      "E6 iki yön 10/5 + flip (beklenen: ters çevrilmiş → z∈[-10,5]) z max: bulunan -5 beklenen 5 (göreli -2.00e+0)",
+      "E6 iki yön 10/5 + flip (beklenen: ters çevrilmiş → z∈[-10,5]) hacim: bulunan 1000 beklenen 3000 (göreli -6.67e-1)"
+     ],
+     "info": {
+      "E8 iki yön dist2 negatif -5 (beklenen hata ya da z∈[0,10]∪..)": "ok z=[5,10] V=999.9999999999998",
+      "MR2": "ok:false"
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "state-bugs.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 2.7,
+   "results": [
+    {
+     "name": "durum-onbellek",
+     "pass": 6,
+     "fail": 6,
+     "fails": [
+      "X1: belge B (aynı \"import1\" kimliği, farklı dosya) kendi geometrisini göstermeli; eski dosyanın geometrisi kalıyor: bulunan 6000 beklenen 3141.592654 (göreli 9.10e-1)",
+      "X1: bozuk dosya, aynı kimlikle: ok:false olmalı (önceki geometri sessizce gösteriliyor: ok:true hacim 6000)",
+      "X1: veri alanı hiç yok, aynı kimlik: ok:false olmalı",
+      "X2: move dx 50→70 ikinci rebuild: İSTİSNA This object has been deleted",
+      "X2b: move copy:true (\"Kopyala\"): İSTİSNA This object has been deleted",
+      "X3: profiles [] rebuild istisna fırlatmamalı (Cannot read properties of null (reading 'boundingBox'))"
+     ],
+     "info": {
+      "X5-uzunluk": [
+       15802,
+       15802
+      ]
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
+   "file": "perf.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 232,
+   "results": [
+    {
+     "name": "sure-bellek",
+     "pass": 12,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "bellek-30-rebuild": {
+       "baş": {
+        "rss": 313.4,
+        "heap": 23.4,
+        "ext": 124.3,
+        "ab": 22.4,
+        "wasm": 0
+       },
+       "son": {
+        "rss": 356.9,
+        "heap": 26.7,
+        "ext": 102.6,
+        "ab": 0.5,
+        "wasm": 0
+       },
+       "fark": {
+        "rss": 43.5,
+        "heap": 3.3,
+        "ext": -21.7,
+        "ab": -21.9,
+        "wasm": 0
+       },
+       "gc": true,
+       "süreler": [
+        345,
+        551,
+        272,
+        279,
+        266,
+        258,
+        222,
+        195,
+        252,
+        186,
+        213,
+        204,
+        206,
+        172,
+        162,
+        170,
+        172,
+        160,
+        167,
+        168,
+        160,
+        169,
+        169,
+        156,
+        162,
+        177,
+        177,
+        172,
+        164,
+        175
+       ]
+      },
+      "external-artışı-MB/rebuild (son 20 tur)": 0,
+      "bellek-150-rebuild": [
+       {
+        "i": 60,
+        "rss": 377,
+        "heap": 30.1,
+        "ext": 108.6,
+        "ab": 0.7,
+        "wasm": 0
+       },
+       {
+        "i": 90,
+        "rss": 398.4,
+        "heap": 32.8,
+        "ext": 108.9,
+        "ab": 0.7,
+        "wasm": 0
+       },
+       {
+        "i": 120,
+        "rss": 420.3,
+        "heap": 36.5,
+        "ext": 126.4,
+        "ab": 0.7,
+        "wasm": 0
+       },
+       {
+        "i": 150,
+        "rss": 442.9,
+        "heap": 39.2,
+        "ext": 151.6,
+        "ab": 0.7,
+        "wasm": 0
+       }
+      ],
+      "süre-tablosu": [
+       {
+        "label": "desen 10x5 = 50 delik (rect)",
+        "ms": 819,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3598429.2036732193
+       },
+       {
+        "label": "desen 10x10 = 100 delik (rect)",
+        "ms": 2331,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3596858.407346439
+       },
+       {
+        "label": "desen 10x20 = 200 delik (rect)",
+        "ms": 7812,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3593716.8146928772
+       },
+       {
+        "label": "desen 20x20 = 400 delik (rect)",
+        "ms": 27531,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3587433.6293857545
+       },
+       {
+        "label": "desen 20x40 = 800 delik (rect)",
+        "ms": 117361,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3574867.2587715094
+       },
+       {
+        "label": "tek sketch'te 200 nokta + tek delik",
+        "ms": 7252,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3593716.8146928772
+       },
+       {
+        "label": "dairesel desen 50 delik",
+        "ms": 359,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3599937.168146929
+       },
+       {
+        "label": "dairesel desen 100 delik",
+        "ms": 1396,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3599874.3362938575
+       },
+       {
+        "label": "dairesel desen 200 delik",
+        "ms": 5635,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3599874.3362938575
+       },
+       {
+        "label": "dairesel desen 400 delik",
+        "ms": 21956,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 3599686.021977991
+       },
+       {
+        "label": "küre çap 100",
+        "ms": 29,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 523598.7755982988
+       },
+       {
+        "label": "küre çap 1000",
+        "ms": 211,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 523598775.5982989
+       },
+       {
+        "label": "küre çap 3000",
+        "ms": 1338,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 14137166941.15407
+       },
+       {
+        "label": "küre çap 6000",
+        "ms": 3760,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 113097335529.23256
+       },
+       {
+        "label": "60 özellikli belge (soğuk)",
+        "ms": 1880,
+        "exc": null,
+        "ok": true,
+        "bodies": 1,
+        "vol": 4488229.2214966295
+       },
+       {
+        "label": "60 özellik: yalnız son özellik değişti (önbellek)",
+        "ms": 489
+       },
+       {
+        "label": "60 özellik: ilk özellik değişti (tam yeniden hesap)",
+        "ms": 1937
+       }
+      ]
+     }
+    }
+   ],
+   "tail": ""
+  }
+ ]
+}

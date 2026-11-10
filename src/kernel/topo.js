@@ -1,0 +1,240 @@
+// OCCT yardımcıları: alt şekil dizinleri, geçmiş (history) ile boolean / yuvarlatma / pah / kabuk / dönüşüm,
+// prizma ve dönel süpürme, geçerlilik kapısı. Ham OCCT nesneleri ya açıkça silinir ya bir sarmalayıcıya bağlanıp
+// FinalizationRegistry ile silinir (F-20). replicad'in kaynak şekli silen yöntemleri (translate/rotate/mirror/fillet…)
+// burada KULLANILMAZ: önbellekteki şekiller değişmez kalır (F-09).
+import * as R from 'replicad';
+
+const HMAX = 2147483647;
+const oc = () => R.getOC();
+const fin = new FinalizationRegistry((arr) => { for (const o of arr) { try { o.delete(); } catch (e) { /* zaten silinmiş */ } } });
+
+// Geçici OCCT nesneleri için kapsam: r(x) kaydeder, done() hepsini siler.
+export function scope() {
+  const list = [];
+  const r = (x) => { if (x && typeof x.delete === 'function') list.push(x); return x; };
+  r.done = () => { for (let i = list.length - 1; i >= 0; i--) { try { list[i].delete(); } catch (e) { /* */ } } list.length = 0; };
+  return r;
+}
+
+const KIND = () => { const E = oc().TopAbs_ShapeEnum; return { face: E.TopAbs_FACE, edge: E.TopAbs_EDGE, vertex: E.TopAbs_VERTEX, solid: E.TopAbs_SOLID, shell: E.TopAbs_SHELL, shape: E.TopAbs_SHAPE }; };
+export const hashOf = (s) => oc().ReplicadShapeHasher.HashCode(s, HMAX);
+
+// Benzersiz alt şekillerin keşif sırasındaki dizini (replicad .faces/.edges ile aynı sıra).
+export class SubIndex {
+  constructor(shape, kind, avoid) {
+    const K = KIND(); this.list = []; this.h = new Map();
+    const ex = avoid ? new (oc().TopExp_Explorer)(shape, K[kind], K[avoid]) : new (oc().TopExp_Explorer)(shape, K[kind], K.shape);
+    for (; ex.More(); ex.Next()) { const c = ex.Current(); if (this.add(c) < 0) c.delete(); }
+    ex.delete();
+  }
+  add(c) { const k = hashOf(c); let b = this.h.get(k); if (!b) { b = []; this.h.set(k, b); } for (const i of b) if (this.list[i].IsSame(c)) return -1; b.push(this.list.length); this.list.push(c); return this.list.length - 1; }
+  find(s) { const b = this.h.get(hashOf(s)); if (!b) return -1; for (const i of b) if (this.list[i].IsSame(s)) return i; return -1; }
+  get size() { return this.list.length; }
+}
+
+// Gövde topolojisi (önbellekli): yüz/kenar/köşe dizinleri ve komşuluklar.
+const topoCache = new WeakMap();
+export function topoOf(w) {
+  let T = topoCache.get(w); if (T) return T;
+  const sh = w.wrapped;
+  const faces = new SubIndex(sh, 'face'), edges = new SubIndex(sh, 'edge'), verts = new SubIndex(sh, 'vertex');
+  const edgeFaces = edges.list.map(() => []), faceEdges = faces.list.map(() => []), edgeVerts = edges.list.map(() => []);
+  faces.list.forEach((f, i) => { const sub = new SubIndex(f, 'edge'); for (const e of sub.list) { const j = edges.find(e); if (j >= 0) { if (!edgeFaces[j].includes(i)) edgeFaces[j].push(i); faceEdges[i].push(j); } } sub.list.forEach((x) => x.delete()); });
+  edges.list.forEach((e, j) => { const sub = new SubIndex(e, 'vertex'); for (const v of sub.list) { const k = verts.find(v); if (k >= 0) edgeVerts[j].push(k); } sub.list.forEach((x) => x.delete()); });
+  const vertFaces = verts.list.map(() => new Set());
+  edgeVerts.forEach((vs, j) => { for (const k of vs) for (const f of edgeFaces[j]) vertFaces[k].add(f); });
+  T = { faces, edges, verts, edgeFaces, faceEdges, edgeVerts, vertFaces: vertFaces.map((s) => [...s]) };
+  fin.register(w, [...faces.list, ...edges.list, ...verts.list]);
+  topoCache.set(w, T);
+  return T;
+}
+
+// NCollection_List → dizi (öğeler çağıranındır; silinmeli)
+export function listArr(l) {
+  const c = new (oc().NCollection_List_TopoDS_Shape)(l); const out = [];
+  while (c.Size() > 0) { out.push(c.First()); c.RemoveFirst(); }
+  c.delete(); l.delete();
+  return out;
+}
+export const wrap = (raw) => { const w = R.cast(raw); raw.delete(); return w; };
+const P = (r, p) => r(new (oc().gp_Pnt)(p[0], p[1], p[2]));
+const Dv = (r, d) => r(new (oc().gp_Dir)(d[0], d[1], d[2]));
+const Vv = (r, d) => r(new (oc().gp_Vec)(d[0], d[1], d[2]));
+const progress = (r) => r(new (oc().Message_ProgressRange)());
+
+// Geçmişten isim aktarımı. inputs: [{shape(wrapper), fn: string[][]}], map: isim dönüştürücü (desen önekleri için)
+// Döner: sonuç yüzlerinin ad kümeleri (sıralı dizi), sonuç yüz sırasıyla.
+export function propagate(b, inputs, res, opt = {}) {
+  const T = topoOf(res); const out = T.faces.list.map(() => new Set());
+  for (const inp of inputs) {
+    const Ti = topoOf(inp.shape); const map = inp.map || ((x) => x);
+    Ti.faces.list.forEach((f, i) => {
+      const names = (inp.fn[i] || []).map(map); if (!names.length) return;
+      let del = false; try { del = b.IsDeleted(f); } catch (e) { del = false; }
+      if (del) return;
+      const mods = listArr(b.Modified(f));
+      if (!mods.length) { const k = T.faces.find(f); if (k >= 0) names.forEach((n) => out[k].add(n)); }
+      else for (const m of mods) { const k = T.faces.find(m); if (k >= 0) names.forEach((n) => out[k].add(n)); m.delete(); }
+    });
+    if (opt.generated) opt.generated(Ti, (src, nameOf) => { const gs = listArr(b.Generated(src)); for (const g of gs) { const k = T.faces.find(g); if (k >= 0) out[k].add(nameOf); g.delete(); } });
+  }
+  return out.map((s) => [...s].sort());
+}
+
+// Boolean: args/tools = [{shape, fn, map?}]. Tek BOP çağrısı (çok takım = O(n), F-11).
+export function boolean(op, args, tools) {
+  const O = oc(); const r = scope();
+  try {
+    const b = r(op === 'fuse' ? new O.BRepAlgoAPI_Fuse() : op === 'cut' ? new O.BRepAlgoAPI_Cut() : new O.BRepAlgoAPI_Common());
+    const la = r(new O.NCollection_List_TopoDS_Shape()), lt = r(new O.NCollection_List_TopoDS_Shape());
+    for (const a of args) la.Append(a.shape.wrapped); for (const t of tools) lt.Append(t.shape.wrapped);
+    b.SetArguments(la); b.SetTools(lt); b.Build(progress(r));
+    if (!b.IsDone() || b.HasErrors()) return null;
+    b.SimplifyResult(true, true, 1e-3);
+    const raw = b.Shape(); if (raw.IsNull()) { raw.delete(); return null; }
+    const shape = wrap(raw);
+    const fn = propagate(b, [...args, ...tools], shape);
+    return { shape, fn };
+  } finally { r.done(); }
+}
+
+// Kenar işlemleri: kind 'fillet'|'chamfer'; edges = ham kenar dizini; nameOfEdge(j), nameOfVert(k) → üretilen yüz adı
+export function edgeBlend(kind, body, edgeIdx, val, nameOfEdge, nameOfVert) {
+  const O = oc(); const r = scope(); const T = topoOf(body.shape);
+  try {
+    const b = r(kind === 'fillet' ? new O.BRepFilletAPI_MakeFillet(body.shape.wrapped, O.ChFi3d_FilletShape.ChFi3d_Rational) : new O.BRepFilletAPI_MakeChamfer(body.shape.wrapped));
+    for (const j of edgeIdx) { const e = r(O.TopoDS.Edge(T.edges.list[j])); b.Add(val, e); }
+    b.Build(progress(r));
+    if (!b.IsDone()) return null;
+    const raw = b.Shape(); if (raw.IsNull()) { raw.delete(); return null; }
+    const shape = wrap(raw);
+    const fn = propagate(b, [{ shape: body.shape, fn: body.fn }], shape, {
+      generated: (Ti, gen) => {
+        for (const j of edgeIdx) gen(Ti.edges.list[j], nameOfEdge(j));
+        const vs = new Set(); for (const j of edgeIdx) for (const k of Ti.edgeVerts[j]) vs.add(k);
+        for (const k of vs) gen(Ti.verts.list[k], nameOfVert(k));
+      },
+    });
+    return { shape, fn };
+  } finally { r.done(); }
+}
+
+// Kabuk: faceIdx kaldırılacak yüzler; nameOfFace(i) iç yüz adı kökü
+export function shell(body, faceIdx, t, nameGen) {
+  const O = oc(); const r = scope(); const T = topoOf(body.shape);
+  try {
+    const rem = r(new O.NCollection_List_TopoDS_Shape()); for (const i of faceIdx) rem.Append(T.faces.list[i]);
+    const b = r(new O.BRepOffsetAPI_MakeThickSolid());
+    b.MakeThickSolidByJoin(body.shape.wrapped, rem, -t, 1e-3, O.BRepOffset_Mode.BRepOffset_Skin, false, false, O.GeomAbs_JoinType.GeomAbs_Arc, false, progress(r));
+    if (!b.IsDone()) return null;
+    const raw = b.Shape(); if (raw.IsNull()) { raw.delete(); return null; }
+    const shape = wrap(raw);
+    const fn = propagate(b, [{ shape: body.shape, fn: body.fn }], shape, {
+      generated: (Ti, gen) => {
+        Ti.faces.list.forEach((f, i) => gen(f, nameGen('f', i)));
+        Ti.edges.list.forEach((e, j) => gen(e, nameGen('e', j)));
+        Ti.verts.list.forEach((v, k) => gen(v, nameGen('v', k)));
+      },
+    });
+    return { shape, fn };
+  } finally { r.done(); }
+}
+
+// Dönüşüm: m = {t:[x,y,z]} | {rot:{c,ax,deg}} | {mirror:{o,n}} dizisi (sırayla uygulanır)
+export function makeTrsf(steps, r) {
+  const O = oc(); const tr = r(new O.gp_Trsf());
+  for (const s of steps) {
+    const x = r(new O.gp_Trsf());
+    if (s.t) x.SetTranslation(Vv(r, s.t));
+    else if (s.rot) x.SetRotation(r(new O.gp_Ax1(P(r, s.rot.c), Dv(r, s.rot.ax))), (s.rot.deg * Math.PI) / 180);
+    else if (s.mirror) x.SetMirror(r(new O.gp_Ax2(P(r, s.mirror.o), Dv(r, s.mirror.n))));
+    tr.PreMultiply(x);
+  }
+  return tr;
+}
+export function transform(item, steps, map) {
+  const O = oc(); const r = scope();
+  try {
+    const tr = makeTrsf(steps, r);
+    const b = r(new O.BRepBuilderAPI_Transform(item.shape.wrapped, tr, true, false));
+    const raw = b.Shape(); const shape = wrap(raw);
+    const fn = propagate(b, [{ shape: item.shape, fn: item.fn, map }], shape);
+    return { shape, fn };
+  } finally { r.done(); }
+}
+// Noktayı/yönü aynı dönüşümle taşı (delik verisi için)
+export function xformPoint(steps, p, isDir) {
+  const O = oc(); const r = scope();
+  try {
+    const tr = makeTrsf(steps, r);
+    if (isDir) { const v = Vv(r, p); v.Transform(tr); return [v.X(), v.Y(), v.Z()]; }
+    const q = P(r, p); q.Transform(tr); return [q.X(), q.Y(), q.Z()];
+  } finally { r.done(); }
+}
+
+// Prizma: face (wrapper), vec. Döner {shape, first, last, gen(edgeRaw)→[yüz dizini]}
+export function prism(face, vec) {
+  const O = oc(); const r = scope();
+  try {
+    const b = r(new O.BRepPrimAPI_MakePrism(face.wrapped, Vv(r, vec), false, true)); b.Build(progress(r));
+    if (!b.IsDone()) return null;
+    return sweepResult(b, face, r, true);
+  } finally { r.done(); }
+}
+export function revol(face, c, dir, deg) {
+  const O = oc(); const r = scope();
+  try {
+    const b = r(new O.BRepPrimAPI_MakeRevol(face.wrapped, r(new O.gp_Ax1(P(r, c), Dv(r, dir))), (deg * Math.PI) / 180, false)); b.Build(progress(r));
+    if (!b.IsDone()) return null;
+    return sweepResult(b, face, r, Math.abs(Math.abs(deg) - 360) > 1e-9);
+  } finally { r.done(); }
+}
+// caps=false: tam dönüşte kapak yok; FirstShape/LastShape çağrılmaz (OCCT istisnası JS'e geçince bellekte kalır)
+function sweepResult(b, face, r, caps) {
+  const shape = wrap(b.Shape()); const T = topoOf(shape);
+  const fe = new SubIndex(face.wrapped, 'edge');
+  const gens = fe.list.map((e) => listArr(b.Generated(e)).map((g) => { const k = T.faces.find(g); g.delete(); return k; }).filter((k) => k >= 0));
+  let first = -1, last = -1;
+  if (caps) {
+    try { const f = b.FirstShape(); first = T.faces.find(f); f.delete(); } catch (e) { /* */ }
+    try { const l = b.LastShape(); last = T.faces.find(l); l.delete(); } catch (e) { /* */ }
+  }
+  // OCCT bazı süpürmelerde (eksene dik kenar → düzlem) Generated() boş döner: geometrik yedek.
+  // Kenarın orta noktası yüzün üzerindeyse ve tek aday varsa o yüz; değilse ad verilmez (seçilemez, sessiz yanlış yok).
+  const claimed = new Set(gens.flat()); if (first >= 0) claimed.add(first); if (last >= 0) claimed.add(last);
+  fe.list.forEach((e, k) => {
+    if (gens[k].length) return;
+    const m = edgeMid(e); const v = R.makeVertex(m); const cands = [];
+    T.faces.list.forEach((f, i) => { if (claimed.has(i)) return; let d = Infinity; try { d = R.measureDistanceBetween(faceWrap(f), v); } catch (x) { /* */ } if (d < 1e-7 * Math.max(1, Math.hypot(...m))) cands.push(i); });
+    if (cands.length === 1) { gens[k] = cands; claimed.add(cands[0]); }
+  });
+  const edges = fe.list; fin.register(shape, edges);
+  return { shape, edges, gens, first, last };
+}
+
+// Kenarın orta noktası (parametrik)
+export function edgeMid(edgeRaw) {
+  const O = oc(); const r = scope();
+  try { const e = r(O.TopoDS.Edge(edgeRaw)); const c = r(new O.BRepAdaptor_Curve(e)); const t = (c.FirstParameter() + c.LastParameter()) / 2; const p = r(c.Value(t)); return [p.X(), p.Y(), p.Z()]; }
+  finally { r.done(); }
+}
+export function faceWrap(raw) { const O = oc(); return new R.Face(O.TopoDS.Face(raw)); }
+export function edgeWrap(raw) { const O = oc(); return new R.Edge(O.TopoDS.Edge(raw)); }
+
+// Geçerlilik kapısı (F-05): BRepCheck + kapalı katı + sonlu kutu + hacim > 0
+export function validity(w) {
+  const O = oc(); const r = scope();
+  try {
+    const sh = w.wrapped; if (sh.IsNull()) return 'null';
+    const an = r(new O.BRepCheck_Analyzer(sh, true, false)); if (!an.IsValid()) return 'brepcheck';
+    const solids = new SubIndex(sh, 'solid'); const ns = solids.size; solids.list.forEach((x) => x.delete()); if (!ns) return 'no_solid';
+    const free = new SubIndex(sh, 'face', 'solid'); const nf = free.size; free.list.forEach((x) => x.delete()); if (nf) return 'free_faces';
+    const bb = w.boundingBox; const b = bb.bounds; if (b.flat().some((x) => !Number.isFinite(x))) return 'bbox';
+    const v = R.measureVolume(w); if (!(v > 0) || !Number.isFinite(v)) return 'volume';
+    return null;
+  } catch (e) { return 'exception'; }
+  finally { r.done(); }
+}
+export function faceValid(w) { const O = oc(); const r = scope(); try { return r(new O.BRepCheck_Analyzer(w.wrapped, true, false)).IsValid(); } catch (e) { return false; } finally { r.done(); } }
+export function solidsOf(w) { const s = new SubIndex(w.wrapped, 'solid'); const out = s.list.map((x) => wrap(x)); return out; }
+export const volume = (w) => { try { return R.measureVolume(w); } catch (e) { return NaN; } };

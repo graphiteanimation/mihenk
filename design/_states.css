@@ -1,0 +1,35 @@
+/* otomatik üretim: build_states.py — galeri/maket durumları için */
+.is-focus{ outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-offset); border-radius: var(--r-sm); }
+.on-dark .is-focus{ outline-color: var(--focus-on-dark); }
+.titlebar .tbtn.is-hover{ background: rgba(255,255,255,.10); }
+.titlebar .tbtn.is-active{ background: rgba(255,255,255,.18); }
+.cmdsearch.is-hover{ background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.5); }
+.machine-chip.is-hover{ background: rgba(255,255,255,.10); }
+.tab.is-hover{ background: var(--bg-hover); color: var(--text); }
+.tool.is-hover{ background: var(--bg-hover); }
+.tool.is-active{ background: var(--bg-pressed); }
+.tool.primary.is-hover{ background: var(--accent-hover); }
+.btn.is-hover{ background: var(--bg-hover); border-color: var(--text-subtle); }
+.btn.is-active{ background: var(--bg-pressed); }
+.btn.primary.is-hover{ background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.primary.is-active{ background: var(--accent-active); border-color: var(--accent-active); }
+.btn.ghost.is-hover{ background: var(--bg-hover); }
+.btn.danger.is-hover{ filter: brightness(1.1); }
+.btn.danger-outline.is-hover{ background: var(--err-bg); }
+.input.is-hover{ border-color: var(--text-subtle); }
+.input .step.is-hover{ background: var(--bg-hover); }
+.input.pick .clear.is-hover{ background: var(--bg-hover); }
+.check.is-hover .box{ border-color: var(--text-subtle); }
+.check.on.is-hover .box{ border-color: var(--accent-hover); background: var(--accent-hover); }
+.seg button.is-hover{ background: var(--bg-hover); color: var(--text); }
+.table tr.is-hover td{ background: var(--bg-hover); }
+.trow.is-hover{ background: var(--bg-hover); }
+.trow .tw.is-hover{ background: var(--bg-pressed); }
+.badge.btnlike.is-hover{ filter: brightness(.96); }
+.chip.is-hover{ background: var(--bg-hover); }
+.toast .x.is-hover{ background: var(--bg-hover); }
+.x.is-hover{ background: var(--bg-hover); color: var(--text); }
+.vbtns button.is-hover{ background: var(--bg-hover); }
+.statusbar .sbtn.is-hover{ background: rgba(255,255,255,.12); }
+.statusbar .sbtn.err.is-hover{ background: #8F2620; }
+.ctxmenu .mi.is-hover, .ctxmenu .mi.hl{ background: var(--accent-tint); }

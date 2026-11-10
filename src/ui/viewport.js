@@ -1,7 +1,8 @@
 // 3B görünüm: three.js, ortografik kamera, Z yukarı. Gövde/yüz/kenar seçimi, sketch gösterimi, kesit.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { findRegions, arcGeom } from '../shared/profiles.js';
+import { findRegions, arcGeom, entSeg } from '../shared/profiles.js';
+import { sample as sampleSeg } from '../shared/geom2d.js';
 import * as V from '../shared/vec.js';
 
 const COL = { body: 0x9aa7b8, edge: 0x1c2430, hover: 0xffb020, sel: 0x1769e0, sketch: 0x0b62d6, sketchDim: 0x7d8da6, cons: 0xe07b00, region: 0x3b82f6, regionSel: 0x16a34a };
@@ -261,6 +262,7 @@ export function sketchPolylines(sk, pred = () => true) {
     if (e.type === 'line') { const a = sk.points[e.a], b = sk.points[e.b]; if (a && b) segs.push({ e, pts: [[a.x, a.y], [b.x, b.y]] }); }
     else if (e.type === 'circle') { const c = sk.points[e.c]; if (!c) continue; const pts = []; for (let i = 0; i <= 72; i++) { const t = (i / 72) * Math.PI * 2; pts.push([c.x + e.r * Math.cos(t), c.y + e.r * Math.sin(t)]); } segs.push({ e, pts }); }
     else if (e.type === 'arc') { if (!sk.points[e.a] || !sk.points[e.b] || !sk.points[e.c]) continue; const g = arcGeom(sk, e); const n = Math.max(8, Math.ceil((g.sweep / (Math.PI * 2)) * 72)); const pts = []; for (let i = 0; i <= n; i++) { const t = g.a0 + (g.sweep * i) / n; pts.push([g.c.x + g.r * Math.cos(t), g.c.y + g.r * Math.sin(t)]); } segs.push({ e, pts }); }
+    else if (e.type === 'ellipse' || e.type === 'ellarc' || e.type === 'spline') { try { const sg = entSeg(sk, e); if (sg) segs.push({ e, pts: sampleSeg(sg, 0.02) }); } catch (err) { /* geçersiz geometri çizilmez */ } }
   }
   return segs;
 }

@@ -297,8 +297,15 @@ export class SketchPanel {
       body.append(h('div', { class: 'fld' }, h('label', { text: t('skp.offset') }), h('div', {}, inp, h('span', { class: 'unit', text: 'mm' }))));
     }
     this.dof = h('div', { class: 'note', id: 'sk-dof' });
+    this.bad = h('div', { class: 'bad-list', id: 'sk-bad' });
     this.list = h('div', { class: 'clist', id: 'sk-cons' });
-    body.append(this.dof, h('div', { class: 'note', text: t('skp.constraints') }), this.list);
+    // çokgen seçenekleri (yalnız çokgen aracında görünür)
+    this.sides = h('input', { type: 'text', 'data-k': 'sides', value: String(app.sketcher?.opts?.polySides ?? 6) });
+    this.circ = h('input', { type: 'checkbox', 'data-k': 'circum' });
+    const setOpt = () => { const o = app.sketcher?.opts; if (!o) return; const n = Math.round(parseFloat(String(this.sides.value).replace(',', '.'))); if (n >= 3 && n <= 200) o.polySides = n; o.polyCircum = this.circ.checked; app.sketcher._renderPreview(); };
+    this.sides.addEventListener('input', setOpt); this.circ.addEventListener('change', setOpt);
+    this.poly = h('div', { class: 'polyopt', id: 'sk-poly' }, h('div', { class: 'fld' }, h('label', { text: t('skp.sides') }), this.sides), h('div', { class: 'fld' }, h('label', { text: t('skp.circum') }), h('label', {}, this.circ)));
+    body.append(this.dof, this.bad, this.poly, h('div', { class: 'note', text: t('skp.constraints') }), this.list);
     p.replaceChildren(h('h3', { text: t('skp.title', { name: s.draft.name || '' }) }), body,
       h('div', { class: 'actions' }, h('button', { class: 'btn pri', id: 'sk-finish', onclick: () => app.finishSketch() }, t('sk.finish')), h('button', { class: 'btn', id: 'sk-cancel', onclick: () => app.cancelSketch() }, t('common.cancel'))));
     this.refresh();
@@ -306,8 +313,12 @@ export class SketchPanel {
   refresh() {
     const sk = this.app.sketcher; if (!sk || !this.list) return;
     let items = []; try { items = sk.constraintsList() || []; } catch (e) { /* sketcher henüz hazır değil */ }
-    this.list.replaceChildren(...(items.length ? items.map((c) => h('div', { class: 'row', 'data-id': c.id }, h('span', { class: 'nm', text: c.label }), h('button', { title: t('skp.del_con'), onclick: () => { sk.removeConstraint(c.id); this.refresh(); this.app.refreshToolbar(); } }, '✕'))) : [h('div', { class: 'note', style: { padding: '4px 8px' }, text: t('skp.no_cons') })]));
+    this.list.replaceChildren(...(items.length ? items.map((c) => h('div', { class: 'row' + (sk._focusCons && sk._focusCons.has(c.id) ? ' focus' : '') + (c.bad ? ' bad' : ''), 'data-id': c.id, onclick: () => sk.focusConstraint(c.id) }, h('span', { class: 'nm', text: c.label }), h('button', { title: t('skp.del_con'), onclick: () => { sk.removeConstraint(c.id); this.refresh(); this.app.refreshToolbar(); } }, '✕'))) : [h('div', { class: 'note', style: { padding: '4px 8px' }, text: t('skp.no_cons') })]));
     const ls = sk.lastSolve;
+    const badL = ls && sk._badLabels ? sk._badLabels(ls) : [];
+    this.bad.replaceChildren(...(badL.length ? [h('div', { class: 'note' }, t('skp.conflicts')), ...badL.map((l) => h('div', { class: 'row bad', text: l }))] : []));
+    const isPoly = sk.tool === 'polygon'; this.poly.style.display = isPoly ? '' : 'none';
+    if (isPoly) { if (document.activeElement !== this.sides) this.sides.value = String(sk.opts.polySides); this.circ.checked = !!sk.opts.polyCircum; }
     this.dof.textContent = ls ? (ls.ok === false ? t('skp.no_solution') : ls.dof === 0 ? t('sk.dof_full') : ls.dof != null ? t('sk.dof', { n: ls.dof }) : '') : '';
   }
   close() { $('#panel').classList.add('hidden'); $('#panel').replaceChildren(); this.list = null; }

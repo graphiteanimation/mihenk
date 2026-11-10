@@ -1,32 +1,42 @@
 // Sketch düzenleme ortamı: çizim araçları, yakalama, kısıtlar, ölçüler, geri al/yinele.
 import { THREE, COL, planeMatrix, sketchPolylines } from './viewport.js';
-import { solveSketch } from './solver.js';
-import { findRegions, arcGeom } from '../shared/profiles.js';
+import { solveSketch, probeFree } from './solver.js';
+import { findRegions, arcGeom, entSeg } from '../shared/profiles.js';
+import * as G from '../shared/geom2d.js';
+import { DEFS, DRAW_TOOLS } from './sketch/tools.js';
+import { snapAt, SNAP_LABEL } from './sketch/snap.js';
+import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
+import { boxSelect } from './sketch/ops.js';
+import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { t, tk, errText, fmtNum } from '../shared/i18n.js';
 import { toErr } from '../shared/errors.js';
 import * as V from '../shared/vec.js';
 
 const SNAP_PX = 8, ANG_TOL = 3, TAU = Math.PI * 2, DEG = Math.PI / 180;
-const TOOLS = ['select', 'line', 'rect', 'circle', 'arc', 'point', 'dim', 'hdim', 'vdim'];
-const DIM_TYPES = new Set(['dist', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
+const DIM_TOOLS = ['dim', 'hdim', 'vdim', 'rdim', 'ddim'];
+const TOOLS = ['select', 'line', 'rect', 'circle', 'arc', 'point', ...DIM_TOOLS, ...DRAW_TOOLS, ...EDIT_TOOLS];
+const DIM_TYPES = DIMS;
 // Kısıt adları sözlük anahtarıdır (con.<tip>); metin t() ile üretilir.
 const NAME_KEY = {
   horizontal: tk('con.horizontal'), vertical: tk('con.vertical'), horizontal_pp: tk('con.horizontal_pp'), vertical_pp: tk('con.vertical_pp'), coincident: tk('con.coincident'),
   parallel: tk('con.parallel'), perpendicular: tk('con.perpendicular'), equal: tk('con.equal'), tangent: tk('con.tangent'), pointOn: tk('con.pointOn'), midpoint: tk('con.midpoint'), symmetric: tk('con.symmetric'),
   dist: tk('con.dist'), hdist: tk('con.hdist'), vdist: tk('con.vdist'), pldist: tk('con.pldist'), radius: tk('con.radius'), diameter: tk('con.diameter'), angle: tk('con.angle'),
+  collinear: tk('con.collinear'), lldist: tk('con.lldist'), ccdist: tk('con.ccdist'), radiusdiff: tk('con.radiusdiff'),
 };
 const nameOf = (type) => (NAME_KEY[type] ? t(NAME_KEY[type]) : type);
-const GLYPH = { horizontal: 'H', vertical: 'V', horizontal_pp: 'H', vertical_pp: 'V', coincident: '●', parallel: '∥', perpendicular: '⊥', equal: '=', tangent: 'T', pointOn: '◦', midpoint: 'M', symmetric: '⇋' };
+const GLYPH = { horizontal: 'H', vertical: 'V', horizontal_pp: 'H', vertical_pp: 'V', coincident: '●', parallel: '∥', perpendicular: '⊥', equal: '=', tangent: 'T', pointOn: '◦', midpoint: 'M', symmetric: '⇋', collinear: '≡' };
 const HINT_KEY = {
   select: tk('hint.select'), line: tk('hint.line'), rect: tk('hint.rect'), circle: tk('hint.circle'), arc: tk('hint.arc'), point: tk('hint.point'),
-  dim: tk('hint.dim'), hdim: tk('hint.hdim'), vdim: tk('hint.vdim'),
+  dim: tk('hint.dim'), hdim: tk('hint.hdim'), vdim: tk('hint.vdim'), rdim: tk('hint.rdim'), ddim: tk('hint.ddim'), spline: tk('hint.spline'),
+  rectc: tk('hint.rectc'), rect3: tk('hint.rect3'), circle2: tk('hint.circle2'), circle3: tk('hint.circle3'), arc3: tk('hint.arc3'), arct: tk('hint.arct'), polygon: tk('hint.polygon'), slot: tk('hint.slot'), ellipse: tk('hint.ellipse'),
+  trim: tk('hint.trim'), extend: tk('hint.extend'), break: tk('hint.break'), offset: tk('hint.offset'), fillet: tk('hint.fillet'), chamfer: tk('hint.chamfer'), mirror: tk('hint.mirror'),
+  patrect: tk('hint.patrect'), patcirc: tk('hint.patcirc'), move: tk('hint.move'), copy: tk('hint.copy'), rotate: tk('hint.rotate'), scale: tk('hint.scale'), project: tk('hint.project'),
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const fmt = (v) => fmtNum(Number(v), 3);
 const norm = (a) => { a %= TAU; return a < 0 ? a + TAU : a; };
-const normId = (id) => String(id).replace(/_(b|rules)$/, '');
-const entPts = (e) => (e.type === 'line' ? [e.a, e.b] : e.type === 'circle' ? [e.c] : e.type === 'arc' ? [e.c, e.a, e.b] : e.type === 'point' ? [e.p] : []);
+const normId = (id) => String(id).replace(/_(b|c|rules)$/, '');
 const conRefs = (c) => [c.a, c.b, c.c].filter(Boolean);
 const numeric = (s) => /^[-+]?\d*[.,]?\d+$/.test(String(s).trim());
 
@@ -37,6 +47,9 @@ function segProj(p, a, b) {
 }
 // nesneye en yakın nokta ve uzaklık
 function entDist(sk, e, p) {
+  if (e.type === 'ellipse' || e.type === 'ellarc' || e.type === 'spline') {
+    const sg = entSeg(sk, e); if (!sg) return null; const cp = G.closestPoint(sg, p); return { d: cp.d, x: cp.p[0], y: cp.p[1] };
+  }
   if (e.type === 'line') { const a = sk.points[e.a], b = sk.points[e.b]; return a && b ? segProj(p, a, b) : null; }
   if (e.type === 'circle') {
     const c = sk.points[e.c]; if (!c) return null; const d = Math.hypot(p[0] - c.x, p[1] - c.y); if (d < 1e-9) return null;
@@ -53,6 +66,7 @@ function entDist(sk, e, p) {
   return null;
 }
 function entMid(sk, e) {
+  if (e.type === 'ellipse' || e.type === 'ellarc' || e.type === 'spline') { const sg = entSeg(sk, e); if (sg) return G.ptAt(sg, G.endU(sg) * 0.25); }
   if (e.type === 'line') { const a = sk.points[e.a], b = sk.points[e.b]; return [(a.x + b.x) / 2, (a.y + b.y) / 2]; }
   if (e.type === 'circle') { const c = sk.points[e.c]; return [c.x + e.r * Math.SQRT1_2, c.y + e.r * Math.SQRT1_2]; }
   if (e.type === 'arc') { const g = arcGeom(sk, e), t = g.a0 + g.sweep / 2; return [g.c.x + g.r * Math.cos(t), g.c.y + g.r * Math.sin(t)]; }
@@ -62,12 +76,13 @@ function entMid(sk, e) {
 const arcPts = (c, r, a0, sweep) => { const n = Math.max(8, Math.ceil((Math.abs(sweep) / TAU) * 72)), out = []; for (let i = 0; i <= n; i++) { const t = a0 + (sweep * i) / n; out.push([c[0] + r * Math.cos(t), c[1] + r * Math.sin(t)]); } return out; };
 
 export class Sketcher {
-  constructor({ viewport, overlayEl, getVars, setHint, setStatus, onChange } = {}) {
+  constructor({ viewport, overlayEl, getVars, setHint, setStatus, onChange, onRequestFinish, getBodies } = {}) {
     this.vp = viewport; this.overlayEl = overlayEl; this.getVars = getVars || (() => ({}));
     this._setHint = setHint || (() => {}); this._setStatus = setStatus || (() => {}); this.onChange = onChange || (() => {});
     this._hintSpec = null; this._statusSpec = null;
     this.active = false; this.tool = 'select'; this.selection = []; this.lastSolve = null;
     this.sk = null; this.consMode = false; this._q = Promise.resolve(); this._sid = 0;
+    this.opts = { polySides: 6, polyCircum: false }; this.free = null; this.onRequestFinish = onRequestFinish || (() => {}); this.getBodies = getBodies || (() => []); this._focusCons = new Set();
   }
 
   // ---------- yaşam döngüsü ----------
@@ -78,7 +93,7 @@ export class Sketcher {
     const sk = { points: this.feature.points || {}, ents: this.feature.ents || [], cons: this.feature.cons || [] };
     if (!sk.points.O) sk.points.O = { x: 0, y: 0, fixed: true };
     sk.points.O.x = 0; sk.points.O.y = 0; sk.points.O.fixed = true;
-    this.sk = sk; this._undo = []; this._redo = []; this.selection = []; this.hover = null; this.cursor = null; this.consMode = false;
+    this.sk = sk; this._undo = []; this._redo = []; this.selection = []; this.hover = null; this.cursor = null; this.consMode = false; this.free = null; this._focusCons = new Set();
     this.root = new THREE.Group(); this.root.matrixAutoUpdate = false; this.root.matrix.copy(planeMatrix(plane));
     this.gMain = new THREE.Group(); this.gPrev = new THREE.Group(); this.root.add(this.gMain, this.gPrev);
     this.vp.editGroup.add(this.root);
@@ -94,7 +109,7 @@ export class Sketcher {
     const sid = this._sid;
     this._q = this._q.then(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; this._statusDof(r); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
+      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; this._statusDof(r); this._probeSoon(); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
       this._refresh();
     });
     return this._q;
@@ -106,7 +121,7 @@ export class Sketcher {
   }
   cancel() { if (this.active) this._teardown(); }
   _teardown() {
-    this._closeInput(); this._sid++;
+    this._closeInput(); this._closeDialog(); this._hideCtx(); clearTimeout(this._probeT); this._sid++;
     this.active = false;
     for (const g of [this.gMain, this.gPrev]) this._clearGroup(g);
     this.vp.editGroup.remove(this.root); this.ovl.remove();
@@ -119,13 +134,17 @@ export class Sketcher {
   // ---------- araçlar ----------
   setTool(name) {
     if (!TOOLS.includes(name)) return;
-    this._closeInput(); this._resetDraw(); this.tool = name;
+    this._closeInput(); this._closeDialog(); this._resetDraw();
+    const keepSel = DIM_TOOLS.includes(name) || EDIT_TOOLS.includes(name);
+    const prevSel = this.selection.slice();
+    this.tool = name;
     this.vp.renderer.domElement.style.cursor = name === 'select' ? 'default' : 'crosshair';
     this.setHint(HINT_KEY[name]);
-    if (['dim', 'hdim', 'vdim'].includes(name) && this.selection.length) this._dimEval(); else if (name !== 'select' && this.selection.length && !['dim', 'hdim', 'vdim'].includes(name)) this.selection = [];
+    if (DIM_TOOLS.includes(name) && this.selection.length) this._dimEval(); else if (name !== 'select' && this.selection.length && !keepSel) this.selection = [];
     this._renderGL(); this._renderPreview(); this.onChange();
+    if (EDIT_TOOLS.includes(name)) this._editEnter(name, prevSel);
   }
-  _resetDraw() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._press = null; this._drag = null; this._dragTarget = null; this._rdown = null; if (this.gPrev) { this._clearGroup(this.gPrev); this._hideTip(); } }
+  _resetDraw() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._box = null; this._press = null; this._drag = null; this._dragTarget = null; this._rdown = null; this._trimming = false; this._trimHot = null; this._hideSnap(); if (this.gPrev) { this._clearGroup(this.gPrev); this._hideTip(); } }
 
   // ---------- kimlik / durum ----------
   _id(prefix) {
@@ -147,10 +166,24 @@ export class Sketcher {
     this.setHint(this._hintSpec); this._status(this._statusSpec);
     if (this.active) { this._buildOverlay(); this.onChange(); }
   }
-  _statusDof(r) {
+  _statusDof(r, note) {
     if (!this.sk.ents.length) return this._status('sk.empty');
     const red = !!(r.redundant && r.redundant.length);
-    this._status(() => (r.dof === 0 ? t('sk.dof_full') : t('sk.dof', { n: r.dof })) + (red ? t('sk.redundant_suffix') : ''));
+    this._status(() => (r.dof === 0 ? t('sk.dof_full') : t('sk.dof', { n: r.dof })) + (red ? t('sk.redundant_suffix') : '') + (note && note() ? '  ·  ' + note() : ''));
+  }
+  // Nesne başına serbestlik: çözümden sonra kısa gecikmeyle sınanır (WASM; büyük sketch'lerde atlanır)
+  _probeSoon() {
+    clearTimeout(this._probeT); const sid = this._sid; const r = this.lastSolve;
+    if (r && r.dof === 0) { this.free = { dof: 0, freePts: new Set(), freeEnts: new Set() }; return; }
+    this._probeT = setTimeout(async () => {
+      if (this._sid !== sid || !this.active) return;
+      try { const f = await probeFree(this.sk, this.getVars()); if (this._sid === sid && this.active) { this.free = f && f.freePts ? f : null; this._renderGL(); this.onChange(); } } catch (e) { /* sessiz: yalnız renk bilgisi */ }
+    }, 180);
+  }
+  // çelişen/gereksiz kısıtların okunur listesi
+  _badLabels(r) {
+    const ids = [...new Set([...(r.conflicting || []), ...(r.redundant || [])].map(normId))];
+    return ids.map((id) => { const c = this.sk.cons.find((k) => k.id === id); return c ? this._conLabel(c) : null; }).filter(Boolean);
   }
   _snapStr() { return JSON.stringify({ points: this.sk.points, ents: this.sk.ents, cons: this.sk.cons }); }
   _restore(s) { this.sk = JSON.parse(s); this.selection = this.selection.filter((x) => this._exists(x)); this.hover = null; }
@@ -158,7 +191,7 @@ export class Sketcher {
   _badSet() { const r = this.lastSolve; return new Set([...((r && r.conflicting) || []), ...((r && r.redundant) || [])].map(normId)); }
 
   // Değişikliği hemen uygular, arkadan çözer; olmazsa geri alır. Sonuç: Promise<{ok,msg}>
-  _apply(mutate, { strict = false, kind = tk('sk.kind.op') } = {}) {
+  _apply(mutate, { strict = false, kind = tk('sk.kind.op'), note = null } = {}) {
     if (!this.active) return Promise.resolve({ ok: false, msg: t('sk.inactive') });
     const before = this._snapStr();
     const abort = mutate(this.sk);
@@ -173,17 +206,18 @@ export class Sketcher {
       if (this._sid !== sid || !this.active) return { ok: false };
       const newBad = [...(r.conflicting || []), ...(r.redundant || [])].map(normId).filter((id) => !prev.has(id));
       const K = () => ({ kind: t(kind) });
+      const lst = () => { const l = this._badLabels(r); return l.length ? ' ' + t('sk.conflict_list', { list: l.join('; ') }) : ''; };
       if (r.errors && r.errors.length) { const er = r.errors[0]; mk = () => errText(er); }
-      else if (!r.ok) mk = r.conflicting && r.conflicting.length ? (strict ? () => t('sk.conflict_strict', K()) : () => t('sk.conflict_undone', K())) : () => t('sk.no_solution', K());
+      else if (!r.ok) mk = r.conflicting && r.conflicting.length ? (strict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.conflict_undone', K()) + lst()) : () => t('sk.no_solution', K());
       else if (strict && newBad.length) {
         const conflict = (r.conflicting || []).map(normId).some((id) => !prev.has(id));
-        mk = conflict ? () => t('sk.conflict_strict', K()) : () => t('sk.redundant_con', K());
+        mk = conflict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.redundant_con', K()) + lst();
       }
       if (mk) {
         this._restore(before); const i = this._undo.indexOf(entry); if (i >= 0) this._undo.splice(i, 1);
         this._resetDraw(); this._status(mk); this._refresh(); return { ok: false, msg: mk() };
       }
-      this.lastSolve = r; this._statusDof(r); this._refresh(); return { ok: true };
+      this.lastSolve = r; this._statusDof(r, note); this._probeSoon(); this._refresh(); return { ok: true };
     };
     const p = this._q.then(run, run); this._q = p.catch(() => {}); return p;
   }
@@ -191,7 +225,7 @@ export class Sketcher {
     const sid = this._sid;
     this._q = this._q.then(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const r = await solveSketch(this.sk, this.getVars()); if (r.ok) { this.lastSolve = r; this._statusDof(r); } } catch (e) {}
+      try { const r = await solveSketch(this.sk, this.getVars()); if (r.ok) { this.lastSolve = r; this._statusDof(r); this._probeSoon(); } } catch (e) {}
       this._refresh();
     });
   }
@@ -206,11 +240,17 @@ export class Sketcher {
 
   // ---------- çizim yardımcıları ----------
   _newPt(x, y) { const id = this._id('p'); this.sk.points[id] = { x, y }; return id; }
-  _addEnt(ent) { const id = this._id({ line: 'l', circle: 'c', arc: 'a', point: 'n' }[ent.type]); const e = { id, ...ent }; if (this.consMode && ent.type !== 'point') e.cons = true; this.sk.ents.push(e); return id; }
+  _addEnt(ent) { const id = this._id({ line: 'l', circle: 'c', arc: 'a', point: 'n', ellipse: 'e', ellarc: 'e', spline: 's' }[ent.type] || 'x'); const e = { id, ...ent }; if (this.consMode && ent.type !== 'point') e.cons = true; this.sk.ents.push(e); if (this._addedLog) this._addedLog.push(id); return id; }
   _addCon(type, a, b, extra = {}) { const id = this._id(DIM_TYPES.has(type) ? 'd' : 'k'); const c = { id, type, a }; if (b !== undefined) c.b = b; Object.assign(c, extra); this.sk.cons.push(c); return id; }
-  _ptFor(s) { // yakalama sonucundan nokta kimliği (gerekirse oluşturur, pointOn ekler)
+  _addEntCons(ent) { const id = this._id({ line: 'l', circle: 'c', arc: 'a', ellipse: 'e', ellarc: 'e' }[ent.type] || 'x'); this.sk.ents.push({ id, ...ent, cons: true }); return id; }
+  _ptFor(s) { // yakalama sonucundan nokta kimliği (gerekirse oluşturur, uygun kısıtları ekler)
     if (s.pid) return s.pid;
-    const id = this._newPt(s.x, s.y); if (s.ent) this._addCon('pointOn', id, s.ent); return id;
+    const id = this._newPt(s.x, s.y);
+    const okOn = (eid) => { const e = this.sk.ents.find((x) => x.id === eid); return e && e.type !== 'spline' && e.type !== 'ellarc' && e.type !== 'point'; };
+    if (s.kind === 'int' && s.ents) { for (const e of s.ents) if (okOn(e)) this._addCon('pointOn', id, e); }
+    else if (s.kind === 'mid' && s.ent) { const e = this.sk.ents.find((x) => x.id === s.ent); if (e && e.type === 'line') this._addCon('midpoint', id, s.ent); else if (okOn(s.ent)) this._addCon('pointOn', id, s.ent); }
+    else if (s.ent && okOn(s.ent)) this._addCon('pointOn', id, s.ent);
+    return id;
   }
   _alignEnd(st, s) {
     if (s.pid || s.ent) return s;
@@ -229,21 +269,20 @@ export class Sketcher {
     for (const e of this.sk.ents) { if (e.type === 'point') continue; const r = entDist(this.sk, e, loc); if (r && r.d <= tol && (!best || r.d < best.d)) best = { kind: 'ent', id: e.id, d: r.d, x: r.x, y: r.y }; }
     return best;
   }
-  _snapAt(loc, ev) {
-    const h = this._hit(loc);
-    if (h && h.kind === 'point') { const p = this.sk.points[h.id]; return { x: p.x, y: p.y, pid: h.id }; }
-    if (h && h.kind === 'ent') return { x: h.x, y: h.y, ent: h.id };
-    if (ev && ev.ctrlKey) return { x: loc[0], y: loc[1] };
-    return { x: Math.round(loc[0]), y: Math.round(loc[1]), grid: true };
+  _snapAt(loc, ev, from) { return snapAt(this, loc, ev, from || this._snapFrom()); }
+  _snapFrom() { // teğet/dik yakalama için çizilmekte olan çizginin başlangıcı
+    if (this.tool === 'line' && this._ln) return [this._ln.start.x, this._ln.start.y];
+    return null;
   }
+  _entDist(e, p) { return entDist(this.sk, e, p); }
   _isSel(x) { return this.selection.some((s) => s.kind === x.kind && s.id === x.id); }
-  _setSel(list) { this.selection = list; this._renderGL(); this.onChange(); }
+  _setSel(list) { this.selection = list; if (this._focusCons && this._focusCons.size) { this._focusCons = new Set(); this._buildOverlay(); } this._renderGL(); this.onChange(); }
   _loc(ev) { return this.vp.rayToPlane(ev, this.plane); }
 
   // ---------- fare ----------
   _pointer(type, ev) {
     if (!this.active) return false;
-    if (type === 'dbl') { if (this.tool === 'line') this._endChain(); return true; }
+    if (type === 'dbl') { if (this.tool === 'line') this._endChain(); else if (this.tool === 'spline') this._finishSpline(); return true; }
     if (type === 'move') {
       if (ev.buttons & 6) return true;
       const loc = this._loc(ev); if (!loc) return true;
@@ -251,36 +290,47 @@ export class Sketcher {
     }
     if (ev.button === 2) {
       if (type === 'down') this._rdown = { x: ev.clientX, y: ev.clientY };
-      else if (type === 'up' && this._rdown) { const m = Math.hypot(ev.clientX - this._rdown.x, ev.clientY - this._rdown.y) < 4; this._rdown = null; if (m) this._rightClick(); }
+      else if (type === 'up' && this._rdown) { const m = Math.hypot(ev.clientX - this._rdown.x, ev.clientY - this._rdown.y) < 4; this._rdown = null; if (m) this._rightClick(ev); }
       return false;
     }
     if (ev.button !== 0) return false;
     const loc = this._loc(ev); if (!loc) return true;
-    if (type === 'down') { this._closeInput(); this._down(loc, ev); } else if (type === 'up') this._up(loc, ev);
+    if (type === 'down') { this._closeInput(); this._hideCtx(); this._down(loc, ev); } else if (type === 'up') this._up(loc, ev);
     return true;
   }
-  _rightClick() { if (this.tool === 'line' && this._ln) this._endChain(); else if (this.tool !== 'select') this._cancelStage(); }
-  _cancelStage() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this.setHint(HINT_KEY[this.tool]); this._renderPreview(); }
+  _hasStage() { return !!(this._ln || this._rc || this._ci || this._ar || this._ds || this._sp || this._off || this._mir || this._cornerFirst); }
+  _rightClick(ev) {
+    if (this.tool === 'line' && this._ln) return this._endChain();
+    if (this.tool === 'spline' && this._sp) return this._finishSpline();
+    if (this._hasStage()) return this._cancelStage();
+    this._contextMenu(ev);
+  }
+  _cancelStage() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._closeDialog(); this.setHint(HINT_KEY[this.tool]); this._renderPreview(); }
 
   _down(loc, ev) {
     const t = this.tool;
     if (t === 'select') return this._selDown(loc, ev);
-    if (t === 'dim' || t === 'hdim' || t === 'vdim') return this._dimDown(loc, ev);
+    if (DIM_TOOLS.includes(t)) return this._dimDown(loc, ev);
+    if (EDIT_TOOLS.includes(t)) return this._editDown(loc, ev);
     const s = this._snapAt(loc, ev);
     if (t === 'line') this._lineClick(s);
     else if (t === 'rect') this._rectClick(s);
     else if (t === 'circle') this._circleClick(s);
     else if (t === 'arc') this._arcClick(s);
     else if (t === 'point') this._pointClick(s);
+    else if (t === 'spline') this._splineClick(s);
+    else if (DEFS[t]) this._dsClick(s);
     this._renderPreview();
   }
   _move(loc, ev) {
     const t = this.tool;
     if (t === 'select') {
+      if (this._box) return this._boxMove(loc, ev);
       if (this._press && (ev.buttons & 1)) return this._selDrag(loc, ev);
       return this._setHover(this._hit(loc));
     }
-    if (t === 'dim' || t === 'hdim' || t === 'vdim') return this._setHover(this._hit(loc));
+    if (DIM_TOOLS.includes(t)) return this._setHover(this._hit(loc));
+    if (EDIT_TOOLS.includes(t)) return this._editMove(loc, ev);
     this.cursor = { ...this._snapAt(loc, ev), loc }; this._renderPreview();
   }
   _up(loc, ev) {
@@ -289,7 +339,9 @@ export class Sketcher {
       if (this._dimEval() === 'bad') { this.selection = this.selection.slice(-1); this._dimEval(); }
       this._renderGL(); this.onChange(); return;
     }
+    if (EDIT_TOOLS.includes(this.tool)) return this._editUp(loc, ev);
     if (this.tool !== 'select') return;
+    if (this._box) return this._boxUp(loc, ev);
     const pr = this._press, d = this._drag; this._press = null; this._drag = null;
     if (d && d.active) { this._dragTarget = null; this._finishDrag(d); return; }
     if (pr && pr.hit && !pr.shift && this.selection.length > 1) this._setSel([{ kind: pr.hit.kind, id: pr.hit.id }]);
@@ -297,6 +349,35 @@ export class Sketcher {
   _setHover(h) {
     const a = this.hover, same = (!a && !h) || (a && h && a.kind === h.kind && a.id === h.id);
     if (same) return; this.hover = h ? { kind: h.kind, id: h.id } : null; this._renderGL();
+  }
+
+  // ---- genel çizim araçları (tools.js)
+  _dsClick(s) {
+    const def = DEFS[this.tool];
+    if (!this._ds) {
+      if (def.first) { const err = def.first(this, s); if (err) { this._status(err); return; } }
+      this._ds = { pts: [s] }; this.setHint(def.hints[1]); return;
+    }
+    const pts = [...this._ds.pts, s];
+    if (pts.length < def.n) { this._ds.pts = pts; this.setHint(def.hints[pts.length]); return; }
+    const err = def.valid ? def.valid(this, pts) : null; if (err) { this._status(err); return; }
+    this._ds = null; this.setHint(def.hints[0]);
+    return this._apply(() => { def.commit(this, pts); }, { kind: def.kind });
+  }
+  // ---- spline
+  _splineClick(s) {
+    const st = this._sp;
+    if (!st) { this._sp = { pts: [s] }; this.setHint('hint.spline_next'); return; }
+    const first = st.pts[0];
+    if (st.pts.length >= 3 && ((s.pid && s.pid === first.pid) || Math.hypot(s.x - first.x, s.y - first.y) < SNAP_PX * this.vp.worldPerPixel() * 0.6)) return this._finishSpline(true);
+    if (Math.hypot(s.x - st.pts[st.pts.length - 1].x, s.y - st.pts[st.pts.length - 1].y) < 1e-6) return;
+    st.pts.push(s);
+  }
+  _finishSpline(closed = false) {
+    const st = this._sp; if (!st) return; this._sp = null; this.setHint(HINT_KEY.spline);
+    if (st.pts.length < 2) { this._renderPreview(); return; }
+    this._apply(() => { const ids = st.pts.map((p) => this._ptFor(p)); this._addEnt({ type: 'spline', pts: ids, ...(closed ? { closed: true } : {}) }); }, { kind: tk('sk.kind.spline') });
+    this._renderPreview();
   }
 
   // ---- seç aracı
@@ -308,7 +389,30 @@ export class Sketcher {
       if (shift) this._setSel(this._isSel(it) ? this.selection.filter((s) => !(s.kind === it.kind && s.id === it.id)) : [...this.selection, it]);
       else if (!this._isSel(it)) this._setSel([it]);
       if (!shift) this._drag = { start: loc, active: false, before: this._snapStr(), moved: false, items: this._isSel(it) ? this.selection.slice() : [it] };
-    } else if (!shift && this.selection.length) this._setSel([]);
+    } else {
+      this._box = { a: loc, ax: ev.clientX, ay: ev.clientY, active: false, shift };
+    }
+  }
+  _boxMove(loc, ev) {
+    const b = this._box; if (!b) return;
+    if (!b.active) { if (Math.hypot(ev.clientX - b.ax, ev.clientY - b.ay) < 4) return; b.active = true; }
+    b.cur = loc; b.touch = ev.clientX < b.ax; this._drawBox(ev);
+  }
+  _drawBox(ev) {
+    const b = this._box; if (!this._boxEl) { this._boxEl = document.createElement('div'); this._boxEl.className = 'sk-box'; this.ovl.appendChild(this._boxEl); }
+    const r = this.vp.renderer.domElement.getBoundingClientRect(); const x0 = Math.min(b.ax, ev.clientX) - r.left, y0 = Math.min(b.ay, ev.clientY) - r.top;
+    Object.assign(this._boxEl.style, { left: x0 + 'px', top: y0 + 'px', width: Math.abs(ev.clientX - b.ax) + 'px', height: Math.abs(ev.clientY - b.ay) + 'px', display: '' });
+    this._boxEl.classList.toggle('touch', b.touch);
+  }
+  _boxUp(loc, ev) {
+    const b = this._box; this._box = null; this._press = null; this._drag = null; if (this._boxEl) { this._boxEl.remove(); this._boxEl = null; }
+    if (!b) return;
+    if (!b.active) { if (!b.shift && this.selection.length) this._setSel([]); return; }
+    const box = [Math.min(b.a[0], loc[0]), Math.min(b.a[1], loc[1]), Math.max(b.a[0], loc[0]), Math.max(b.a[1], loc[1])];
+    const r = boxSelect(this.sk, box, !b.touch);
+    const items = [...r.ents.map((id) => ({ kind: 'ent', id })), ...r.pts.map((id) => ({ kind: 'point', id }))];
+    const merged = b.shift ? [...this.selection, ...items.filter((x) => !this._isSel(x))] : items;
+    this._setSel(merged); this._status(() => t('sk.box_selected', { n: items.length, mode: t(b.touch ? 'sk.box_touch' : 'sk.box_contain') }));
   }
   _selDrag(loc, ev) {
     const d = this._drag, pr = this._press; if (!d) return;
@@ -340,15 +444,16 @@ export class Sketcher {
       if (!d.moved) return;
       const r = await solveSketch(this.sk, this.getVars());
       if (!r.ok) { this._restore(d.before); this._status('sk.drag_failed'); }
-      else { this._undo.push({ s: d.before }); this._redo = []; this.lastSolve = r; this._statusDof(r); }
+      else { this._undo.push({ s: d.before }); this._redo = []; this.lastSolve = r; this._statusDof(r); this._probeSoon(); }
       this._refresh();
     });
   }
 
-  // ---- çizgi
+  // ---- çizgi (zincir; A tuşu ile teğet yay, L tuşu ile çizgi)
   _lineClick(s) {
     const st = this._ln;
-    if (!st) { this._ln = { start: s, firstPid: s.pid || null, n: 0 }; this.setHint('hint.line_next'); return; }
+    if (!st) { this._ln = { start: s, firstPid: s.pid || null, n: 0, mode: 'line' }; this.setHint('hint.line_next'); return; }
+    if (st.mode === 'arc') return this._chainArc(st, s);
     s = this._alignEnd(st.start, s);
     if (Math.hypot(s.x - st.start.x, s.y - st.start.y) < 1e-6 || (s.pid && s.pid === st.start.pid)) return; // sıfır uzunluk
     const closing = !!(s.pid && s.pid === st.firstPid);
@@ -359,10 +464,24 @@ export class Sketcher {
       bId = this._ptFor(s);
       const l = this._addEnt({ type: 'line', a: aId, b: bId });
       if (s.align === 'h') this._addCon('horizontal', l); else if (s.align === 'v') this._addCon('vertical', l);
+      if (s.kind === 'tan' && s.ent) this._addCon('tangent', l, s.ent); else if (s.kind === 'perp' && s.ent && sk.ents.find((e) => e.id === s.ent)?.type === 'line') this._addCon('perpendicular', l, s.ent);
+      st.lastEnt = l;
     }, { kind: tk('sk.kind.line') });
     st.n++;
     if (closing) { this._ln = null; this.setHint(() => t('hint.closed') + ' ' + t(HINT_KEY.line)); } else st.start = { x: s.x, y: s.y, pid: bId };
     return res;
+  }
+  _chainArc(st, s) {
+    const pts = [st.start, s]; const err = DEFS.arct.valid(this, pts); if (err) { this._status(err); return; }
+    const closing = !!(s.pid && s.pid === st.firstPid); let endPid;
+    const res = this._apply(() => { DEFS.arct.commit(this, pts); endPid = this._lastPid; }, { kind: tk('sk.kind.arc') });
+    st.n++; if (closing) { this._ln = null; this.setHint(() => t('hint.closed') + ' ' + t(HINT_KEY.line)); } else st.start = { x: s.x, y: s.y, pid: endPid };
+    return res;
+  }
+  chainMode(mode) { // zincir sırasında çizgi/yay geçişi
+    const st = this._ln; if (!st || this.tool !== 'line') return false;
+    if (mode === 'arc' && !(st.n > 0 && st.start.pid)) { this._status('sk.arct_start'); return true; }
+    st.mode = mode; this.setHint(mode === 'arc' ? 'hint.chain_arc' : 'hint.line_next'); this._renderPreview(); return true;
   }
   _endChain() { if (this._ln) { this._ln = null; this.setHint(HINT_KEY.line); this._renderPreview(); } }
 
@@ -430,7 +549,8 @@ export class Sketcher {
     if (hadO) this._status('sk.origin_partial');
     this.onChange(); return res;
   }
-  _deleteItems(sk, items) {
+  _deleteItems(sk, items) { return deleteItems(sk, items); }
+  _deleteItemsOld(sk, items) {
     const delEnts = new Set(), delPts = new Set();
     for (const i of items) { if (i.kind === 'ent') delEnts.add(i.id); else if (i.id !== 'O') delPts.add(i.id); }
     for (const e of sk.ents) if (entPts(e).some((p) => delPts.has(p))) delEnts.add(e.id);
@@ -458,7 +578,8 @@ export class Sketcher {
     const sel = this.selection, sk = this.sk;
     const pts = sel.filter((s) => s.kind === 'point').map((s) => s.id);
     const ents = sel.filter((s) => s.kind === 'ent').map((s) => sk.ents.find((e) => e.id === s.id)).filter(Boolean);
-    const lines = ents.filter((e) => e.type === 'line'), round = ents.filter((e) => e.type === 'circle' || e.type === 'arc');
+    const lines = ents.filter((e) => e.type === 'line'), round = ents.filter((e) => e.type === 'circle' || e.type === 'arc'), ell = ents.filter((e) => e.type === 'ellipse' || e.type === 'ellarc');
+    const withCenter = ents.filter((e) => e.type === 'circle' || e.type === 'arc' || e.type === 'ellipse' || e.type === 'ellarc');
     const fail = (k, p) => { this._status(k, p); return Promise.resolve({ ok: false, msg: t(k, p) }); };
     let list = []; // eklenecek kısıtlar: [tip, a, b, extra]
     switch (type) {
@@ -471,14 +592,20 @@ export class Sketcher {
         if (lines.length === 2 && ents.length === 2 && !pts.length) list = [[type, lines[0].id, lines[1].id]];
         else return fail(type === 'parallel' ? 'sk.c_parallel' : 'sk.c_perpendicular');
         break;
+      case 'collinear':
+        if (lines.length === 2 && ents.length === 2 && !pts.length) list = [['collinear', lines[0].id, lines[1].id]]; else return fail('sk.c_collinear');
+        break;
       case 'equal':
-        if (!pts.length && ents.length >= 2 && (lines.length === ents.length || round.length === ents.length)) list = ents.slice(1).map((e) => ['equal', ents[0].id, e.id]);
+        if (!pts.length && ents.length >= 2 && (lines.length === ents.length || round.length === ents.length || ell.length === ents.length)) list = ents.slice(1).map((e) => ['equal', ents[0].id, e.id]);
         else return fail('sk.c_equal');
         break;
-      case 'tangent':
-        if (!pts.length && ents.length === 2 && ((lines.length === 1 && round.length === 1) || round.length === 2)) list = [['tangent', ents[0].id, ents[1].id]];
+      case 'tangent': {
+        const okPair = ents.length === 2 && !pts.length && ((lines.length === 1 && round.length === 1) || round.length === 2 || (lines.length === 1 && ell.length === 1));
+        if (okPair) list = [['tangent', ents[0].id, ents[1].id]];
+        else if (ents.length === 2 && !pts.length && ents.some((e) => e.type === 'spline' || ((e.type === 'ellipse' || e.type === 'ellarc') && !lines.length))) return fail('sk.c_tangent_unsup');
         else return fail('sk.c_tangent');
         break;
+      }
       case 'coincident':
         if (pts.length === 2 && !ents.length) list = [['coincident', pts[0], pts[1]]]; else return fail('sk.c_coincident');
         break;
@@ -486,9 +613,9 @@ export class Sketcher {
         if (pts.length === 1 && lines.length === 1 && ents.length === 1) list = [['midpoint', pts[0], lines[0].id]]; else return fail('sk.c_midpoint');
         break;
       case 'concentric':
-        if (!pts.length && round.length === 2 && ents.length === 2) {
-          if (round[0].c === round[1].c) return fail('sk.c_concentric_same');
-          list = [['coincident', round[0].c, round[1].c]];
+        if (!pts.length && withCenter.length === 2 && ents.length === 2) {
+          if (withCenter[0].c === withCenter[1].c) return fail('sk.c_concentric_same');
+          list = [['coincident', withCenter[0].c, withCenter[1].c]];
         } else return fail('sk.c_concentric');
         break;
       case 'symmetric':
@@ -496,7 +623,7 @@ export class Sketcher {
         else return fail('sk.c_symmetric');
         break;
       case 'pointOn':
-        if (pts.length === 1 && ents.length === 1 && (lines.length === 1 || round.length === 1)) list = [['pointOn', pts[0], ents[0].id]]; else return fail('sk.c_pointOn');
+        if (pts.length === 1 && ents.length === 1 && (lines.length === 1 || round.length === 1 || ell.length === 1)) list = [['pointOn', pts[0], ents[0].id]]; else return fail('sk.c_pointOn');
         break;
       case 'fix': {
         const ids = new Set(pts); for (const e of ents) entPts(e).forEach((p) => ids.add(p)); ids.delete('O');
@@ -507,7 +634,7 @@ export class Sketcher {
       default: return fail('sk.c_unknown', { type });
     }
     // aynısı varsa ekleme
-    const sameCon = (c, t) => c.type === t[0] && ((c.a === t[1] && c.b === t[2]) || (['parallel', 'perpendicular', 'equal', 'tangent', 'coincident'].includes(c.type) && c.a === t[2] && c.b === t[1]));
+    const sameCon = (c, t) => c.type === t[0] && ((c.a === t[1] && c.b === t[2]) || (['parallel', 'perpendicular', 'equal', 'tangent', 'coincident', 'collinear'].includes(c.type) && c.a === t[2] && c.b === t[1]));
     list = list.filter((t) => !sk.cons.some((c) => sameCon(c, t)));
     if (!list.length) return fail('sk.c_exists');
     this.selection = []; this.onChange();
@@ -515,7 +642,7 @@ export class Sketcher {
   }
   constraintsList() {
     if (!this.sk) return [];
-    const out = this.sk.cons.map((c) => ({ id: c.id, label: this._conLabel(c) }));
+    const bad = this._badSet(); const out = this.sk.cons.map((c) => ({ id: c.id, label: this._conLabel(c) + (c.ref ? ' ' + t('sk.ref_suffix') : ''), bad: bad.has(c.id) }));
     for (const [id, p] of Object.entries(this.sk.points)) if (p.fixed && id !== 'O') out.push({ id: 'fix:' + id, label: t('sk.fixed_pt', { id }) });
     return out;
   }
@@ -524,6 +651,7 @@ export class Sketcher {
     if (DIM_TYPES.has(c.type)) s += ': ' + this._dimText(c).text;
     return s + ' (' + conRefs(c).join(', ') + ')';
   }
+  focusConstraint(id) { this._focusCons = new Set(this._focusCons.has(id) && this._focusCons.size === 1 ? [] : [id]); this._buildOverlay(); this.onChange(); }
   removeConstraint(id) {
     if (!this.active) return;
     if (String(id).startsWith('fix:')) { const pid = id.slice(4); if (!this.sk.points[pid]) return; return this._apply((s) => { delete s.points[pid].fixed; }, { kind: tk('sk.kind.change') }); }
@@ -559,8 +687,12 @@ export class Sketcher {
     if (items.length === 1) {
       if (!ents.length) return null; const e = ents[0];
       if (e.type === 'line') return { type: 'dist', a: e.a, b: e.b, value: lineLen(e), anchor: mid(e.a, e.b) };
-      if (e.type === 'circle') return { type: 'diameter', a: e.id, value: 2 * e.r, anchor: entMid(sk, e) };
-      if (e.type === 'arc') return { type: 'radius', a: e.id, value: arcGeom(sk, e).r, anchor: entMid(sk, e) };
+      if (e.type === 'circle' || e.type === 'arc') {
+        const r = e.type === 'circle' ? e.r : arcGeom(sk, e).r;
+        if (tool === 'ddim' || (tool === 'dim' && e.type === 'circle')) return { type: 'diameter', a: e.id, value: 2 * r, anchor: entMid(sk, e) };
+        return { type: 'radius', a: e.id, value: r, anchor: entMid(sk, e) };
+      }
+      if (e.type === 'ellipse' || e.type === 'ellarc') return { type: 'radius', a: e.id, value: Math.abs(e.rmin), anchor: entMid(sk, e) };
       return { error: tk('sk.dim_none') };
     }
     if (items.length === 2) {
@@ -575,11 +707,16 @@ export class Sketcher {
       if (ents.length === 2 && ents[0].type === 'line' && ents[1].type === 'line') {
         const [l1, l2] = ents; let a = l1, b = l2;
         const ang = (l) => Math.atan2(P(l.b).y - P(l.a).y, P(l.b).x - P(l.a).x);
+        if (Math.abs(Math.sin(ang(l2) - ang(l1))) < 1e-7) { // paralel çizgiler: aralarındaki uzaklık
+          const m1 = entMid(sk, l1), m2 = entMid(sk, l2); return { type: 'lldist', a: l1.id, b: l2.id, value: measureDim(sk, { type: 'lldist', a: l1.id, b: l2.id }), anchor: [(m1[0] + m2[0]) / 2, (m1[1] + m2[1]) / 2] };
+        }
         let v = ((ang(b) - ang(a)) / DEG) % 360; if (v > 180) v -= 360; if (v <= -180) v += 360;
         if (v < 0) { [a, b] = [b, a]; v = -v; }
         const m1 = entMid(sk, a), m2 = entMid(sk, b);
         return { type: 'angle', a: a.id, b: b.id, value: v, anchor: [(m1[0] + m2[0]) / 2, (m1[1] + m2[1]) / 2] };
       }
+      const cc = ents.filter((e) => e.type === 'circle' || e.type === 'arc' || e.type === 'ellipse' || e.type === 'ellarc');
+      if (ents.length === 2 && cc.length === 2) { const m = (e) => [P(e.c).x, P(e.c).y]; const a = m(cc[0]), b = m(cc[1]); return { type: 'ccdist', a: cc[0].id, b: cc[1].id, value: Math.hypot(a[0] - b[0], a[1] - b[1]), anchor: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; }
     }
     return { error: tk('sk.dim_between') };
   }
@@ -599,7 +736,7 @@ export class Sketcher {
   }
   _evalDim(type, txt) {
     let v; try { v = evalExpr(txt, this.getVars()); } catch (e) { return { err: t('sk.bad_expr', { msg: errText(e) }) }; }
-    if (['dist', 'pldist', 'radius', 'diameter'].includes(type) && !(v > 0)) return { err: t('sk.dim_pos') };
+    if (['dist', 'pldist', 'lldist', 'ccdist', 'radius', 'diameter'].includes(type) && !(v > 0)) return { err: t('sk.dim_pos') };
     if (type === 'angle' && (v === 0 || Math.abs(v) >= 360)) return { err: t('sk.angle_range') };
     return { v };
   }
@@ -649,26 +786,39 @@ export class Sketcher {
   // ---------- klavye ----------
   handleKey(ev) {
     if (!this.active) return false;
-    const t = ev.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return false;
+    const t0 = ev.target; if (t0 && (t0.tagName === 'INPUT' || t0.tagName === 'TEXTAREA' || t0.tagName === 'SELECT' || t0.isContentEditable)) return false;
     const k = ev.key, mod = ev.ctrlKey || ev.metaKey;
     const done = () => { ev.preventDefault && ev.preventDefault(); return true; };
     if (mod) {
       const l = k.toLowerCase();
       if (l === 'z' && !ev.shiftKey) { this.undo(); return done(); }
       if (l === 'y' || (l === 'z' && ev.shiftKey)) { this.redo(); return done(); }
+      if (l === 'a') { this.selectAll(); return done(); }
+      if (l === 'c') { this.copyClip(); return done(); }
+      if (l === 'x') { this.cutClip(); return done(); }
+      if (l === 'v') { this.pasteClip(); return done(); }
       return false;
     }
     if (ev.altKey) return false;
     if (k === 'Escape') {
-      if (this._input) this._closeInput();
-      else if (this._ln || this._rc || this._ci || this._ar) this._cancelStage();
+      if (this._ctxEl) this._hideCtx();
+      else if (this._dlg) this._closeDialog();
+      else if (this._input) this._closeInput();
+      else if (this._hasStage()) this._cancelStage();
       else if (this.tool !== 'select') this.setTool('select');
       else if (this.selection.length) this._setSel([]);
       else return false;
       return done();
     }
+    if (k === 'Enter') { if (this._sp) { this._finishSpline(); return done(); } if (this._mir && this._mir.phase === 1) { this._mirNext(); return done(); } return false; }
     if (k === 'Delete' || k === 'Backspace') { this.deleteSelection(); return done(); }
-    const map = { l: 'line', r: 'rect', c: 'circle', a: 'arc', d: 'dim' }, tool = map[k.toLowerCase()];
+    // sayısal giriş: çizerken uzunluk/açı yazılır
+    if (/^[0-9.,]$/.test(k) && this._numericStart(k)) return done();
+    const lk = k.toLowerCase();
+    if (this._ln && this.tool === 'line' && (lk === 'a' || lk === 'l')) { this.chainMode(lk === 'a' ? 'arc' : 'line'); return done(); }
+    const map = { l: 'line', r: 'rect', c: 'circle', a: 'arc', d: 'dim', p: 'point', t: 'trim', x: 'extend', k: 'break', o: 'offset', q: 'fillet', w: 'chamfer', m: 'mirror', g: 'polygon', u: 'slot', y: 'ellipse', b: 'spline', j: 'project' };
+    const shiftMap = { r: 'rectc', c: 'circle3', a: 'arc3' };
+    const tool = ev.shiftKey && shiftMap[lk] ? shiftMap[lk] : map[lk];
     if (tool) { this.setTool(tool); return done(); }
     return false;
   }
@@ -679,12 +829,13 @@ export class Sketcher {
   _onCamera() {
     if (!this.active) return;
     const w = this.vp.worldPerPixel(); if (Math.abs(w / (this._lastWpp || w) - 1) > 0.03) { this._renderGL(); this._renderPreview(); }
-    this._posOverlay(); this._posInput(); if (this.cursor) this._posTip();
+    this._posOverlay(); this._posInput(); if (this.cursor) this._posTip(); this._posSnap();
   }
   _renderGL() {
     if (!this.active) return; this._clearGroup(this.gMain);
     const wpp = this.vp.worldPerPixel(); this._lastWpp = wpp; const sk = this.sk;
     const fully = this.lastSolve && this.lastSolve.dof === 0 && sk.ents.some((e) => !e.cons);
+    const fr = this.free; const entDark = (e) => fully || (fr && fr.freeEnts && !fr.freeEnts.has(e.id)); const ptDark = (id) => fully || (fr && fr.freePts && !fr.freePts.has(id));
     try {
       for (const r of findRegions(sk).regions) {
         const shape = new THREE.Shape(r.poly.map((p) => new THREE.Vector2(p[0], p[1])));
@@ -696,7 +847,7 @@ export class Sketcher {
     const isSel = (k, id) => this.selection.some((s) => s.kind === k && s.id === id), isHov = (k, id) => this.hover && this.hover.kind === k && this.hover.id === id;
     for (const s of sketchPolylines(sk)) {
       const e = s.e, sel = isSel('ent', e.id), hov = isHov('ent', e.id);
-      const color = sel ? COL.cons : hov ? 0xffb020 : e.cons ? COL.sketchDim : fully ? 0x1c2430 : COL.sketch;
+      const color = sel ? COL.cons : hov ? 0xffb020 : e.cons ? COL.sketchDim : entDark(e) ? 0x1c2430 : COL.sketch;
       const geo = new THREE.BufferGeometry().setFromPoints(s.pts.map((p) => new THREE.Vector3(p[0], p[1], 0)));
       const mat = e.cons ? new THREE.LineDashedMaterial({ color, dashSize: 7 * wpp, gapSize: 4 * wpp, depthTest: false }) : new THREE.LineBasicMaterial({ color, depthTest: false });
       const line = new THREE.Line(geo, mat); if (e.cons) line.computeLineDistances();
@@ -705,7 +856,7 @@ export class Sketcher {
     const pos = [], col = [], c = new THREE.Color();
     for (const [id, p] of Object.entries(sk.points)) {
       pos.push(p.x, p.y, 0);
-      c.set(isSel('point', id) ? COL.cons : isHov('point', id) ? 0xffb020 : id === 'O' ? 0xc62828 : p.fixed ? 0x111111 : fully ? 0x1c2430 : COL.sketch); col.push(c.r, c.g, c.b);
+      c.set(isSel('point', id) ? COL.cons : isHov('point', id) ? 0xffb020 : id === 'O' ? 0xc62828 : p.fixed ? 0x111111 : ptDark(id) ? 0x1c2430 : COL.sketch); col.push(c.r, c.g, c.b);
     }
     const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); pg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     const pts = new THREE.Points(pg, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true, depthTest: false })); pts.renderOrder = 6; pts.frustumCulled = false; this.gMain.add(pts);
@@ -722,9 +873,18 @@ export class Sketcher {
   _renderPreview() {
     if (!this.active) return; this._clearGroup(this.gPrev);
     const cur = this.cursor, tool = this.tool; let tip = '';
-    if (!cur || tool === 'select' || tool === 'dim' || tool === 'hdim' || tool === 'vdim') { this._hideTip(); this.vp.dirty = true; return; }
+    if (EDIT_TOOLS.includes(tool)) { this._editPreview(cur); this.vp.dirty = true; return; }
+    if (!cur || tool === 'select' || DIM_TOOLS.includes(tool)) { this._hideTip(); this._hideSnap(); this.vp.dirty = true; return; }
     let s = cur; const B = 0x0b62d6;
-    if (tool === 'line' && this._ln) {
+    if (DEFS[tool] && this._ds) {
+      const r = DEFS[tool].preview(this, this._ds.pts, cur); for (const pl of r.polys) this._line(pl.pts, B, pl.dashed); tip = r.tip || '';
+    } else if (tool === 'spline' && this._sp) {
+      const pts = [...this._sp.pts.map((p) => [p.x, p.y]), [cur.x, cur.y]];
+      if (pts.length >= 2) { try { this._line(G.sample(G.mkSpline(pts, false), 0.02), B); } catch (e) { this._line(pts, B, true); } }
+      tip = pts.length + ' ' + t('sk.spline_pts');
+    } else if (tool === 'line' && this._ln && this._ln.mode === 'arc') {
+      const r = DEFS.arct.preview(this, [this._ln.start, cur], cur); for (const pl of r.polys) this._line(pl.pts, B, pl.dashed); tip = r.tip || '';
+    } else if (tool === 'line' && this._ln) {
       s = this._alignEnd(this._ln.start, cur); const a = this._ln.start;
       this._line([[a.x, a.y], [s.x, s.y]], B);
       const len = Math.hypot(s.x - a.x, s.y - a.y); tip = fmt(len) + ' mm  ' + fmt(Math.atan2(s.y - a.y, s.x - a.x) / DEG) + '°';
@@ -743,11 +903,8 @@ export class Sketcher {
         tip = 'R ' + fmt(r) + '  ' + fmt(sw / DEG) + '°';
       }
     }
-    // yakalama işareti
-    if (cur.pid || cur.ent) {
-      const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(s.x, s.y, 0)]);
-      const m = new THREE.Points(g, new THREE.PointsMaterial({ size: 12, sizeAttenuation: false, color: cur.pid ? 0x16a34a : 0xe07b00, depthTest: false })); m.renderOrder = 8; this.gPrev.add(m);
-    }
+    // yakalama işareti (uç, orta, merkez, kesişim, teğet, dik, nesne üstü)
+    this._showSnap(s);
     this._tipLoc = [s.x, s.y];
     if (tip) { this._showTip(tip); } else this._hideTip();
     this.vp.dirty = true;
@@ -757,14 +914,22 @@ export class Sketcher {
     this._tip.textContent = text; this._tip.style.display = ''; this._posTip();
   }
   _hideTip() { if (this._tip) this._tip.style.display = 'none'; }
+  _showSnap(s) {
+    if (!s || !s.kind || s.kind === 'grid' || s.kind === 'free') return this._hideSnap();
+    if (!this._snapEl) { this._snapEl = document.createElement('div'); this._snapEl.className = 'sk-snap'; this.ovl.appendChild(this._snapEl); this._snapLbl = document.createElement('span'); this._snapEl.appendChild(this._snapLbl); }
+    this._snapEl.className = 'sk-snap k-' + s.kind; this._snapLbl.textContent = t(SNAP_LABEL[s.kind] || 'snap.on'); this._snapEl.style.display = ''; this._snapLoc = [s.x, s.y]; this._posSnap();
+  }
+  _hideSnap() { if (this._snapEl) this._snapEl.style.display = 'none'; this._snapLoc = null; }
+  _posSnap() { if (!this._snapEl || !this._snapLoc) return; const [x, y] = this._px(this._snapLoc); this._snapEl.style.left = x + 'px'; this._snapEl.style.top = y + 'px'; }
   _posTip() { if (!this._tip || !this._tipLoc) return; const [x, y] = this._px(this._tipLoc); this._tip.style.left = x + 14 + 'px'; this._tip.style.top = y + 14 + 'px'; }
   _px(loc) { return this.vp.project(V.toWorld(this.plane, loc[0], loc[1])); }
 
   // ---------- ölçü etiketleri ve kısıt rozetleri ----------
   _dimText(c) {
-    let v = null, bad = false; try { v = evalExpr(c.expr, this.getVars()); } catch (e) { bad = true; }
+    let v = null, bad = false; if (!c.ref) { try { v = evalExpr(c.expr, this.getVars()); } catch (e) { bad = true; } }
     const pre = c.type === 'diameter' ? 'Ø' : c.type === 'radius' ? 'R' : '', suf = c.type === 'angle' ? '°' : '';
     const e = String(c.expr).trim();
+    if (c.ref) { const m = measureDim(this.sk, c); return { text: '(' + pre + (Number.isFinite(m) ? fmt(m) : '?') + suf + ')', bad: false }; }
     const text = bad ? pre + e + ' ?' : numeric(e) ? pre + fmt(v) + suf : pre + e + ' = ' + fmt(v) + suf;
     return { text, bad };
   }
@@ -774,6 +939,9 @@ export class Sketcher {
       if (['dist', 'hdist', 'vdist'].includes(c.type)) return [(P(c.a).x + P(c.b).x) / 2, (P(c.a).y + P(c.b).y) / 2];
       if (c.type === 'pldist') { const l = ent(c.b), p = P(c.a), pr = segProj([p.x, p.y], P(l.a), P(l.b)); return [(p.x + pr.x) / 2, (p.y + pr.y) / 2]; }
       if (c.type === 'radius' || c.type === 'diameter') return entMid(sk, ent(c.a));
+      if (c.type === 'lldist') { const m1 = entMid(sk, ent(c.a)), m2 = entMid(sk, ent(c.b)); return [(m1[0] + m2[0]) / 2, (m1[1] + m2[1]) / 2]; }
+      if (c.type === 'ccdist') { const a = P(ent(c.a).c), b = P(ent(c.b).c); return [(a.x + b.x) / 2, (a.y + b.y) / 2]; }
+      if (c.type === 'radiusdiff') return entMid(sk, ent(c.b));
       if (c.type === 'angle') { const m1 = entMid(sk, ent(c.a)), m2 = entMid(sk, ent(c.b)); return [(m1[0] + m2[0]) / 2, (m1[1] + m2[1]) / 2]; }
     } catch (e) {}
     return [0, 0];
@@ -788,23 +956,37 @@ export class Sketcher {
   }
   _buildOverlay() {
     if (!this.active) return;
-    for (const el of [...this.ovl.children]) if (el !== this._input && el !== this._tip) el.remove();
+    for (const el of [...this.ovl.children]) if (el !== this._input && el !== this._tip && el !== this._snapEl && el !== this._dlg && el !== this._ctxEl) el.remove();
     this._ovEls = [];
     for (const c of this.sk.cons) {
       if (!conRefs(c).every((r) => r in this.sk.points || this.sk.ents.some((e) => e.id === r))) continue;
       const el = document.createElement('div');
       if (DIM_TYPES.has(c.type)) {
-        const d = this._dimText(c); el.className = 'dim' + (d.bad ? ' bad' : ''); el.textContent = d.text; el.title = t('sk.dim_tip', { name: nameOf(c.type) });
-        el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); this._editDim(c.id); });
-        el._loc = this._dimAnchor(c); el._off = this._dimOffset(c);
+        const d = this._dimText(c); el.className = 'dim' + (d.bad ? ' bad' : '') + (c.ref ? ' ref' : '') + (this._focusCons.has(c.id) ? ' focus' : ''); el.textContent = d.text; el.title = t(c.ref ? 'sk.dim_ref_tip' : 'sk.dim_tip', { name: nameOf(c.type) });
+        el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); if (!c.ref) this._editDim(c.id); });
+        el.addEventListener('contextmenu', (ev) => { ev.preventDefault(); ev.stopPropagation(); this._dimMenu(ev, c); });
+        el.addEventListener('mousedown', (ev) => { if (ev.button === 0) this._dimDrag(ev, c, el); });
+        const base = this._dimAnchor(c); el._base = base; el._loc = c.lo ? [base[0] + c.lo[0], base[1] + c.lo[1]] : base; el._off = c.lo ? [0, 0] : this._dimOffset(c);
       } else {
-        el.className = 'cbadge'; el.textContent = GLYPH[c.type] || '?'; el.title = t('sk.con_tip', { name: nameOf(c.type) });
+        el.className = 'cbadge' + (this._focusCons.has(c.id) ? ' focus' : ''); el.textContent = GLYPH[c.type] || '?'; el.title = t('sk.con_tip', { name: nameOf(c.type) });
         el.addEventListener('click', (ev) => { ev.stopPropagation(); this.removeConstraint(c.id); });
         el._loc = this._conAnchor(c); el._off = [0, -13];
       }
       el.dataset.con = c.id; el.style.pointerEvents = 'auto'; this.ovl.appendChild(el); this._ovEls.push(el);
     }
     this._posOverlay();
+  }
+  _dimDrag(ev, c, el) {
+    ev.preventDefault(); ev.stopPropagation(); const x0 = ev.clientX, y0 = ev.clientY; let moved = false, last = null;
+    const mv = (e) => {
+      if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return; moved = true;
+      const loc = this.vp.rayToPlane(e, this.plane); if (!loc) return; last = loc; el._loc = loc; el._off = [0, 0]; this._posOverlay();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', mv, true); window.removeEventListener('mouseup', up, true);
+      if (moved && last) { const base = el._base; this._apply((sk) => { const k = sk.cons.find((x) => x.id === c.id); if (k) k.lo = [last[0] - base[0], last[1] - base[1]]; }, { kind: tk('sk.kind.change') }); }
+    };
+    window.addEventListener('mousemove', mv, true); window.addEventListener('mouseup', up, true);
   }
   _dimOffset(c) { return c.type === 'radius' || c.type === 'diameter' ? [14, -14] : c.type === 'hdist' ? [0, -16] : c.type === 'vdist' ? [22, 0] : c.type === 'dist' ? [0, 16] : [0, 0]; }
   _posOverlay() {
@@ -816,4 +998,18 @@ export class Sketcher {
       placed.push({ x, y, w, h }); el.style.left = x + 'px'; el.style.top = y + 'px';
     }
   }
+  // Eskizden çıkarken bilgi amaçlı uyarılar (engellemez)
+  exitReport() {
+    const out = []; const sk = this.sk; if (!sk || !sk.ents.length) return out;
+    try {
+      const fr = findRegions(sk);
+      if (fr.open) { const n = fr.issues.filter((i) => i.code === 'unclosed' || i.code === 'dangling').length; out.push(t('sk.exit.open', { n: Math.max(1, n) })); }
+      else if (!fr.regions.length && sk.ents.some((e) => !e.cons && e.type !== 'point')) out.push(t('sk.exit.noprofile'));
+      const dups = fr.issues.filter((i) => i.code === 'duplicate'); if (dups.length) out.push(t('sk.exit.dup', { n: dups.length }));
+    } catch (e) { /* profil denetimi başarısız: uyarı verme */ }
+    const r = this.lastSolve; if (r && r.ok && r.dof > 0) out.push(t('sk.exit.dof', { n: r.dof }));
+    return out;
+  }
 }
+
+Object.assign(Sketcher.prototype, EDIT_METHODS);

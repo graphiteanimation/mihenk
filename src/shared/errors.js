@@ -14,6 +14,8 @@ export const tk = (key) => key;
 export function toErr(e) {
   if (e && typeof e === 'object' && typeof e.code === 'string' && e.params !== undefined) return { code: e.code, params: e.params };
   if (typeof e === 'number') return { code: 'occt', params: {} };
+  // OCCT (WASM) istisnası: mesajı yok; metin olarak '[object WebAssembly.Exception]' göstermek yerine kod ver
+  if (typeof WebAssembly !== 'undefined' && WebAssembly.Exception && e instanceof WebAssembly.Exception) return { code: 'occt', params: {} };
   const m = e?.message ?? String(e);
   if (/^\d+$/.test(m)) return { code: 'occt', params: {} };
   return { code: 'internal', params: { message: m } };

@@ -38,8 +38,8 @@ const sketchChk = {
     const ks = Object.keys(v); if (ks.length > LIMITS.sketchItems) fail('schema.too_many', { what: p, max: LIMITS.sketchItems });
     for (const k of ks) { str(LIMITS.shortStr)(k, p + '{key}'); obj({ x: num(), y: num(), fixed: bool() })(v[k], p + '.' + k); }
   },
-  ents: arrOf(obj({ id: str(LIMITS.shortStr), type: oneOf(['line', 'circle', 'arc', 'point']), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), p: str(LIMITS.shortStr), r: expr(), cons: bool() }), LIMITS.sketchItems),
-  cons: arrOf(obj({ id: str(LIMITS.shortStr), type: str(40), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), expr: expr() }), LIMITS.sketchItems),
+  ents: arrOf(obj({ id: str(LIMITS.shortStr), type: oneOf(['line', 'circle', 'arc', 'point', 'ellipse', 'ellarc', 'spline']), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), p: str(LIMITS.shortStr), f: str(LIMITS.shortStr), r: expr(), rmin: num(), pts: arrOf(str(LIMITS.shortStr), LIMITS.sketchItems), closed: bool(), cons: bool() }), LIMITS.sketchItems),
+  cons: arrOf(obj({ id: str(LIMITS.shortStr), type: str(40), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), expr: expr(), ref: bool(), lo: arrOf(num(), 2) }), LIMITS.sketchItems),
 };
 // Özellik türü → alan denetleyicileri. Listede olmayan alanlar genel denetimden (derinlik/uzunluk/boyut) geçer.
 const TYPES = {

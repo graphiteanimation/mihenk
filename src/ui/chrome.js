@@ -6,9 +6,16 @@ import { t, tk, errText, getLang, LANGS } from '../shared/i18n.js';
 
 // Etiketler sözlük anahtarıdır; çizim anında t() ile çevrilir.
 const LANG_KEY = { tr: tk('lang.tr'), en: tk('lang.en') };
-const SK_TOOLS = [['select', tk('tb.select'), 'select'], ['line', tk('tb.line'), 'line'], ['rect', tk('tb.rect'), 'rect'], ['circle', tk('tb.circle'), 'circle'], ['arc', tk('tb.arc'), 'arc'], ['point', tk('tb.point'), 'point']];
+const SK_DRAW = [['select', tk('tb.select'), 'select'], ['line', tk('tb.line'), 'line'], ['rect', tk('tb.rect'), 'rect'], ['circle', tk('tb.circle'), 'circle'], ['arc', tk('tb.arc'), 'arc']];
+const SK_DRAW_MORE = [['point', tk('tb.point'), 'point'], ['rectc', tk('tb.rectc'), 'rectc'], ['rect3', tk('tb.rect3'), 'rect3'], ['circle2', tk('tb.circle2'), 'circle2'], ['circle3', tk('tb.circle3'), 'circle3'], ['arc3', tk('tb.arc3'), 'arc3'], ['arct', tk('tb.arct'), 'arct'], ['polygon', tk('tb.polygon'), 'polygon'], ['slot', tk('tb.slot'), 'slot'], ['ellipse', tk('tb.ellipse'), 'ellipse'], ['spline', tk('tb.spline'), 'spline']];
+const SK_EDIT = [['trim', tk('tb.trim'), 'trim'], ['offset', tk('tb.offset'), 'offset'], ['mirror', tk('tb.sk_mirror'), 'mirror']];
+const SK_EDIT_MORE = [['extend', tk('tb.extend'), 'extend'], ['break', tk('tb.break'), 'break'], ['fillet', tk('tb.sk_fillet'), 'fillet'], ['chamfer', tk('tb.sk_chamfer'), 'chamfer'], ['patrect', tk('tb.patrect'), 'patrect'], ['patcirc', tk('tb.patcirc'), 'patcirc'], ['move', tk('tb.sk_move'), 'move'], ['copy', tk('tb.copy'), 'copy'], ['rotate', tk('tb.rotate'), 'rotate'], ['scale', tk('tb.scale'), 'scale'], ['project', tk('tb.project'), 'project']];
 const SK_DIMS = [['dim', tk('tb.dim'), 'dim'], ['hdim', tk('tb.hdim'), 'hdim'], ['vdim', tk('tb.vdim'), 'vdim']];
-const SK_CONS = [['horizontal', tk('con.horizontal')], ['vertical', tk('con.vertical')], ['parallel', tk('con.parallel')], ['perpendicular', tk('con.perpendicular')], ['equal', tk('con.equal')], ['tangent', tk('con.tangent')], ['coincident', tk('con.coincident')], ['midpoint', tk('con.midpoint')], ['concentric', tk('con.concentric')], ['symmetric', tk('con.symmetric')], ['fix', tk('con.fix')]];
+const SK_DIMS_MORE = [['rdim', tk('tb.rdim'), 'rdim'], ['ddim', tk('tb.ddim'), 'ddim']];
+const SK_CONS = [['horizontal', tk('con.horizontal')], ['vertical', tk('con.vertical')], ['parallel', tk('con.parallel')], ['perpendicular', tk('con.perpendicular')], ['equal', tk('con.equal')], ['tangent', tk('con.tangent')], ['fix', tk('con.fix')]];
+const SK_CONS_MORE = [['coincident', tk('con.coincident')], ['midpoint', tk('con.midpoint')], ['concentric', tk('con.concentric')], ['symmetric', tk('con.symmetric')], ['collinear', tk('con.collinear')]];
+// kısayol göstergesi (araç ipucuna eklenir; gerçek tuşlar sketcher.handleKey'de)
+const SHORT = { line: 'L', rect: 'R', circle: 'C', arc: 'A', point: 'P', dim: 'D', trim: 'T', extend: 'X', break: 'K', offset: 'O', fillet: 'Q', chamfer: 'W', mirror: 'M', polygon: 'G', slot: 'U', ellipse: 'Y', spline: 'B', project: 'J', rectc: 'Shift+R', circle3: 'Shift+C', arc3: 'Shift+A' };
 
 export function initChrome(app) {
   const C = {};
@@ -63,18 +70,39 @@ export function initChrome(app) {
   // ---------------------------------------------------------------- araç çubuğu
   const tb = (id, label, ic, run, extra = {}) => { label = t(label); return h('button', { class: 'tb' + (extra.active ? ' active' : '') + (extra.cls ? ' ' + extra.cls : ''), 'data-act': id, title: extra.title || label, disabled: extra.disabled, onclick: run }, h('span', { html: icon(ic) }), h('span', { text: label })); };
   const group = (label, btns) => h('div', { class: 'group' }, h('div', { class: 'btns' }, btns), h('div', { class: 'gl', text: t(label) }));
+  // sketch araç çubuğu açılır grupları: toolbar kaydırılabilir olduğundan menü gövdeye sabitlenir
+  C.ddOpen = null;
+  C.renderDD = () => {
+    document.getElementById('ddpop')?.remove();
+    if (!C.ddOpen || !app.sketchSession) return;
+    const cur = app.sketcher?.tool;
+    const tool = ([id, l, ic]) => tb(id, l, ic, () => { C.ddOpen = null; app.sketchTool(id); }, { active: cur === id, title: t(l) + (SHORT[id] ? ' (' + SHORT[id] + ')' : '') });
+    const items = C.ddOpen === 'draw' ? SK_DRAW_MORE.map(tool) : C.ddOpen === 'edit' ? SK_EDIT_MORE.map(tool)
+      : [...SK_CONS_MORE.map(([id, l]) => tb('c-' + id, l, id, () => { C.ddOpen = null; app.sketchConstraint(id); })), ...SK_DIMS_MORE.map(tool)];
+    const pop = h('div', { id: 'ddpop', class: 'ddpop' }, items);
+    const anchor = document.querySelector(`#toolbar button[data-act="dd-${C.ddOpen}"]`); const r = anchor ? anchor.getBoundingClientRect() : { left: 8, bottom: 60 };
+    pop.style.left = Math.max(4, Math.min(r.left, window.innerWidth - 340)) + 'px'; pop.style.top = r.bottom + 2 + 'px';
+    pop.addEventListener('click', () => { setTimeout(() => { if (C.ddOpen) { C.ddOpen = null; C.renderDD(); C.renderToolbar(); } }, 0); });
+    document.body.append(pop);
+  };
+  document.addEventListener('click', () => { if (C.ddOpen) { C.ddOpen = null; C.renderDD(); if (app.sketchSession) C.renderToolbar(); } });
   C.renderToolbar = () => {
     const bar = $('#toolbar'); const sk = app.sketcher; bar.classList.toggle('sk', !!app.sketchSession);
     if (app.sketchSession) {
       const cur = sk?.tool;
+      const tool = ([id, l, ic]) => tb(id, l, ic, () => { C.ddOpen = null; app.sketchTool(id); }, { active: cur === id, title: t(l) + (SHORT[id] ? ' (' + SHORT[id] + ')' : '') });
+      const dd = (id, label) => h('button', { class: 'tb dd' + (C.ddOpen === id ? ' active' : ''), 'data-act': 'dd-' + id, title: t(label), onclick: (e) => { e.stopPropagation(); C.ddOpen = C.ddOpen === id ? null : id; C.renderDD(); C.renderToolbar(); } }, h('span', { html: icon('more') }), h('span', { text: t(label) }));
       bar.replaceChildren(
-        group(tk('grp.draw'), SK_TOOLS.map(([id, l, ic]) => tb(id, l, ic, () => app.sketchTool(id), { active: cur === id }))),
-        group(tk('grp.dim'), SK_DIMS.map(([id, l, ic]) => tb(id, l, ic, () => app.sketchTool(id), { active: cur === id }))),
-        group(tk('grp.constrain'), [...SK_CONS.map(([id, l]) => tb('c-' + id, l, id, () => app.sketchConstraint(id))), tb('c-construct', tk('con.construction'), 'construct', () => app.sketchConstruction(), { active: !!sk?.consMode })]),
+        group(tk('grp.draw'), [...SK_DRAW.map(tool), dd('draw', tk('dd.draw'))]),
+        group(tk('grp.edit'), [...SK_EDIT.map(tool), dd('edit', tk('dd.edit'))]),
+        group(tk('grp.dim'), SK_DIMS.map(tool)),
+        group(tk('grp.constrain'), [...SK_CONS.map(([id, l]) => tb('c-' + id, l, id, () => app.sketchConstraint(id))), tb('c-construct', tk('con.construction'), 'construct', () => app.sketchConstruction(), { active: !!sk?.consMode }), dd('cons', tk('dd.cons'))]),
         group(tk('grp.sketch'), [tb('sk-finish', tk('sk.finish'), 'finish', () => app.finishSketch(), { cls: 'primary' }), tb('sk-cancel', tk('common.cancel'), 'cancel', () => app.cancelSketch())]));
+      C.renderDD();
       return;
     }
     const f = (type, kind) => () => app.startFeature(type, kind);
+    C.ddOpen = null; C.renderDD();
     bar.replaceChildren(
       group(tk('grp.create'), [tb('sketch', tk('tb.sketch'), 'sketch', () => app.startSketch(), { active: app.tool === 'newsketch' }), tb('extrude', tk('tb.extrude'), 'extrude', f('extrude')), tb('revolve', tk('tb.revolve'), 'revolve', f('revolve')), tb('hole', tk('tb.hole'), 'hole', f('hole')),
         tb('box', tk('tb.box'), 'box', f('primitive', 'box')), tb('cylinder', tk('tb.cylinder'), 'cylinder', f('primitive', 'cylinder')), tb('sphere', tk('tb.sphere'), 'sphere', f('primitive', 'sphere'))]),

@@ -17,10 +17,11 @@ self.onmessage = async (ev) => {
     else if (cmd === 'bodyProps') result = K.bodyProps(args.id);
     else if (cmd === 'interference') result = K.interference(args.ids);
     else if (cmd === 'export') result = await K.exportFile(args.format, args.ids, args.names);
+    else if (cmd === 'reset') { K.reset(); result = true; }
     else if (cmd === 'ping') result = true;
     else throw new KErr('worker.unknown_cmd', { cmd });
     self.postMessage({ id, result });
   } catch (e) {
-    self.postMessage({ id, error: typeof e === 'number' ? { code: 'worker.occt', params: {} } : toErr(e) });
+    self.postMessage({ id, error: toErr(e) });
   }
 };

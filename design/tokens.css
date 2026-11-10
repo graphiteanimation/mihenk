@@ -1,0 +1,182 @@
+/* Mihenk — tasarım belirteçleri (design tokens)
+   Kural: bileşenler YALNIZ bu değişkenleri kullanır; bileşen CSS'inde ham HEX yazılmaz.
+   Temalar: :root (açık, varsayılan) ve [data-theme="dark"]. Yoğunluk: [data-density="large"].
+   Doygun renk yalnız durum anlamı taşır (hata/uyarı/başarı/bilgi/doğrulanmadı) ve her yerde aynı anlama gelir.
+   Marka mavisi (--accent) yalnız "etkin / seçili / birincil eylem" içindir, durum rengi değildir. */
+
+@font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block; src: url("../brand/fonts/inter-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block; src: url("../brand/fonts/inter-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: block; src: url("../brand/fonts/inter-latin-ext-500-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: block; src: url("../brand/fonts/inter-latin-500-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: block; src: url("../brand/fonts/inter-latin-ext-600-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: block; src: url("../brand/fonts/inter-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-style: normal; font-display: block; src: url("../brand/fonts/jetbrains-mono-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-style: normal; font-display: block; src: url("../brand/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "JetBrains Mono"; font-weight: 500; font-style: normal; font-display: block; src: url("../brand/fonts/jetbrains-mono-latin-ext-500-normal.woff2") format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "JetBrains Mono"; font-weight: 500; font-style: normal; font-display: block; src: url("../brand/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+
+:root {
+  color-scheme: light;
+
+  /* ---- Yazı tipleri ---- */
+  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  --num-features: "tnum" 1, "zero" 1;            /* sayılar: eşit genişlik + çizgili sıfır */
+
+  /* ---- Yazı ölçeği (Normal yoğunluk) ---- */
+  --fs-xs: 12px;   /* grup etiketi, rozet, ipucu kısayolu — en küçük boyut */
+  --fs-sm: 13px;   /* tablo, ağaç satırı, ikincil metin */
+  --fs-md: 14px;   /* gövde, alan, düğme (taban) */
+  --fs-lg: 16px;   /* panel başlığı, modal başlığı */
+  --fs-xl: 20px;   /* karşılama alt başlığı */
+  --fs-2xl: 28px;  /* karşılama başlığı */
+  --lh-tight: 1.2; --lh-base: 1.4;
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
+
+  /* ---- Boşluk (4 px tabanlı) ---- */
+  --sp-1: 2px; --sp-2: 4px; --sp-3: 8px; --sp-4: 12px; --sp-5: 16px; --sp-6: 24px; --sp-7: 32px; --sp-8: 48px;
+
+  /* ---- Boyutlar (yoğunluk ile değişir) ---- */
+  --ctl-h: 32px;              /* düğme, alan, menü satırı, ağaç satırı yüksekliği */
+  --ctl-h-sm: 28px;           /* yalnız yoğun tablo hücresi içi (hedef 32 px'in altında kalmaz: satır 32) */
+  --icon: 20px;               /* satır içi / menü simgesi */
+  --icon-tool: 24px;          /* şerit düğmesi simgesi */
+  --tool-w: 68px;             /* şerit düğmesi genişliği; etiket en çok 2 satır */
+  --tool-h: 72px;             /* şerit düğmesi yüksekliği (simge + en çok 2 satır etiket) */
+  --ribbon-h: 96px;           /* şerit toplam yüksekliği (grup etiketi dahil) */
+  --titlebar-h: 40px; --tabs-h: 36px; --status-h: 28px; --timeline-h: 48px;
+  --browser-w: 260px; --panel-w: 320px;
+  --stroke-icon: 1.75;        /* simge çizgi kalınlığı, 24 px ızgarada */
+
+  /* ---- Köşe / çizgi / gölge ---- */
+  --r-xs: 2px; --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-pill: 999px;
+  --bw: 1px; --bw-strong: 2px;
+  --focus-w: 2px; --focus-offset: 2px;
+  --shadow-sm: 0 1px 2px rgba(15,19,24,.12);
+  --shadow-md: 0 4px 12px rgba(15,19,24,.16), 0 1px 3px rgba(15,19,24,.10);
+  --shadow-lg: 0 16px 40px rgba(15,19,24,.28), 0 2px 6px rgba(15,19,24,.12);
+
+  /* ---- Z katmanları ---- */
+  --z-viewport: 0; --z-viewport-overlay: 10; --z-dock: 20; --z-menu: 100; --z-tooltip: 200; --z-modal: 300; --z-toast: 400; --z-busy: 500;
+
+  /* ---- Hareket ---- */
+  --dur-fast: 80ms; --dur-base: 140ms; --dur-slow: 220ms; --ease: cubic-bezier(.2, 0, 0, 1);
+
+  /* ================= RENKLER — AÇIK TEMA ================= */
+  /* Yüzeyler: sakin, hafif soğuk nötr. Pencere → panel → alan sırasıyla açılır. */
+  --bg-app: #E8EBEF;          /* çalışma alanı çevresi, şerit arkası */
+  --bg-chrome: #F4F5F7;       /* başlık, şerit, durum çubuğu, paneller */
+  --bg-surface: #FBFBFC;      /* kart, menü, modal gövdesi */
+  --bg-field: #FFFFFF;        /* giriş alanı */
+  --bg-sunken: #DFE3E8;       /* girinti: sekme çubuğu, tablo başlığı */
+  --bg-hover: #E6E9ED;
+  --bg-pressed: #D8DDE3;
+  --bg-title: #14202B;        /* başlık çubuğu (marka mürekkebi) */
+
+  --text: #171C23;
+  --text-muted: #4B5560;
+  --text-subtle: #58626E;
+  --text-disabled: #8D96A1;
+  --text-on-title: #E6EBF1;
+
+  --line: #D2D7DE;            /* ayırıcı çizgi (süs; bilgi taşımaz) */
+  --line-strong: #7B8591;     /* alan/düğme kenarı — bileşeni tanıtan çizgi, 3:1 üstü */
+
+  --accent: #1456A0;          /* birincil eylem, seçili, odak */
+  --accent-hover: #0F4888;
+  --accent-active: #0B3A70;
+  --accent-tint: #E1EBF7;     /* seçili satır/etkin araç zemini */
+  --accent-tint-strong: #C9DBF1;
+  --on-accent: #FFFFFF;
+  --focus: #0B5FD6;           /* odak halkası */
+  --focus-on-dark: #8DBCF5;   /* koyu başlık çubuğu içindeki odak halkası */
+
+  /* Durum renkleri — her biri: fg (metin/ikon), bg (zemin), bd (kenar), solid (dolgu), on-solid */
+  --err-fg: #B3261E;   --err-bg: #FBEAE8;   --err-bd: #E3A8A3;   --err-solid: #B3261E;   --err-on: #FFFFFF;
+  --warn-fg: #8A5300;  --warn-bg: #FFF2D6;  --warn-bd: #E5BE72;  --warn-solid: #F2A900;  --warn-on: #171C23;
+  --ok-fg: #1B6B3A;    --ok-bg: #E4F3E9;    --ok-bd: #9BCAAA;    --ok-solid: #1B6B3A;    --ok-on: #FFFFFF;
+  --info-fg: #2D4B66;  --info-bg: #E7EDF3;  --info-bd: #B3C3D2;  --info-solid: #2D4B66;  --info-on: #FFFFFF;
+  --unv-fg: #68399E;   --unv-bg: #F0EAF8;   --unv-bd: #BDA3DD;   --unv-solid: #68399E;   --unv-on: #FFFFFF;   /* DOĞRULANMADI */
+
+  /* ---- 3B görünüm ---- */
+  --vp-bg-top: #EEF1F5;  --vp-bg-bottom: #D5DBE3;
+  --vp-grid-minor: #CBD2DB; --vp-grid-major: #AAB4C1; --vp-axis-x: #C0392B; --vp-axis-y: #2E7D4F; --vp-axis-z: #1F5FB0;
+  --vp-body: #A4AFBD;     --vp-body-back: #8995A5;  --vp-edge: #1C2430;
+  --vp-hover: #0A7AB8;    --vp-sel: #1456A0;        --vp-sel-fill: rgba(20,86,160,.30);
+  --vp-plane: rgba(20,86,160,.07);
+  --vp-sk-free: #1F6FD1;      /* serbestlik kalmış (az tanımlı) */
+  --vp-sk-full: #14202B;      /* tam tanımlı */
+  --vp-sk-construct: #6B7A91; /* yapı geometrisi (kesikli) */
+  --vp-sk-error: #C2185B;     /* çelişkili/hatalı (kesikli + rozet) */
+  --vp-sk-sel: #B85600;       /* seçili sketch öğesi */
+  --vp-region: rgba(31,111,209,.14); --vp-region-sel: rgba(31,111,209,.34);
+  --vp-dim-bg: #FFFFFF; --vp-dim-fg: #0B4FB3; --vp-dim-bd: #8FB0E3;
+  --vp-toolpath-rapid: #7C8AA0; --vp-toolpath-cut: #C26A00; --vp-toolpath-lead: #2E7D4F; --vp-stock: rgba(120,132,148,.28);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.5);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.4);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.4);
+
+  --bg-app: #0F1318;
+  --bg-chrome: #1A2029;
+  --bg-surface: #212832;
+  --bg-field: #12171D;
+  --bg-sunken: #151A21;
+  --bg-hover: #2A323D;
+  --bg-pressed: #333C49;
+  --bg-title: #0A0E12;
+
+  --text: #E8ECF1;
+  --text-muted: #B4BDC8;
+  --text-subtle: #9AA4B0;
+  --text-disabled: #66707C;
+  --text-on-title: #E6EBF1;
+
+  --line: #2F3742;
+  --line-strong: #7D8794;
+
+  --accent: #5FA2EE;
+  --accent-hover: #7DB4F3;
+  --accent-active: #99C5F7;
+  --accent-tint: #1B2F4A;
+  --accent-tint-strong: #254468;
+  --on-accent: #0A1A2E;
+  --focus: #8DBCF5;
+  --focus-on-dark: #8DBCF5;
+
+  --err-fg: #FF8F86;   --err-bg: #3A1A1A;   --err-bd: #7A3A37;   --err-solid: #E5534B;   --err-on: #14080A;
+  --warn-fg: #F5C04D;  --warn-bg: #36290D;  --warn-bd: #7A5E1D;  --warn-solid: #F2A900;  --warn-on: #171C23;
+  --ok-fg: #6FD08C;    --ok-bg: #12301E;    --ok-bd: #2F6A45;    --ok-solid: #4CB36B;    --ok-on: #07140C;
+  --info-fg: #A9C4DD;  --info-bg: #1A2733;  --info-bd: #3C566E;  --info-solid: #A9C4DD;  --info-on: #0F1A24;
+  --unv-fg: #C7A8F2;   --unv-bg: #2A1F3D;   --unv-bd: #6C4F99;   --unv-solid: #B28FE8;   --unv-on: #160B28;
+
+  --vp-bg-top: #2A323D;  --vp-bg-bottom: #151A21;
+  --vp-grid-minor: #313A47; --vp-grid-major: #475262; --vp-axis-x: #E5675A; --vp-axis-y: #5CC083; --vp-axis-z: #6AA6EA;
+  --vp-body: #8E9BAC;     --vp-body-back: #6E7B8C;  --vp-edge: #0B0F14;
+  --vp-hover: #4FC3F0;    --vp-sel: #6AAEF5;        --vp-sel-fill: rgba(106,174,245,.34);
+  --vp-plane: rgba(106,174,245,.08);
+  --vp-sk-free: #5FA2EE;
+  --vp-sk-full: #E8ECF1;
+  --vp-sk-construct: #8793A6;
+  --vp-sk-error: #FF6B62;
+  --vp-sk-sel: #FFA033;
+  --vp-region: rgba(95,162,238,.16); --vp-region-sel: rgba(95,162,238,.38);
+  --vp-dim-bg: #1A2029; --vp-dim-fg: #9CC4F5; --vp-dim-bd: #3F6396;
+  --vp-toolpath-rapid: #8793A6; --vp-toolpath-cut: #F0A04B; --vp-toolpath-lead: #5CC083; --vp-stock: rgba(160,172,188,.22);
+}
+
+/* Büyük yoğunluk: eldivenle ve uzaktan kullanım. Yalnız boyutlar değişir, düzen aynı kalır. */
+[data-density="large"] {
+  --fs-xs: 13px; --fs-sm: 15px; --fs-md: 16px; --fs-lg: 18px; --fs-xl: 22px; --fs-2xl: 32px;
+  --ctl-h: 40px; --ctl-h-sm: 36px; --icon: 24px; --icon-tool: 28px;
+  --tool-w: 84px; --tool-h: 84px; --ribbon-h: 120px;
+  --titlebar-h: 44px; --tabs-h: 44px; --status-h: 32px; --timeline-h: 56px;
+  --browser-w: 300px; --panel-w: 360px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0.01ms; --dur-base: 0.01ms; --dur-slow: 0.01ms; }
+}
