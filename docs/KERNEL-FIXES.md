@@ -85,3 +85,30 @@ Aynı makine, Node 22, `node --expose-gc test/models/perf.mjs` (önce: düzeltme
 
 Sonra: 60→150 turda +1,4 MB (≈0,015 MB/tur); 300 tur denemesinde 60→300 +4 MB ve WASM belleği 100 MB'de sabit (önce 240. turdan sonra 144 MB'ye büyüyordu). İlk 30 turdaki +28 MB tek seferlik ısınmadır (önceden ayrılmış 100 MB WASM yığınının sayfalarına ilk dokunuş + WASM JIT kademesi); sonra düz. Hedef "<20 MB / 150 tur" kararlı durumda sağlanıyor, soğuk başlangıçtan ölçülünce sağlanmıyor (+40 MB, ısınma dahil).
 Kök nedenler (F-20) ve WASM yığın kullanımı ölçüm yöntemi: 64 KB bloklarla bellek büyüyene dek ayırıp boş alanı sayma (geçici betik); delik özelliği önce ≈36 KB/tur, flanş ≈250 KB/tur → sonra ölçüm gürültüsü içinde (≤0).
+
+## 4. Test sayıları (önce → sonra)
+
+| Takım | Önce | Sonra |
+|---|---|---|
+| `node test/kernel.test.mjs` | 65 geçti / 0 kaldı | 104 / 0 (yeni: bulgu denetimleri, reset, elips/spline segmentleri) |
+| `node test/models/run-all.mjs` | 1061 denetim, 994 / **67 kaldı** (param-random N=15) | **1282 denetim, 1282 / 0** (param-random N=40, yeni `naming.mjs`) |
+| Parametre taraması (param-sweep 175 + param-random 280 denenen / 250 geçerli) | sessiz yanlış bağlanma 0 (ama F-01 senaryosunda yanlış) | doğru 170 + 249; açık ret 3 + 2 beklenen + 1; **sessiz yanlış bağlanma 0**, yanlış hacim 0 |
+| `naming.mjs` (yeni) | — | 52 / 0; senaryo özeti doğru 24, açık ret 3, sessiz yanlış 0 |
+| Güvenlik PoC: poc_kernel P2 / poc_dos_pattern / poc_corrupt_import | açık | engellendi: B=8000 doğru / 0,7 s'de `pattern.too_many` / tüm bozuk dosyalar RED, istisna yok |
+
+**Test beklentisi değiştirilen vakalar (spec gereği) ve "bekleniyor" işaretleri:**
+- edge-cases V03, V04, V12, V16, V24, H07: ölçü 1e-3…1e5 mm dışı artık `value.out_of_range` (eski test "geçmeli" diyordu); sınır içi karşılıkları eklendi (V12b, V16b, V24b, H07b). B10 (aynı kutuyu birleştir): `op.no_effect`. F19: gerçekten bozuk Ref (ad yok) + F19b sahte ad + F19c adı doğru/ipucu bozuk → ada göre doğru kenar. D09: test kurgusundaki `features:{}` istisnası düzeltildi.
+- feature-geo MR3/PT1/PT2: gövde dışına düşen ya da kendine yansıyan örnek artık açık hata (`pattern.no_effect`/`op.no_effect`); PT1b ile tüm örnekleri plakada olan dairesel desen ve konumlar ayrıca doğrulanıyor.
+- param-sweep g "bastır: tw0": kule yokken pilot delik havaya delinir → beklenen ret (`hole.no_material`).
+- perf.mjs dairesel desen: kaynak delik plaka içinde bir daireye alındı.
+- **BEKLENİYOR (ayrı iş, silinmedi):** edge-cases V31, V32, V35 — F-15 (`src/shared/expr.js`, bu işin sahipliği dışında). F-04'e bağlı testler artık geçiyor (profiles.js başka ajanca yenilendi), işaret gerekmedi.
+
+`npm run test:all`: i18n 27/0, security, kernel 104/0, solver, build, sketcher.test.py 140/0, electron 59/0 geçti; **app.test.py** G bölümünde ("Orta nokta" kısıt düğmesi tıklaması, `#toolbar button[data-act="c-midpoint"]` 30 s zaman aşımı) düştü — sketcher araç çubuğunun yeni açılır grupları (başka ajan); çekirdeğe bağlı A–F bölümleri (yuvarlatma/kabuk seçimi, ölçüm, delik verisi, yüz üstü sketch, kesme) geçti. Ref biçim değişikliği için app.test.py'de uyarlama gerekmedi.
+
+## 5. Bilinen sınırlar ve doğrulanamayanlar
+
+- Adlandırma kapsamı: örnek parçaların (a–g) son gövdelerinde tüm yüzler ve dejenere olmayan tüm kenarlar adlı (naming.mjs N6). Adsız kalabilenler: koni ucu gibi dejenere kenarlar; geçmiş vermeyen ve geometrik yedeğin tek aday bulamadığı süpürme yüzleri; kaynak varlığı bulunamayan profil kenarları. Bunlar seçilirse describe `name:null` + `nameError` döner ve özellik `ref.unnamed` ile reddedilir.
+- Sketch varlık kimliği yeniden kullanımı (arayüz) — bkz. bölüm 1; tür değişmeden aynı komşulukta yeniden çizilen varlık "aynı" sayılır.
+- Profil dizini seçimi (`profiles:[i]`) findRegions sırasına bağlı (arayüz işi).
+- STL içe aktarma ≈1 s / 1000 üçgen (dikiş + geçerlilik); 50 000 üçgen üstü reddedilir. part-h süresi 16 s → ~110 s (eskiden STL içe aktarma hiç çalışmıyordu).
+- Gerçek dış CAD STEP/STL dosyaları, Windows/Electron paketi ve uzun (binlerce tur) bellek davranışı denenmedi. Worker yeniden başlatma yolu yalnız çekirdek `reset()` eşdeğeriyle sınandı; worker'ın kendisi (Vite `?url` içe aktarması nedeniyle) Node'da koşturulamadı.

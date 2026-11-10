@@ -1,20 +1,18 @@
 {
  "src": "src",
- "at": "2026-11-10T10:27:49.549Z",
+ "at": "2026-11-10T10:58:34.634Z",
  "files": [
   {
    "file": "part-a.mjs",
    "code": 0,
    "sig": null,
-   "secs": 1.3,
+   "secs": 2.1,
    "results": [
     {
      "name": "a-flans",
-     "pass": 19,
-     "fail": 1,
-     "fails": [
-      "A-holes: 6 cıvata deliği konumunun tamamı holes[] içinde olmalı; eksik 5/6 (holes[] 3 girdi: bore:1, bolt:1, pat:1 count=5)"
-     ],
+     "pass": 20,
+     "fail": 0,
+     "fails": [],
      "info": {
       "nFaces": 21,
       "nEdges": 45,
@@ -35,7 +33,7 @@
    "file": "part-b.mjs",
    "code": 0,
    "sig": null,
-   "secs": 2.1,
+   "secs": 0.9,
    "results": [
     {
      "name": "b-yumusak-cene",
@@ -56,7 +54,7 @@
    "file": "part-c.mjs",
    "code": 0,
    "sig": null,
-   "secs": 3.6,
+   "secs": 1.4,
    "results": [
     {
      "name": "c-ayna-adaptoru",
@@ -77,15 +75,13 @@
    "file": "part-d.mjs",
    "code": 0,
    "sig": null,
-   "secs": 3.5,
+   "secs": 1.8,
    "results": [
     {
      "name": "d-cepli-adali-plaka",
-     "pass": 21,
-     "fail": 1,
-     "fails": [
-      "D-holes: 4 köşe deliği konumunun tamamı holes[] içinde olmalı; eksik 3/4"
-     ],
+     "pass": 22,
+     "fail": 0,
+     "fails": [],
      "info": {
       "nFaces": 36,
       "nEdges": 84,
@@ -100,7 +96,7 @@
    "file": "part-e.mjs",
    "code": 0,
    "sig": null,
-   "secs": 2.1,
+   "secs": 1.5,
    "results": [
     {
      "name": "e-kademeli-mil",
@@ -121,7 +117,7 @@
    "file": "part-f.mjs",
    "code": 0,
    "sig": null,
-   "secs": 1.6,
+   "secs": 2.3,
    "results": [
     {
      "name": "f-l-braket",
@@ -135,7 +131,7 @@
       "expVolume": 76544.1594462251,
       "f-shell-düz-hacim": 38574.21237390821,
       "f-shell-düz-beklenen": 38574.21237390821,
-      "f-shell-tam-hacim": 42076.48802087188
+      "f-shell-tam-hacim": 42076.48802087189
      }
     }
    ],
@@ -145,7 +141,7 @@
    "file": "part-g.mjs",
    "code": 0,
    "sig": null,
-   "secs": 2,
+   "secs": 2.7,
    "results": [
     {
      "name": "g-kutu-govde",
@@ -155,7 +151,7 @@
      "info": {
       "ÖNCE: nFaces": 44,
       "ÖNCE: nEdges": 104,
-      "ÖNCE: volume": 39554.858836506515,
+      "ÖNCE: volume": 39554.858836506486,
       "ÖNCE: expVolume": 39554.85883650648,
       "g-ÖNCE-SONRA-hacim-farkı": 521.911666617445,
       "g-fark-beklenen": -521.9116666174123,
@@ -172,7 +168,7 @@
    "file": "part-h.mjs",
    "code": 0,
    "sig": null,
-   "secs": 17.4,
+   "secs": 111.4,
    "results": [
     {
      "name": "h-step-dongusu",
@@ -181,19 +177,19 @@
      "fails": [],
      "info": {
       "a-flans: stl-hacim-hatası": -0.00008927749314274953,
-      "a-flans: stl-içe-alma": "ok:false",
+      "a-flans: stl-içe-alma": "ok bodies=1 vol=170361.91486063827",
       "b-yumusak-cene: stl-hacim-hatası": 0.000010337581132759543,
-      "b-yumusak-cene: stl-içe-alma": "ok:false",
+      "b-yumusak-cene: stl-içe-alma": "ok bodies=1 vol=178202.82189558758",
       "c-ayna-adaptoru: stl-hacim-hatası": -0.00008706280065763961,
-      "c-ayna-adaptoru: stl-içe-alma": "ok:false",
-      "d-cepli-adali-plaka: stl-hacim-hatası": -0.000016117557928863108,
-      "d-cepli-adali-plaka: stl-içe-alma": "ok:false",
+      "c-ayna-adaptoru: stl-içe-alma": "ok bodies=1 vol=316244.702373647",
+      "d-cepli-adali-plaka: stl-hacim-hatası": -0.00001611755642946258,
+      "d-cepli-adali-plaka: stl-içe-alma": "ok bodies=1 vol=337112.8465938934",
       "e-kademeli-mil: stl-hacim-hatası": -0.00036927190669681974,
-      "e-kademeli-mil: stl-içe-alma": "ok:false",
+      "e-kademeli-mil: stl-içe-alma": "ok bodies=1 vol=148870.7013107125",
       "f-l-braket: stl-hacim-hatası": 0.000009828006816270523,
-      "f-l-braket: stl-içe-alma": "ok:false",
-      "g-kutu-govde: stl-hacim-hatası": -0.00008267668158780183,
-      "g-kutu-govde: stl-içe-alma": "ok:false"
+      "f-l-braket: stl-içe-alma": "ok bodies=1 vol=76544.91172274582",
+      "g-kutu-govde: stl-hacim-hatası": -0.0000826766815870661,
+      "g-kutu-govde: stl-içe-alma": "ok bodies=1 vol=39551.588572037006"
      }
     }
    ],
@@ -203,21 +199,18 @@
    "file": "param-sweep.mjs",
    "code": 0,
    "sig": null,
-   "secs": 61.6,
+   "secs": 51.7,
    "results": [
     {
      "name": "param-tarama",
      "pass": 180,
-     "fail": 1,
-     "fails": [
-      "g-kutu-govde [bastır: tw0 (kule)] taze belge başarısız: ok:false pil"
-     ],
+     "fail": 0,
+     "fails": [],
      "info": {
       "param-sınıf-sayıları": {
        "DOĞRU": 170,
-       "REDDEDİLDİ(beklenen)": 1,
-       "REDDEDİLDİ(beklenmedi)": 3,
-       "REDDEDİLDİ": 1
+       "REDDEDİLDİ(beklenen)": 2,
+       "REDDEDİLDİ(beklenmedi)": 3
       },
       "param-satırlar": [
        {
@@ -2967,8 +2960,8 @@
        },
        {
         "p": "g-kutu-govde",
-        "v": "bastır: tw0 (kule)",
-        "cls": "REDDEDİLDİ",
+        "v": "bastır: tw0 (kule) → pilot delik havada: F-08 hole.no_material",
+        "cls": "REDDEDİLDİ(beklenen)",
         "stale": "ok:false",
         "fresh": "ok:false",
         "sf": [
@@ -3010,7 +3003,7 @@
    "file": "param-random.mjs",
    "code": 0,
    "sig": null,
-   "secs": 88.1,
+   "secs": 80.3,
    "results": [
     {
      "name": "param-rastgele",
@@ -3092,17 +3085,13 @@
    "file": "ref-adversarial.mjs",
    "code": 0,
    "sig": null,
-   "secs": 3.1,
+   "secs": 3.8,
    "results": [
     {
      "name": "ref-kotu-senaryo",
-     "pass": 21,
-     "fail": 3,
-     "fails": [
-      "R1: sketch varlık sırası 1 kaydırıldı (aynı geometri): yuvarlatılan köşe değişmemeli; yuvarlatılan köşeler [(100,0),(0,0),(0,60),(100,60)] = false,false,false,true",
-      "R1: sketch varlık sırası 2 kaydırıldı (aynı geometri): yuvarlatılan köşe değişmemeli; yuvarlatılan köşeler [(100,0),(0,0),(0,60),(100,60)] = false,false,true,false",
-      "R1: sketch varlık sırası 3 kaydırıldı (aynı geometri): yuvarlatılan köşe değişmemeli; yuvarlatılan köşeler [(100,0),(0,0),(0,60),(100,60)] = false,true,false,false"
-     ],
+     "pass": 24,
+     "fail": 0,
+     "fails": [],
      "info": {
       "R3-flip": {
        "chamferedTop": false,
@@ -3146,61 +3135,51 @@
    "tail": ""
   },
   {
+   "file": "naming.mjs",
+   "code": 0,
+   "sig": null,
+   "secs": 4.7,
+   "results": [
+    {
+     "name": "adlandirma",
+     "pass": 52,
+     "fail": 0,
+     "fails": [],
+     "info": {
+      "adlandırma-özet": {
+       "doğru": 24,
+       "reddedildi": 3,
+       "sessizYanlış": 0
+      }
+     }
+    }
+   ],
+   "tail": ""
+  },
+  {
    "file": "edge-cases.mjs",
    "code": 0,
    "sig": null,
-   "secs": 105.4,
+   "secs": 8.6,
    "results": [
     {
      "name": "sinir-ve-hata",
-     "pass": 180,
-     "fail": 36,
-     "fails": [
-      "V16 [değer] küre çap 1e6: KİLİTLENME(zaman aşımı) süreç sonlandı code=null sig=SIGKILL",
-      "V31 [değer] ifade -2^2 (beklenen -4 → mesafe -4): YANLIŞ-SONUÇ -2^2 = +4 olarak hesaplandı (gövde z üstü 4); doğrusu -4",
-      "V32 [değer] ifade max(10,5) (virgül ondalık sanılıyor): YANLIŞ-SONUÇ max(10,5) → 10.5 (beklenen 10; ya hata verilmeli ya 10)",
-      "V33 [değer] ifade tan(90): SESSİZ-HATA ok:true döndü, gövde 1, hacim 97987436119172220000",
-      "V35 [değer] parametre adı çakışması pi: YANLIŞ-SONUÇ parametre \"pi\"=3 tanımlandı ama kullanıldığında 3.141592653589793 (sessizce yok sayıldı)",
-      "S02 [sketch] asimetrik papyon profil: YANLIŞ-SONUÇ e1: BRepCheck geçersiz",
-      "S09 [sketch] üst üste iki aynı dikdörtgen (yinelenen çizgiler): YANLIŞ-SONUÇ geçerli girdi ok:false ile reddedildi: e1",
-      "S11 [sketch] dikdörtgene içten teğet daire (delik kenara değiyor), yalnız delikli bölge: YANLIŞ-SONUÇ e1: BRepCheck geçersiz",
-      "S16 [sketch] extrude profiller: [] (boş liste): İSTİSNA TypeError: Cannot read properties of null (reading 'boundingBox') |     at Kernel.rebuild (file:///tmp/snap/src/kernel/kernel.js:332:28)",
-      "S21 [sketch] sketch düzlemi bilinmeyen ad: SESSİZ-HATA ok:true döndü, gövde 1, hacim 60000",
-      "S28 [sketch] çokgende 1e-6 uzunluklu kenar: YANLIŞ-SONUÇ e1: BRepCheck geçersiz; hacim 916.6666666666665 beklenen 1000",
-      "R01 [revolve] açı 400: YANLIŞ-SONUÇ açı 400: hacim 73.30382858376186 beklenen 659.7344572538566",
-      "R04 [revolve] açı 0: SESSİZ-HATA ok:true döndü, gövde 1, hacim 0",
-      "R17 [revolve] revolve profili [] boş: İSTİSNA TypeError: Cannot read properties of null (reading 'boundingBox') |     at Kernel.rebuild (file:///tmp/snap/src/kernel/kernel.js:332:28)",
-      "B03 [boolean] kes: takım bbox içinde ama gövdeye değmiyor (L oyuğu): SESSİZ-HATA ok:true döndü, gövde 1, hacim 2999.999999999999",
-      "B04 [boolean] kes: L-parça boşluğunda takım (sessiz no-op?): SESSİZ-HATA ok:true döndü, gövde 1, hacim 11999.999999999996",
-      "B05 [boolean] kes: takım yalnız bir yüzle değiyor (hacim ortak yok): SESSİZ-HATA ok:true döndü, gövde 1, hacim 999.9999999999998",
-      "B13 [boolean] kesişim: ayrık bbox çakışıyor ama kesişim boş: SESSİZ-HATA ok:true döndü, gövde 0, hacim undefined",
-      "B14 [boolean] kesişim: yalnız yüz paylaşan: SESSİZ-HATA ok:true döndü, gövde 0, hacim undefined",
-      "B17 [boolean] combine: hedef = takım (birleştir): YANLIŞ-SONUÇ tüm özellikler ok:true ama hiç gövde yok; hacim undefined beklenen 1000",
-      "B20 [boolean] combine: bilinmeyen op (\"xor\") → sessizce birleştirir: SESSİZ-HATA ok:true döndü, gövde 1, hacim 1500",
-      "B21 [boolean] extrude op bilinmeyen (\"subtract\") → : SESSİZ-HATA ok:true döndü, gövde 1, hacim 249.99999999999994",
-      "H06 [delik] derinlik -5: SESSİZ-HATA ok:true döndü, gövde 1, hacim 3999.999999999999",
-      "H09 [delik] havşa derinliği > delik derinliği (kör): SESSİZ-HATA ok:true döndü, gövde 1, hacim 3592.842382189657",
-      "H10 [delik] konik havşa açısı 0 / 180: SESSİZ-HATA ok:true döndü, gövde 1, hacim 3874.3362938564082",
-      "H21 [delik] delik ters (flip) → havaya doğru: SESSİZ-HATA ok:true döndü, gövde 1, hacim 3999.999999999999",
-      "P16 [desen] adet 5000 (süre): KİLİTLENME(zaman aşımı) süreç sonlandı code=null sig=SIGKILL",
-      "H22 [delik] L-parçanın boş köşesine delik (malzeme yok): ok:true + holes[] hayalet delik: SESSİZ-HATA ok:true döndü, gövde 1, hacim 11999.999999999996",
-      "H23 [delik] iki noktadan biri malzemede, biri havada: YANLIŞ-SONUÇ holes[] havadaki delik konumunu da içeriyor: [[[5,5,10],[30,30,10]]]",
-      "I14 [içe aktarma] geçerli STEP: sayılar bozulmuş (yarıçap 0): YANLIŞ-SONUÇ imp1: ağ boş ya da NaN",
-      "I17 [içe aktarma] geçerli STL (kendi dışa aktarımı) içe alınır: YANLIŞ-SONUÇ geçerli girdi ok:false ile reddedildi: imp1",
-      "D05 [belge] özellik listesinde null: İSTİSNA TypeError: Cannot read properties of null (reading 'type') |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:295:13)",
-      "D06 [belge] features yok: İSTİSNA TypeError: doc.features is not iterable |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)",
-      "D08 [belge] belge null: İSTİSNA TypeError: Cannot read properties of null (reading 'features') |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)",
-      "D09 [belge] features dizi değil: İSTİSNA TypeError: doc.features is not iterable |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)",
-      "D21 [belge] move: kopya + büyük döndürme: İSTİSNA Error: This object has been deleted |     at get wrapped (file:///home/claude/atolyecad/node_modules/replicad/dist/casting-BnJHCnOw.js:34:37)"
-     ],
+     "pass": 219,
+     "fail": 0,
+     "fails": [],
      "info": {
-      "vaka-sayısı": 216,
+      "bekleniyor-ayri-is": [
+       "V31: F-15 expr.js (ayrı iş) — YANLIŞ-SONUÇ -2^2 = +4 olarak hesaplandı (gövde z üstü 4); doğrusu -4",
+       "V32: F-15 expr.js (ayrı iş) — YANLIŞ-SONUÇ max(10,5) → 10.5 (beklenen 10; ya hata verilmeli ya 10)",
+       "V35: F-15 expr.js (ayrı iş) — YANLIŞ-SONUÇ parametre \"pi\"=3 tanımlandı ama kullanıldığında 3.141592653589793 (sessizce yok sayıldı)"
+      ],
+      "vaka-sayısı": 222,
       "vaka-sonuçları": [
        {
         "id": "V01",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 13,
+        "ms": 25,
         "f": [
          "e1"
         ]
@@ -3209,28 +3188,32 @@
         "id": "V02",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 19,
+        "ms": 45,
         "f": []
        },
        {
         "id": "V03",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 4,
-        "f": []
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "V04",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 5,
-        "f": []
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "V05",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3239,7 +3222,7 @@
         "id": "V06",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3248,7 +3231,7 @@
         "id": "V07",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3257,7 +3240,7 @@
         "id": "V08",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3265,9 +3248,11 @@
        {
         "id": "V09",
         "g": "değer",
-        "v": "GEÇTİ",
-        "ms": 4,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "V10",
@@ -3291,15 +3276,26 @@
         "id": "V12",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "V12b",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 14,
         "f": []
        },
        {
         "id": "V13",
         "g": "değer",
-        "v": "GEÇTİ",
-        "ms": 3,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
        },
        {
         "id": "V14",
@@ -3313,21 +3309,33 @@
        {
         "id": "V15",
         "g": "değer",
-        "v": "GEÇTİ",
-        "ms": 11,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
        },
        {
         "id": "V16",
         "g": "değer",
-        "v": "KİLİTLENME(zaman aşımı)",
-        "d": "süreç sonlandı code=null sig=SIGKILL"
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
+       },
+       {
+        "id": "V16b",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 101,
+        "f": []
        },
        {
         "id": "V17",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "b1"
         ]
@@ -3353,15 +3361,17 @@
        {
         "id": "V20",
         "g": "değer",
-        "v": "GEÇTİ",
-        "ms": 23,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "b1"
+        ]
        },
        {
         "id": "V21",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3378,22 +3388,33 @@
        {
         "id": "V23",
         "g": "değer",
-        "v": "GEÇTİ",
-        "ms": 8,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 5,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "V24",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 3654,
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
+       },
+       {
+        "id": "V24b",
+        "g": "değer",
+        "v": "GEÇTİ",
+        "ms": 10,
         "f": []
        },
        {
         "id": "V25",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 1,
         "f": [
          "e1"
         ]
@@ -3402,7 +3423,7 @@
         "id": "V26",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3419,15 +3440,17 @@
        {
         "id": "V28",
         "g": "değer",
-        "v": "GEÇTİ",
-        "ms": 4,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "V29",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3436,7 +3459,7 @@
         "id": "V30",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3445,7 +3468,7 @@
         "id": "V31",
         "g": "değer",
         "v": "YANLIŞ-SONUÇ",
-        "ms": 11,
+        "ms": 22,
         "d": "-2^2 = +4 olarak hesaplandı (gövde z üstü 4); doğrusu -4",
         "f": []
        },
@@ -3453,23 +3476,24 @@
         "id": "V32",
         "g": "değer",
         "v": "YANLIŞ-SONUÇ",
-        "ms": 3,
+        "ms": 8,
         "d": "max(10,5) → 10.5 (beklenen 10; ya hata verilmeli ya 10)",
         "f": []
        },
        {
         "id": "V33",
         "g": "değer",
-        "v": "SESSİZ-HATA",
-        "ms": 9,
-        "d": "ok:true döndü, gövde 1, hacim 97987436119172220000",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "V34",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3478,25 +3502,22 @@
         "id": "V35",
         "g": "değer",
         "v": "YANLIŞ-SONUÇ",
-        "ms": 6,
+        "ms": 28,
         "d": "parametre \"pi\"=3 tanımlandı ama kullanıldığında 3.141592653589793 (sessizce yok sayıldı)",
         "f": []
        },
        {
         "id": "S01",
         "g": "sketch",
-        "v": "GEÇTİ(ok:false)",
-        "ms": 0,
-        "f": [
-         "e1"
-        ]
+        "v": "GEÇTİ",
+        "ms": 88,
+        "f": []
        },
        {
         "id": "S02",
         "g": "sketch",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 8,
-        "d": "e1: BRepCheck geçersiz",
+        "v": "GEÇTİ",
+        "ms": 43,
         "f": []
        },
        {
@@ -3530,82 +3551,87 @@
         "id": "S06",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 14,
         "f": []
        },
        {
         "id": "S07",
         "g": "sketch",
-        "v": "GEÇTİ",
-        "ms": 2,
-        "f": []
-       },
-       {
-        "id": "S08",
-        "g": "sketch",
-        "v": "GEÇTİ",
-        "ms": 65,
-        "f": []
-       },
-       {
-        "id": "S09",
-        "g": "sketch",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 0,
-        "d": "geçerli girdi ok:false ile reddedildi: e1",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 1,
+        "d": "reddedildi: e1",
         "f": [
          "e1"
         ]
        },
        {
-        "id": "S10",
+        "id": "S08",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 31,
+        "ms": 21,
         "f": []
+       },
+       {
+        "id": "S09",
+        "g": "sketch",
+        "v": "GEÇTİ",
+        "ms": 14,
+        "f": []
+       },
+       {
+        "id": "S10",
+        "g": "sketch",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 12,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "S11",
         "g": "sketch",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 11,
-        "d": "e1: BRepCheck geçersiz",
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 3,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "S12",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 18,
+        "ms": 38,
         "f": []
        },
        {
         "id": "S13",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 48,
+        "ms": 165,
         "f": []
        },
        {
         "id": "S14",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 50,
         "f": []
        },
        {
         "id": "S15",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 34,
+        "ms": 83,
         "f": []
        },
        {
         "id": "S16",
         "g": "sketch",
-        "v": "İSTİSNA",
+        "v": "GEÇTİ",
         "ms": 0,
-        "d": "TypeError: Cannot read properties of null (reading 'boundingBox') |     at Kernel.rebuild (file:///tmp/snap/src/kernel/kernel.js:332:28)"
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "S17",
@@ -3620,7 +3646,7 @@
         "id": "S18",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 16,
+        "ms": 8,
         "f": []
        },
        {
@@ -3635,23 +3661,28 @@
        {
         "id": "S20",
         "g": "sketch",
-        "v": "GEÇTİ",
-        "ms": 2,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "s1",
+         "e1"
+        ]
        },
        {
         "id": "S21",
         "g": "sketch",
-        "v": "SESSİZ-HATA",
-        "ms": 2,
-        "d": "ok:true döndü, gövde 1, hacim 60000",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "s1",
+         "e1"
+        ]
        },
        {
         "id": "S22",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 3,
         "f": [
          "s1",
          "e1"
@@ -3682,6 +3713,7 @@
         "v": "GEÇTİ",
         "ms": 0,
         "f": [
+         "s1",
          "e1"
         ]
        },
@@ -3689,7 +3721,7 @@
         "id": "S26",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 8,
         "f": []
        },
        {
@@ -3704,53 +3736,60 @@
        {
         "id": "S28",
         "g": "sketch",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 7,
-        "d": "e1: BRepCheck geçersiz; hacim 916.6666666666665 beklenen 1000",
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 1,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "S29",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": []
        },
        {
         "id": "R01",
         "g": "revolve",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 5,
-        "d": "açı 400: hacim 73.30382858376186 beklenen 659.7344572538566",
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 1,
+        "d": "reddedildi: r1",
+        "f": [
+         "r1"
+        ]
        },
        {
         "id": "R02",
         "g": "revolve",
-        "v": "GEÇTİ",
-        "ms": 6,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "d": "reddedildi: r1",
+        "f": [
+         "r1"
+        ]
        },
        {
         "id": "R03",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 7,
         "f": []
        },
        {
         "id": "R04",
         "g": "revolve",
-        "v": "SESSİZ-HATA",
-        "ms": 3,
-        "d": "ok:true döndü, gövde 1, hacim 0",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 0,
+        "f": [
+         "r1"
+        ]
        },
        {
         "id": "R05",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": []
        },
        {
@@ -3766,21 +3805,21 @@
         "id": "R07",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 6,
+        "ms": 8,
         "f": []
        },
        {
         "id": "R08",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": []
        },
        {
         "id": "R09",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 6,
+        "ms": 16,
         "f": []
        },
        {
@@ -3796,14 +3835,14 @@
         "id": "R11",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 8,
         "f": []
        },
        {
         "id": "R12",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "r1"
         ]
@@ -3820,15 +3859,17 @@
        {
         "id": "R14",
         "g": "revolve",
-        "v": "GEÇTİ",
-        "ms": 3,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "r1"
+        ]
        },
        {
         "id": "R15",
         "g": "revolve",
         "v": "GEÇTİ(ok:false)",
-        "ms": 0,
+        "ms": 1,
         "f": [
          "r1"
         ]
@@ -3845,89 +3886,14 @@
        {
         "id": "R17",
         "g": "revolve",
-        "v": "İSTİSNA",
+        "v": "GEÇTİ",
         "ms": 0,
-        "d": "TypeError: Cannot read properties of null (reading 'boundingBox') |     at Kernel.rebuild (file:///tmp/snap/src/kernel/kernel.js:332:28)"
+        "f": [
+         "r1"
+        ]
        },
        {
         "id": "B01",
-        "g": "boolean",
-        "v": "GEÇTİ",
-        "ms": 5,
-        "f": [
-         "c"
-        ]
-       },
-       {
-        "id": "B02",
-        "g": "boolean",
-        "v": "GEÇTİ",
-        "ms": 6,
-        "f": [
-         "c"
-        ]
-       },
-       {
-        "id": "B03",
-        "g": "boolean",
-        "v": "SESSİZ-HATA",
-        "ms": 23,
-        "d": "ok:true döndü, gövde 1, hacim 2999.999999999999",
-        "f": []
-       },
-       {
-        "id": "B04",
-        "g": "boolean",
-        "v": "SESSİZ-HATA",
-        "ms": 33,
-        "d": "ok:true döndü, gövde 1, hacim 11999.999999999996",
-        "f": []
-       },
-       {
-        "id": "B05",
-        "g": "boolean",
-        "v": "SESSİZ-HATA",
-        "ms": 9,
-        "d": "ok:true döndü, gövde 1, hacim 999.9999999999998",
-        "f": []
-       },
-       {
-        "id": "B06",
-        "g": "boolean",
-        "v": "GEÇTİ",
-        "ms": 11,
-        "f": []
-       },
-       {
-        "id": "B07",
-        "g": "boolean",
-        "v": "GEÇTİ",
-        "ms": 16,
-        "f": []
-       },
-       {
-        "id": "B08",
-        "g": "boolean",
-        "v": "GEÇTİ",
-        "ms": 10,
-        "f": []
-       },
-       {
-        "id": "B09",
-        "g": "boolean",
-        "v": "GEÇTİ",
-        "ms": 3,
-        "f": []
-       },
-       {
-        "id": "B10",
-        "g": "boolean",
-        "v": "GEÇTİ",
-        "ms": 11,
-        "f": []
-       },
-       {
-        "id": "B11",
         "g": "boolean",
         "v": "GEÇTİ",
         "ms": 14,
@@ -3936,33 +3902,117 @@
         ]
        },
        {
+        "id": "B02",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 4,
+        "f": [
+         "c"
+        ]
+       },
+       {
+        "id": "B03",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 49,
+        "f": [
+         "c2"
+        ]
+       },
+       {
+        "id": "B04",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 54,
+        "f": [
+         "c"
+        ]
+       },
+       {
+        "id": "B05",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 29,
+        "f": [
+         "c"
+        ]
+       },
+       {
+        "id": "B06",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 38,
+        "f": []
+       },
+       {
+        "id": "B07",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 24,
+        "f": []
+       },
+       {
+        "id": "B08",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 49,
+        "f": []
+       },
+       {
+        "id": "B09",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": []
+       },
+       {
+        "id": "B10",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 7,
+        "f": [
+         "c"
+        ]
+       },
+       {
+        "id": "B11",
+        "g": "boolean",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": [
+         "c"
+        ]
+       },
+       {
         "id": "B12",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 19,
+        "ms": 7,
         "f": []
        },
        {
         "id": "B13",
         "g": "boolean",
-        "v": "SESSİZ-HATA",
-        "ms": 36,
-        "d": "ok:true döndü, gövde 0, hacim undefined",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 22,
+        "f": [
+         "c"
+        ]
        },
        {
         "id": "B14",
         "g": "boolean",
-        "v": "SESSİZ-HATA",
-        "ms": 11,
-        "d": "ok:true döndü, gövde 0, hacim undefined",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 31,
+        "f": [
+         "c"
+        ]
        },
        {
         "id": "B15",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 24,
+        "ms": 38,
         "f": []
        },
        {
@@ -3977,16 +4027,18 @@
        {
         "id": "B17",
         "g": "boolean",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 2,
-        "d": "tüm özellikler ok:true ama hiç gövde yok; hacim undefined beklenen 1000",
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 4,
+        "d": "reddedildi: cm",
+        "f": [
+         "cm"
+        ]
        },
        {
         "id": "B18",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 4,
         "f": [
          "cm"
         ]
@@ -3995,7 +4047,7 @@
         "id": "B19",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 3,
         "f": [
          "cm"
         ]
@@ -4003,24 +4055,26 @@
        {
         "id": "B20",
         "g": "boolean",
-        "v": "SESSİZ-HATA",
-        "ms": 27,
-        "d": "ok:true döndü, gövde 1, hacim 1500",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": [
+         "cm"
+        ]
        },
        {
         "id": "B21",
         "g": "boolean",
-        "v": "SESSİZ-HATA",
-        "ms": 25,
-        "d": "ok:true döndü, gövde 1, hacim 249.99999999999994",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": [
+         "e1"
+        ]
        },
        {
         "id": "B22",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 5,
         "f": [
          "c"
         ]
@@ -4029,21 +4083,21 @@
         "id": "B23",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 49,
+        "ms": 25,
         "f": []
        },
        {
         "id": "B24",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 22,
+        "ms": 25,
         "f": []
        },
        {
         "id": "H01",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 3,
         "f": [
          "hh"
         ]
@@ -4052,7 +4106,7 @@
         "id": "H02",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 6,
         "f": [
          "hh"
         ]
@@ -4061,7 +4115,7 @@
         "id": "H03",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 6,
+        "ms": 3,
         "f": [
          "hh"
         ]
@@ -4069,12 +4123,57 @@
        {
         "id": "H04",
         "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 7,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 3,
+        "f": [
+         "hh"
+        ]
        },
        {
         "id": "H05",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H06",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H07",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 12,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H07b",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 11,
+        "f": []
+       },
+       {
+        "id": "H08",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H09",
         "g": "delik",
         "v": "GEÇTİ",
         "ms": 2,
@@ -4083,50 +4182,19 @@
         ]
        },
        {
-        "id": "H06",
-        "g": "delik",
-        "v": "SESSİZ-HATA",
-        "ms": 6,
-        "d": "ok:true döndü, gövde 1, hacim 3999.999999999999",
-        "f": []
-       },
-       {
-        "id": "H07",
+        "id": "H10",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 8,
-        "f": []
-       },
-       {
-        "id": "H08",
-        "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 3,
         "f": [
          "hh"
         ]
        },
        {
-        "id": "H09",
-        "g": "delik",
-        "v": "SESSİZ-HATA",
-        "ms": 20,
-        "d": "ok:true döndü, gövde 1, hacim 3592.842382189657",
-        "f": []
-       },
-       {
-        "id": "H10",
-        "g": "delik",
-        "v": "SESSİZ-HATA",
-        "ms": 10,
-        "d": "ok:true döndü, gövde 1, hacim 3874.3362938564082",
-        "f": []
-       },
-       {
         "id": "H11",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 3,
         "f": [
          "hh"
         ]
@@ -4144,14 +4212,14 @@
         "id": "H13",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 7,
+        "ms": 9,
         "f": []
        },
        {
         "id": "H14",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 3,
         "f": [
          "hh"
         ]
@@ -4160,7 +4228,7 @@
         "id": "H15",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 15,
+        "ms": 14,
         "f": []
        },
        {
@@ -4174,7 +4242,7 @@
         "id": "H17",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 8,
         "f": [
          "hh"
         ]
@@ -4183,7 +4251,7 @@
         "id": "H18",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 7,
         "f": [
          "hh"
         ]
@@ -4192,58 +4260,45 @@
         "id": "H19",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 9,
+        "ms": 10,
         "f": []
        },
        {
         "id": "H20",
         "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 10,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 2,
+        "f": [
+         "hh"
+        ]
        },
        {
         "id": "H21",
         "g": "delik",
-        "v": "SESSİZ-HATA",
-        "ms": 4,
-        "d": "ok:true döndü, gövde 1, hacim 3999.999999999999",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": [
+         "hh"
+        ]
        },
        {
         "id": "P01",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 7039,
+        "ms": 2011,
         "f": []
        },
        {
         "id": "P02",
         "g": "desen",
-        "v": "GEÇTİ",
-        "ms": 5717,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 136,
+        "f": [
+         "pt"
+        ]
        },
        {
         "id": "P03",
-        "g": "desen",
-        "v": "GEÇTİ",
-        "ms": 13,
-        "f": [
-         "pt"
-        ]
-       },
-       {
-        "id": "P04",
-        "g": "desen",
-        "v": "GEÇTİ",
-        "ms": 16,
-        "f": [
-         "pt"
-        ]
-       },
-       {
-        "id": "P05",
         "g": "desen",
         "v": "GEÇTİ",
         "ms": 12,
@@ -4252,17 +4307,37 @@
         ]
        },
        {
-        "id": "P06",
+        "id": "P04",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 16,
-        "f": []
+        "ms": 10,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P05",
+        "g": "desen",
+        "v": "GEÇTİ",
+        "ms": 17,
+        "f": [
+         "pt"
+        ]
+       },
+       {
+        "id": "P06",
+        "g": "desen",
+        "v": "GEÇTİ(ok:false)",
+        "ms": 17,
+        "f": [
+         "pt"
+        ]
        },
        {
         "id": "P07",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 9,
+        "ms": 15,
         "f": [
          "pt"
         ]
@@ -4271,7 +4346,7 @@
         "id": "P08",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 14,
         "f": [
          "pt"
         ]
@@ -4279,15 +4354,18 @@
        {
         "id": "P09",
         "g": "desen",
-        "v": "GEÇTİ",
-        "ms": 24,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 17,
+        "d": "reddedildi: pt",
+        "f": [
+         "pt"
+        ]
        },
        {
         "id": "P10",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 23,
         "f": [
          "pt"
         ]
@@ -4296,7 +4374,7 @@
         "id": "P11",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 13,
         "f": [
          "pt"
         ]
@@ -4304,15 +4382,17 @@
        {
         "id": "P12",
         "g": "desen",
-        "v": "GEÇTİ",
-        "ms": 18,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 13,
+        "f": [
+         "pt"
+        ]
        },
        {
         "id": "P13",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 13,
         "f": [
          "pt"
         ]
@@ -4321,37 +4401,44 @@
         "id": "P14",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 17,
+        "ms": 14,
         "f": []
        },
        {
         "id": "P15",
         "g": "desen",
-        "v": "GEÇTİ",
-        "ms": 13,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 10,
+        "f": [
+         "pt"
+        ]
        },
        {
         "id": "P16",
         "g": "desen",
-        "v": "KİLİTLENME(zaman aşımı)",
-        "d": "süreç sonlandı code=null sig=SIGKILL"
+        "v": "GEÇTİ(ok:false)",
+        "ms": 10,
+        "f": [
+         "pt"
+        ]
        },
        {
         "id": "H22",
         "g": "delik",
-        "v": "SESSİZ-HATA",
-        "ms": 300,
-        "d": "ok:true döndü, gövde 1, hacim 11999.999999999996",
-        "f": []
+        "v": "GEÇTİ",
+        "ms": 15,
+        "f": [
+         "hh"
+        ]
        },
        {
         "id": "H23",
         "g": "delik",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 179,
-        "d": "holes[] havadaki delik konumunu da içeriyor: [[[5,5,10],[30,30,10]]]",
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 29,
+        "f": [
+         "hh"
+        ]
        },
        {
         "id": "F01",
@@ -4375,7 +4462,7 @@
         "id": "F03",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 82,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4383,15 +4470,17 @@
        {
         "id": "F04",
         "g": "yuvarlatma",
-        "v": "GEÇTİ",
-        "ms": 63,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
        },
        {
         "id": "F05",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 19,
+        "ms": 17,
         "f": []
        },
        {
@@ -4416,7 +4505,7 @@
         "id": "F08",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4424,15 +4513,17 @@
        {
         "id": "F09",
         "g": "yuvarlatma",
-        "v": "GEÇTİ",
-        "ms": 18,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
        },
        {
         "id": "F10",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 6,
         "f": []
        },
        {
@@ -4457,7 +4548,7 @@
         "id": "F13",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 36,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4466,7 +4557,7 @@
         "id": "F14",
         "g": "kabuk",
         "v": "GEÇTİ(ok:false)",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4475,28 +4566,28 @@
         "id": "F15",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 50,
+        "ms": 46,
         "f": []
        },
        {
         "id": "F16",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 57,
+        "ms": 12,
         "f": []
        },
        {
         "id": "F17",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 68,
+        "ms": 10,
         "f": []
        },
        {
         "id": "F18",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 16,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4505,10 +4596,26 @@
         "id": "F19",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "ff"
         ]
+       },
+       {
+        "id": "F19b",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": [
+         "ff"
+        ]
+       },
+       {
+        "id": "F19c",
+        "g": "yuvarlatma",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": []
        },
        {
         "id": "F20",
@@ -4523,7 +4630,7 @@
         "id": "F21",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 19,
+        "ms": 5,
         "f": []
        },
        {
@@ -4539,7 +4646,7 @@
         "id": "F23",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 11,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4548,7 +4655,7 @@
         "id": "F24",
         "g": "yuvarlatma",
         "v": "GEÇTİ(ok:false)",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4565,28 +4672,21 @@
        {
         "id": "F26",
         "g": "yuvarlatma",
-        "v": "GEÇTİ",
-        "ms": 14,
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 0,
+        "f": [
+         "ff"
+        ]
        },
        {
         "id": "F27",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 15,
+        "ms": 4,
         "f": []
        },
        {
         "id": "I01",
-        "g": "içe aktarma",
-        "v": "GEÇTİ",
-        "ms": 27,
-        "f": [
-         "imp1"
-        ]
-       },
-       {
-        "id": "I02",
         "g": "içe aktarma",
         "v": "GEÇTİ",
         "ms": 0,
@@ -4595,10 +4695,19 @@
         ]
        },
        {
+        "id": "I02",
+        "g": "içe aktarma",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": [
+         "imp1"
+        ]
+       },
+       {
         "id": "I03",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 17,
         "f": [
          "imp1"
         ]
@@ -4634,7 +4743,7 @@
         "id": "I07",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "imp1"
         ]
@@ -4643,7 +4752,7 @@
         "id": "I08",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 0,
         "f": [
          "imp1"
         ]
@@ -4670,7 +4779,7 @@
         "id": "I11",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "imp1"
         ]
@@ -4679,7 +4788,7 @@
         "id": "I12",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 11,
+        "ms": 17,
         "f": [
          "imp1"
         ]
@@ -4688,22 +4797,23 @@
         "id": "I13",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 147,
+        "ms": 103,
         "f": []
        },
        {
         "id": "I14",
         "g": "içe aktarma",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 24,
-        "d": "imp1: ağ boş ya da NaN",
-        "f": []
+        "v": "GEÇTİ(ok:false)",
+        "ms": 46,
+        "f": [
+         "imp1"
+        ]
        },
        {
         "id": "I15",
         "g": "içe aktarma",
         "v": "GEÇTİ(ok:false)",
-        "ms": 3739,
+        "ms": 2671,
         "f": [
          "imp1"
         ]
@@ -4712,31 +4822,28 @@
         "id": "I16",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 20,
+        "ms": 9,
         "f": []
        },
        {
         "id": "I17",
         "g": "içe aktarma",
-        "v": "YANLIŞ-SONUÇ",
-        "ms": 11,
-        "d": "geçerli girdi ok:false ile reddedildi: imp1",
-        "f": [
-         "imp1"
-        ]
+        "v": "GEÇTİ",
+        "ms": 16,
+        "f": []
        },
        {
         "id": "I18",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 35,
+        "ms": 45,
         "f": []
        },
        {
         "id": "I19",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 21,
+        "ms": 11,
         "f": []
        },
        {
@@ -4779,7 +4886,7 @@
         "id": "D04",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 4,
         "f": [
          "e"
         ]
@@ -4787,50 +4894,50 @@
        {
         "id": "D05",
         "g": "belge",
-        "v": "İSTİSNA",
-        "ms": 0,
-        "d": "TypeError: Cannot read properties of null (reading 'type') |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:295:13)"
+        "v": "GEÇTİ",
+        "ms": 3,
+        "f": []
        },
        {
         "id": "D06",
         "g": "belge",
-        "v": "İSTİSNA",
+        "v": "GEÇTİ",
         "ms": 0,
-        "d": "TypeError: doc.features is not iterable |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)"
+        "f": []
        },
        {
         "id": "D07",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 10,
+        "ms": 3,
         "f": []
        },
        {
         "id": "D08",
         "g": "belge",
-        "v": "İSTİSNA",
+        "v": "GEÇTİ",
         "ms": 0,
-        "d": "TypeError: Cannot read properties of null (reading 'features') |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)"
+        "f": []
        },
        {
         "id": "D09",
         "g": "belge",
-        "v": "İSTİSNA",
+        "v": "GEÇTİ",
         "ms": 0,
-        "d": "TypeError: doc.features is not iterable |     at Kernel.loadImports (file:///tmp/snap/src/kernel/kernel.js:294:25)"
+        "f": []
        },
        {
         "id": "D10",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 6,
+        "ms": 5,
         "f": []
        },
        {
         "id": "D11",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 6,
         "f": []
        },
        {
@@ -4858,14 +4965,14 @@
         "id": "D15",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 2,
         "f": []
        },
        {
         "id": "D16",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 5,
         "f": []
        },
        {
@@ -4881,7 +4988,7 @@
         "id": "D18",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 3,
         "f": [
          "hh"
         ]
@@ -4890,7 +4997,7 @@
         "id": "D19",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 6,
         "f": [
          "mv"
         ]
@@ -4899,7 +5006,7 @@
         "id": "D20",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 4,
         "f": [
          "mv"
         ]
@@ -4907,9 +5014,9 @@
        {
         "id": "D21",
         "g": "belge",
-        "v": "İSTİSNA",
-        "ms": 2,
-        "d": "Error: This object has been deleted |     at get wrapped (file:///home/claude/atolyecad/node_modules/replicad/dist/casting-BnJHCnOw.js:34:37)"
+        "v": "GEÇTİ",
+        "ms": 8,
+        "f": []
        },
        {
         "id": "D22",
@@ -4943,17 +5050,14 @@
         "id": "D25",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 4,
         "f": []
        }
       ],
       "vaka-özet": {
-       "GEÇTİ": 171,
-       "KİLİTLENME(zaman aşımı)": 2,
-       "YANLIŞ-SONUÇ": 12,
-       "SESSİZ-HATA": 15,
-       "GEÇTİ(ok:false)": 9,
-       "İSTİSNA": 7
+       "GEÇTİ": 183,
+       "GEÇTİ(ok:false)": 36,
+       "YANLIŞ-SONUÇ": 3
       }
      }
     }
@@ -4964,16 +5068,13 @@
    "file": "measure.mjs",
    "code": 0,
    "sig": null,
-   "secs": 1,
+   "secs": 1.5,
    "results": [
     {
      "name": "olcum",
-     "pass": 59,
-     "fail": 2,
-     "fails": [
-      "M2: measure(gövde, gövde) istisna: Eleman yok",
-      "M6b: altıgen komşu yüzler arası iç açı 120° (normaller 60°); acos(|n1·n2|) 60° bildirir: bulunan 60 beklenen 120 (göreli -5.00e-1)"
-     ],
+     "pass": 61,
+     "fail": 0,
+     "fails": [],
      "info": {
       "M6-not": "measure.angle = acos(|n1·n2|) ∈ [0,90]: 120° ya da 150° dihedral açıları 60°/30° bildirilir (tümler ayırt edilemez)"
      }
@@ -4985,30 +5086,13 @@
    "file": "profiles.mjs",
    "code": 0,
    "sig": null,
-   "secs": 0.5,
+   "secs": 0.6,
    "results": [
     {
      "name": "profiller",
-     "pass": 66,
-     "fail": 16,
-     "fails": [
-      "P5 ortak kenar (yinelenen çizgi): bölge sayısı 1 (beklenen 2); open=false",
-      "P6 L düzeni 3 komşu: bölge sayısı 1 (beklenen 3); open=false",
-      "P7 T kavşak (düğümsüz, bölücü çizgi iki kenarın ortasında): bölge sayısı 1 (beklenen 2); open=true",
-      "P10 köşegenler kesişimde bölünmemiş (4 üçgen beklenir): bölge sayısı 1 (beklenen 4); open=false",
-      "P10 köşegenler kesişimde bölünmemiş (4 üçgen beklenir): net alan toplamı: bulunan 800 beklenen 1600 (göreli -5.00e-1)",
-      "P10b: çarpı köşegenli 40x40 dikdörtgenin tümü extrude (16000); üçgen bölgelerin biri kayboluyor: bulunan 8000 beklenen 16000 (göreli -5.00e-1)",
-      "P5b: iki bitişik kare, profil 0 seçili: tek kare (25000) beklenir; birleşik 50000 çıkıyor: bulunan 50000 beklenen 25000 (göreli 1.00e+0)",
-      "P11 dikdörtgeni kesen daire: 3 bölge beklenir (dikdörtgen-dışı, daire-dışı, kesişim); bulunan 2: net alanlar [1286.3,314.2]",
-      "P18 iki kimlik 2e-9 aralıklı (aynı nokta olmalı), x≈5e-6 sınırında: bölge 0",
-      "P18 iki kimlik 2e-7 aralıklı (aynı nokta olmalı), x≈5e-6 sınırında: bölge 0",
-      "P18 iki kimlik 0.000002 aralıklı (aynı nokta olmalı), x≈5e-6 sınırında: bölge 0",
-      "P18 iki kimlik 0.000004 aralıklı (aynı nokta olmalı), x≈5e-6 sınırında: bölge 0",
-      "P19: komşu bölge tek başına extrude",
-      "P19: sol kare hacmi: bulunan undefined beklenen 25000",
-      "P20: kesişen daire \"delik\" sayılıyor, ok:true; geçerli katı mı? e: BRepCheck geçersiz",
-      "P20: dikdörtgen−daire kesişimi hacmi (dikdörtgen bölgesi, daire ile ortak kısım hariç): bulunan 19141.592654 beklenen 13472.592196 (göreli 4.21e-1)"
-     ],
+     "pass": 88,
+     "fail": 0,
+     "fails": [],
      "info": {}
     }
    ],
@@ -5018,19 +5102,24 @@
    "file": "feature-geo.mjs",
    "code": 0,
    "sig": null,
-   "secs": 2.5,
+   "secs": 3.3,
    "results": [
     {
      "name": "ozellik-geometri",
-     "pass": 51,
-     "fail": 2,
-     "fails": [
-      "E6 iki yön 10/5 + flip (beklenen: ters çevrilmiş → z∈[-10,5]) z max: bulunan -5 beklenen 5 (göreli -2.00e+0)",
-      "E6 iki yön 10/5 + flip (beklenen: ters çevrilmiş → z∈[-10,5]) hacim: bulunan 1000 beklenen 3000 (göreli -6.67e-1)"
-     ],
+     "pass": 56,
+     "fail": 0,
+     "fails": [],
      "info": {
-      "E8 iki yön dist2 negatif -5 (beklenen hata ya da z∈[0,10]∪..)": "ok z=[5,10] V=999.9999999999998",
-      "MR2": "ok:false"
+      "E8 iki yön dist2 negatif -5 (beklenen hata ya da z∈[0,10]∪..)": "ok:false",
+      "MR2": "ok:false",
+      "MR3": {
+       "ok": false,
+       "error": {
+        "code": "op.no_effect",
+        "params": {}
+       }
+      },
+      "PT1-dışarıda": 3
      }
     }
    ],
@@ -5040,24 +5129,17 @@
    "file": "state-bugs.mjs",
    "code": 0,
    "sig": null,
-   "secs": 2.7,
+   "secs": 4,
    "results": [
     {
      "name": "durum-onbellek",
-     "pass": 6,
-     "fail": 6,
-     "fails": [
-      "X1: belge B (aynı \"import1\" kimliği, farklı dosya) kendi geometrisini göstermeli; eski dosyanın geometrisi kalıyor: bulunan 6000 beklenen 3141.592654 (göreli 9.10e-1)",
-      "X1: bozuk dosya, aynı kimlikle: ok:false olmalı (önceki geometri sessizce gösteriliyor: ok:true hacim 6000)",
-      "X1: veri alanı hiç yok, aynı kimlik: ok:false olmalı",
-      "X2: move dx 50→70 ikinci rebuild: İSTİSNA This object has been deleted",
-      "X2b: move copy:true (\"Kopyala\"): İSTİSNA This object has been deleted",
-      "X3: profiles [] rebuild istisna fırlatmamalı (Cannot read properties of null (reading 'boundingBox'))"
-     ],
+     "pass": 12,
+     "fail": 0,
+     "fails": [],
      "info": {
       "X5-uzunluk": [
-       15802,
-       15802
+       15790,
+       15790
       ]
      }
     }
@@ -5068,101 +5150,101 @@
    "file": "perf.mjs",
    "code": 0,
    "sig": null,
-   "secs": 232,
+   "secs": 70.4,
    "results": [
     {
      "name": "sure-bellek",
-     "pass": 12,
+     "pass": 16,
      "fail": 0,
      "fails": [],
      "info": {
       "bellek-30-rebuild": {
        "baş": {
-        "rss": 313.4,
-        "heap": 23.4,
-        "ext": 124.3,
-        "ab": 22.4,
+        "rss": 296.7,
+        "heap": 23.5,
+        "ext": 102.4,
+        "ab": 0.5,
         "wasm": 0
        },
        "son": {
-        "rss": 356.9,
-        "heap": 26.7,
+        "rss": 317.5,
+        "heap": 24.2,
         "ext": 102.6,
         "ab": 0.5,
         "wasm": 0
        },
        "fark": {
-        "rss": 43.5,
-        "heap": 3.3,
-        "ext": -21.7,
-        "ab": -21.9,
+        "rss": 20.8,
+        "heap": 0.7,
+        "ext": 0.2,
+        "ab": 0,
         "wasm": 0
        },
        "gc": true,
        "süreler": [
-        345,
-        551,
-        272,
-        279,
-        266,
-        258,
-        222,
-        195,
-        252,
-        186,
-        213,
-        204,
-        206,
-        172,
-        162,
-        170,
-        172,
-        160,
-        167,
+        668,
+        516,
+        237,
+        249,
+        161,
+        146,
+        152,
         168,
-        160,
-        169,
-        169,
-        156,
-        162,
-        177,
-        177,
-        172,
-        164,
-        175
+        138,
+        139,
+        173,
+        163,
+        136,
+        137,
+        152,
+        127,
+        144,
+        141,
+        133,
+        136,
+        132,
+        131,
+        148,
+        129,
+        153,
+        180,
+        133,
+        130,
+        125,
+        142
        ]
       },
       "external-artışı-MB/rebuild (son 20 tur)": 0,
       "bellek-150-rebuild": [
        {
         "i": 60,
-        "rss": 377,
-        "heap": 30.1,
-        "ext": 108.6,
+        "rss": 331.3,
+        "heap": 24.5,
+        "ext": 103.3,
         "ab": 0.7,
         "wasm": 0
        },
        {
         "i": 90,
-        "rss": 398.4,
-        "heap": 32.8,
-        "ext": 108.9,
+        "rss": 331.2,
+        "heap": 23.8,
+        "ext": 103.3,
         "ab": 0.7,
         "wasm": 0
        },
        {
         "i": 120,
-        "rss": 420.3,
-        "heap": 36.5,
-        "ext": 126.4,
+        "rss": 331.7,
+        "heap": 23.7,
+        "ext": 103.3,
         "ab": 0.7,
         "wasm": 0
        },
        {
         "i": 150,
-        "rss": 442.9,
-        "heap": 39.2,
-        "ext": 151.6,
+        "rss": 331.7,
+        "heap": 23.7,
+        "ext": 103.3,
         "ab": 0.7,
         "wasm": 0
        }
@@ -5170,7 +5252,7 @@
       "süre-tablosu": [
        {
         "label": "desen 10x5 = 50 delik (rect)",
-        "ms": 819,
+        "ms": 297,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5178,7 +5260,7 @@
        },
        {
         "label": "desen 10x10 = 100 delik (rect)",
-        "ms": 2331,
+        "ms": 807,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5186,7 +5268,7 @@
        },
        {
         "label": "desen 10x20 = 200 delik (rect)",
-        "ms": 7812,
+        "ms": 1976,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5194,7 +5276,7 @@
        },
        {
         "label": "desen 20x20 = 400 delik (rect)",
-        "ms": 27531,
+        "ms": 6244,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5202,7 +5284,7 @@
        },
        {
         "label": "desen 20x40 = 800 delik (rect)",
-        "ms": 117361,
+        "ms": 20110,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5210,7 +5292,7 @@
        },
        {
         "label": "tek sketch'te 200 nokta + tek delik",
-        "ms": 7252,
+        "ms": 1758,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5218,39 +5300,39 @@
        },
        {
         "label": "dairesel desen 50 delik",
-        "ms": 359,
+        "ms": 282,
         "exc": null,
         "ok": true,
         "bodies": 1,
-        "vol": 3599937.168146929
+        "vol": 3598429.2036732193
        },
        {
         "label": "dairesel desen 100 delik",
-        "ms": 1396,
+        "ms": 560,
         "exc": null,
         "ok": true,
         "bodies": 1,
-        "vol": 3599874.3362938575
+        "vol": 3596858.407346439
        },
        {
         "label": "dairesel desen 200 delik",
-        "ms": 5635,
+        "ms": 1463,
         "exc": null,
         "ok": true,
         "bodies": 1,
-        "vol": 3599874.3362938575
+        "vol": 3593716.8146928772
        },
        {
         "label": "dairesel desen 400 delik",
-        "ms": 21956,
+        "ms": 3854,
         "exc": null,
         "ok": true,
         "bodies": 1,
-        "vol": 3599686.021977991
+        "vol": 3587433.6293857545
        },
        {
         "label": "küre çap 100",
-        "ms": 29,
+        "ms": 32,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5258,7 +5340,7 @@
        },
        {
         "label": "küre çap 1000",
-        "ms": 211,
+        "ms": 30,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5266,7 +5348,7 @@
        },
        {
         "label": "küre çap 3000",
-        "ms": 1338,
+        "ms": 29,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5274,7 +5356,7 @@
        },
        {
         "label": "küre çap 6000",
-        "ms": 3760,
+        "ms": 29,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5282,7 +5364,7 @@
        },
        {
         "label": "60 özellikli belge (soğuk)",
-        "ms": 1880,
+        "ms": 2660,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5290,11 +5372,11 @@
        },
        {
         "label": "60 özellik: yalnız son özellik değişti (önbellek)",
-        "ms": 489
+        "ms": 260
        },
        {
         "label": "60 özellik: ilk özellik değişti (tam yeniden hesap)",
-        "ms": 1937
+        "ms": 3149
        }
       ]
      }
