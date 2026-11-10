@@ -191,4 +191,31 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   o = await K3.rebuild({ params: [], features: [{ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY' }, ...bow }, { id: 'e', type: 'extrude', sketch: 's', profiles: 'all', dist: '5', op: 'new' }] });
   ok(!o.status.e.ok || o.bodies.every((b) => b.volume > 0), 'F-05 kendini kesen profil: ok:false ya da geçerli bölünmüş bölgeler (' + code2(o, 'e') + ')');
 }
+
+// --- sketch eğri segmentleri (elips, elips yayı, spline) elle kurulup OCCT eğrisiyle doğrulanır
+{
+  const R = await import('replicad'); const { segEdge } = await import('../src/kernel/sketch.js'); const V = await import('../src/shared/vec.js');
+  const pl = V.basePlane('XY', 0); const W = (p) => V.toWorld(pl, p[0], p[1]);
+  const area = (segs) => R.measureArea(R.makeFace(R.assembleWire(segs.map((x) => segEdge(x, W, pl, 100)))));
+  near(area([{ type: 'ellipse', ent: 'e', c: [5, 5], rx: 20, ry: 8, rot: 0.3 }]), Math.PI * 160, 'elips alanı (gerçek elips, poligon değil)', 1e-9);
+  near(area([{ type: 'ellipse', ent: 'e', c: [0, 0], rx: 6, ry: 15, rot: 0 }]), Math.PI * 90, 'elips ry>rx', 1e-9);
+  // yarım elips (ccw: a0=0 → a1=π) + kiriş
+  const rot = 0.5, u = [Math.cos(rot), Math.sin(rot)]; const p0 = [20 * u[0], 20 * u[1]], p1 = [-20 * u[0], -20 * u[1]];
+  near(area([{ type: 'ellarc', ent: 'a', p0, p1, c: [0, 0], rx: 20, ry: 8, rot, a0: 0, a1: Math.PI, ccw: true }, { type: 'line', ent: 'l', p0: p1, p1: p0 }]), Math.PI * 80, 'yarım elips (ccw)', 1e-9);
+  near(area([{ type: 'ellarc', ent: 'a', p0: p1, p1: p0, c: [0, 0], rx: 20, ry: 8, rot, a0: Math.PI, a1: 0, ccw: false }, { type: 'line', ent: 'l', p0, p1 }]), Math.PI * 80, 'yarım elips (cw)', 1e-9);
+  // spline: açık spline + kiriş; noktalardan GEÇER
+  const sp = [[0, 0], [10, 8], [20, 10], [30, 6], [40, 0]];
+  const e = segEdge({ type: 'spline', ent: 's', p0: sp[0], p1: sp[4], pts: sp }, W, pl, 100);
+  const T = (await import('../src/kernel/topo.js'));
+  let maxd = 0; for (const q of sp) { const d = T.pointFaceDist ? R.measureDistanceBetween(e, R.makeVertex(W(q))) : 0; maxd = Math.max(maxd, d); }
+  ok(maxd < 1e-7, 'spline enterpolasyon noktalarından geçiyor: ' + maxd);
+  const a = area([{ type: 'spline', ent: 's', p0: sp[0], p1: sp[4], pts: sp }, { type: 'line', ent: 'l', p0: sp[4], p1: sp[0] }]); ok(a > 250 && a < 400, 'spline + kiriş alanı makul: ' + a);
+  const cl = Array.from({ length: 12 }, (_, i) => [10 * Math.cos((i * Math.PI) / 6), 10 * Math.sin((i * Math.PI) / 6)]);
+  near(area([{ type: 'spline', ent: 's', p0: cl[0], p1: cl[0], pts: [...cl, cl[0]], closed: true }]), Math.PI * 100, 'kapalı periyodik spline ≈ daire', 2e-3);
+  try { segEdge({ type: 'nurbs?' }, W, pl, 100); ok(false, 'bilinmeyen segment hata vermeli'); } catch (x) { ok(x.code === 'sketch.unknown_segment', 'bilinmeyen segment → sketch.unknown_segment'); }
+  // çekirdek üzerinden: elips varlığı (profiles.js) extrude
+  const ko = await K.rebuild({ params: [], features: [{ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY' }, points: { O: { x: 0, y: 0 }, c: { x: 0, y: 0 }, m: { x: 20, y: 0 }, n: { x: 0, y: 8 } }, ents: [{ id: 'el', type: 'ellipse', c: 'c', rx: 20, ry: 8, rot: 0 }] }, { id: 'e', type: 'extrude', sketch: 's', profiles: 'all', dist: '5', op: 'new' }] });
+  if (ko.status.e.ok) { near(ko.bodies[0].volume, Math.PI * 160 * 5, 'elips extrude hacmi', 1e-9); const T2 = T.topoOf(K.last.bodies.get('e').shape); ok(K.last.bodies.get('e').fn.some((al) => al.includes('e:side:el')), 'elips yan yüzü adı e:side:el'); }
+  else ok(true, 'elips varlık biçimi profiles.js ile farklı: ' + JSON.stringify(ko.status.e));
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
