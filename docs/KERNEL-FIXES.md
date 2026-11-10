@@ -60,3 +60,28 @@ Satır numaraları bu commit'teki dosyalar içindir. "Kanıt" = önceden başar�
 Elips / elips yayı / spline profil segmentleri (profiles.js yeni türleri) gerçek OCCT eğrisiyle kurulur (sketch.js:135 `segEdge`, :156 `splineEdge` — `GeomAPI_Interpolate`, noktalardan geçer); bilinmeyen tür `sketch.unknown_segment`. Kanıt: kernel.test "elips alanı", "yarım elips (ccw/cw)", "spline enterpolasyon noktalarından geçiyor", "kapalı periyodik spline", "elips extrude hacmi".
 
 Zaman aşımı/iptal: arayüz işçiyi öldürüp yeniden başlatabilir; çekirdekte `reset()` ve worker `reset` komutu aynı temiz durumu verir (kernel.test "reset sonrası sonuç = temiz çekirdek").
+
+## 3. Performans ve bellek (önce → sonra)
+
+Aynı makine, Node 22, `node --expose-gc test/models/perf.mjs` (önce: düzeltme öncesi kaynak kopyası; sonra: bu sürüm).
+
+| Durum | Önce | Sonra |
+|---|---:|---:|
+| Dikdörtgen desen 50 / 100 / 200 / 400 / 800 delik | 0,75 / 2,6 / 8,5 / 32,9 / 134 s | 0,33 / 0,68 / **1,77** / 5,9 / 19,3 s |
+| Dairesel desen 50 / 100 / 200 / 400 delik (tümü plakada) | 0,48 / 1,8 / 6,5 / 26,2 s ¹ | 0,27 / 0,53 / 1,48 / 3,9 s |
+| Tek sketch'te 200 nokta + delik | 8,7 s | 1,7 s |
+| Küre çap 100 / 1000 / 3000 / 6000 | 0,03 / 0,25 / 1,2 / 4,1 s | 0,03 / 0,03 / 0,03 / 0,03 s |
+| Küre çap 1e6, desen 5000 | kilitlenme | anında açık hata (`value.out_of_range`, `pattern.too_many`) |
+| 60 özellikli belge soğuk / son özellik değişti / ilk özellik değişti | 2,2 / 0,52 / 1,8 s | 2,6 / 0,28 / 2,7 s ² |
+| Flanş 30 tur rebuild süresi | 131–212 ms | 127–243 ms |
+
+¹ Eski ölçümde kaynak delik plakanın dışına taşan bir dairede idi; yeni sürüm bunu `pattern.no_effect` ile reddettiği için ölçüm plaka içine alındı (aynı delik sayısı). ² Her özellikten sonraki geçerlilik kapısı (BRepCheck) ve adlandırma maliyeti.
+800 delikte sürenin ~%85'i görüntü ağı (BRepMesh) üretimi; boolean artık tek çağrı (doğrusal).
+
+| Bellek (perf.mjs, flanş, her 30 turda gc) | rss | JS heap | external |
+|---|---:|---:|---:|
+| Önce: başlangıç → 30 → 150 tur | 312 → 352 → 440 MB (+128) | 23,5 → 39 MB | 102 → 152 MB |
+| Sonra: başlangıç → 30 → 60 → 150 tur | 309 → 337 → 348 → 349 MB (+40) | 23,5 → 23,7 MB | 102 → 103 MB |
+
+Sonra: 60→150 turda +1,4 MB (≈0,015 MB/tur); 300 tur denemesinde 60→300 +4 MB ve WASM belleği 100 MB'de sabit (önce 240. turdan sonra 144 MB'ye büyüyordu). İlk 30 turdaki +28 MB tek seferlik ısınmadır (önceden ayrılmış 100 MB WASM yığınının sayfalarına ilk dokunuş + WASM JIT kademesi); sonra düz. Hedef "<20 MB / 150 tur" kararlı durumda sağlanıyor, soğuk başlangıçtan ölçülünce sağlanmıyor (+40 MB, ısınma dahil).
+Kök nedenler (F-20) ve WASM yığın kullanımı ölçüm yöntemi: 64 KB bloklarla bellek büyüyene dek ayırıp boş alanı sayma (geçici betik); delik özelliği önce ≈36 KB/tur, flanş ≈250 KB/tur → sonra ölçüm gürültüsü içinde (≤0).
