@@ -1,6 +1,6 @@
 {
- "src": "/tmp/snap/src",
- "at": "2026-11-09T23:04:14.543Z",
+ "src": "src",
+ "at": "2026-11-10T10:27:49.549Z",
  "files": [
   {
    "file": "part-a.mjs",
@@ -203,18 +203,21 @@
    "file": "param-sweep.mjs",
    "code": 0,
    "sig": null,
-   "secs": 55.7,
+   "secs": 61.6,
    "results": [
     {
      "name": "param-tarama",
      "pass": 180,
-     "fail": 0,
-     "fails": [],
+     "fail": 1,
+     "fails": [
+      "g-kutu-govde [bastır: tw0 (kule)] taze belge başarısız: ok:false pil"
+     ],
      "info": {
       "param-sınıf-sayıları": {
-       "DOĞRU": 169,
-       "REDDEDİLDİ(beklenmedi)": 5,
-       "REDDEDİLDİ(beklenen)": 1
+       "DOĞRU": 170,
+       "REDDEDİLDİ(beklenen)": 1,
+       "REDDEDİLDİ(beklenmedi)": 3,
+       "REDDEDİLDİ": 1
       },
       "param-satırlar": [
        {
@@ -229,7 +232,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 173546.99269078183,
         "ev": 173546.9927262711
        },
@@ -245,7 +248,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 172490.37036162446,
         "ev": 172490.37039711373
        },
@@ -261,7 +264,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 168263.88104499498,
         "ev": 168263.88108048428
        },
@@ -277,7 +280,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 166150.6363866803,
         "ev": 166150.63642216954
        },
@@ -293,7 +296,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 164037.39172836553,
         "ev": 164037.3917638548
        },
@@ -308,7 +311,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 3,
+        "idx": 0,
         "fp": 0,
         "sv": 193868.38477052742,
         "ev": 193868.3848060167
@@ -324,7 +327,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 3,
+        "idx": 0,
         "fp": 0,
         "sv": 246505.76968142443,
         "ev": 246505.76971691364
@@ -340,7 +343,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 3,
+        "idx": 0,
         "fp": 0,
         "sv": 275651.8955251037,
         "ev": 275651.89556059346
@@ -404,7 +407,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 3,
+        "idx": 0,
         "fp": 0,
         "sv": 154175.93238874714,
         "ev": 154175.9324242374
@@ -420,7 +423,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 3,
+        "idx": 0,
         "fp": 0,
         "sv": 186578.31901787224,
         "ev": 186578.31905336224
@@ -436,7 +439,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 3,
+        "idx": 0,
         "fp": 0,
         "sv": 202779.5123324348,
         "ev": 202779.51236792555
@@ -500,7 +503,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
         "sv": 154765.5648282417,
         "ev": 154765.5648580239
@@ -516,7 +519,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
         "sv": 163793.2093466948,
         "ev": 163793.209379901
@@ -532,7 +535,7 @@
          "och: aynı",
          "ifil: aynı"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
         "sv": 181101.2302547014,
         "ev": 181101.23029361566
@@ -700,20 +703,17 @@
        {
         "p": "a-flans",
         "v": "N=8,OD=140,PCD=100,HD=50",
-        "cls": "REDDEDİLDİ(beklenmedi)",
-        "stale": "ok:false",
+        "cls": "DOĞRU",
+        "stale": "ok",
         "fresh": "ok",
-        "sf": [
-         "och",
-         "ifil"
-        ],
+        "sf": [],
         "bind": [
-         "och: kayıp",
-         "ifil: kayıp"
+         "och: aynı",
+         "ifil: aynı"
         ],
         "idx": 0,
         "fp": 0,
-        "sv": 202190.80878993674,
+        "sv": 201519.79389651623,
         "ev": 201519.7939262984
        },
        {
@@ -728,7 +728,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 175660.23734909657,
         "ev": 175660.23738458584
        },
@@ -744,7 +744,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 179801.90366407912,
         "ev": 179801.90369956836
        },
@@ -760,7 +760,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 176716.85967825394,
         "ev": 176716.8597137432
        },
@@ -776,7 +776,7 @@
          "ifil: aynı"
         ],
         "idx": 0,
-        "fp": 3,
+        "fp": 0,
         "sv": 177688.65900576438,
         "ev": 177688.65904125365
        },
@@ -791,7 +791,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 141660.9797285037,
         "ev": 141660.9797285038
@@ -807,7 +807,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 214740.9797285037,
         "ev": 214740.9797285038
@@ -823,7 +823,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 239100.97972850373,
         "ev": 239100.9797285038
@@ -839,7 +839,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 159455.97972850373,
         "ev": 159455.9797285038
@@ -855,7 +855,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 196945.97972850376,
         "ev": 196945.9797285038
@@ -871,7 +871,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 234435.9797285037,
         "ev": 234435.9797285038
@@ -1063,7 +1063,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 137587.15224085568,
         "ev": 137587.1522408557
@@ -1079,7 +1079,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 218814.80721615182,
         "ev": 218814.80721615185
@@ -1095,7 +1095,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 259428.63470379985,
         "ev": 259428.6347037999
@@ -1208,7 +1208,7 @@
          "chf: aynı"
         ],
         "idx": 0,
-        "fp": 5,
+        "fp": 0,
         "sv": 196200.97972850376,
         "ev": 196200.9797285038
        },
@@ -1224,7 +1224,7 @@
          "chf: aynı"
         ],
         "idx": 0,
-        "fp": 5,
+        "fp": 0,
         "sv": 183600.97972850376,
         "ev": 183600.9797285038
        },
@@ -1240,7 +1240,7 @@
          "chf: aynı"
         ],
         "idx": 0,
-        "fp": 4,
+        "fp": 0,
         "sv": 182646.33333333328,
         "ev": 182646.33333333334
        },
@@ -1255,7 +1255,7 @@
          "back: ?fr.map is not a function",
          "chf: aynı"
         ],
-        "idx": 5,
+        "idx": 0,
         "fp": 0,
         "sv": 289889.14054948516,
         "ev": 289889.1405494852
@@ -1271,7 +1271,7 @@
          "top: ?fr.map is not a function",
          "fil: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 279778.1909846063,
         "ev": 279778.1909846063
@@ -1287,7 +1287,7 @@
          "top: ?fr.map is not a function",
          "fil: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 396328.9152627292,
         "ev": 396328.9152627293
@@ -1303,7 +1303,7 @@
          "top: ?fr.map is not a function",
          "fil: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 485810.3705657728,
         "ev": 485810.3705657729
@@ -1319,7 +1319,7 @@
          "top: ?fr.map is not a function",
          "fil: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 258691.45752625418,
         "ev": 258691.45752625418
@@ -1335,7 +1335,7 @@
          "top: ?fr.map is not a function",
          "fil: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 373853.01831465564,
         "ev": 373853.0183146556
@@ -1351,7 +1351,7 @@
          "top: ?fr.map is not a function",
          "fil: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 412240.2052441229,
         "ev": 412240.20524412283
@@ -1496,7 +1496,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 319700.3351655511,
         "ev": 319700.335165551
        },
@@ -1512,7 +1512,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 312844.1406753587,
         "ev": 312844.14067535865
        },
@@ -1528,7 +1528,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 309416.04343026254,
         "ev": 309416.0434302625
        },
@@ -1544,7 +1544,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 305987.94618516637,
         "ev": 305987.9461851663
        },
@@ -1560,7 +1560,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 299131.751694974,
         "ev": 299131.75169497397
        },
@@ -1576,7 +1576,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 317463.8832838697,
         "ev": 317463.8832838696
        },
@@ -1592,7 +1592,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 313888.9471936254,
         "ev": 313888.94719362527
        },
@@ -1608,7 +1608,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 311505.6564667957,
         "ev": 311505.6564667957
        },
@@ -1688,7 +1688,7 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 287474.82886132406,
         "ev": 287474.828861324
        },
@@ -1704,26 +1704,24 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 1,
+        "fp": 0,
         "sv": 323128.43241064716,
         "ev": 323128.43241064716
        },
        {
         "p": "c-ayna-adaptoru",
         "v": "NS=4,OD=180,SPH=8",
-        "cls": "REDDEDİLDİ(beklenmedi)",
-        "stale": "ok:false",
+        "cls": "DOĞRU",
+        "stale": "ok",
         "fresh": "ok",
-        "sf": [
-         "fil"
-        ],
+        "sf": [],
         "bind": [
          "top: ?fr.map is not a function",
-         "fil: kayıp"
+         "fil: aynı"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
-        "sv": 402982.9628046218,
+        "sv": 402499.9543706766,
         "ev": 402499.95437067666
        },
        {
@@ -1736,7 +1734,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 308283.9438229379,
         "ev": 308283.94382293784
@@ -1751,7 +1749,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 365952.61641065066,
         "ev": 365952.61641065066
@@ -1766,7 +1764,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 423621.28899836336,
         "ev": 423621.2889983635
@@ -1781,7 +1779,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 293083.94382293784,
         "ev": 293083.94382293784
@@ -1796,9 +1794,9 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
-        "sv": 381152.61641065066,
+        "sv": 381152.6164106506,
         "ev": 381152.61641065066
        },
        {
@@ -1811,9 +1809,9 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
-        "sv": 242695.0944478824,
+        "sv": 242695.09444788238,
         "ev": 242695.0944478824
        },
        {
@@ -1826,7 +1824,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 431541.4657857061,
         "ev": 431541.4657857061
@@ -1841,7 +1839,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 573176.244289074,
         "ev": 573176.2442890737
@@ -1856,7 +1854,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 382272.1563777122,
         "ev": 382272.1563777121
@@ -1871,7 +1869,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 359695.2182472533,
         "ev": 359695.21824725316
@@ -1886,7 +1884,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 314541.34198633535,
         "ev": 314541.34198633523
@@ -1901,7 +1899,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 334048.4714602254,
         "ev": 334048.4714602253
@@ -1916,7 +1914,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 340866.6727865385,
         "ev": 340866.6727865385
@@ -1931,7 +1929,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 346920.1048111371,
         "ev": 346920.1048111371
@@ -1946,7 +1944,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 336720.9666577086,
         "ev": 336720.9666577084
@@ -1961,7 +1959,7 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
         "sv": 337486.1646377541,
         "ev": 337486.1646377539
@@ -1978,7 +1976,7 @@
         ],
         "idx": 0,
         "fp": 0,
-        "sv": 336770.29470055265,
+        "sv": 336770.29470055253,
         "ev": 336770.2947005526
        },
        {
@@ -1993,7 +1991,7 @@
         ],
         "idx": 0,
         "fp": 0,
-        "sv": 337698.2558105304,
+        "sv": 337698.25581053033,
         "ev": 337698.2558105303
        },
        {
@@ -2052,8 +2050,8 @@
          "fil: aynı"
         ],
         "idx": 0,
-        "fp": 9,
-        "sv": 340134.20906424045,
+        "fp": 0,
+        "sv": 340134.2090642404,
         "ev": 340134.20906424045
        },
        {
@@ -2083,9 +2081,9 @@
         "bind": [
          "fil: aynı"
         ],
-        "idx": 9,
+        "idx": 0,
         "fp": 0,
-        "sv": 444821.76001016033,
+        "sv": 444821.7600101603,
         "ev": 444821.76001016016
        },
        {
@@ -2098,7 +2096,7 @@
         "bind": [
          "ch: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 146101.8484170669,
         "ev": 146101.8484235935
@@ -2113,7 +2111,7 @@
         "bind": [
          "ch: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 152377.86088605865,
         "ev": 152377.86089309157
@@ -2188,7 +2186,7 @@
         "bind": [
          "ch: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 142162.733998044,
         "ev": 142162.73400482393
@@ -2203,7 +2201,7 @@
         "bind": [
          "ch: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 155994.27885678082,
         "ev": 155994.27886356198
@@ -2218,7 +2216,7 @@
         "bind": [
          "ch: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 136359.32477184464,
         "ev": 136359.32477862423
@@ -2233,7 +2231,7 @@
         "bind": [
          "ch: aynı"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 161492.06600056295,
         "ev": 161492.066007343
@@ -2361,31 +2359,35 @@
        {
         "p": "e-kademeli-mil",
         "v": "kademe kaldır: D3=D2 (profil 4 kademe)",
-        "cls": "DOĞRU",
-        "stale": "ok",
+        "cls": "REDDEDİLDİ(beklenmedi)",
+        "stale": "ok:false",
         "fresh": "ok",
-        "sf": [],
+        "sf": [
+         "ch"
+        ],
         "bind": [
-         "ch: aynı"
+         "ch: kayıp"
         ],
         "idx": 0,
-        "fp": 2,
-        "sv": 115897.91865920105,
+        "fp": 0,
+        "sv": 115964.93930247765,
         "ev": 115897.91866208374
        },
        {
         "p": "e-kademeli-mil",
         "v": "kademe kaldır: D4=D3",
-        "cls": "DOĞRU",
-        "stale": "ok",
+        "cls": "REDDEDİLDİ(beklenmedi)",
+        "stale": "ok:false",
         "fresh": "ok",
-        "sf": [],
+        "sf": [
+         "ch"
+        ],
         "bind": [
-         "ch: aynı"
+         "ch: kayıp"
         ],
         "idx": 0,
-        "fp": 2,
-        "sv": 168147.42345728632,
+        "fp": 0,
+        "sv": 168214.44410056286,
         "ev": 168147.423462117
        },
        {
@@ -2408,18 +2410,16 @@
        {
         "p": "e-kademeli-mil",
         "v": "L1=20,D1=14",
-        "cls": "REDDEDİLDİ(beklenmedi)",
-        "stale": "ok:false",
+        "cls": "DOĞRU",
+        "stale": "ok",
         "fresh": "ok",
-        "sf": [
-         "ch"
-        ],
+        "sf": [],
         "bind": [
-         "ch: kayıp"
+         "ch: aynı"
         ],
         "idx": 0,
         "fp": 0,
-        "sv": 144211.71313325528,
+        "sv": 144154.1172684464,
         "ev": 144155.85418778725
        },
        {
@@ -2433,7 +2433,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 71744.15944622511,
         "ev": 71744.1594462251
@@ -2449,7 +2449,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 86144.15944622508,
         "ev": 86144.1594462251
@@ -2465,7 +2465,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 59478.11958466882,
         "ev": 59478.11958466883
@@ -2481,7 +2481,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 93130.19930778135,
         "ev": 93130.19930778137
@@ -2497,7 +2497,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
         "sv": 71744.15944622512,
         "ev": 71744.1594462251
@@ -2513,7 +2513,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
         "sv": 86144.15944622512,
         "ev": 86144.1594462251
@@ -2529,7 +2529,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 88704.15944622504,
         "ev": 88704.1594462251
@@ -2545,7 +2545,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 100864.15944622507,
         "ev": 100864.1594462251
@@ -2561,7 +2561,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 73844.1594462251,
         "ev": 73844.1594462251
@@ -2577,7 +2577,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 77894.15944622512,
         "ev": 77894.1594462251
@@ -2593,7 +2593,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 74744.1594462251,
         "ev": 74744.1594462251
@@ -2609,7 +2609,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 78344.1594462251,
         "ev": 78344.1594462251
@@ -2681,20 +2681,17 @@
        {
         "p": "f-l-braket",
         "v": "bastır: rib",
-        "cls": "REDDEDİLDİ(beklenmedi)",
-        "stale": "ok:false",
+        "cls": "DOĞRU",
+        "stale": "ok",
         "fresh": "ok",
-        "sf": [
-         "s3",
-         "h1"
-        ],
+        "sf": [],
         "bind": [
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
         "idx": 0,
-        "fp": 1,
-        "sv": 72052.07972311258,
+        "fp": 0,
+        "sv": 71144.15944622515,
         "ev": 71144.1594462251
        },
        {
@@ -2708,7 +2705,7 @@
          "topf: ?fr.map is not a function",
          "legf: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 139130.1993077813,
         "ev": 139130.19930778138
@@ -2725,7 +2722,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 6,
+        "idx": 0,
         "fp": 0,
         "sv": 36894.85883650648,
         "ev": 36894.85883650648
@@ -2742,7 +2739,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 6,
+        "idx": 0,
         "fp": 0,
         "sv": 44874.858836506435,
         "ev": 44874.85883650648
@@ -2759,7 +2756,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 6,
+        "idx": 0,
         "fp": 0,
         "sv": 36094.85883650649,
         "ev": 36094.85883650648
@@ -2776,7 +2773,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 6,
+        "idx": 0,
         "fp": 0,
         "sv": 43014.85883650643,
         "ev": 43014.85883650648
@@ -2793,7 +2790,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 6,
+        "idx": 0,
         "fp": 0,
         "sv": 37734.363277291144,
         "ev": 37734.36327729111
@@ -2810,7 +2807,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 6,
+        "idx": 0,
         "fp": 0,
         "sv": 45623.17736722451,
         "ev": 45623.17736722446
@@ -2827,7 +2824,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 39839.85007551466,
         "ev": 39839.85007551462
@@ -2844,7 +2841,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 2,
+        "idx": 0,
         "fp": 0,
         "sv": 39256.1330799557,
         "ev": 39256.13307995572
@@ -2861,7 +2858,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
         "sv": 31672.269268582328,
         "ev": 31672.269268582266
@@ -2878,7 +2875,7 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
         "sv": 47233.90416237859,
         "ev": 47233.90416237851
@@ -2895,9 +2892,9 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 1,
+        "idx": 0,
         "fp": 0,
-        "sv": 54711.7614406886,
+        "sv": 54711.76144068857,
         "ev": 54711.761440688526
        },
        {
@@ -2914,7 +2911,7 @@
         ],
         "idx": 0,
         "fp": 0,
-        "sv": 36915.92100749107,
+        "sv": 36915.921007491044,
         "ev": 36915.92100749105
        },
        {
@@ -2931,7 +2928,7 @@
         ],
         "idx": 0,
         "fp": 0,
-        "sv": 42947.778902383485,
+        "sv": 42947.778902383456,
         "ev": 42947.778902383456
        },
        {
@@ -2971,18 +2968,20 @@
        {
         "p": "g-kutu-govde",
         "v": "bastır: tw0 (kule)",
-        "cls": "DOĞRU",
-        "stale": "ok",
-        "fresh": "ok",
-        "sf": [],
+        "cls": "REDDEDİLDİ",
+        "stale": "ok:false",
+        "fresh": "ok:false",
+        "sf": [
+         "pil"
+        ],
         "bind": [
          "filB: aynı",
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
         "idx": 0,
-        "fp": 1,
-        "sv": 38190.38964891475,
+        "fp": 0,
+        "sv": 38620.87550730909,
         "ev": 39554.85883650648
        },
        {
@@ -2996,8 +2995,8 @@
          "topF: ?fr.map is not a function",
          "rim: ?fr.map is not a function"
         ],
-        "idx": 4,
-        "fp": 2,
+        "idx": 0,
+        "fp": 0,
         "sv": 40169.263894699645,
         "ev": 40169.26389469958
        }
@@ -3011,7 +3010,7 @@
    "file": "param-random.mjs",
    "code": 0,
    "sig": null,
-   "secs": 89.3,
+   "secs": 88.1,
    "results": [
     {
      "name": "param-rastgele",
@@ -3023,8 +3022,8 @@
        "a-flans": {
         "tried": 40,
         "valid": 34,
-        "doğru": 33,
-        "reddedildi": 1,
+        "doğru": 34,
+        "reddedildi": 0,
         "yanlışBağ": 0,
         "yanlışHacim": 0,
         "idxFarkı": 0
@@ -3041,8 +3040,8 @@
        "c-ayna-adaptoru": {
         "tried": 40,
         "valid": 33,
-        "doğru": 30,
-        "reddedildi": 3,
+        "doğru": 33,
+        "reddedildi": 0,
         "yanlışBağ": 0,
         "yanlışHacim": 0,
         "idxFarkı": 0
@@ -3059,8 +3058,8 @@
        "e-kademeli-mil": {
         "tried": 40,
         "valid": 34,
-        "doğru": 34,
-        "reddedildi": 0,
+        "doğru": 33,
+        "reddedildi": 1,
         "yanlışBağ": 0,
         "yanlışHacim": 0,
         "idxFarkı": 0
@@ -3068,8 +3067,8 @@
        "f-l-braket": {
         "tried": 40,
         "valid": 35,
-        "doğru": 34,
-        "reddedildi": 1,
+        "doğru": 35,
+        "reddedildi": 0,
         "yanlışBağ": 0,
         "yanlışHacim": 0,
         "idxFarkı": 0

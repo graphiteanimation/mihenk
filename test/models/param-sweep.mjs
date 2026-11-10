@@ -56,7 +56,7 @@ export const PARTS = [
   { M: G, variants: [
     ...[90, 120].map((x) => v(`BW=${x}`, { BW: x })), ...[50, 70].map((x) => v(`BD=${x}`, { BD: x })), ...[37, 50].map((x) => v(`BH=${x}`, { BH: x })),
     ...[4, 8].map((x) => v(`R=${x}`, { R: x })), ...[1.5, 2.5, 3].map((x) => v(`ST=${x}`, { ST: x, R: 6 })), ...[6, 10].map((x) => v(`TW=${x}`, { TW: x })), ...[2, 4].map((x) => v(`RB=${x}`, { RB: x })),
-    v('bastır: tw0 (kule)', {}, { suppress: ['tw0'], ap: null, skipVol: true }), v('mod=after R=1.5', { mode: 'after', R: 1.5 }),
+    v('bastır: tw0 (kule) → pilot delik havada: F-08 hole.no_material', {}, { suppress: ['tw0'], ap: null, skipVol: true, mustFail: ['pil'] }), v('mod=after R=1.5', { mode: 'after', R: 1.5 }),
   ] },
 ];
 function patchResolve(K, log) {
