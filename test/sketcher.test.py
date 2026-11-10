@@ -490,6 +490,19 @@ try:
     fr = ev('sk.free ? {pts: [...sk.free.freePts], ents: [...sk.free.freeEnts]} : null')
     check('sabitlenince çizgi tam tanımlı (koyu)', fr is not None and l_ not in fr['ents'], fr)
 
+    print('DXF (arayüz bağlantısı)')
+    fresh(); tool('rect'); click(-30, -10); click(10, 10); tool('circle'); click(30, 0); click(36, 0); tool('ellipse'); click(-20, 30); click(-5, 30); click(-20, 38)
+    exp = ev("sk.exportDxf('2000')")
+    check('DXF dışa aktarma: nesne sayısı ve ELLIPSE', exp['count'] == 6 and 'ELLIPSE' in exp['text'], exp['count'])
+    exp12 = ev("sk.exportDxf('R12')"); check('DXF R12: ELLIPSE yok, POLYLINE var', 'ELLIPSE' not in exp12['text'] and 'POLYLINE' in exp12['text'])
+    before = ev('findRegions(sk.sk).regions.reduce((a, r) => a + r.net, 0)')
+    fresh()
+    r = ev("(async (txt) => { const rep = await sk.importDxf(parseDxf(txt), 1); return {ok: rep.ok, n: rep.rep.count}; })", exp['text'])
+    idle(); page.wait_for_timeout(200); idle()
+    after = ev('findRegions(sk.sk).regions.reduce((a, r) => a + r.net, 0)')
+    check('DXF içe aktarma sonrası alan aynı', r['ok'] and abs(before - after) < 1e-3, (before, after, r))
+    check('DXF içe aktarma çözüldü (kısıtsız, serbest)', ev('sk.lastSolve && sk.lastSolve.ok'))
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()

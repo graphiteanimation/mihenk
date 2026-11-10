@@ -5,6 +5,7 @@ import { Viewport } from '../src/ui/viewport.js';
 import { Sketcher } from '../src/ui/sketcher.js';
 import * as V from '../src/shared/vec.js';
 import { findRegions } from '../src/shared/profiles.js';
+import { parseDxf } from '../src/shared/dxf.js';
 
 initSolver(() => wasmUrl);
 const vp = new Viewport(document.getElementById('viewport'));
@@ -15,7 +16,7 @@ const sk = new Sketcher({
   setStatus: (t) => { window.statusLog.push(t); document.getElementById('st').textContent = t; },
   onChange: () => { window.changes++; },
 });
-window.sk = sk; window.vp = vp; window.V = V; window.findRegions = findRegions;
+window.sk = sk; window.vp = vp; window.V = V; window.findRegions = findRegions; window.parseDxf = parseDxf;
 window.begin = (plane = 'XY', feat) => {
   const pl = V.basePlane(plane, 0);
   sk.start(feat || { id: 's1', type: 'sketch', name: 'Sketch1', plane: { kind: 'base', name: plane, offset: '0' }, points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [] }, pl);

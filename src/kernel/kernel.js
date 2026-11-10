@@ -456,6 +456,7 @@ export class Kernel {
     if (!doc || typeof doc !== 'object' || Array.isArray(doc)) { this.last = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.invalid'); }
     if (!Array.isArray(doc.features)) { this.last = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.no_features'); }
     const feats = doc.features; const docErrors = [];
+    await yieldTask(); // olay döngüsüne dön: bekleyen OCCT nesne sonlandırıcıları (FinalizationRegistry) çalışsın (F-20)
     await this.loadImports(feats);
     const { vars, errors: perr } = resolveParams(Array.isArray(doc.params) ? doc.params.filter((p) => p && typeof p === 'object') : []);
     const status = {}; const pkey = JSON.stringify(vars); const upgrades = [];
@@ -602,6 +603,7 @@ const hasAny = (body, keys) => { if (!body) return false; const al = aliasSet(bo
 function sketchScale(S) { let m = 1; for (const p of Object.values(S.sk.points || {})) if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) m = Math.max(m, Math.abs(p.x), Math.abs(p.y)); return m; }
 function moveFace(face, v) { const m = TP.transform({ shape: face, fn: [] }, [{ t: v }]); return m.shape; }
 
+const yieldTask = () => new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0)));
 // özellik önbellek anahtarı: içe aktarma verisi tam içerik özetiyle (F-02)
 function featKey(f, hashes) { return JSON.stringify(f, (k, v) => (k === 'name' ? undefined : k === 'data' && typeof v === 'string' ? 'sha:' + (hashes.get(v) || '?') : v)); }
 function importKey(f, hashes) { return typeof f.data === 'string' && f.data.length ? `${f.format}:${hashes.get(f.data)}` : null; }

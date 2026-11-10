@@ -11,6 +11,7 @@ import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared
 import { KErr, toErr } from '../shared/errors.js';
 import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS } from '../shared/schema.js';
 import { recovery } from './recovery.js';
+import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
 import { defaults, newId, autoName, featLabel, dependents } from './features.js';
 import { initChrome } from './chrome.js';
 import { FeaturePanel, SketchPanel, SectionPanel, paramsModal, showBox, hideBox, measureRows, showProps } from './panels.js';
@@ -561,6 +562,44 @@ class App {
     const st = this.result?.status[id];
     if (!st || st.ok === false) { await this.undo(); toast(t('msg.import_failed', { reason: st?.error ? errText(st.error) : t('msg.import_invalid', { fmt: format.toUpperCase() }) }), true); return; }
     this.needFit = true; this.viewport.fit(); toast(t('msg.imported', { name: nm }));
+  }
+
+  // ------------------------------------------------------------ DXF (yalnız sketch içinde)
+  // Dosya seçimi her zaman <input type=file>: Electron ana süreci 'dxf' türünü bilmez (o dosya bu işin kapsamı dışında).
+  pickTextFile(accept) {
+    return new Promise((resolve) => {
+      const inp = h('input', { type: 'file', accept, style: { display: 'none' } }); document.body.append(inp);
+      inp.addEventListener('change', async () => { const f = inp.files[0]; inp.remove(); resolve(f ? { name: f.name, text: await f.text() } : null); });
+      inp.addEventListener('cancel', () => { inp.remove(); resolve(null); });
+      inp.click();
+    });
+  }
+  async importDxf() {
+    if (!this.sketchSession || !this.sketcher) { toast(t('dxf.need_sketch')); return; }
+    const f = await this.pickTextFile('.dxf'); if (!f) return;
+    let parsed; try { parsed = parseDxf(f.text); } catch (e) { toast(t('dxf.bad_file', { msg: errText(e) }), true); return; }
+    if (!parsed.ents.length) { toast(t('dxf.empty'), true); return; }
+    const known = parsed.units.factor; let factor = known ?? 1;
+    const unitOpts = [['1', 'mm'], ['10', 'cm'], ['1000', 'm'], ['25.4', 'inch'], ['304.8', 'foot']];
+    const sel = h('select', { id: 'dxf-unit' }, unitOpts.map(([v, l]) => h('option', { value: v }, l)), h('option', { value: 'custom' }, t('dxf.custom')));
+    sel.value = unitOpts.some(([v]) => +v === factor) ? String(factor) : 'custom';
+    const custom = h('input', { type: 'text', id: 'dxf-factor', value: String(factor) });
+    const ok = await modal({
+      title: t('dxf.title'), content: h('div', {}, h('div', { class: 'note', text: known == null ? t('dxf.unit_unknown') : t('dxf.unit_found', { f: String(known) }) }),
+        h('div', { class: 'fld' }, h('label', { text: t('dxf.unit') }), sel), h('div', { class: 'fld' }, h('label', { text: t('dxf.factor') }), custom), h('div', { class: 'note', text: t('dxf.counts', { n: parsed.ents.length }) })),
+      buttons: [{ label: t('common.ok'), cls: 'pri', value: true, check: () => { const v = sel.value === 'custom' ? parseFloat(String(custom.value).replace(',', '.')) : +sel.value; if (!(v > 0)) return false; factor = v; return true; } }, { label: t('common.cancel'), value: false }],
+    });
+    if (!ok) return;
+    const r = await this.sketcher.importDxf(parsed, factor);
+    toast(r.ok ? t('dxf.imported', { n: r.rep.count, skipped: Object.values(r.rep.skipped).reduce((a, b) => a + b, 0) }) : r.msg, !r.ok);
+  }
+  async exportDxf(version) {
+    if (!this.sketchSession || !this.sketcher) { toast(t('dxf.need_sketch')); return; }
+    const out = this.sketcher.exportDxf(version);
+    if (!out.count) { toast(t('dxf.nothing'), true); return; }
+    const name = ((this.sketchSession.draft.name || 'Sketch') + '.dxf').replace(/[\\/:*?"<>|]/g, '_');
+    const a = h('a', { href: URL.createObjectURL(new Blob([out.text], { type: 'application/dxf' })), download: name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast(t('dxf.exported', { n: out.count, name }));
   }
 
   // ------------------------------------------------------------ otomatik kurtarma (S-06)

@@ -25,8 +25,9 @@ export function initChrome(app) {
     ['file', t('menu.file'), [
       { id: 'new', label: t('menu.new'), run: () => app.newDoc() }, { id: 'open', label: t('menu.open'), run: () => app.openFile() },
       { id: 'save', label: t('menu.save'), kbd: 'Ctrl+S', run: () => app.save() }, { id: 'saveas', label: t('menu.saveas'), run: () => app.save(true) }, { sep: 1 },
-      { id: 'import-step', label: t('menu.import_step'), run: () => app.importFile('step') }, { id: 'import-stl', label: t('menu.import_stl'), run: () => app.importFile('stl') }, { sep: 1 },
+      { id: 'import-step', label: t('menu.import_step'), run: () => app.importFile('step') }, { id: 'import-stl', label: t('menu.import_stl'), run: () => app.importFile('stl') }, { id: 'import-dxf', label: t('menu.import_dxf'), run: () => app.importDxf(), disabled: !app.sketchSession }, { sep: 1 },
       { id: 'export-step', label: t('menu.export_step'), run: () => app.exportFile('step') }, { id: 'export-stl', label: t('menu.export_stl'), run: () => app.exportFile('stl') },
+      { id: 'export-dxf', label: t('menu.export_dxf'), run: () => app.exportDxf('2000'), disabled: !app.sketchSession }, { id: 'export-dxf12', label: t('menu.export_dxf12'), run: () => app.exportDxf('R12'), disabled: !app.sketchSession },
     ]],
     ['edit', t('menu.edit'), [
       { id: 'undo', label: t('menu.undo'), kbd: 'Ctrl+Z', run: () => app.undo(), disabled: !app.undoStack.length }, { id: 'redo', label: t('menu.redo'), kbd: 'Ctrl+Y', run: () => app.redo(), disabled: !app.redoStack.length }, { sep: 1 },

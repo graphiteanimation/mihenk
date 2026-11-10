@@ -9,6 +9,7 @@ import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
+import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
 import { t, tk, errText, fmtNum } from '../shared/i18n.js';
 import { toErr } from '../shared/errors.js';
 import * as V from '../shared/vec.js';
@@ -998,6 +999,14 @@ export class Sketcher {
       placed.push({ x, y, w, h }); el.style.left = x + 'px'; el.style.top = y + 'px';
     }
   }
+  // ---------- DXF ----------
+  importDxf(parsed, scale) {
+    let rep = null;
+    return this._apply((sk) => { rep = dxfToSketch(parsed, sk, { scale }); if (!rep.count) return () => t('dxf.empty'); }, { kind: tk('sk.kind.dxf') })
+      .then((r) => { if (r.ok) { this._setSel([]); this.vp.fit(); } return { ...r, rep }; });
+  }
+  exportDxf(version) { return sketchToDxf(this.sk, { version }); }
+
   // Eskizden çıkarken bilgi amaçlı uyarılar (engellemez)
   exitReport() {
     const out = []; const sk = this.sk; if (!sk || !sk.ents.length) return out;
