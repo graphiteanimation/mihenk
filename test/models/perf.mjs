@@ -23,7 +23,7 @@ export async function checks(t) {
   const long = []; let failedAt = null; for (let i = 31; i <= 150; i++) { base.doc.params.find((p) => p.name === 'BD').expr = String(20 + (i % 9)); const r = await rb(Kf, base.doc); if (r.exc || !r.out.status.bore?.ok) { failedAt = i; long.push(String(r.exc || r.out.status.bore.error)); break; } if (i % 30 === 0) { global.gc?.(); long.push({ i, ...Object.fromEntries(Object.entries(mem()).map(([k, v]) => [k, r1(v)])) }); } }
   t.note('bellek-150-rebuild', long); t.ok(failedAt == null, 'PERF 150 ardışık rebuild çökmeden bitti' + (failedAt ? ' (başarısız tur ' + failedAt + ')' : ''));
   // 200 delik: dikdörtgen desen, dairesel desen, tek sketch'te 200 nokta
-  const pl = (extra = []) => { const s = new Sk(); s.point(5, 5); return [prim({ w: '600', d: '600', h: '10' }), { id: 'h', type: 'sketch', plane: basePl('XY', 10), points: s.points, ents: s.ents, cons: [] }, { id: 'hh', type: 'hole', sketch: 'h', kind: 'simple', dia: '2', extent: 'all' }, ...extra]; };
+  const pl = (extra = [], pt = [5, 5]) => { const s = new Sk(); s.point(...pt); return [prim({ w: '600', d: '600', h: '10' }), { id: 'h', type: 'sketch', plane: basePl('XY', 10), points: s.points, ents: s.ents, cons: [] }, { id: 'hh', type: 'hole', sketch: 'h', kind: 'simple', dia: '2', extent: 'all' }, ...extra]; };
   const V0 = 600 * 600 * 10, vh = Math.PI * 10;
   for (const [cx, cy] of [[10, 5], [10, 10], [10, 20], [20, 20], [20, 40]]) {
     const { r, row } = await T(`desen ${cx}x${cy} = ${cx * cy} delik (rect)`, D(...pl([{ id: 'pt', type: 'pattern', kind: 'rect', source: { kind: 'feature', id: 'hh' }, count1: String(cx), step1: '20', dir1: 'X', count2: String(cy), step2: '14', dir2: 'Y' }])));
@@ -31,7 +31,8 @@ export async function checks(t) {
     if (cx * cy === 200) t.ok(row.ms < 60000, `PERF 200 delik desen süresi ${row.ms} ms < 60 s`);
   }
   { const s = new Sk(); for (let i = 0; i < 200; i++) s.point(10 + (i % 20) * 28, 10 + Math.floor(i / 20) * 28); const { r, row } = await T('tek sketch\'te 200 nokta + tek delik', D(prim({ w: '600', d: '600', h: '10' }), { id: 'h', type: 'sketch', plane: basePl('XY', 10), points: s.points, ents: s.ents, cons: [] }, { id: 'hh', type: 'hole', sketch: 'h', kind: 'simple', dia: '2', extent: 'all' })); if (r.out) t.near(r.out.bodies[0]?.volume, V0 - 200 * vh, 'PERF 200 noktalı delik hacmi', 1e-4); }
-  for (const n of [50, 100, 200, 400]) await T(`dairesel desen ${n} delik`, D(...pl([{ id: 'pt', type: 'pattern', kind: 'circ', source: { kind: 'feature', id: 'hh' }, count: String(n), total: '360', axis: 'Z', cx: '300', cy: '300' }])));
+  // kaynak delik (550,300), merkez (300,300): tüm örnekler plakada (F-08: dışarı taşan örnek açık hata verir)
+  for (const n of [50, 100, 200, 400]) { const { r } = await T(`dairesel desen ${n} delik`, D(...pl([{ id: 'pt', type: 'pattern', kind: 'circ', source: { kind: 'feature', id: 'hh' }, count: String(n), total: '360', axis: 'Z', cx: '300', cy: '300' }], [550, 300]))); if (r.out) t.near(r.out.bodies[0]?.volume, V0 - n * vh, `PERF dairesel ${n} delik hacmi`, 1e-4); }
   // ölçek: küre büyüklüğü -> ağ süresi
   for (const dia of [100, 1e3, 3e3, 6e3]) await T(`küre çap ${dia}`, D(prim({ kind: 'sphere', dia: String(dia) })));
   // 60 özellikli belge
