@@ -132,7 +132,7 @@ function segEnt(sk, s, eps) {
 }
 
 // OCCT kenarı (dünya koordinatı)
-function segEdge(s, W, plane, sc) {
+export function segEdge(s, W, plane, sc) {
   if (s.type === 'line') return TP.makeLine(W(s.p0), W(s.p1));
   if (s.type === 'arc') { if (d2(s.p0, s.p1) < 1e-9 * sc) return R.makeCircle(s.r, W(s.c), plane.n); return TP.makeArc3(W(s.p0), W(s.mid), W(s.p1)); }
   if (s.type === 'circle') return R.makeCircle(s.r, W(s.c), plane.n);
@@ -159,8 +159,9 @@ function splineEdge(s, W) {
     let pts = (s.pts || []).map((p) => W(p));
     if (s.closed && pts.length > 2 && V.dist(pts[0], pts[pts.length - 1]) < 1e-9) pts = pts.slice(0, -1);
     if (pts.length < 2) throw new KErr('sketch.bad_segment', { type: 'spline' });
-    const arr = r(new oc.NCollection_HArray1_gp_Pnt(1, pts.length));
-    pts.forEach((p, i) => arr.SetValue(i + 1, r(new oc.gp_Pnt(p[0], p[1], p[2]))));
+    const a1 = r(new oc.NCollection_Array1_gp_Pnt(1, pts.length));
+    pts.forEach((p, i) => a1.SetValue(i + 1, r(new oc.gp_Pnt(p[0], p[1], p[2]))));
+    const arr = r(new oc.NCollection_HArray1_gp_Pnt(a1));
     const ip = r(new oc.GeomAPI_Interpolate(arr, !!s.closed, 1e-9)); ip.Perform();
     if (!ip.IsDone()) throw new KErr('sketch.bad_segment', { type: 'spline' });
     const curve = r(ip.Curve());

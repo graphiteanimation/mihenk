@@ -879,7 +879,7 @@ export class Sketcher {
     if (DEFS[tool] && this._ds) {
       const r = DEFS[tool].preview(this, this._ds.pts, cur); for (const pl of r.polys) this._line(pl.pts, B, pl.dashed); tip = r.tip || '';
     } else if (tool === 'spline' && this._sp) {
-      const pts = [...this._sp.pts.map((p) => [p.x, p.y]), [cur.x, cur.y]];
+      const pts = [...this._sp.pts.map((p) => [p.x, p.y]), [cur.x, cur.y]].filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 1e-9);
       if (pts.length >= 2) { try { this._line(G.sample(G.mkSpline(pts, false), 0.02), B); } catch (e) { this._line(pts, B, true); } }
       tip = pts.length + ' ' + t('sk.spline_pts');
     } else if (tool === 'line' && this._ln && this._ln.mode === 'arc') {

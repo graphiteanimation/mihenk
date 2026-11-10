@@ -30,6 +30,7 @@ try:
     br = p.chromium.launch(channel='chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'])
     # Durum/ipucu metinleri Türkçe beklenir: dil tercihi sabitlenir (varsayılan dil işletim sisteminden gelir).
     ctx = br.new_context(viewport={'width': 1100, 'height': 760}, locale='tr-TR')
+    ctx.add_init_script("const _ce = console.error; console.error = (...a) => { _ce(a.join(' ') + ' @@ ' + new Error().stack.split('\\n').slice(2,8).join(' | ')); };")
     ctx.add_init_script("try { localStorage.setItem('atolye.lang', 'tr'); } catch (e) {}")
     page = ctx.new_page()
     errs = []
@@ -319,6 +320,7 @@ try:
     def line(a, b):
         tool('line'); click(*a); click(*b); key('Escape')
     def ents(t): return [e for e in S()['ents'] if e['type'] == t]
+    def real(t): return [e for e in ents(t) if not e.get('cons')]
     def P_(s, pid): return (s['points'][pid]['x'], s['points'][pid]['y'])
 
     print('Uzat')
@@ -392,6 +394,50 @@ try:
     check('Ctrl+X: kesildi', len(ents('line')) == 0, len(ents('line')))
     key('Control+v'); page.wait_for_timeout(200); idle()
     check('kesilen yapıştırıldı', len(ents('line')) == 4, len(ents('line')))
+
+    print('Yeni çizim komutları')
+    fresh(); tool('rectc'); click(10, 10); click(30, 20)
+    s = S(); xs = sorted(P_(s, e['a'])[0] for e in ents('line'))
+    check('merkez dikdörtgen: 4 çizgi (+ yapı köşegeni), x aralığı -10..30', len(real('line')) == 4 and near(min(xs), -10, 1e-3) and near(max(xs), 30, 1e-3), xs)
+    fresh(); tool('rect3'); click(-20, 0); click(20, 0); click(20, 20)
+    check('3 nokta dikdörtgen: 4 çizgi', len(ents('line')) == 4, len(ents('line')))
+    fresh(); tool('circle2'); click(-20, 0); click(20, 0)
+    c = ents('circle'); check('2 nokta daire: r=20', len(c) == 1 and near(c[0]['r'], 20, 1e-3), c)
+    fresh(); tool('circle3'); click(-10, 0); click(10, 0); click(0, 10)
+    c = ents('circle'); check('3 nokta daire: r=10', len(c) == 1 and near(c[0]['r'], 10, 1e-3), c)
+    fresh(); tool('arc3'); click(-20, 0); click(0, 20); click(20, 0)
+    check('3 nokta yay', len(ents('arc')) == 1)
+    fresh(); line((-30, 0), (0, 0)); tool('arct'); click(0, 0); click(20, 20)
+    s = S(); check('teğet yay + teğet kısıtı', len(ents('arc')) == 1 and any(c['type'] == 'tangent' for c in s['cons']), s['cons'])
+    fresh(); ev('sk.opts.polySides = 6'); tool('polygon'); click(0, 0); click(20, 0)
+    check('çokgen: 6 kenar', len(ents('line')) == 6, len(ents('line')))
+    fresh(); tool('slot'); click(-20, 0); click(20, 0); click(20, 5)
+    check('kanal: 2 çizgi + 2 yay', len(real('line')) == 2 and len(ents('arc')) == 2, (len(real('line')), len(ents('arc'))))
+    fresh(); tool('ellipse'); click(0, 0); click(20, 0); click(0, 10)
+    check('elips', len(ents('ellipse')) == 1)
+    check('elips profil bölgesi', regions() == 1, regions())
+    fresh(); tool('spline'); click(-30, 0); click(-10, 15); click(10, -15); click(30, 0); key('Enter')
+    check('eğri: 4 noktalı spline', len(ents('spline')) == 1 and len(ents('spline')[0]['pts']) == 4, ents('spline'))
+    fresh(); tool('line'); click(-30, 0); click(0, 0); key('a'); click(20, 20); key('l'); click(40, 20); key('Escape')
+    check('zincirde çizgi↔yay geçişi: 2 çizgi + 1 yay', len(ents('line')) == 2 and len(ents('arc')) == 1, (len(ents('line')), len(ents('arc'))))
+    shot('sk-new-tools.png')
+
+    print('Sayısal giriş ve bağlam menüsü')
+    fresh(); tool('line'); click(-30, 0); move(0, 5)
+    page.keyboard.type('25'); page.keyboard.press('Tab'); page.keyboard.type('90'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(300); idle()
+    s = S(); l = ents('line')
+    check('sayısal giriş: 25 mm dikey çizgi + ölçü kısıtı', len(l) == 1 and near(lens(s, l[0]['id']), 25, 1e-3) and any(c['type'] == 'dist' for c in s['cons']), (l, s['cons']))
+    key('Escape')
+    fresh(); tool('select'); line((-20, 0), (20, 0)); tool('select'); click(10, 0)
+    x, y = P(10, 0); page.mouse.click(x, y, button='right'); page.wait_for_timeout(100)
+    check('sağ tık menüsü açıldı', ev("!!document.querySelector('.sk-ctx')"))
+    labels = ev("[...document.querySelectorAll('.sk-ctx button')].map(b => b.dataset.act)")
+    check('menüde bitir/sil/yapı/kısıtlar', all(a in labels for a in ['ctx-finish', 'ctx-delete', 'ctx-construction', 'ctx-constraints']), labels)
+    page.click('.sk-ctx [data-act=ctx-construction]'); idle()
+    check('sağ tık: yapı geometrisi yapıldı', ents('line')[0].get('cons') is True)
+    page.mouse.click(*P(10, 0), button='right'); page.wait_for_timeout(100)
+    page.click('.sk-ctx [data-act=ctx-delete]'); idle()
+    check('sağ tık: silindi', len(ents('line')) == 0)
 
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])

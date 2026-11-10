@@ -37,7 +37,7 @@ export function mkEllArc(c, rx, ry, rot, a0, sweep) {
   s.p0 = ellPt(s, a0); s.p1 = ellPt(s, a0 + sweep); return s;
 }
 export function mkSpline(pts, closed = false) {
-  pts = pts.map((p) => [p[0], p[1]]);
+  pts = pts.map((p) => [p[0], p[1]]).filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 1e-9); // art arda çakışan noktalar sıfır uzunluklu parça (NaN) üretir
   return { type: 'spline', pts, closed: !!closed, p0: pts[0], p1: closed ? pts[0] : pts[pts.length - 1] };
 }
 
