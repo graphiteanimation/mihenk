@@ -109,7 +109,7 @@ export function curve(seg) {
       c = { U: seg.type === 'ellarc' ? seg.sweep : TAU, closed: seg.type === 'ellipse', pt: (u) => ellPt(seg, a0 + u), d: (u) => ellD(seg, a0 + u) }; break;
     }
     case 'spline': { const m = splineModel(seg); c = { U: m.U, closed: !!seg.closed, m, pt: (u) => splineEval(m, Math.min(Math.max(u, 0), m.U), false), d: (u) => splineEval(m, Math.min(Math.max(u, 0), m.U), true) }; break; }
-    default: throw new Error('geom2d: bilinmeyen parça ' + seg.type);
+    default: throw new Error('geom2d: unknown segment ' + seg.type);
   }
   CACHE.set(seg, c); return c;
 }
