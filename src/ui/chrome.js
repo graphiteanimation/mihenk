@@ -43,7 +43,7 @@ export function initChrome(app) {
   ];
   C.renderMenu = () => {
     const bar = $('#menubar'); const openId = bar.querySelector('.menu.open > button')?.dataset.menu;
-    bar.replaceChildren(h('span', { class: 'brand', text: 'AtolyeCAD' }));
+    bar.replaceChildren(h('span', { class: 'brand', text: 'Mihenk' }));
     for (const [id, name, items] of menus()) {
       const m = h('div', { class: 'menu' + (openId === id ? ' open' : '') });
       const b = h('button', { 'data-menu': id, onclick: (e) => { e.stopPropagation(); const o = m.classList.contains('open'); closeMenus(); if (!o) m.classList.add('open'); } }, name);

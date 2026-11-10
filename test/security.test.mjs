@@ -45,15 +45,16 @@ ok(code(() => validateDoc(pat({ count1: '200000' }))) === 'schema.pattern_too_bi
 ok(code(() => validateDoc(pat({ count1: 'N*10', count2: '5' }))) === 'schema.pattern_too_big', 'desen parametreli 50*10*5');
 ok(code(() => validateDoc(pat({ kind: 'circ', count: '2001' }))) === 'schema.pattern_too_big', 'dairesel desen 2001');
 ok(code(() => validateDoc(pat({ count1: 'QQ' }))) === null, 'çözülemeyen ifade: çekirdek özellik hatası olarak bildirir');
-ok(checkEnvelope({ app: 'AtolyeCAD', version: 1, doc: {} }).newer === false, 'sürüm 1');
-ok(checkEnvelope({ app: 'AtolyeCAD', version: FILE_VERSION + 1, doc: {} }).newer === true, 'daha yeni sürüm bildirilir');
-ok(checkEnvelope({ app: 'AtolyeCAD', doc: {} }).version === 1, 'sürümsüz = 1');
+ok(checkEnvelope({ app: 'Mihenk', version: 1, doc: {} }).newer === false, 'sürüm 1');
+ok(checkEnvelope({ app: 'Mihenk', version: FILE_VERSION + 1, doc: {} }).newer === true, 'daha yeni sürüm bildirilir');
+ok(checkEnvelope({ app: 'Mihenk', doc: {} }).version === 1, 'sürümsüz = 1');
+ok(checkEnvelope({ app: 'AtolyeCAD', version: 1, doc: {} }).version === 1, 'eski app alanı (AtolyeCAD) de kabul');
 ok(code(() => checkEnvelope({ app: 'Baska', doc: {} })) === 'schema.not_doc', 'başka uygulama');
-ok(code(() => checkEnvelope({ app: 'AtolyeCAD', version: 'x', doc: {} })) === 'schema.bad_field', 'sürüm metin');
+ok(code(() => checkEnvelope({ app: 'Mihenk', version: 'x', doc: {} })) === 'schema.bad_field', 'sürüm metin');
 
 console.log('2. atomik yazma + yedek');
 const tmpd = fs.mkdtempSync(path.join(os.tmpdir(), 'acad-sec-'));
-const f = path.join(tmpd, 'a.acad');
+const f = path.join(tmpd, 'a.mhnk');
 await atomicWrite(f, Buffer.from('v1'), { backup: true });
 ok(fs.readFileSync(f, 'utf8') === 'v1' && !fs.existsSync(f + '.bak'), 'ilk kayıt, yedek yok');
 await atomicWrite(f, Buffer.from('v2'), { backup: true });
@@ -105,8 +106,8 @@ ok(isWorkerScript('/assets/worker-CHepCBmu.js') && !isWorkerScript('/assets/inde
 console.log('5. kurulum betiği (statik)');
 const nsi = fs.readFileSync(path.join(ROOT, 'build/installer.nsi'), 'utf8');
 ok(!/RMDir\s+\/r\s+"\$INSTDIR"/i.test(nsi), 'RMDir /r "$INSTDIR" yok');
-ok(/\$\\"\$INSTDIR\\\$\{APP\}\.exe\$\\" \$\\"%1\$\\"/.test(nsi), '.acad komutu tırnaklı');
-ok(/AtolyeCAD/.test(nsi) && /DirLeave|\.onVerifyInstDir/.test(nsi), 'dizin sonuna AtolyeCAD ekleme işlevi var');
+ok(/\$\\"\$INSTDIR\\\$\{APP\}\.exe\$\\" \$\\"%1\$\\"/.test(nsi), '.mhnk komutu tırnaklı');
+ok(/\\Mihenk/.test(nsi) && /DirLeave|\.onVerifyInstDir/.test(nsi), 'dizin sonuna Mihenk ekleme işlevi var');
 ok(/uninstall-files\.nsh/.test(nsi), 'kaldırıcı dosya listesini kullanıyor');
 
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

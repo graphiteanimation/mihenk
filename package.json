@@ -1,12 +1,12 @@
 {
- "name": "atolyecad",
- "version": "0.1.0",
- "description": "Parametrik CAD",
+ "name": "mihenk",
+ "version": "0.2.0",
+ "description": "Mihenk CAD/CAM",
  "main": "electron/main.cjs",
  "scripts": {
   "dev": "vite",
   "build": "vite build",
-  "dist": "vite build && electron-builder --win dir --x64 && node scripts/gen-uninstall-list.mjs && node scripts/make-installer.mjs && node scripts/sha256sums.mjs",
+  "dist": "vite build && electron-builder --win dir --x64 && node scripts/patch-exe.mjs && node scripts/gen-uninstall-list.mjs && node scripts/make-installer.mjs && node scripts/sha256sums.mjs",
   "preview": "vite preview",
   "test": "node test/security.test.mjs && node test/kernel.test.mjs && node test/solver.test.mjs",
   "test:all": "node test/i18n.test.mjs && node test/security.test.mjs && node test/kernel.test.mjs && node test/solver.test.mjs && node test/geom2d.test.mjs && node test/profiles.test.mjs && node test/sketchops.test.mjs && node test/dxf.test.mjs && node test/stability.test.mjs && node test/models/run-all.mjs && npm run build && python3 test/sketcher.test.py && python3 test/app.test.py && node test/electron.test.mjs",
@@ -26,12 +26,13 @@
   "electron": "^45.2.3",
   "electron-builder": "^26.18.0",
   "playwright": "^1.65.0",
+  "resedit": "^3.1.0",
   "vite": "^8.3.7"
  },
- "productName": "AtolyeCAD",
+ "productName": "Mihenk",
  "build": {
-  "appId": "com.d160.atolyecad",
-  "productName": "AtolyeCAD",
+  "appId": "com.d160.mihenk",
+  "productName": "Mihenk",
   "files": [
    "dist/**",
    "electron/**",

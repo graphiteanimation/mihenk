@@ -157,11 +157,11 @@ await app.close();
 // ================================================================ 2. dosya: kaydet/aç/dışa aktar, atomik + .bak
 console.log('2: dosya akışı (diyalog yolu, geçerli belge yolu, .bak, hata)');
 const ud2 = path.join(TMP, 'ud2'); ({ app, page } = await launch(ud2));
-const f1 = path.join(TMP, 'is1.acad'), f2 = path.join(TMP, 'is2.acad');
+const f1 = path.join(TMP, 'is1.mhnk'), f2 = path.join(TMP, 'is2.mhnk');
 await stubDialogs(app, { save: f1 });
 await page.evaluate(async (d) => { await window.app.loadDoc(d); await window.app.whenIdle(); window.app.markDirty(true); }, BOX);
 await page.evaluate(() => window.app.save());
-check('ilk Kaydet: diyalog açıldı, dosya yazıldı', (await dlgCounts(app)).save === 1 && fs.existsSync(f1) && JSON.parse(fs.readFileSync(f1, 'utf8')).app === 'AtolyeCAD');
+check('ilk Kaydet: diyalog açıldı, dosya yazıldı', (await dlgCounts(app)).save === 1 && fs.existsSync(f1) && JSON.parse(fs.readFileSync(f1, 'utf8')).app === 'Mihenk');
 const v1 = fs.readFileSync(f1, 'utf8');
 await page.evaluate(() => { window.app.doc.features[0].w = '55'; window.app.markDirty(true); return window.app.save(); });
 const c2 = await dlgCounts(app);
@@ -187,7 +187,7 @@ check('Aç: dosya yüklendi', (await page.evaluate(() => window.app.doc.features
 await page.evaluate(() => { window.app.doc.features[0].w = '77'; window.app.markDirty(true); return window.app.save(); });
 check('Aç sonrası Kaydet açılan dosyaya yazar (diyalog yok)', (await dlgCounts(app)).save === 0 && JSON.parse(fs.readFileSync(f1, 'utf8')).doc.features[0].w === '77');
 // bozuk (şema geçersiz) dosya: mevcut belge korunur, kayıt hedefi değişmez
-const badF = path.join(TMP, 'bad.acad'); fs.writeFileSync(badF, JSON.stringify({ app: 'AtolyeCAD', version: 1, doc: { params: [null], features: [] } }));
+const badF = path.join(TMP, 'bad.mhnk'); fs.writeFileSync(badF, JSON.stringify({ app: 'Mihenk', version: 1, doc: { params: [null], features: [] } }));
 await stubDialogs(app, { open: badF });
 const before = await page.evaluate(() => JSON.stringify(window.app.doc));
 await page.evaluate(() => { window.app.markDirty(false); return window.app.openFile(); });
@@ -196,7 +196,7 @@ check('şema geçersiz dosya: anlaşılır uyarı, mevcut belge DEĞİŞMEDİ', 
 await page.evaluate(() => { window.app.markDirty(true); return window.app.save(); });
 check('şema geçersiz dosya açılamayınca Kaydet o dosyanın üstüne yazmaz', JSON.parse(fs.readFileSync(badF, 'utf8')).doc.params[0] === null);
 // hata: yazılamayan hedef → anlaşılır hata, hedefe dokunulmaz, mevcut dosya aynı
-await stubDialogs(app, { save: path.join(TMP, 'yok-dizin', 'x.acad') });
+await stubDialogs(app, { save: path.join(TMP, 'yok-dizin', 'x.mhnk') });
 await page.evaluate(() => window.app.save(true));
 const toastErr = await page.evaluate(() => document.querySelector('#toast').textContent);
 check('yazma hatası: toast gösterildi, dizin/dosya oluşmadı', !fs.existsSync(path.join(TMP, 'yok-dizin')) && toastErr.length > 5 && toastErr !== '', toastErr);
@@ -206,9 +206,37 @@ await page.evaluate(async (d) => { await window.app.loadDoc(d); await window.app
 check('STEP dışa aktar: diyalog + uzantı zorlandı + geçerli STEP', fs.existsSync(stepOut + '.step') && /ISO-10303-21/.test(fs.readFileSync(stepOut + '.step', 'latin1').slice(0, 40)));
 await app.close();
 
+
+// ---- eski .acad dosyası: aç → Kaydet .mhnk için diyalog açar, özgün .acad'a dokunulmaz; app alanı her iki değer
+console.log('2b: eski .acad açılır, .mhnk olarak kaydedilir');
+const udA = path.join(TMP, 'udA'); ({ app, page } = await launch(udA));
+const legacy = path.join(TMP, 'eski.acad'); fs.writeFileSync(legacy, JSON.stringify({ app: 'AtolyeCAD', version: 1, doc: BOX }));
+const legacyBytes = fs.readFileSync(legacy, 'utf8');
+await stubDialogs(app, { open: legacy });
+await page.evaluate(() => window.app.openFile());
+await page.evaluate(() => window.app.whenIdle());
+check('.acad (app: AtolyeCAD) açıldı', (await page.evaluate(() => Math.abs(window.app.result.bodies[0].volume - 24000) < 1)));
+const newF = path.join(TMP, 'yeni-ad.mhnk'); await stubDialogs(app, { save: newF });
+await page.evaluate(() => { window.app.markDirty(true); return window.app.save(); });
+const jn = fs.existsSync(newF) ? JSON.parse(fs.readFileSync(newF, 'utf8')) : null;
+check('.acad açıkken Kaydet: diyalog açıldı, .mhnk yazıldı (app=Mihenk), eski dosya aynı', (await dlgCounts(app)).save === 1 && jn && jn.app === 'Mihenk' && fs.readFileSync(legacy, 'utf8') === legacyBytes);
+const noExt = path.join(TMP, 'uzantisiz'); await stubDialogs(app, { save: noExt });
+await page.evaluate(() => window.app.save(true));
+check('uzantısız kayıt adına .mhnk eklenir (.acad eklenmez)', fs.existsSync(noExt + '.mhnk') && !fs.existsSync(noExt + '.acad'));
+await app.close();
+// ---- eski AtolyeCAD kullanıcı verisi ilk açılışta KOPYALANIR (silinmez)
+console.log('2c: eski ayar klasörü kopyalanır');
+const oldUD = path.join(TMP, 'AtolyeCAD-eski'); fs.mkdirSync(path.join(oldUD, 'recovery'), { recursive: true });
+fs.writeFileSync(path.join(oldUD, 'settings.json'), '{"lang":"en"}'); fs.writeFileSync(path.join(oldUD, 'recovery', 'autosave.acad'), 'x');
+const newUD = path.join(TMP, 'Mihenk-yeni');
+({ app, page } = await launch(newUD, { ATOLYE_LEGACY_USERDATA: oldUD }));
+check('eski settings.json yeni klasöre kopyalandı, dil uygulandı', JSON.parse(fs.readFileSync(path.join(newUD, 'settings.json'), 'utf8')).lang === 'en' && (await page.evaluate(() => window.native.getSetting('lang'))) === 'en');
+check('eski klasör SİLİNMEDİ', fs.existsSync(path.join(oldUD, 'settings.json')) && fs.existsSync(path.join(oldUD, 'recovery', 'autosave.acad')));
+await app.close();
+
 // ================================================================ 3. otomatik kurtarma
 console.log('3: otomatik kurtarma (temiz kapanış, çökme, sor)');
-const ud3 = path.join(TMP, 'ud3'); const recF = path.join(ud3, 'recovery', 'autosave.acad');
+const ud3 = path.join(TMP, 'ud3'); const recF = path.join(ud3, 'recovery', 'autosave.mhnk');
 ({ app, page } = await launch(ud3));
 await stubDialogs(app, {});
 await page.evaluate(async (d) => { await window.app.loadDoc(d); await window.app.whenIdle(); }, BOX);
@@ -232,10 +260,10 @@ await page.click('#modal button.pri'); await page.waitForFunction(() => window.a
 await page.evaluate(() => window.app.whenIdle());
 check('Kurtar: belge geri geldi, değişmiş (dirty) durumda, geometri hesaplandı', (await page.evaluate(() => window.app.dirty && Math.abs(window.app.result.bodies[0].volume - 99 * 30 * 20) < 1)));
 check('kurtarma dosyası kaydedilene kadar saklanır', fs.existsSync(recF));
-await stubDialogs(app, { save: path.join(TMP, 'kurtarilan.acad') });
+await stubDialogs(app, { save: path.join(TMP, 'kurtarilan.mhnk') });
 await page.evaluate(() => window.app.save());
 await sleep(300);
-check('kaydedince kurtarma dosyası silindi', !fs.existsSync(recF) && fs.existsSync(path.join(TMP, 'kurtarilan.acad')));
+check('kaydedince kurtarma dosyası silindi', !fs.existsSync(recF) && fs.existsSync(path.join(TMP, 'kurtarilan.mhnk')));
 // reddetme yolu
 await page.evaluate(() => { window.app.doc.features[0].w = '11'; window.app.markDirty(true); return window.app.recoveryTick(); });
 app.process().kill('SIGKILL'); await sleep(800);

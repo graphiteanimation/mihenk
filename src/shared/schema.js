@@ -1,4 +1,4 @@
-// .acad belge şeması doğrulaması (S-12): tür, alan, uzunluk, iç içelik ve sayısal üst sınırlar.
+// .mhnk (eski: .acad) belge şeması doğrulaması (S-12): tür, alan, uzunluk, iç içelik ve sayısal üst sınırlar.
 // Hata durumunda 'schema' önekli yapılandırılmış hata (KErr) fırlatır; arayüz bunu errText ile gösterir. Belgeyi DEĞİŞTİRMEZ.
 import { KErr } from './errors.js';
 import { evalExpr, resolveParams } from './expr.js';
@@ -82,9 +82,13 @@ function walk(root) {
   }
 }
 
+// Dosya içindeki `app` alanı: yeni belgeler 'Mihenk' yazar; eski AtolyeCAD belgeleri de okunur.
+export const APP_NAME = 'Mihenk';
+export const APP_NAMES = ['Mihenk', 'AtolyeCAD'];
+
 // Dosya zarfı: {app, version, doc}. Daha yeni sürümü `newer: true` ile bildirir (reddetmez; çağıran uyarır).
 export function checkEnvelope(j) {
-  if (!isObj(j) || j.app !== 'AtolyeCAD') fail('schema.not_doc');
+  if (!isObj(j) || !APP_NAMES.includes(j.app)) fail('schema.not_doc');
   if (!isObj(j.doc)) fail('schema.not_doc');
   const v = j.version === undefined ? 1 : j.version;
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) fail('schema.bad_field', { path: 'version', expect: 'number' });

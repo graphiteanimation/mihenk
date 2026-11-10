@@ -1,4 +1,4 @@
-// AtolyeCAD Electron ana süreci: tek pencere, app:// protokolü, yerel dosya diyalogları.
+// Mihenk CAD/CAM Electron ana süreci: tek pencere, app:// protokolü, yerel dosya diyalogları.
 // Güvenlik ilkesi: renderer güvenilmeyen kabul edilir. Dosya yolu yalnız ana süreçte, kullanıcının diyalogla
 // seçtiği ya da açtığı yoldan gelir; tüm IPC işleyicileri göndereni doğrular; ağ tümden kapalıdır.
 const { app, BrowserWindow, Menu, protocol, dialog, ipcMain, session } = require('electron');
@@ -16,10 +16,12 @@ const MAX_FILE = 200 * 1024 * 1024;                           // dosya boyutu ü
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.wasm': 'application/wasm', '.json': 'application/json', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.ico': 'image/x-icon', '.map': 'application/json', '.txt': 'text/plain; charset=utf-8',
+  '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ico': 'image/x-icon', '.map': 'application/json', '.txt': 'text/plain; charset=utf-8',
 };
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
-const KINDS = { acad: ['.acad'], step: ['.step', '.stp'], stl: ['.stl'] };
+// 'doc' = Mihenk belgesi: okuma .mhnk ve eski .acad; yazma her zaman .mhnk (eski dosyaya dokunulmaz).
+const KINDS = { doc: ['.mhnk', '.acad'], step: ['.step', '.stp'], stl: ['.stl'] };
+const DOC_EXT = '.mhnk';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
@@ -38,13 +40,13 @@ app.commandLine.appendSwitch('host-resolver-rules', 'MAP * ~NOTFOUND');
 
 // Kendi kullanıcı verisi klasörü (sınama sırasında gerçek ayarları bozmamak için; yalnız geliştirmede)
 if (DEV && process.env.ATOLYE_USERDATA) app.setPath('userData', path.resolve(process.env.ATOLYE_USERDATA));
-else if (SELFTEST) app.setPath('userData', path.join(os.tmpdir(), 'atolyecad-selftest-' + process.pid));
+else if (SELFTEST) app.setPath('userData', path.join(os.tmpdir(), 'mihenk-selftest-' + process.pid));
 
 let win = null;
 let dirty = false;
 let blockedCount = 0;                // webRequest ile iptal edilen istek sayısı (öz-test kanıtı)
 let currentPath = null;              // bu oturumda diyalogla açılmış/kaydedilmiş geçerli belge yolu
-let pendingPath = null;              // açılmış ama arayüz yüklemeyi henüz onaylamamış .acad yolu
+let pendingPath = null;              // açılmış ama arayüz yüklemeyi henüz onaylamamış belge yolu
 
 // ---- ayarlar: userData/settings.json (dil tercihi vb.). Yalnız düz anahtar → sayı/metin/mantıksal değer.
 const settings = {};
@@ -63,6 +65,21 @@ function saveSettings() {
     fs.writeFileSync(f + '.tmp', JSON.stringify(settings, null, 2)); fs.renameSync(f + '.tmp', f);
   } catch (e) { console.error('settings write failed:', e.message); }
 }
+// Eski AtolyeCAD kullanıcı verisi (%APPDATA%/AtolyeCAD): ilk açılışta (yeni klasörde settings.json yokken) ayar ve kurtarma dosyası
+// yeni klasöre KOPYALANIR; eski klasöre dokunulmaz. Geliştirmede ATOLYE_LEGACY_USERDATA ile gösterilir.
+function migrateLegacyUserData() {
+  try {
+    const dest = app.getPath('userData');
+    if (fs.existsSync(path.join(dest, 'settings.json')) || fs.existsSync(path.join(dest, '.migrated'))) return;
+    const old = DEV && process.env.ATOLYE_LEGACY_USERDATA ? path.resolve(process.env.ATOLYE_LEGACY_USERDATA) : path.join(app.getPath('appData'), 'AtolyeCAD');
+    if (!fs.existsSync(old) || path.resolve(old) === path.resolve(dest)) return;
+    fs.mkdirSync(dest, { recursive: true });
+    const s = path.join(old, 'settings.json'); if (fs.existsSync(s)) fs.copyFileSync(s, path.join(dest, 'settings.json'));
+    const r = path.join(old, 'recovery', 'autosave.acad');
+    if (fs.existsSync(r)) { fs.mkdirSync(path.join(dest, 'recovery'), { recursive: true }); fs.copyFileSync(r, path.join(dest, 'recovery', 'autosave.mhnk')); }
+    fs.writeFileSync(path.join(dest, '.migrated'), 'AtolyeCAD\n');
+  } catch (e) { console.error('legacy userData copy failed:', e.message); }
+}
 // Kurulumun yazdığı dil dosyası (kurulum dizinindeki `lang`: "tr" ya da "en"). Yalnız ilk açılışta (kayıtlı tercih yokken) okunur.
 function applyInstallLang() {
   if ('lang' in settings) return;
@@ -76,10 +93,10 @@ function applyInstallLang() {
 
 // Arayüzün gönderdiği diyalog metinleri (tek sözlük arayüz tarafında; dil değişince yenilenir)
 const strings = {};
-const STRING_KEYS = ['closeMsg', 'closeDetail', 'closeCancel', 'closeDiscard', 'filterAcad', 'filterStep', 'filterStl', 'tSave', 'tOpen', 'tImport', 'tExport'];
+const STRING_KEYS = ['closeMsg', 'closeDetail', 'closeCancel', 'closeDiscard', 'filterDoc', 'filterStep', 'filterStl', 'tSave', 'tOpen', 'tImport', 'tExport'];
 
-// ---- kurtarma dosyası (S-06): userData/recovery/autosave.acad
-const recoveryFile = () => path.join(app.getPath('userData'), 'recovery', 'autosave.acad');
+// ---- kurtarma dosyası (S-06): userData/recovery/autosave.mhnk
+const recoveryFile = () => path.join(app.getPath('userData'), 'recovery', 'autosave.mhnk');
 function clearRecovery() { try { fs.rmSync(recoveryFile(), { force: true }); } catch (e) { /* yoksa sorun değil */ } }
 
 // ---- gönderen doğrulaması (S-01/S-03): yalnız ana pencerenin ana çerçevesi ve app://atolye/ kökeni
@@ -91,8 +108,8 @@ function okSender(ev) {
 }
 const guarded = (fn) => async (ev, ...a) => { if (!okSender(ev)) throw new Error('forbidden'); return fn(ev, ...a); };
 
-function argvAcad(argv) {
-  const f = argv.slice(1).find((a) => /\.acad$/i.test(a) && !a.startsWith('--'));
+function argvDoc(argv) {
+  const f = argv.slice(1).find((a) => /\.(mhnk|acad)$/i.test(a) && !a.startsWith('--'));
   if (!f || f.startsWith('\\\\') || f.startsWith('//')) return null;   // UNC (ağ) yolu: kimlik doğrulama sızdırabilir, açılmaz
   return path.resolve(f);
 }
@@ -103,9 +120,9 @@ function readLimited(p) {
   return new Uint8Array(fs.readFileSync(p));
 }
 
-function safeFilters(filters, kind) {
-  const exts = KINDS[kind].map((e) => e.slice(1));
-  const names = { acad: strings.filterAcad, step: strings.filterStep, stl: strings.filterStl };
+function safeFilters(filters, kind, save) {
+  const exts = (kind === 'doc' && !save ? KINDS.doc : kind === 'doc' ? [DOC_EXT] : KINDS[kind]).map((e) => e.slice(1));
+  const names = { doc: strings.filterDoc, step: strings.filterStep, stl: strings.filterStl };
   return [{ name: String(names[kind] || kind.toUpperCase()).slice(0, 60), extensions: exts }];
 }
 function safeName(n, kind) {
@@ -114,7 +131,7 @@ function safeName(n, kind) {
   if (!b || /^\.+$/.test(b)) b = 'Belge'; // i18n-ignore: yedek dosya adı
   return b;
 }
-const titleFor = (kind, open) => (open ? (kind === 'acad' ? strings.tOpen : strings.tImport) : (kind === 'acad' ? strings.tSave : strings.tExport)) || undefined;
+const titleFor = (kind, open) => (open ? (kind === 'doc' ? strings.tOpen : strings.tImport) : (kind === 'doc' ? strings.tSave : strings.tExport)) || undefined;
 
 function registerProtocol() {
   protocol.handle('app', async (req) => {
@@ -161,12 +178,12 @@ function lockdownContents(wc) {
 function registerIpc() {
   ipcMain.handle('native:open', guarded(async (ev, kind) => {
     if (!Object.hasOwn(KINDS, kind)) throw new Error('bad kind');
-    const r = await dialog.showOpenDialog(win, { title: titleFor(kind, true), properties: ['openFile'], filters: safeFilters(null, kind) });
+    const r = await dialog.showOpenDialog(win, { title: titleFor(kind, true), properties: ['openFile'], filters: safeFilters(null, kind, false) });
     if (r.canceled || !r.filePaths.length) return null;
     const p = r.filePaths[0];
     if (!KINDS[kind].includes(path.extname(p).toLowerCase())) throw new Error('bad extension');
     const data = readLimited(p);
-    if (kind === 'acad') pendingPath = p;        // yükleme başarılı olunca arayüz 'opened' ile onaylar
+    if (kind === 'doc') pendingPath = p;        // yükleme başarılı olunca arayüz 'opened' ile onaylar
     return { name: path.basename(p), data };
   }));
 
@@ -175,17 +192,18 @@ function registerIpc() {
     if (!opts || typeof opts !== 'object' || Object.keys(opts).some((k) => !['saveAs', 'data', 'defaultName', 'kind'].includes(k))) throw new Error('bad args');
     const { saveAs, data, defaultName, kind } = opts;
     if (typeof saveAs !== 'boolean' || !Object.hasOwn(KINDS, kind) || !(data instanceof Uint8Array) || data.byteLength > MAX_FILE) throw new Error('bad args');
-    let p = kind === 'acad' && !saveAs ? currentPath : null;
+    // eski .acad dosyası açıkken Kaydet yeni .mhnk için diyalog açar: özgün dosyanın üzerine yazılmaz
+    let p = kind === 'doc' && !saveAs && currentPath && path.extname(currentPath).toLowerCase() === DOC_EXT ? currentPath : null;
     let fromDialog = false;
     if (!p) {
-      const dir = kind === 'acad' && currentPath ? path.dirname(currentPath) : app.getPath('documents');
-      const r = await dialog.showSaveDialog(win, { title: titleFor(kind, false), defaultPath: path.join(dir, safeName(defaultName, kind)), filters: safeFilters(null, kind) });
+      const dir = kind === 'doc' && currentPath ? path.dirname(currentPath) : app.getPath('documents');
+      const r = await dialog.showSaveDialog(win, { title: titleFor(kind, false), defaultPath: path.join(dir, safeName(defaultName, kind)), filters: safeFilters(null, kind, true) });
       if (r.canceled || !r.filePath) return null;
       p = r.filePath; fromDialog = true;
-      if (!KINDS[kind].includes(path.extname(p).toLowerCase())) p += KINDS[kind][0];
+      if (!(kind === 'doc' ? [DOC_EXT] : KINDS[kind]).includes(path.extname(p).toLowerCase())) p += kind === 'doc' ? DOC_EXT : KINDS[kind][0];
     }
-    await atomicWrite(p, Buffer.from(data.buffer, data.byteOffset, data.byteLength), { backup: kind === 'acad' });
-    if (kind === 'acad') currentPath = p;
+    await atomicWrite(p, Buffer.from(data.buffer, data.byteOffset, data.byteLength), { backup: kind === 'doc' });
+    if (kind === 'doc') currentPath = p;
     return p;
   }));
 
@@ -202,7 +220,7 @@ function registerIpc() {
   ipcMain.on('native:setSetting', (ev, k, v) => { if (okSender(ev) && validKey(k) && validVal(v)) { settings[k] = v; saveSettings(); } });
   ipcMain.on('native:strings', (ev, o) => { if (okSender(ev) && o && typeof o === 'object') for (const k of STRING_KEYS) if (typeof o[k] === 'string') strings[k] = o[k].slice(0, 400); });
   ipcMain.handle('native:argv', guarded(async () => {
-    const p = argvAcad(process.argv);
+    const p = argvDoc(process.argv);
     try { if (!p || !fs.existsSync(p)) return null; const data = readLimited(p); pendingPath = p; return { name: path.basename(p), data }; } catch (e) { return null; }
   }));
   // otomatik kurtarma
@@ -218,7 +236,7 @@ function registerIpc() {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 900, minHeight: 600, title: 'AtolyeCAD', show: !SELFTEST || process.env.ATOLYE_SHOW === '1',
+    width: 1400, height: 900, minWidth: 900, minHeight: 600, title: 'Mihenk CAD/CAM', icon: path.join(__dirname, 'icon.png'), show: !SELFTEST || process.env.ATOLYE_SHOW === '1',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true,
       allowRunningInsecureContent: false, webviewTag: false, spellcheck: false, devTools: DEV,
@@ -233,7 +251,7 @@ function createWindow() {
     // metinler arayüzden gelir (iki dilli sözlük); gelmediyse (arayüz henüz açılmadıysa) sormadan kapanır
     if (!strings.closeCancel || !strings.closeDiscard) return;
     const c = dialog.showMessageBoxSync(win, {
-      type: 'question', buttons: [strings.closeCancel, strings.closeDiscard], defaultId: 0, cancelId: 0, title: 'AtolyeCAD',
+      type: 'question', buttons: [strings.closeCancel, strings.closeDiscard], defaultId: 0, cancelId: 0, title: 'Mihenk CAD/CAM',
       message: strings.closeMsg || '', detail: strings.closeDetail || '',
     });
     if (c === 0) e.preventDefault();
@@ -270,7 +288,7 @@ function runSelfTest(w) {
         window.app.setLanguage('en'); const en = menu();
         window.app.setLanguage('tr'); const tr = menu();
         let ext = 'GITTI'; try { await fetch('http://127.0.0.1:${port}/fetch', { mode: 'no-cors' }); } catch (e) { ext = 'ENGELLENDI'; }
-        let pathWrite = 'YAZDI'; try { await window.native.saveFile({ path: '/tmp/atolye-selftest-forbidden', saveAs: false, data: new Uint8Array(1), defaultName: 'x', kind: 'acad' }); } catch (e) { pathWrite = 'REDDEDILDI'; }
+        let pathWrite = 'YAZDI'; try { await window.native.saveFile({ path: '/tmp/atolye-selftest-forbidden', saveAs: false, data: new Uint8Array(1), defaultName: 'x', kind: 'doc' }); } catch (e) { pathWrite = 'REDDEDILDI'; }
         return JSON.stringify({ url: location.href, bodies: b.length, volume: b[0] && b[0].volume, native: typeof window.native, ok: window.app.result.status.b1.ok, lang0, en, tr, saved: window.native.getSetting('lang'), ext, pathWrite });
       })()`;
       const out = await w.webContents.executeJavaScript(js);
@@ -294,6 +312,7 @@ function runSelfTest(w) {
 
 app.on('web-contents-created', (e, wc) => lockdownContents(wc));
 app.whenReady().then(() => {
+  migrateLegacyUserData();
   loadSettings();
   applyInstallLang();
   lockdownSession(session.defaultSession);

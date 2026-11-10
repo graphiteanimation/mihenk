@@ -1,4 +1,4 @@
-// AtolyeCAD uygulama çekirdeği: belge durumu, çekirdek (worker) köprüsü, geri al/yinele, dosya, araçlar.
+// Mihenk uygulama çekirdeği: belge durumu, çekirdek (worker) köprüsü, geri al/yinele, dosya, araçlar.
 import './style.css';
 import pkg from '../../package.json';
 import planegcsWasm from '@salusoft89/planegcs/dist/planegcs_dist/planegcs.wasm?url';
@@ -9,7 +9,7 @@ import { basePlane } from '../shared/vec.js';
 import { h, $, toast, modal, modalOpen, promptText, confirmBox, esc, fmt } from './dom.js';
 import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared/i18n.js';
 import { KErr, toErr } from '../shared/errors.js';
-import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS } from '../shared/schema.js';
+import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../shared/schema.js';
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
@@ -91,7 +91,7 @@ class App {
   // Electron ana süreci kapatma onayı gibi diyalog metinlerini buradan alır (tek sözlük).
   pushNativeStrings() {
     window.native?.setStrings?.({ closeMsg: t('native.close_msg'), closeDetail: t('native.close_detail'), closeCancel: t('native.close_cancel'), closeDiscard: t('native.close_discard'),
-      filterAcad: t('file.filter_acad'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
+      filterDoc: t('file.filter_acad'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
   }
   // Dil değişince her yer yeniden çizilir; açık panel, sketch, kesit, ölçü kutusu ve durum satırı dahil.
   relang() {
@@ -149,7 +149,7 @@ class App {
   pushUndo() { this.undoStack.push(clone(this.doc)); if (this.undoStack.length > 50) this.undoStack.shift(); this.redoStack.length = 0; }
   markDirty(v = true) { this.dirty = v; if (v) this._rev++; this.updateTitle(); }
   updateTitle() {
-    const title = this.docTitle() + ' — AtolyeCAD';
+    const title = this.docTitle() + ' — Mihenk';
     document.title = title; this.C?.renderTitle(); if (window.native) { window.native.setTitle(title); window.native.setDirty?.(this.dirty); }
   }
   docTitle() { return (this.dirty ? '• ' : '') + (this.fileName || t('doc.untitled')); }
@@ -496,7 +496,7 @@ class App {
     await this.loadDoc(emptyDoc(), { reset: true }); this.viewport.view('iso', true);
     window.native?.docState('new'); this.clearRecovery();
   }
-  fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: 'AtolyeCAD', version: FILE_VERSION, doc: this.doc })); }
+  fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: this.doc })); }
   // kind: 'acad' | 'step' | 'stl'. Electron'da yol HİÇ gönderilmez; ana süreç diyalog açar ya da bu oturumdaki geçerli belge yoluna yazar.
   async writeOut(bytes, defaultName, kind, saveAs) {
     if (window.native) return window.native.saveFile({ saveAs: !!saveAs, data: bytes, defaultName, kind });
@@ -506,16 +506,16 @@ class App {
   async save(as = false) {
     if (this.sketchSession || this.edit) { toast(t('msg.finish_before_save')); return; }
     try {
-      const name = (this.fileName || 'Belge').replace(/\.acad$/i, '') + '.acad'; // i18n-ignore: yedek dosya adı
-      const p = await this.writeOut(this.fileBytes(), name, 'acad', as || !this.filePath);
+      const name = (this.fileName || 'Belge').replace(/\.(acad|mhnk)$/i, '') + '.mhnk'; // i18n-ignore: yedek dosya adı
+      const p = await this.writeOut(this.fileBytes(), name, 'doc', as || !this.filePath);
       if (!p) return;
-      this.filePath = window.native ? p : null; this.fileName = String(p).split(/[\\/]/).pop(); this.markDirty(false); toast(t('msg.saved', { name: this.fileName }));
+      this.filePath = window.native ? p : null; /* eski .acad açıkken kayıt .mhnk olur */ this.fileName = String(p).split(/[\\/]/).pop(); this.markDirty(false); toast(t('msg.saved', { name: this.fileName }));
       this.clearRecovery();
     } catch (e) { toast(t('msg.save_failed', { msg: errText(e) }), true); }
   }
   // kind: 'acad' | 'step' | 'stl' (Electron: ana süreç diyaloğu; tarayıcı: <input type=file>)
   async pickFile(accept, kind) {
-    if (window.native) { const r = await window.native.openFile(kind); return r ? { name: r.name, path: kind === 'acad' ? r.name : null, data: new Uint8Array(r.data) } : null; }
+    if (window.native) { const r = await window.native.openFile(kind); return r ? { name: r.name, path: kind === 'doc' ? r.name : null, data: new Uint8Array(r.data) } : null; }
     return new Promise((resolve) => {
       const inp = h('input', { type: 'file', accept, style: { display: 'none' } }); document.body.append(inp);
       inp.addEventListener('change', async () => { const f = inp.files[0]; inp.remove(); resolve(f ? { name: f.name, path: null, data: new Uint8Array(await f.arrayBuffer()) } : null); });
@@ -525,7 +525,7 @@ class App {
   }
   async openFile() {
     if (this.guard()) return; if (!(await this.confirmDiscard())) return;
-    const f = await this.pickFile('.acad', 'acad'); if (!f) return;
+    const f = await this.pickFile('.mhnk,.acad', 'doc'); if (!f) return;
     await this.openBytes(f.data, f.name, f.path);
   }
   // İçe aktarma özetlerini doğrula (hash alanı varsa)
@@ -610,7 +610,7 @@ class App {
     if (!this.dirty || this._rev === this._recRev) return false;
     const rev = this._rev;
     try {
-      const bytes = new TextEncoder().encode(JSON.stringify({ app: 'AtolyeCAD', version: FILE_VERSION, doc: this.doc, fileName: this.fileName }));
+      const bytes = new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: this.doc, fileName: this.fileName }));
       await recovery.save(bytes); this._recRev = rev; return true;
     } catch (e) { console.error('recovery save failed', e); return false; }
   }
@@ -634,7 +634,7 @@ class App {
     try {
       const names = Object.fromEntries(ids.map((id) => [id, this.bodyName(id)]));
       const data = await this.query('export', { format, ids, names });
-      const name = (this.fileName || 'Belge').replace(/\.acad$/i, '') + '.' + format;
+      const name = (this.fileName || 'Belge').replace(/\.(acad|mhnk)$/i, '') + '.' + format;
       const p = await this.writeOut(data, name, format, true);
       if (p) toast(t('msg.exported', { fmt: format.toUpperCase(), kb: Math.round(data.length / 1024) }));
     } catch (e) { toast(t('msg.export_failed', { msg: errText(e) }), true); }
@@ -649,7 +649,7 @@ class App {
   showAbout() {
     const dep = (n) => String(pkg.dependencies[n] || '').replace('^', '');
     const el = (window.native?.versions?.electron) || (/Electron\/([\d.]+)/.exec(navigator.userAgent) || [])[1];
-    const rows = [['AtolyeCAD', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`]];
+    const rows = [['Mihenk CAD/CAM', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`]];
     return modal({ title: t('about.title'), content: h('div', {}, h('div', { class: 'note', text: t('about.tagline') }), h('table', {}, rows.map(([k, v]) => h('tr', {}, h('td', { text: k }), h('td', { style: { fontWeight: 600 }, text: v })))),
       h('div', { class: 'note', style: { marginTop: '8px' }, text: t('about.license') })), buttons: [{ label: t('common.close'), cls: 'pri', value: true }] });
   }

@@ -1,4 +1,4 @@
-// AtolyeCAD derleme ayarları: göreli yol (Electron app:// için), ES biçiminde worker, wasm dosyaları varlık olarak.
+// Mihenk derleme ayarları: göreli yol (Electron app:// için), ES biçiminde worker, wasm dosyaları varlık olarak.
 import { defineConfig } from 'vite';
 
 // Geliştirme sunucusunda (HMR için WebSocket ve satır içi stil) CSP gevşetilir; üretim derlemesine DOKUNULMAZ.

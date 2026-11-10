@@ -94,7 +94,7 @@ input, select { font:inherit; color:inherit; }
 #toast { position:fixed; left:50%; bottom:64px; transform:translateX(-50%); background:#1f2a3a; color:#fff; padding:8px 16px; border-radius:6px; z-index:300; box-shadow:0 6px 20px rgba(0,0,0,.25); max-width:70vw; }
 #toast.bad { background:var(--danger); }
 
-/* AtolyeCAD arayüz eklemeleri (Ajan B) */
+/* Mihenk arayüz eklemeleri (Ajan B) */
 .fld > div > .unit { display:block; margin-top:1px; }
 .fld > div > input[type=text], .fld > div > select { width:100%; }
 .row .eye svg { width:15px; height:15px; stroke:currentColor; }

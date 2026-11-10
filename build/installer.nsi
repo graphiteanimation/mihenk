@@ -1,23 +1,29 @@
 Unicode true
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
-!define APP "AtolyeCAD"
+!define APP "Mihenk"
+!define APPFULL "Mihenk CAD/CAM"
 !ifndef VERSION
-!define VERSION "0.1.0"
+!define VERSION "0.2.0"
 !endif
-Name "${APP} ${VERSION}"
-OutFile "..\release\AtolyeCAD-Kurulum-${VERSION}.exe"
+Name "${APPFULL} ${VERSION}"
+BrandingText "${APPFULL}"
+Icon "icon.ico"
+UninstallIcon "icon.ico"
+OutFile "..\release\Mihenk-Kurulum-${VERSION}.exe"
 InstallDir "$LOCALAPPDATA\Programs\${APP}"
 InstallDirRegKey HKCU "Software\${APP}" "InstallDir"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
+!define MUI_ICON "icon.ico"
+!define MUI_UNICON "icon.ico"
 !define MUI_ABORTWARNING
 ; Kurulum dili: Türkçe ya da English. Seçim kayıt defterinde saklanır; kaldırıcı aynı dili kullanır.
 !define MUI_LANGDLL_REGISTRY_ROOT "HKCU"
 !define MUI_LANGDLL_REGISTRY_KEY "Software\${APP}"
 !define MUI_LANGDLL_REGISTRY_VALUENAME "InstallerLanguage"
 !insertmacro MUI_PAGE_WELCOME
-; Seçilen dizinin sonuna otomatik "\AtolyeCAD" eklenir (kaldırıcı kullanıcının klasörünü asla silmesin)
+; Seçilen dizinin sonuna otomatik "\Mihenk" eklenir (kaldırıcı kullanıcının klasörünü asla silmesin)
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirLeave
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -29,10 +35,10 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_LANGUAGE "English"
 LangString SEC_PROGRAM ${LANG_TURKISH} "Program"
 LangString SEC_PROGRAM ${LANG_ENGLISH} "Program"
-LangString LNK_UNINSTALL ${LANG_TURKISH} "${APP} Kaldır"
-LangString LNK_UNINSTALL ${LANG_ENGLISH} "Uninstall ${APP}"
+LangString LNK_UNINSTALL ${LANG_TURKISH} "${APPFULL} Kaldır"
+LangString LNK_UNINSTALL ${LANG_ENGLISH} "Uninstall ${APPFULL}"
 
-; $INSTDIR "\AtolyeCAD" ile bitmiyorsa ekler (sondaki "\" atılır)
+; $INSTDIR "\Mihenk" ile bitmiyorsa ekler (sondaki "\" atılır)
 Function EnsureSubdir
   StrCpy $0 $INSTDIR 1 -1
   ${If} $0 == "\"
@@ -58,6 +64,7 @@ Section "$(SEC_PROGRAM)"
   SetOutPath "$INSTDIR"
   File /r "..\release\win-unpacked\*.*"
   WriteRegStr HKCU "Software\${APP}" "InstallDir" "$INSTDIR"
+  File "/oname=doc-icon.ico" "doc-icon.ico"
   WriteUninstaller "$INSTDIR\Kaldir.exe"
   ; Kurulum dili uygulamanın ilk açılış diline aktarılır: kurulum dizininde "lang" dosyası (tr | en)
   ${If} $LANGUAGE == ${LANG_TURKISH}
@@ -73,18 +80,20 @@ Section "$(SEC_PROGRAM)"
   CreateDirectory "$SMPROGRAMS\${APP}"
   CreateShortCut "$SMPROGRAMS\${APP}\${APP}.lnk" "$INSTDIR\${APP}.exe"
   CreateShortCut "$SMPROGRAMS\${APP}\$(LNK_UNINSTALL).lnk" "$INSTDIR\Kaldir.exe"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayName" "${APP}"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayName" "${APPFULL}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "UninstallString" "$\"$INSTDIR\Kaldir.exe$\""
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayIcon" "$INSTDIR\${APP}.exe"
-  ; .acad ilişkilendirmesi: mevcut başka bir ilişkilendirme yedeklenir, kaldırmada geri yüklenir
-  ReadRegStr $2 HKCU "Software\Classes\.acad" ""
+  ; .mhnk ilişkilendirmesi: mevcut başka bir ilişkilendirme yedeklenir, kaldırmada geri yüklenir (eski .acad dosyaları Dosya > Aç ile açılır)
+  ReadRegStr $2 HKCU "Software\Classes\.mhnk" ""
   ${If} $2 != ""
-  ${AndIf} $2 != "AtolyeCAD.Belge"
-    WriteRegStr HKCU "Software\${APP}" "PrevAcadAssoc" $2
+  ${AndIf} $2 != "Mihenk.Belge"
+    WriteRegStr HKCU "Software\${APP}" "PrevDocAssoc" $2
   ${EndIf}
-  WriteRegStr HKCU "Software\Classes\.acad" "" "AtolyeCAD.Belge"
-  WriteRegStr HKCU "Software\Classes\AtolyeCAD.Belge\shell\open\command" "" "$\"$INSTDIR\${APP}.exe$\" $\"%1$\""
+  WriteRegStr HKCU "Software\Classes\.mhnk" "" "Mihenk.Belge"
+  WriteRegStr HKCU "Software\Classes\Mihenk.Belge" "" "Mihenk belgesi / document"
+  WriteRegStr HKCU "Software\Classes\Mihenk.Belge\DefaultIcon" "" "$INSTDIR\doc-icon.ico"
+  WriteRegStr HKCU "Software\Classes\Mihenk.Belge\shell\open\command" "" "$\"$INSTDIR\${APP}.exe$\" $\"%1$\""
 SectionEnd
 
 ; Kaldırıcı YALNIZ kurulumun yazdığı dosyaları siler (liste scripts/gen-uninstall-list.mjs ile üretilir).
@@ -92,6 +101,7 @@ SectionEnd
 Section "Uninstall"
   !include "..\release\uninstall-files.nsh"
   Delete "$INSTDIR\lang"
+  Delete "$INSTDIR\doc-icon.ico"
   Delete "$INSTDIR\Kaldir.exe"
   RMDir "$INSTDIR"
   Delete "$DESKTOP\${APP}.lnk"
@@ -99,15 +109,15 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\${APP}\$(LNK_UNINSTALL).lnk"
   RMDir "$SMPROGRAMS\${APP}"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}"
-  ReadRegStr $2 HKCU "Software\Classes\.acad" ""
-  ${If} $2 == "AtolyeCAD.Belge"
-    ReadRegStr $3 HKCU "Software\${APP}" "PrevAcadAssoc"
+  ReadRegStr $2 HKCU "Software\Classes\.mhnk" ""
+  ${If} $2 == "Mihenk.Belge"
+    ReadRegStr $3 HKCU "Software\${APP}" "PrevDocAssoc"
     ${If} $3 != ""
-      WriteRegStr HKCU "Software\Classes\.acad" "" $3
+      WriteRegStr HKCU "Software\Classes\.mhnk" "" $3
     ${Else}
-      DeleteRegKey HKCU "Software\Classes\.acad"
+      DeleteRegKey HKCU "Software\Classes\.mhnk"
     ${EndIf}
   ${EndIf}
   DeleteRegKey HKCU "Software\${APP}"
-  DeleteRegKey HKCU "Software\Classes\AtolyeCAD.Belge"
+  DeleteRegKey HKCU "Software\Classes\Mihenk.Belge"
 SectionEnd

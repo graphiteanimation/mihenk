@@ -1,4 +1,4 @@
-// AtolyeCAD geometri çekirdeği: özellik listesinden (parametrik geçmiş) B-rep gövdeleri üretir.
+// Mihenk geometri çekirdeği: özellik listesinden (parametrik geçmiş) B-rep gövdeleri üretir.
 // OCCT (replicad üzerinden) kullanır. Hem Web Worker'da hem Node'da çalışır.
 // İlke: ya doğru sonuç ya açık hata ({ok:false, error:{code, params}}); sessiz yanlış yok.
 import * as R from 'replicad';

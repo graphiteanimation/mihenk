@@ -152,10 +152,10 @@ for (const f of srcFiles) {
   }
 }
 ok(!hard.length, 'sabit metin:\n      ' + hard.slice(0, 25).join('\n      '));
-// index.html: yalnız <title>AtolyeCAD</title> ve data-i18n ile doldurulan öğeler
+// index.html: yalnız <title>Mihenk</title> ve data-i18n ile doldurulan öğeler
 const body = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
 const texts = [...body.matchAll(/>([^<>]+)</g)].map((m) => m[1].trim()).filter(Boolean);
-ok(texts.every((x) => x === 'AtolyeCAD'), 'index.html içinde sabit metin: ' + texts.filter((x) => x !== 'AtolyeCAD').join(' | '));
+ok(texts.every((x) => x === 'Mihenk'), 'index.html içinde sabit metin: ' + texts.filter((x) => x !== 'Mihenk').join(' | '));
 ok(!TR_CHARS.test(body.replace(/<[^>]+>/g, '')), 'index.html içinde Türkçe karakter');
 // kurulum sihirbazı: iki dil, dil seçimi, Türkçe metin yalnız LangString satırlarında
 const nsi = fs.readFileSync(path.join(ROOT, 'build/installer.nsi'), 'utf8');

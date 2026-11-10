@@ -5,14 +5,14 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 if (location.protocol === 'app:' && location.host === 'atolye') {
   contextBridge.exposeInMainWorld('native', {
-    // kind: 'acad' | 'step' | 'stl' → {name, data:Uint8Array} | null (ana süreç diyalog açar)
+    // kind: 'doc' | 'step' | 'stl' → {name, data:Uint8Array} | null (ana süreç diyalog açar)
     openFile: (kind) => ipcRenderer.invoke('native:open', String(kind)),
-    // {saveAs:boolean, data:Uint8Array, defaultName:string, kind:'acad'|'step'|'stl'} → kaydedilen yol | null
+    // {saveAs:boolean, data:Uint8Array, defaultName:string, kind:'doc'|'step'|'stl'} → kaydedilen yol | null
     saveFile: (opts) => ipcRenderer.invoke('native:save', opts),
     // belge durumu: 'opened' (az önce açılan dosya yüklendi) | 'new' (yeni belge): geçerli belge yolunu ana süreç günceller
     docState: (s) => ipcRenderer.send('native:docState', String(s)),
     setTitle: (t) => ipcRenderer.send('native:title', String(t)),
-    // komut satırından (çift tık) açılan .acad dosyası → {name,data} | null
+    // komut satırından (çift tık) açılan .mhnk/.acad dosyası → {name,data} | null
     argvFile: () => ipcRenderer.invoke('native:argv'),
     // arayüz kaydedilmemiş değişiklik durumunu bildirir (kapatırken onay için)
     setDirty: (d) => ipcRenderer.send('native:dirty', !!d),
@@ -21,7 +21,7 @@ if (location.protocol === 'app:' && location.host === 'atolye') {
     setSetting: (key, value) => ipcRenderer.send('native:setSetting', String(key), value),
     // ana sürecin diyalog metinleri (kapatma onayı, dosya süzgeçleri): arayüz sözlüğünden gelir
     setStrings: (o) => ipcRenderer.send('native:strings', o),
-    // otomatik kurtarma dosyası (userData/recovery/autosave.acad)
+    // otomatik kurtarma dosyası (userData/recovery/autosave.mhnk)
     recoverySave: (data) => ipcRenderer.invoke('native:recoverySave', data),
     recoveryLoad: () => ipcRenderer.invoke('native:recoveryLoad'),
     recoveryClear: () => ipcRenderer.invoke('native:recoveryClear'),
