@@ -135,6 +135,17 @@ export async function checks(t) {
     const o = await newKernel().rebuild(D(...holeOn([prim, skf('cs', ch, basePl('XY', 30)), { id: 'cc', type: 'extrude', sketch: 'cs', profiles: 'all', dist: '5', extent: 'dist', dir: 'one', flip: true, op: 'cut' }])));
     t.ok(!o.status.hs.ok && o.status.hs.error.code === 'ref.ambiguous_face', 'N4 üst yüz bölündü → ref.ambiguous_face: ' + JSON.stringify(o.status.hs));
   }
+  // ---------- N5: varlık kimliği yeniden kullanıldı (arayüz silinen kimliği yeni varlığa verebilir): tür değiştiyse ret
+  {
+    const pts = { O: { x: 0, y: 0, fixed: true }, a: { x: 0, y: 0 }, b: { x: 60, y: 0 }, c: { x: 60, y: 40 }, d: { x: 0, y: 40 }, m: { x: 30, y: 40 } };
+    const ents = [{ id: 'l1', type: 'line', a: 'a', b: 'b' }, { id: 'l2', type: 'line', a: 'b', b: 'c' }, { id: 'l3', type: 'line', a: 'c', b: 'd' }, { id: 'l4', type: 'line', a: 'd', b: 'a' }];
+    const K = newKernel(); await K.rebuild(D({ id: 's1', type: 'sketch', plane: basePl('XY'), points: pts, ents, cons: [] }, ext({})));
+    const T = TP.topoOf(K.last.bodies.get('e1').shape); let side; for (let i = 0; i < T.faces.size; i++) { const f = K.describe({ body: 'e1', idx: i }, 'face'); if (f.name.k === 'e1:side:l3') side = f; }
+    const ents2 = ents.map((e) => (e.id === 'l3' ? { id: 'l3', type: 'arc', c: 'm', a: 'c', b: 'd' } : e)); // l3 silinip yerine aynı kimlikle yay çizildi
+    const o = await newKernel().rebuild(D({ id: 's1', type: 'sketch', plane: basePl('XY'), points: pts, ents: ents2, cons: [] }, ext({}), { id: 'sh', type: 'shell', faces: [side], t: '2' }));
+    t.ok(!o.status.sh.ok && o.status.sh.error.code === 'ref.changed', 'N5: aynı kimlikli varlık türü değişti (çizgi→yay) → ref.changed: ' + JSON.stringify(o.status.sh));
+    if (o.status.sh.ok) tally.sessizYanlış++; else tally.reddedildi++;
+  }
   t.note('adlandırma-özet', tally); console.log('adlandırma özet', JSON.stringify(tally));
   t.ok(tally.sessizYanlış === 0, 'sessiz yanlış bağlanma = 0 (' + tally.sessizYanlış + ')');
 }

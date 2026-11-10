@@ -54,7 +54,11 @@ export class Kernel {
     const body = state.bodies.get(ref.body); if (!body) throw new KErr('ref.body_missing', { body: String(ref.body) });
     if (ref.name !== undefined) {
       if (ref.name === null) throw new KErr(ref.nameError === 'ref.ambiguous_here' ? 'ref.ambiguous_here' : 'ref.unnamed');
-      return { body, i: resolveName(body, kind, ref.name, ref.hint) };
+      const i = resolveName(body, kind, ref.name, ref.hint);
+      // ek güvenlik (yedek DEĞİL, yalnız ret): ad tek elemana çözüldü ama geometri türü değiştiyse (ör. kimliği yeniden
+      // kullanılmış başka bir sketch varlığı) seçim kabul edilmez
+      if (ref.hint && typeof ref.hint.geom === 'string') { const T = TP.topoOf(body.shape); const el = kind === 'face' ? TP.faceWrap(T.faces.list[i]) : TP.edgeWrap(T.edges.list[i]); if (el.geomType !== ref.hint.geom) throw new KErr('ref.changed', { was: ref.hint.geom, now: el.geomType }); }
+      return { body, i };
     }
     return { body, i: this.legacy(ref, body, kind, ctx) };
   }

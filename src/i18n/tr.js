@@ -578,6 +578,7 @@ export default {
   "err.ref.ambiguous_edge": "Seçilen kenar artık tek bir kenara karşılık gelmiyor ({n} aday); özelliği düzenleyip yeniden seçin",
   "err.ref.ambiguous_face": "Seçilen yüz artık tek bir yüze karşılık gelmiyor ({n} aday); özelliği düzenleyip yeniden seçin",
   "err.ref.ambiguous_here": "Bu eleman kalıcı olarak adlandırılamıyor (aynı adlı başka eleman var); başka bir eleman seçin",
+  "err.ref.changed": "Seçilen eleman türü değişti ({was} → {now}); özelliği düzenleyip yeniden seçin",
   "err.ref.unnamed": "Bu eleman kalıcı olarak adlandırılamıyor; seçim kabul edilmedi",
   "err.ref.wrong_kind": "Seçim türü yanlış (beklenen: {want})",
   "err.revolve.angle_range": "Açı 0 ile 360 derece arasında olmalı ({value})",

@@ -578,6 +578,7 @@ export default {
   "err.ref.ambiguous_edge": "The selected edge no longer matches a single edge ({n} candidates); edit the feature and select again",
   "err.ref.ambiguous_face": "The selected face no longer matches a single face ({n} candidates); edit the feature and select again",
   "err.ref.ambiguous_here": "This element cannot be named permanently (another element has the same name); select another element",
+  "err.ref.changed": "The selected element changed type ({was} → {now}); edit the feature and select again",
   "err.ref.unnamed": "This element cannot be named permanently; the selection was not accepted",
   "err.ref.wrong_kind": "Wrong selection type (expected: {want})",
   "err.revolve.angle_range": "Angle must be between 0 and 360 degrees ({value})",
