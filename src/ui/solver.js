@@ -93,7 +93,11 @@ function buildPrims(sk, vars) {
         case 'pldist': { const v = val(c); if (v != null) prims.push({ ...base, type: 'p2l_distance', p_id: c.a, l_id: c.b, distance: Math.abs(v) }); break; }
         case 'lldist': { // iki çizgi arası uzaklık = a'nın iki ucunun b'ye uzaklığı (paralellik de sağlanır)
           const v = val(c); const la = entById[c.a]; if (v == null || !la || la.type !== 'line' || T(c.b) !== 'line') break;
-          prims.push({ ...base, type: 'p2l_distance', p_id: la.a, l_id: c.b, distance: Math.abs(v) }, { id: c.id + '_b', type: 'p2l_distance', p_id: la.b, l_id: c.b, distance: Math.abs(v) }); break;
+          const has = (ty, id) => sk.cons.some((k) => k.type === ty && k.a === id);
+          const par = sk.cons.some((k) => k.type === 'parallel' && ((k.a === c.a && k.b === c.b) || (k.a === c.b && k.b === c.a))) || (has('horizontal', c.a) && has('horizontal', c.b)) || (has('vertical', c.a) && has('vertical', c.b));
+          prims.push({ ...base, type: 'p2l_distance', p_id: la.a, l_id: c.b, distance: Math.abs(v) });
+          if (!par) prims.push({ id: c.id + '_b', type: 'p2l_distance', p_id: la.b, l_id: c.b, distance: Math.abs(v) }); // paralellik zaten kısıtlıysa ikinci uç gereksiz (fazlalık olur)
+          break;
         }
         case 'ccdist': { const v = val(c); const ca = ctr(c.a), cb = ctr(c.b); if (v != null && ca && cb) prims.push({ ...base, type: 'p2p_distance', p1_id: ca, p2_id: cb, distance: Math.abs(v) }); break; }
         case 'radius': { const v = val(c); if (v == null) break; if (T(c.a) === 'ellipse') prims.push({ ...base, type: 'difference', param1: 0, param2: { o_id: c.a, prop: 'radmin' }, difference: v }); else prims.push(T(c.a) === 'arc' ? { ...base, type: 'arc_radius', a_id: c.a, radius: v } : { ...base, type: 'circle_radius', c_id: c.a, radius: v }); break; }

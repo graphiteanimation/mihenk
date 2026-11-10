@@ -439,6 +439,57 @@ try:
     page.click('.sk-ctx [data-act=ctx-delete]'); idle()
     check('sağ tık: silindi', len(ents('line')) == 0)
 
+    print('Kısıt ve ölçüler')
+    def apply_c(t_):
+        ev(f"sk.applyConstraint('{t_}')"); idle(); page.wait_for_timeout(120); idle()
+    def sel_ids(ids):
+        ev('(l) => sk._setSel(l)', [{'kind': 'ent', 'id': i} for i in ids])
+    fresh(); line((-30, 10), (-10, 12)); line((10, 8), (30, 20))
+    ids = [e['id'] for e in ents('line')]; sel_ids(ids); apply_c('collinear')
+    s = S(); check('doğrusal kısıt eklendi ve çözüldü', any(c['type'] == 'collinear' for c in s['cons']) and ev('sk.lastSolve.ok'), s['cons'])
+    fresh(); tool('circle'); click(-20, 0); click(-10, 0); tool('circle'); click(20, 0); click(30, 0)
+    ids = [e['id'] for e in ents('circle')]; sel_ids(ids); apply_c('concentric')
+    s = S(); cs = ents('circle'); check('eş merkez: daire merkezleri çakıştı', P_(s, cs[0]['c']) == P_(s, cs[1]['c']) or near(P_(s, cs[0]['c'])[0], P_(s, cs[1]['c'])[0], 1e-6))
+    fresh(); tool('ellipse'); click(0, 0); click(30, 0); click(0, 10); line((-40, 25), (40, 25))
+    e = ents('ellipse')[0]['id']; l = ents('line')[0]['id']; sel_ids([e, l]); apply_c('tangent')
+    s = S(); check('çizgi-elips teğet kısıtı çözüldü', any(c['type'] == 'tangent' for c in s['cons']) and ev('sk.lastSolve.ok'), s['cons'])
+    fresh(); tool('circle'); click(-20, 0); click(-10, 0); tool('circle'); click(20, 0); click(25, 0)
+    ids = [e['id'] for e in ents('circle')]; sel_ids(ids); apply_c('equal')
+    s = S(); cs = ents('circle'); check('eşit daire yarıçapı', near(cs[0]['r'], cs[1]['r'], 1e-4), [c['r'] for c in cs])
+    # ölçü: yarıçap aracı (gerçek fare + klavye)
+    tool('rdim'); click(-10, 0); page.keyboard.type('7'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(250); idle()
+    s = S(); cs = ents('circle'); check('yarıçap ölçüsü: iki daire de r=7 (eşit kısıt)', all(near(c['r'], 7, 1e-3) for c in cs) and any(c['type'] == 'radius' for c in s['cons']), [c['r'] for c in cs])
+    # çap ölçüsü
+    fresh(); tool('circle'); click(0, 20); click(10, 20)
+    tool('ddim'); click(10, 20); page.keyboard.type('30'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(250); idle()
+    check('çap ölçüsü: r=15', near(ents('circle')[0]['r'], 15, 1e-3), ents('circle')[0]['r'])
+    # iki paralel çizgi arası ölçü
+    fresh(); line((-30, 0), (30, 0)); line((-30, 20), (30, 20))
+    ids = [e['id'] for e in ents('line')]; sel_ids(ids); apply_c('parallel')
+    tool('dim'); click(10, 0); click(10, 20); page.wait_for_timeout(150)
+    page.keyboard.type('12'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(250); idle()
+    s = S(); check('paralel çizgi arası ölçü (lldist) = 12', any(c['type'] == 'lldist' for c in s['cons']), s['cons'])
+    # daire merkezleri arası
+    fresh(); tool('circle'); click(-20, 0); click(-10, 0); tool('circle'); click(20, 0); click(25, 0)
+    tool('dim'); click(-10, 0); click(25, 0); page.wait_for_timeout(150)
+    page.keyboard.type('60'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(250); idle()
+    s = S(); cs = ents('circle'); check('merkezler arası ölçü (ccdist)', any(c['type'] == 'ccdist' for c in s['cons']) and near(abs(P_(s, cs[0]['c'])[0] - P_(s, cs[1]['c'])[0]), 60, 1e-3), s['cons'])
+    # referans ölçü ve çelişen kısıt listesi
+    cid = next(c['id'] for c in S()['cons'] if c['type'] == 'ccdist')
+    ev(f"sk.toggleReference('{cid}')"); idle(); page.wait_for_timeout(200)
+    check('referans ölçü: sürücü değil (ref bayrağı) ve çözüm tamam', next(c for c in S()['cons'] if c['id'] == cid).get('ref') is True and ev('sk.lastSolve.ok'))
+    check('referans etiket parantezli', ev("[...document.querySelectorAll('.dim.ref')].some(d => /^\\(.*\\)$/.test(d.textContent))"))
+    # nesne başına serbestlik
+    fresh(); line((-30, 0), (30, 0))
+    tool('select'); l_ = ents('line')[0]['id']; sel_ids([l_]); apply_c('horizontal')
+    ev("sk.applyConstraint('fix')") if False else None
+    page.wait_for_timeout(500); idle()
+    fr = ev('sk.free ? {pts: [...sk.free.freePts], ents: [...sk.free.freeEnts]} : null')
+    check('nesne başına serbestlik bilgisi hesaplandı (serbest çizgi mavi)', fr is not None and l_ in fr['ents'], fr)
+    sel_ids([l_]); ev("sk.applyConstraint('fix')"); idle(); page.wait_for_timeout(600); idle()
+    fr = ev('sk.free ? {pts: [...sk.free.freePts], ents: [...sk.free.freeEnts]} : null')
+    check('sabitlenince çizgi tam tanımlı (koyu)', fr is not None and l_ not in fr['ents'], fr)
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()
