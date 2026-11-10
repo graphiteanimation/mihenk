@@ -141,7 +141,7 @@ export class Sketcher {
     this.vp.renderer.domElement.style.cursor = name === 'select' ? 'default' : 'crosshair';
     this.setHint(HINT_KEY[name]);
     if (DIM_TOOLS.includes(name) && this.selection.length) this._dimEval(); else if (name !== 'select' && this.selection.length && !keepSel) this.selection = [];
-    this._renderGL(); this._renderPreview(); this.onChange();
+    this._renderGL(); this._buildOverlay(); this._renderPreview(); this.onChange();
     if (EDIT_TOOLS.includes(name)) this._editEnter(name, prevSel);
   }
   _resetDraw() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._box = null; this._press = null; this._drag = null; this._dragTarget = null; this._rdown = null; this._trimming = false; this._trimHot = null; this._hideSnap(); if (this.gPrev) { this._clearGroup(this.gPrev); this._hideTip(); } }
@@ -972,7 +972,7 @@ export class Sketcher {
         el.addEventListener('click', (ev) => { ev.stopPropagation(); this.removeConstraint(c.id); });
         el._loc = this._conAnchor(c); el._off = [0, -13];
       }
-      el.dataset.con = c.id; el.style.pointerEvents = 'auto'; this.ovl.appendChild(el); this._ovEls.push(el);
+      el.dataset.con = c.id; el.style.pointerEvents = this.tool === 'select' ? 'auto' : 'none'; this.ovl.appendChild(el); this._ovEls.push(el);
     }
     this._posOverlay();
   }

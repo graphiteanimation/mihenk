@@ -33,7 +33,7 @@ try:
     ctx.add_init_script("try { localStorage.setItem('atolye.lang', 'tr'); } catch (e) {}")
     page = ctx.new_page()
     errs = []
-    page.on('pageerror', lambda e: errs.append(str(e)))
+    page.on('pageerror', lambda e: errs.append(str(e) + ' ' + str(getattr(e, 'stack', ''))[:300]))
     page.on('console', lambda m: errs.append(m.text) if m.type == 'error' and 'Failed to load resource' not in m.text else None)
     page.on('response', lambda r: errs.append('HTTP %d %s' % (r.status, r.url)) if r.status >= 400 and 'favicon' not in r.url else None)
     page.goto(f'http://127.0.0.1:{PORT}/test/sketcher-harness.html')
@@ -114,7 +114,7 @@ try:
     tool('point'); click(40, -60)
     s = S(); check('nokta ent', any(e['type'] == 'point' for e in s['ents']))
     key('l'); click(40, -20)  # satır başı: daireye değil; pointOn testi: dikdörtgenin alt kenarına (50,10)
-    key('Escape'); tool('line'); click(50, 10); click(50, -10); key('Escape')
+    key('Escape'); tool('line'); click(42, 10); click(42, -10); key('Escape')
     s = S(); check('çizgi kenar üstünde başlayınca pointOn eklenir', any(c['type'] == 'pointOn' for c in s['cons']), s['cons'])
     ev('sk.undo()'); idle()
 
@@ -280,6 +280,39 @@ try:
     check('yüklenen sketch tam/serbest durum bildirdi', 'Serbestlik' in (status() or '') or 'Tam' in (status() or ''), status())
     ev('sk.setTool("line")'); click(0, 0); click(30, 0); ev('sk.cancel()'); idle()
     check('cancel: temiz', not ev('sk.active') and ev('vp.editGroup.children.length') == 0)
+
+    print('K-018: dikdörtgen + daire -> Buda -> tek profil')
+    ev('begin("XY")'); page.wait_for_timeout(100); idle()
+    tool('rect'); click(-40, -10); click(0, 10)
+    tool('circle'); click(0, 0); click(8, 0)
+    s = S(); check('dikdörtgen (4 çizgi) + daire çizildi', len([e for e in s['ents'] if e['type'] == 'line']) == 4 and len([e for e in s['ents'] if e['type'] == 'circle']) == 1)
+    check('üst üste çizimde 3 ayrı bölge', regions() == 3, regions())
+    tool('trim'); move(-8, 0); page.wait_for_timeout(80)
+    check('budama: kırmızı önizleme aralığı hesaplandı', ev('!!(sk._ed && sk._ed.span && sk._ed.span.pts.length > 1)'))
+    check('budama: kırmızı çizgi sahnede', ev('sk.gPrev.children.some(c => c.material && c.material.color.getHex() === 0xd32f2f)'))
+    click(-8, 0)
+    s = S(); check('daire yaya dönüştü', any(e['type'] == 'arc' for e in s['ents']) and not any(e['type'] == 'circle' for e in s['ents']))
+    move(0, 3); click(0, 3)
+    s = S(); a = ev('findRegions(sk.sk).regions.map(r => r.net)')
+    import math
+    check('tek kapalı profil', len(a) == 1, a)
+    check('alan = 800 + 32π', len(a) == 1 and abs(a[0] - (800 + 32 * math.pi)) < 1e-3, a)
+    check('budama sonrası çözüm tamam', ev('sk.lastSolve && sk.lastSolve.ok'))
+    check('durum satırı kaldırılan kısıtı bildiriyor ya da çözüm bilgisi var', bool(status()))
+    shot('sk-trim-k018.png')
+    ev('sk.undo()'); idle(); ev('sk.undo()'); idle()
+    check('iki geri alma: 3 bölgeye döner', regions() == 3, regions())
+    # sürükleyerek çoklu budama
+    ev('begin("XY")'); page.wait_for_timeout(100); idle()
+    tool('rect'); click(-30, -20); click(30, 20)
+    tool('line'); click(-40, 0); click(40, 0); key('Escape')
+    tool('line'); click(0, -30); click(0, 30); key('Escape')
+    tool('trim'); x0, y0 = P(-35, 0); page.mouse.move(x0, y0); page.mouse.down()
+    for (u, v) in [(-15, 0), (-5, 0), (0, 10), (0, 25), (0, 35)]:
+        x, y = P(u, v); page.mouse.move(x, y, steps=4)
+    page.mouse.up(); idle(); page.wait_for_timeout(200); idle()
+    n_lines = len([e for e in S()['ents'] if e['type'] == 'line'])
+    check('sürükleyerek budama birden çok parçayı sildi', n_lines < 10, n_lines)
 
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
