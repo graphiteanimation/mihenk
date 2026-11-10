@@ -314,6 +314,85 @@ try:
     n_lines = len([e for e in S()['ents'] if e['type'] == 'line'])
     check('sürükleyerek budama birden çok parçayı sildi', n_lines < 10, n_lines)
 
+    def fresh():
+        ev('begin("XY")'); page.wait_for_timeout(80); idle()
+    def line(a, b):
+        tool('line'); click(*a); click(*b); key('Escape')
+    def ents(t): return [e for e in S()['ents'] if e['type'] == t]
+    def P_(s, pid): return (s['points'][pid]['x'], s['points'][pid]['y'])
+
+    print('Uzat')
+    fresh(); line((-30, 0), (10, 0)); line((30, -20), (30, 20))
+    tool('extend'); click(8, 0)
+    s = S(); l = ents('line')[0]
+    check('uzat: uç dikey çizgiye ulaştı', near(P_(s, l['b'])[0], 30, 1e-3), P_(s, l['b']))
+
+    print('Böl')
+    fresh(); line((-20, 0), (20, 0))
+    tool('break'); click(5, 0)
+    check('böl: iki çizgi', len(ents('line')) == 2, len(ents('line')))
+
+    print('Ofset')
+    fresh(); line((-20, 0), (20, 0))
+    tool('offset'); click(-10, 0)
+    check('ofset: iletişim kutusu açıldı', ev("!!document.querySelector('.sk-dlg')"))
+    page.fill('.sk-dlg [data-k=dist]', '5'); page.wait_for_timeout(80)
+    click(0, 12)
+    s = S(); ls = ents('line')
+    ys = sorted(round(P_(s, e['a'])[1], 4) for e in ls)
+    check('ofset: 5 mm yukarıda yeni çizgi', len(ls) == 2 and ys == [0, 5], ys)
+    check('ofset: paralel + mesafe ölçüsü bağlı', any(c['type'] == 'parallel' for c in s['cons']) and any(c['type'] == 'pldist' for c in s['cons']), s['cons'])
+
+    print('Köşe yuvarlat / Pah')
+    fresh(); tool('line'); click(-30, 0); click(0, 0); click(0, 30); key('Escape')
+    tool('fillet'); page.fill('.sk-dlg [data-k=val]', '5'); click(0, 0)
+    s = S(); check('yuvarlat: yay + yarıçap ölçüsü', len(ents('arc')) == 1 and any(c['type'] == 'radius' for c in s['cons']), s['cons'])
+    fresh(); tool('line'); click(-30, 0); click(0, 0); click(0, 30); key('Escape')
+    tool('chamfer'); page.fill('.sk-dlg [data-k=val]', '5'); click(0, 0)
+    check('pah: üçüncü çizgi', len(ents('line')) == 3, len(ents('line')))
+
+    print('Ayna')
+    fresh(); line((0, -30), (0, 30)); tool('circle'); click(20, 0); click(25, 0)
+    tool('mirror'); click(25, 0)
+    page.click('.sk-dlg [data-act=sk-dlg-ok]'); page.wait_for_timeout(60)
+    click(0, 20)
+    s = S(); cs = ents('circle')
+    check('ayna: ikinci daire karşı tarafta', len(cs) == 2 and sorted(round(P_(s, c['c'])[0], 3) for c in cs) == [-20, 20], [P_(s, c['c']) for c in cs])
+    check('ayna: simetri kısıtı', any(c['type'] == 'symmetric' for c in s['cons']))
+
+    print('Dikdörtgen desen')
+    fresh(); tool('circle'); click(-30, 0); click(-25, 0)
+    tool('patrect'); click(-25, 0)
+    page.fill('.sk-dlg [data-k=n1]', '3'); page.fill('.sk-dlg [data-k=s1]', '20'); page.click('.sk-dlg [data-act=sk-dlg-ok]'); idle(); page.wait_for_timeout(200); idle()
+    s = S(); xs = sorted(round(P_(s, c['c'])[0], 3) for c in ents('circle'))
+    check('desen: 3 daire 20 mm aralıkla', xs == [-30, -10, 10], xs)
+
+    print('Taşı / Döndür')
+    fresh(); line((10, 5), (30, 5))
+    tool('move'); click(20, 5); page.fill('.sk-dlg [data-k=dx]', '10'); page.fill('.sk-dlg [data-k=dy]', '5'); page.click('.sk-dlg [data-act=sk-dlg-ok]'); idle(); page.wait_for_timeout(120)
+    s = S(); l = ents('line')[0]
+    check('taşı: (20,10)', near(P_(s, l['a'])[0], 20, 1e-3) and near(P_(s, l['a'])[1], 10, 1e-3), P_(s, l['a']))
+
+    print('Kutuyla seçim, Ctrl+A/C/V')
+    fresh(); line((-40, 0), (-20, 0)); line((20, 0), (40, 0))
+    tool('select')
+    x0, y0 = P(-50, 10); x1, y1 = P(-10, -10)
+    page.mouse.move(x0, y0); page.mouse.down(); page.mouse.move(x1, y1, steps=6); page.mouse.up(); idle()
+    check('soldan sağa: tamamen içindeki 1 çizgi', len([x for x in ev('sk.selection') if x['kind'] == 'ent']) == 1, ev('sk.selection'))
+    x0, y0 = P(10, 10); x1, y1 = P(30, -10)
+    page.mouse.move(x0, y0); page.mouse.down(); page.mouse.move(x1, y1, steps=6); page.mouse.up(); idle()
+    check('soldan sağa: kısmen içindeki seçilmez', len([x for x in ev('sk.selection') if x['kind'] == 'ent']) == 0, ev('sk.selection'))
+    x0, y0 = P(30, 10); x1, y1 = P(10, -10)
+    page.mouse.move(x0, y0); page.mouse.down(); page.mouse.move(x1, y1, steps=6); page.mouse.up(); idle()
+    check('sağdan sola: değen çizgi seçilir', len([x for x in ev('sk.selection') if x['kind'] == 'ent']) == 1, ev('sk.selection'))
+    key('Control+a'); check('Ctrl+A: hepsi seçili', len([x for x in ev('sk.selection') if x['kind'] == 'ent']) == 2)
+    key('Control+c'); key('Control+v'); page.wait_for_timeout(200); idle()
+    check('Ctrl+C/V: 4 çizgi', len(ents('line')) == 4, len(ents('line')))
+    key('Control+a'); key('Control+x'); page.wait_for_timeout(100); idle()
+    check('Ctrl+X: kesildi', len(ents('line')) == 0, len(ents('line')))
+    key('Control+v'); page.wait_for_timeout(200); idle()
+    check('kesilen yapıştırıldı', len(ents('line')) == 4, len(ents('line')))
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()

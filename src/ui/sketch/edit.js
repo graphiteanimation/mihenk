@@ -132,9 +132,15 @@ export const EDIT_METHODS = {
     void bad;
   },
 
+  // yalnız eğrileri hedefler (noktaları atlar): budama/uzatma/bölmede uca yakın tıklamak doğal olmalı
+  _hitEnt(loc) {
+    const tol = 8 * this.vp.worldPerPixel(); let best = null;
+    for (const e of this.sk.ents) { if (e.type === 'point') continue; const r = this._entDist(e, loc); if (r && r.d <= tol && (!best || r.d < best.d)) best = { kind: 'ent', id: e.id, d: r.d, x: r.x, y: r.y }; }
+    return best;
+  },
   // ------------------------------------------------------------------ fare
   _editDown(loc, ev) {
-    const tool = this.tool, ed = this._ed || (this._ed = { tool }); const hit = this._hit(loc);
+    const tool = this.tool, ed = this._ed || (this._ed = { tool }); const hit = tool === 'trim' || tool === 'extend' || tool === 'break' ? this._hitEnt(loc) : this._hit(loc);
     if (tool === 'trim') { if (!hit || hit.kind !== 'ent') return this._status('sk.op.click_curve'); this._trimming = true; this._trimmed = new Set(); return this._trimOne(hit.id, loc); }
     if (tool === 'extend') { if (!hit || hit.kind !== 'ent') return this._status('sk.op.click_curve'); return this._runOp((sk) => extendAt(sk, hit.id, loc), tk('sk.kind.extend')); }
     if (tool === 'break') { if (!hit || hit.kind !== 'ent') return this._status('sk.op.click_curve'); return this._runOp((sk) => breakAt(sk, hit.id, loc), tk('sk.kind.break')); }
@@ -159,7 +165,7 @@ export const EDIT_METHODS = {
   },
   _editMove(loc, ev) {
     const tool = this.tool, ed = this._ed || (this._ed = { tool }); const sn = this._snapAt(loc, ev); this.cursor = { ...sn, loc };
-    const hit = this._hit(loc); this._setHover(hit);
+    const hit = tool === 'trim' || tool === 'extend' || tool === 'break' ? this._hitEnt(loc) : this._hit(loc); this._setHover(hit);
     if (tool === 'trim') {
       if (this._trimming && (ev.buttons & 1) && hit && hit.kind === 'ent' && !this._trimmed.has(hit.id)) this._trimOne(hit.id, loc);
       ed.span = hit && hit.kind === 'ent' && !this._trimming ? trimSpan(this.sk, hit.id, loc) : null;
@@ -181,7 +187,7 @@ export const EDIT_METHODS = {
     const thick = (pts, col) => { const w = this.vp.worldPerPixel(); for (const o of [[0, 0], [w, 0], [-w, 0], [0, w], [0, -w]]) this._line(pts.map((p) => [p[0] + o[0], p[1] + o[1]]), col); };
     if (tool === 'trim' && ed.span && !this._trimming) thick(ed.span.pts, RED);
     else if (tool === 'extend' && ed.hot && loc) { this._previewOp((sk) => extendAt(sk, ed.hot, loc), GREEN, false); const sk2 = clone(this.sk); if (extendAt(sk2, ed.hot, loc).ok) { const e = getEnt(sk2, ed.hot), sg = e && segOf(sk2, e); if (sg) thick(G.sample(sg, 0.05), GREEN); } }
-    else if (tool === 'break' && loc) { const hit = this._hit(loc); if (hit && hit.kind === 'ent') { const w = this.vp.worldPerPixel() * 5; this._line([[hit.x - w, hit.y - w], [hit.x + w, hit.y + w]], RED); this._line([[hit.x - w, hit.y + w], [hit.x + w, hit.y - w]], RED); } }
+    else if (tool === 'break' && loc) { const hit = this._hitEnt(loc); if (hit && hit.kind === 'ent') { const w = this.vp.worldPerPixel() * 5; this._line([[hit.x - w, hit.y - w], [hit.x + w, hit.y + w]], RED); this._line([[hit.x - w, hit.y + w], [hit.x + w, hit.y - w]], RED); } }
     else if (tool === 'offset' && this.selection.length && loc) {
       const pl = this._offsetPlan(loc);
       if (pl) { const r = this._previewOp((sk) => offsetEnts(sk, pl.ids, pl.dist, pl.expr, loc, pl.join)); tip = r && !r.ok ? t(r.err.key, r.err.params || {}) : 'd = ' + fmt(pl.dist) + ' mm'; }
