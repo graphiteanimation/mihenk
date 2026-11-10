@@ -7,7 +7,7 @@ def design_ribbon():
     c2=grp('Düzenle','Modify',
         tool('fillet','Yuvarlat','Fillet')+tool('chamfer','Pah','Chamfer')+tool('shell','Kabuk','Shell',tid='tool-shell')+tool('combine','Birleştir','Combine')+tool('move','Taşı / Kopyala','Move / Copy')+tool('pattern','Desen','Pattern',caret=True)+tool('mirror','Ayna','Mirror'))
     c3=grp('İncele','Inspect',
-        tool('measure','Ölç','Measure')+tool('properties','Özellikler','Properties')+tool('interference','Girişim','Interference')+tool('section','Kesit','Section'))
+        tool('measure','Ölç','Measure')+tool('properties','Özellikler','Properties')+tool('interference','Girişim','Clash check')+tool('section','Kesit','Section'))
     rec=grp('Son kullanılanlar','Recent',f'<div class="tool-stack">{tsm("extrude","Extrude","Extrude")}{tsm("fillet","Yuvarlat","Fillet")}{tsm("hole","Delik","Hole")}{tsm("measure","Ölç","Measure")}</div>','end recent')
     return f'<div class="ribbon" role="toolbar">{c1}{c2}{c3}{rec}</div>'
 

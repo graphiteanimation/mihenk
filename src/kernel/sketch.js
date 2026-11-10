@@ -2,7 +2,7 @@
 // (F-05, F-10, F-04/F-16'nın çekirdek tarafı), OCCT eğrisi kurulumu ve her kenarın kaynak sketch varlığına eşlenmesi.
 import * as R from 'replicad';
 import { KErr } from '../shared/errors.js';
-import { findRegions } from '../shared/profiles.js';
+import { findRegions, resolveProfiles } from '../shared/profiles.js';
 import * as V from '../shared/vec.js';
 import { scope, edgeMid, faceValid, SubIndex } from './topo.js';
 import * as TP from './topo.js';
@@ -199,8 +199,12 @@ export function sketchFaces(sk, plane, profileSel, offset = 0) {
   else {
     if (!Array.isArray(profileSel)) throw new KErr('sketch.profile_gone');
     if (!profileSel.length) throw new KErr('sketch.no_profile_selected');
-    if (profileSel.some((i) => !Number.isInteger(i) || i < 0 || i >= regions.length)) throw new KErr('sketch.profile_gone');
-    idxs = [...new Set(profileSel)];
+    if (profileSel.some((p) => typeof p !== 'number' && (!p || typeof p !== 'object'))) throw new KErr('sketch.profile_gone');
+    // seçim: sınır varlık kümesi (+ iç nokta ipucu); eski sayısal dizinler yalnız yükseltilmemiş belgelerde gelir
+    const rs = resolveProfiles(regions, profileSel);
+    if (rs.errs.includes('ambiguous')) throw new KErr('profile.ambiguous');
+    if (rs.errs.length) throw new KErr(profileSel.some((p) => typeof p === 'object') ? 'profile.lost' : 'sketch.profile_gone');
+    idxs = rs.idx;
   }
   // ölçek ve tolerans
   let ext = 0; for (const i of idxs) for (const p of regions[i].poly) ext = Math.max(ext, Math.abs(p[0]), Math.abs(p[1]));

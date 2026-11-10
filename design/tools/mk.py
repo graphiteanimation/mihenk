@@ -71,9 +71,9 @@ def viewcube():
     <polygon points="40,8 68,24 40,40 12,24" fill="var(--bg-hover)" stroke="var(--line-strong)" stroke-width="1.5"/>
     <polygon points="12,24 40,40 40,72 12,56" fill="var(--bg-sunken)" stroke="var(--line-strong)" stroke-width="1.5"/>
     <polygon points="68,24 40,40 40,72 68,56" fill="var(--accent-tint)" stroke="var(--accent)" stroke-width="2"/>
-    <text x="40" y="29" text-anchor="middle" font-size="10" font-weight="600" fill="var(--text)" data-t="{TKEY("Üst","Top")}">Üst</text>
-    <text x="26" y="52" text-anchor="middle" font-size="10" font-weight="600" fill="var(--text)" transform="rotate(26 26 52)" data-t="{TKEY("Ön","Front")}">Ön</text>
-    <text x="54" y="52" text-anchor="middle" font-size="10" font-weight="600" fill="var(--accent)" transform="rotate(-26 54 52)" data-t="{TKEY("Sağ","Right")}">Sağ</text>
+    <text x="40" y="29" text-anchor="middle" font-size="8" font-weight="600" fill="var(--text)" data-t="{TKEY("Üst","Top")}">Üst</text>
+    <text x="26" y="52" text-anchor="middle" font-size="8" font-weight="600" fill="var(--text)" transform="rotate(26 26 52)" data-t="{TKEY("Ön","Front")}">Ön</text>
+    <text x="54" y="52" text-anchor="middle" font-size="8" font-weight="600" fill="var(--accent)" transform="rotate(-26 54 52)" data-t="{TKEY("Sağ","Right")}">Sağ</text>
     </svg></div>'''
 
 def write_support():

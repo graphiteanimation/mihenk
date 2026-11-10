@@ -41,6 +41,45 @@ export function entSeg(sk, e) {
   }
   return null;
 }
+// ---- kararlı profil seçimi: bölge sıra numarası yerine sınır varlık kümesi + iç nokta ipucu
+const loopEnts = (loop) => [...new Set(loop.map((x) => x.ent).filter((x) => x != null).map(String))].sort();
+const roundPt = (p) => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6];
+export const selectionFor = (r) => ({ ents: r.ents.slice(), hint: roundPt(r.inside) });
+// Bir seçim girdisini bölgelerle eşler. Döner {idx} ya da {err:'lost'|'ambiguous'}
+export function matchSelection(regions, sel) {
+  const key = (a) => (a || []).map(String).sort().join('\u0001');
+  const k = key(sel.ents); const c = regions.map((r, i) => [r, i]).filter(([r]) => key(r.ents) === k);
+  if (!c.length) return { err: 'lost' };
+  if (c.length === 1) return { idx: c[0][1] };
+  const hit = Array.isArray(sel.hint) ? c.filter(([r]) => regionContains(r, sel.hint)) : [];
+  return hit.length === 1 ? { idx: hit[0][1] } : { err: 'ambiguous' };
+}
+// profiles ('all' | [sayı] | [{ents,hint}]) → seçili bölge dizinleri; kaybolan/belirsiz girdiler errs'e yazılır
+export function resolveProfiles(regions, profiles) {
+  if (profiles === 'all' || profiles == null) return { idx: regions.map((_, i) => i), errs: [] };
+  const idx = [], errs = [];
+  for (const p of profiles) {
+    if (typeof p === 'number') { if (Number.isInteger(p) && p >= 0 && p < regions.length) idx.push(p); else errs.push('lost'); continue; }
+    const m = matchSelection(regions, p || {}); if (m.err) errs.push(m.err); else idx.push(m.idx);
+  }
+  return { idx: [...new Set(idx)], errs };
+}
+// eski sayısal dizinleri bir kez yükseltir: [{ents,hint}] ya da null (yükseltilemezse)
+export function upgradeProfiles(sk, nums) {
+  const { regions } = findRegions(sk); const out = [];
+  for (const n of nums) { if (!Number.isInteger(n) || n < 0 || n >= regions.length) return null; out.push(selectionFor(regions[n])); }
+  return out;
+}
+// belge: extrude/revolve özelliklerindeki sayısal profil dizilerini yükseltir (yerinde). Döner yükseltilen özellik sayısı.
+export function upgradeDocProfiles(doc) {
+  let n = 0; const sketches = new Map((doc.features || []).filter((f) => f.type === 'sketch').map((f) => [f.id, f]));
+  for (const f of doc.features || []) {
+    if ((f.type !== 'extrude' && f.type !== 'revolve') || !Array.isArray(f.profiles) || !f.profiles.length || !f.profiles.every((x) => typeof x === 'number')) continue;
+    const sk = sketches.get(f.sketch); if (!sk) continue;
+    try { const up = upgradeProfiles(sk, f.profiles); if (up) { f.profiles = up; n++; } } catch (e) { /* yükseltilemedi: sayısal kalır, çekirdek açık hata verir */ }
+  }
+  return n;
+}
 export const KINDS = new Set(['line', 'circle', 'arc', 'ellipse', 'ellarc', 'spline']);
 
 export const polyArea = G.polyArea;
@@ -239,7 +278,7 @@ export function findRegions(sk) {
     for (const r of good) { if (r.comp === o.comp) continue; if (r.area <= o.area) continue; if (pointInPoly(pt, r.poly) && (!best || r.area < best.area)) best = r; }
     if (best) best.holes.push({ loop: o.loop, poly: o.poly, area: o.area });
   }
-  good.forEach((r) => { delete r.comp; r.net = r.area - r.holes.reduce((s, h) => s + h.area, 0); r.inside = interiorPointWithHoles(r); });
+  good.forEach((r) => { r.ents = loopEnts(r.loop); delete r.comp; r.net = r.area - r.holes.reduce((s, h) => s + h.area, 0); r.inside = interiorPointWithHoles(r); });
   return { regions: good, open, issues };
 }
 // Bölge içinde, sınıra olabildiğince uzak bir nokta (en büyük açıklık). Sınıra uzaklık gerçek eğrilerle ölçülür.

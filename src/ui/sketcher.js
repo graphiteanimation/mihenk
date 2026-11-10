@@ -7,7 +7,7 @@ import { DEFS, DRAW_TOOLS } from './sketch/tools.js';
 import { snapAt, SNAP_LABEL } from './sketch/snap.js';
 import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
-import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts } from './sketch/core.js';
+import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
 import { t, tk, errText, fmtNum } from '../shared/i18n.js';
@@ -91,7 +91,7 @@ export class Sketcher {
     if (this.active) this._teardown();
     this._sid++;
     this.feature = clone(feature || {}); this.plane = plane;
-    const sk = { points: this.feature.points || {}, ents: this.feature.ents || [], cons: this.feature.cons || [] };
+    const sk = { points: this.feature.points || {}, ents: this.feature.ents || [], cons: this.feature.cons || [] }; if (Number.isFinite(this.feature.seq)) sk.seq = this.feature.seq; seqOf(sk);
     if (!sk.points.O) sk.points.O = { x: 0, y: 0, fixed: true };
     sk.points.O.x = 0; sk.points.O.y = 0; sk.points.O.fixed = true;
     this.sk = sk; this._undo = []; this._redo = []; this.selection = []; this.hover = null; this.cursor = null; this.consMode = false; this.free = null; this._focusCons = new Set();
@@ -117,7 +117,7 @@ export class Sketcher {
   }
   stop() {
     if (!this.active) return null;
-    const out = { ...this.feature, points: clone(this.sk.points), ents: clone(this.sk.ents), cons: clone(this.sk.cons) };
+    const out = { ...this.feature, points: clone(this.sk.points), ents: clone(this.sk.ents), cons: clone(this.sk.cons), seq: seqOf(this.sk) };
     this._teardown(); return out;
   }
   cancel() { if (this.active) this._teardown(); }
@@ -148,11 +148,11 @@ export class Sketcher {
   _resetDraw() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._box = null; this._press = null; this._drag = null; this._dragTarget = null; this._rdown = null; this._trimming = false; this._trimHot = null; this._hideSnap(); if (this.gPrev) { this._clearGroup(this.gPrev); this._hideTip(); } }
 
   // ---------- kimlik / durum ----------
-  _id(prefix) {
-    const sk = this.sk; let n = 1;
+  _id(prefix) { // kalıcı sayaç: silinen kimlik yeniden verilmez
+    const sk = this.sk; seqOf(sk);
     const used = (id) => id in sk.points || sk.ents.some((e) => e.id === id) || sk.cons.some((c) => c.id === id) || (this._reserved && this._reserved.has(id));
-    while (used(prefix + n) || used(prefix + n + '_b') || used(prefix + n + '_rules')) n++;
-    return prefix + n;
+    let id; do { id = prefix + (++sk.seq); } while (used(id) || used(id + '_b') || used(id + '_rules'));
+    return id;
   }
   // İpucu ve durum satırı: anahtar (ya da metin üreten işlev) saklanır; dil değişince relang() yeniden yazar.
   setHint(k, params) {
@@ -178,7 +178,7 @@ export class Sketcher {
     if (r && r.dof === 0) { this.free = { dof: 0, freePts: new Set(), freeEnts: new Set() }; return; }
     this._probeT = setTimeout(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const f = await probeFree(this.sk, this.getVars()); if (this._sid === sid && this.active) { this.free = f && f.freePts ? f : null; this._renderGL(); this.onChange(); } } catch (e) { /* sessiz: yalnız renk bilgisi */ }
+      try { const f = await probeFree(this.sk, this.getVars()); if (this._sid === sid && this.active) { this.free = f && f.freePts ? f : null; this._renderGL(); this.onChange(); } } catch (e) { console.error('probe', e && e.message, e && e.stack); }
     }, 180);
   }
   // çelişen/gereksiz kısıtların okunur listesi
@@ -186,8 +186,8 @@ export class Sketcher {
     const ids = [...new Set([...(r.conflicting || []), ...(r.redundant || [])].map(normId))];
     return ids.map((id) => { const c = this.sk.cons.find((k) => k.id === id); return c ? this._conLabel(c) : null; }).filter(Boolean);
   }
-  _snapStr() { return JSON.stringify({ points: this.sk.points, ents: this.sk.ents, cons: this.sk.cons }); }
-  _restore(s) { this.sk = JSON.parse(s); this.selection = this.selection.filter((x) => this._exists(x)); this.hover = null; }
+  _snapStr() { return JSON.stringify({ points: this.sk.points, ents: this.sk.ents, cons: this.sk.cons, seq: this.sk.seq }); }
+  _restore(s) { const seq = this.sk.seq; this.sk = JSON.parse(s); this.sk.seq = Math.max(seq || 0, this.sk.seq || 0); this.selection = this.selection.filter((x) => this._exists(x)); this.hover = null; }
   _exists(x) { return x.kind === 'point' ? x.id in this.sk.points : this.sk.ents.some((e) => e.id === x.id); }
   _badSet() { const r = this.lastSolve; return new Set([...((r && r.conflicting) || []), ...((r && r.redundant) || [])].map(normId)); }
 

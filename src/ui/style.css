@@ -114,3 +114,47 @@ input, select { font:inherit; color:inherit; }
 .drop .subdrop { position:absolute; left:100%; top:-5px; min-width:150px; background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:4px; z-index:51; display:none; }
 .drop .has-sub:hover > .subdrop, .drop .has-sub.open > .subdrop { display:block; }
 .note.ok-text { color:var(--ok); }
+
+/* Sketch araç çubuğu açılır grupları */
+.ddpop { position:fixed; z-index:60; display:grid; grid-template-columns:repeat(4, 66px); gap:2px; padding:4px; background:var(--panel); border:1px solid var(--line); border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.18); }
+.ddpop .tb { min-width:0; width:66px; padding:4px 2px; font-size:10.5px; }
+.ddpop .tb span:last-child { max-width:62px; }
+.tb.dd { min-width:44px; }
+#toolbar.sk .tb { min-width:40px; padding:3px 1px; font-size:10.5px; }
+#toolbar.sk .tb span:last-child { max-width:70px; }
+
+/* Sketch: yakalama işaretleri (uç, orta, merkez, kesişim, teğet, dik, nesne üstü) */
+.sk-snap { position:absolute; width:12px; height:12px; transform:translate(-50%,-50%); pointer-events:none; z-index:4; box-sizing:border-box; }
+.sk-snap span { position:absolute; left:15px; top:-6px; font-size:10.5px; line-height:1; color:#fff; background:rgba(31,42,58,.88); padding:2px 5px; border-radius:3px; white-space:nowrap; }
+.sk-snap.k-end { border:2px solid #1b8a3a; background:rgba(27,138,58,.12); }
+.sk-snap.k-origin { border:2px solid #c62828; border-radius:50%; }
+.sk-snap.k-center { border:2px solid #1b8a3a; border-radius:50%; }
+.sk-snap.k-mid { width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:12px solid #1b8a3a; background:none; transform:translate(-50%,-60%); }
+.sk-snap.k-mid span { left:11px; top:-1px; }
+.sk-snap.k-int::before, .sk-snap.k-int::after { content:''; position:absolute; left:50%; top:-2px; width:2px; height:16px; background:#e07b00; transform:translateX(-50%) rotate(45deg); }
+.sk-snap.k-int::after { transform:translateX(-50%) rotate(-45deg); }
+.sk-snap.k-tan { border:2px solid #7b3fb3; border-radius:50%; border-top-width:4px; }
+.sk-snap.k-perp { border-left:2px solid #7b3fb3; border-bottom:2px solid #7b3fb3; width:11px; height:11px; }
+.sk-snap.k-ent { border:2px solid #1769e0; transform:translate(-50%,-50%) rotate(45deg); width:9px; height:9px; }
+.sk-snap.k-ent span { transform:rotate(-45deg); left:18px; top:-4px; }
+/* kutuyla seçim: soldan sağa = tamamen içinde (düz çizgi), sağdan sola = değenler (kesik çizgi, yeşil) */
+.sk-box { position:absolute; border:1.5px solid #1769e0; background:rgba(23,105,224,.08); pointer-events:none; z-index:3; }
+.sk-box.touch { border:1.5px dashed #1b8a3a; background:rgba(27,138,58,.08); }
+/* iletişim kutusu, sayısal giriş, bağlam menüsü */
+.sk-dlg, .sk-num { background:var(--panel); border:1px solid var(--line); border-radius:6px; box-shadow:0 6px 20px rgba(0,0,0,.2); padding:8px 10px; font-size:12.5px; min-width:220px; max-width:300px; }
+.sk-dlg .t { font-weight:600; margin-bottom:6px; }
+.sk-dlg .row, .sk-num .row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:3px 0; }
+.sk-dlg input[type=text], .sk-num input[type=text], .sk-dlg select { width:110px; padding:2px 5px; border:1px solid #9db7e0; border-radius:3px; font-size:12.5px; }
+.sk-dlg .n, .sk-num .n { color:var(--muted); font-size:11.5px; margin-top:5px; }
+.sk-dlg .b { display:flex; gap:6px; justify-content:flex-end; margin-top:8px; }
+.sk-num { min-width:170px; } .sk-num.bad { border-color:var(--danger); }
+.sk-ctx { background:var(--panel); border:1px solid var(--line); border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.22); padding:4px; display:flex; flex-direction:column; min-width:190px; }
+.sk-ctx .it { text-align:left; background:none; border:0; padding:5px 10px; font-size:12.5px; border-radius:4px; cursor:pointer; }
+.sk-ctx .it:hover { background:var(--accent-weak); }
+/* referans (sürücü olmayan) ölçü ve vurgulanan kısıtlar */
+.dim.ref { border-style:dashed; color:#5b6b82; background:#f4f7fb; }
+.dim.focus, .cbadge.focus { outline:2px solid #e07b00; outline-offset:1px; }
+#panel .bad-list .row.bad, #panel .clist .row.bad { color:var(--danger); }
+#panel .clist .row.focus { background:var(--accent-weak); }
+#panel .polyopt { margin:4px 0; }
+#toolbar.sk .group { padding:0 2px; } #toolbar.sk .group .btns { gap:0; }

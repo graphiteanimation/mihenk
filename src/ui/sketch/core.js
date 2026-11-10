@@ -13,12 +13,17 @@ export const segOf = (sk, e) => entSeg(sk, e);
 export const getEnt = (sk, id) => sk.ents.find((e) => e.id === id);
 export const P2 = (sk, id) => [sk.points[id].x, sk.points[id].y];
 
-// benzersiz kimlik (nokta, varlık, kısıt arasında; _b/_c/_rules sonekleri için de boş)
+// Kalıcı artan sayaç (sk.seq): silinen bir kimlik asla yeni nesneye verilmez (adlandırma/profil seçimi buna dayanır).
+const suffixOf = (id) => { const m = /(\d+)(?:_[a-z]+)?$/.exec(String(id)); return m ? +m[1] : 0; };
+export function seqOf(sk) {
+  if (!Number.isFinite(sk.seq)) { let m = 0; for (const id of Object.keys(sk.points)) m = Math.max(m, suffixOf(id)); for (const e of sk.ents) m = Math.max(m, suffixOf(e.id)); for (const c of sk.cons) m = Math.max(m, suffixOf(c.id)); sk.seq = m; }
+  return sk.seq;
+}
 export function newId(sk, prefix) {
-  let n = 1;
+  seqOf(sk);
   const used = (id) => id in sk.points || sk.ents.some((e) => e.id === id) || sk.cons.some((c) => c.id === id);
-  while (used(prefix + n) || used(prefix + n + '_b') || used(prefix + n + '_c') || used(prefix + n + '_rules')) n++;
-  return prefix + n;
+  let id; do { id = prefix + (++sk.seq); } while (used(id) || used(id + '_b') || used(id + '_c') || used(id + '_rules'));
+  return id;
 }
 const PREFIX = { line: 'l', circle: 'c', arc: 'a', point: 'n', ellipse: 'e', ellarc: 'ea', spline: 's' };
 export function addPoint(sk, x, y, fixed) { const id = newId(sk, 'p'); sk.points[id] = { x, y }; if (fixed) sk.points[id].fixed = true; return id; }
@@ -33,7 +38,11 @@ export function cleanup(sk, extraKeep = new Set()) {
   const ids = new Set([...sk.ents.map((e) => e.id), ...Object.keys(sk.points)]);
   const before = sk.cons.length;
   sk.cons = sk.cons.filter((c) => conRefs(c).every((r) => ids.has(r)));
-  return before - sk.cons.length;
+  const removed = before - sk.cons.length;
+  // uç noktası zaten o nesnenin ucu olan "nokta üstünde" kısıtı yapısal olarak sağlanır; kalırsa fazlalık (redundant) olur
+  const endOf = (id) => { const e = sk.ents.find((x) => x.id === id); return e && (e.type === 'line' || e.type === 'arc' || e.type === 'ellarc') ? [e.a, e.b] : []; };
+  sk.cons = sk.cons.filter((c) => !(c.type === 'pointOn' && endOf(c.b).includes(c.a)));
+  return removed;
 }
 export function deleteItems(sk, items) {
   const delEnts = new Set(), delPts = new Set();

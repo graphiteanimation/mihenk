@@ -15,6 +15,18 @@ Bu dosya yeni oturumda kaldığı yerden devam etmek için yazıldı. Tek kaynak
 - Kullanıcı 0.1.0'ı Windows'ta kurdu: sketch, extrude, kaydet, STL dışa aktarma hatasız çalıştı.
 - O-016 (spesifikasyon projesini kapatma) hâlâ onay bekliyor.
 
+## Durum güncellemesi — 2026-11-10 akşam (limit %95; ikinci ara kayıt)
+- Ad kararı: **Mihenk CAD/CAM**, uzantı `.mhnk` (eski `.acad` açılır), logo V-blok M + datum üçgeni. Ana model logo ve iki makete bakıp ONAYLADI.
+  Belgeler: docs/BRAND.md, docs/UI-SPEC.md; varlıklar brand/, design/. Kullanıcıya bildirildi; itiraz gelmedi (SAHA MİHENK yakınlığı kabul; yedek ad Punta).
+  HENÜZ UYGULANMADI: yeniden adlandırma + tasarımın arayüze işlenmesi (UI-SPEC "Uygulama planı"). Bilinen maket kusuru: yön seçicide "Symmetric" kesiliyor.
+- Çekirdek düzeltmeleri BİTTİ (f7499ce): köken tabanlı kalıcı adlandırma, F-02…F-25 çoğu, S-02/S-08/S-14. test/models 1282/1282, kernel 104/104.
+  Rapor: docs/KERNEL-FIXES.md. Açık: bellek ısınması +40 MB/150 tur (kararlı durumda sızıntı yok), F-15 (expr.js), F-26 (STL kiriş hatası).
+- Marka/tasarım BİTTİ. Güvenlik düzeltmeleri BİTTİ (8dc19db).
+- Sketch'in tamamlanması SÜRÜYOR (Sonnet). Ek zorunlu işler iletildi: (1) varlık kimlikleri asla yeniden kullanılmaz (artan sayaç),
+  (2) profil seçimi sıra numarası yerine sınır varlık kümesiyle saklanır, (3) app.test.py G bölümü (açılır araç grupları) düzeltilip `npm run test:all` geçirilir,
+  (4) elips/spline uçtan uca test. Durumu docs/SKETCH.md ve git log'dan oku.
+- Dokümana (Claude Docs) K-016…K-023 ve Aşama 9 kayıtları HÂLÂ işlenmedi.
+
 ## Biten işler (commit'li)
 - v0.1.0 (41468d9): çekirdek, sketch ortamı, arayüz, Electron, kurulum.
 - İki dil (309867e): 556 anahtar TR/EN, çekirdek hataları {code, params}.

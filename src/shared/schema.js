@@ -28,10 +28,18 @@ const obj = (shape = {}) => (v, p) => {
 const nullable = (c) => (v, p) => { if (v !== null) c(v, p); };
 const either = (a, b, label) => (v, p) => { try { a(v, p); } catch (e) { try { b(v, p); } catch (e2) { fail('schema.bad_field', { path: p, expect: label }); } } };
 
+// profiller: 'all' | eski sayısal dizinler | [{ents:[kimlik], hint:[x,y]}] (kararlı seçim)
+const profilesChk = (v, p) => {
+  if (v === 'all') return;
+  if (!Array.isArray(v)) fail('schema.bad_field', { path: p, expect: 'all/list' });
+  if (v.length > LIMITS.features) fail('schema.too_many', { what: p, max: LIMITS.features });
+  v.forEach((x, i) => { if (typeof x === 'number') num()(x, p + '[' + i + ']'); else obj({ ents: arrOf(str(LIMITS.shortStr), LIMITS.refs), hint: arrOf(num(), 2) })(x, p + '[' + i + ']'); });
+};
 const OPS = ['new', 'join', 'cut', 'intersect'];
 const AX = ['X', 'Y', 'Z'];
 const sourceChk = obj({ kind: oneOf(['feature', 'body']), id: str(LIMITS.shortStr), bodies: strArr() });
 const sketchChk = {
+  seq: num(),
   plane: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }),
   points: (v, p) => {
     if (!isObj(v)) fail('schema.bad_field', { path: p, expect: 'object' });
@@ -45,8 +53,8 @@ const sketchChk = {
 const TYPES = {
   primitive: { kind: oneOf(['box', 'cylinder', 'sphere']), x: expr(), y: expr(), z: expr(), w: expr(), d: expr(), h: expr(), dia: expr(), axis: oneOf(AX), op: oneOf(OPS), targets: strArr() },
   sketch: sketchChk,
-  extrude: { sketch: str(LIMITS.shortStr), profiles: either(oneOf(['all']), arrOf(num(), LIMITS.features), 'all/list'), dist: expr(), dist2: expr(), extent: oneOf(['dist', 'all']), dir: oneOf(['one', 'sym', 'two']), flip: bool(), op: oneOf(OPS), targets: strArr() },
-  revolve: { sketch: str(LIMITS.shortStr), profiles: either(oneOf(['all']), arrOf(num(), LIMITS.features), 'all/list'), axis: obj({ kind: oneOf(['sketchX', 'sketchY', 'line']), ent: str(LIMITS.shortStr) }), angle: expr(), op: oneOf(OPS), targets: strArr() },
+  extrude: { sketch: str(LIMITS.shortStr), profiles: profilesChk, dist: expr(), dist2: expr(), extent: oneOf(['dist', 'all']), dir: oneOf(['one', 'sym', 'two']), flip: bool(), op: oneOf(OPS), targets: strArr() },
+  revolve: { sketch: str(LIMITS.shortStr), profiles: profilesChk, axis: obj({ kind: oneOf(['sketchX', 'sketchY', 'line']), ent: str(LIMITS.shortStr) }), angle: expr(), op: oneOf(OPS), targets: strArr() },
   hole: { sketch: str(LIMITS.shortStr), kind: oneOf(['simple', 'cbore', 'csink']), dia: expr(), depth: expr(), tipAngle: expr(), cboreDia: expr(), cboreDepth: expr(), csinkDia: expr(), csinkAngle: expr(), extent: oneOf(['dist', 'all']), flip: bool(), thread: nullable(obj({ designation: str(40), pitch: num(), major: num() })), targets: strArr() },
   fillet: { edges: arrOf(obj(), LIMITS.refs), r: expr() },
   chamfer: { edges: arrOf(obj(), LIMITS.refs), d: expr() },

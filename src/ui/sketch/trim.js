@@ -107,9 +107,11 @@ function copyConsToNew(sk, oldId, newEntId) {
 // spline'ı verilen parçalarla değiştirir: parça {seg, p0, p1}: uç noktaları kimlikleri (null → yeni nokta)
 function replaceSpline(sk, e, pieces) {
   const oldPts = e.pts.slice(); const cons = !!e.cons; sk.ents = sk.ents.filter((x) => x.id !== e.id);
+  let first = true; // ilk (başlangıca yakın) parça özgün kimliği korur; diğerleri yeni kimlik alır
   for (const pc of pieces) {
     const pts = pc.seg.pts; const ids = pts.map((p, i) => { if (i === 0 && pc.p0) return pc.p0; if (i === pts.length - 1 && pc.p1) return pc.p1; return addPoint(sk, p[0], p[1]); });
-    addEnt(sk, { type: 'spline', pts: ids, ...(cons ? { cons: true } : {}) });
+    const ent = { type: 'spline', pts: ids, ...(cons ? { cons: true } : {}) };
+    if (first) { sk.ents.push({ id: e.id, ...ent }); first = false; } else addEnt(sk, ent);
   }
 }
 

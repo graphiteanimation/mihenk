@@ -89,5 +89,18 @@ const area = (sk) => findRegions(sk).regions.reduce((s, r) => s + r.net, 0);
 { const sk = empty(); const R = rect(sk, 0, 0, 10, 5); const c = circle(sk, 30, 2, 3); const a = O.boxSelect(sk, [-1, -1, 12, 6], true); ok(a.ents.length === 4, 'soldan sağa: içindekiler (4 çizgi)'); const b = O.boxSelect(sk, [5, 2, 28, 3], false); ok(b.ents.includes(R.l[0]) === false && b.ents.length >= 2 && b.ents.includes(c), 'sağdan sola: değenler'); const d = O.boxSelect(sk, [26, -1, 36, 6], true); ok(d.ents.length === 1 && d.ents[0] === c, 'daire tamamen içinde'); }
 // ---- serbestlik denetimi
 { const sk = empty(); const R = rect(sk, 0, 0, 10, 5); await solve(sk); const p = await probeFree(sk, {}); ok(p.dof === 4 && p.freeEnts.size === 4, 'kısıtsız dikdörtgen: hepsi serbest'); }
+// ---- kalıcı kimlik: silinen kimlik yeniden verilmez; budama/böl özgün kimliği başlangıç tarafındaki parçada korur
+{ const sk = empty(); const R = rect(sk, 0, 0, 10, 5); const old = R.l[0]; const seen = new Set([...Object.keys(sk.points), ...sk.ents.map((e) => e.id), ...sk.cons.map((c) => c.id)]);
+  const { deleteItems } = await import('../src/ui/sketch/core.js'); deleteItems(sk, [{ kind: 'ent', id: old }]);
+  const p1 = addPoint(sk, 0, 0.5), p2 = addPoint(sk, 10, 0.5); const nl = addEnt(sk, { type: 'line', a: p1, b: p2 });
+  ok(!seen.has(nl) && nl !== old, 'sil → yeniden çiz: kimlik farklı (' + old + ' → ' + nl + ')');
+  const ids = [p1, p2, nl]; ok(new Set(ids).size === 3 && ids.every((i) => !seen.has(i)), 'yeni nokta kimlikleri de eskilerle çakışmıyor');
+  const sk2 = JSON.parse(JSON.stringify(sk)); delete sk2.seq; const a = addPoint(sk2, 1, 1); ok(!(a in sk.points && a !== undefined && false), 'seq yoksa en büyük sonekten türetilir'); ok(Number(a.slice(1)) > Math.max(...Object.keys(sk.points).map((k) => +k.slice(1) || 0)), 'türetilen sayaç mevcut en büyüğün üstünde'); }
+{ const sk = empty(); const a = addPoint(sk, 0, 0), b = addPoint(sk, 20, 0), c = addPoint(sk, 10, -5), d = addPoint(sk, 10, 5);
+  const l1 = addEnt(sk, { type: 'line', a, b }); addEnt(sk, { type: 'line', a: c, b: d });
+  const r = O.breakAt(sk, l1, [5, 0]); ok(r.ok, 'böl'); const keep = getEnt(sk, l1); ok(keep && sk.points[keep.a].x === 0, 'böl: özgün kimlik başlangıca yakın parçada kaldı');
+  const sk3 = empty(); const a3 = addPoint(sk3, 0, 0), b3 = addPoint(sk3, 20, 0), c3 = addPoint(sk3, 5, -5), d3 = addPoint(sk3, 5, 5), e3 = addPoint(sk3, 15, -5), f3 = addPoint(sk3, 15, 5);
+  const m = addEnt(sk3, { type: 'line', a: a3, b: b3 }); addEnt(sk3, { type: 'line', a: c3, b: d3 }); addEnt(sk3, { type: 'line', a: e3, b: f3 });
+  O.trimAt(sk3, m, [10, 0]); const kept = getEnt(sk3, m); ok(kept && sk3.points[kept.a].x === 0 && Math.abs(sk3.points[kept.b].x - 5) < 1e-9, 'buda (orta): özgün kimlik başlangıç parçasında'); }
 function TAU() { return Math.PI * 2; }
 console.log(`sketchops: ${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
