@@ -56,6 +56,8 @@ export function listArr(l) {
   c.delete(); l.delete();
   return out;
 }
+// NCollection_List.Append eklenen öğenin kopya tutamacını döndürür: silinmezse şekli bellekte tutar (F-20)
+const app = (list, s) => { const x = list.Append(s); if (x && typeof x.delete === 'function') x.delete(); };
 export const wrap = (raw) => { const w = R.cast(raw); raw.delete(); return w; };
 const P = (r, p) => r(new (oc().gp_Pnt)(p[0], p[1], p[2]));
 const Dv = (r, d) => r(new (oc().gp_Dir)(d[0], d[1], d[2]));
@@ -87,7 +89,7 @@ export function boolean(op, args, tools) {
   try {
     const b = r(op === 'fuse' ? new O.BRepAlgoAPI_Fuse() : op === 'cut' ? new O.BRepAlgoAPI_Cut() : new O.BRepAlgoAPI_Common());
     const la = r(new O.NCollection_List_TopoDS_Shape()), lt = r(new O.NCollection_List_TopoDS_Shape());
-    for (const a of args) la.Append(a.shape.wrapped); for (const t of tools) lt.Append(t.shape.wrapped);
+    for (const a of args) app(la, a.shape.wrapped); for (const t of tools) app(lt, t.shape.wrapped);
     b.SetArguments(la); b.SetTools(lt); b.Build(progress(r));
     if (!b.IsDone() || b.HasErrors()) return null;
     b.SimplifyResult(true, true, 1e-3);
@@ -123,7 +125,7 @@ export function edgeBlend(kind, body, edgeIdx, val, nameOfEdge, nameOfVert) {
 export function shell(body, faceIdx, t, nameGen) {
   const O = oc(); const r = scope(); const T = topoOf(body.shape);
   try {
-    const rem = r(new O.NCollection_List_TopoDS_Shape()); for (const i of faceIdx) rem.Append(T.faces.list[i]);
+    const rem = r(new O.NCollection_List_TopoDS_Shape()); for (const i of faceIdx) app(rem, T.faces.list[i]);
     const b = r(new O.BRepOffsetAPI_MakeThickSolid());
     b.MakeThickSolidByJoin(body.shape.wrapped, rem, -t, 1e-3, O.BRepOffset_Mode.BRepOffset_Skin, false, false, O.GeomAbs_JoinType.GeomAbs_Arc, false, progress(r));
     if (!b.IsDone()) return null;
@@ -204,20 +206,30 @@ function sweepResult(b, face, r, caps) {
   const claimed = new Set(gens.flat()); if (first >= 0) claimed.add(first); if (last >= 0) claimed.add(last);
   fe.list.forEach((e, k) => {
     if (gens[k].length) return;
-    const m = edgeMid(e); const v = R.makeVertex(m); const cands = [];
-    T.faces.list.forEach((f, i) => { if (claimed.has(i)) return; let d = Infinity; try { d = R.measureDistanceBetween(faceWrap(f), v); } catch (x) { /* */ } if (d < 1e-7 * Math.max(1, Math.hypot(...m))) cands.push(i); });
+    const m = edgeMid(e); const cands = [];
+    T.faces.list.forEach((f, i) => { if (claimed.has(i)) return; if (pointFaceDist(f, m) < 1e-7 * Math.max(1, Math.hypot(...m))) cands.push(i); });
     if (cands.length === 1) { gens[k] = cands; claimed.add(cands[0]); }
   });
   const edges = fe.list; fin.register(shape, edges);
   return { shape, edges, gens, first, last };
 }
 
+// nokta-yüz uzaklığı (replicad measureDistanceBetween çağrı başına bellek bırakıyor; burada açıkça silinir)
+export function pointFaceDist(faceRaw, p) {
+  const O = oc(); const r = scope();
+  try { const v = r(new O.BRepBuilderAPI_MakeVertex(P(r, p))); const vs = r(v.Vertex()); const d = r(new O.BRepExtrema_DistShapeShape(vs, faceRaw)); return d.IsDone() ? d.Value() : Infinity; }
+  catch (e) { return Infinity; } finally { r.done(); }
+}
 // Kenarın orta noktası (parametrik)
 export function edgeMid(edgeRaw) {
   const O = oc(); const r = scope();
   try { const e = r(O.TopoDS.Edge(edgeRaw)); const c = r(new O.BRepAdaptor_Curve(e)); const t = (c.FirstParameter() + c.LastParameter()) / 2; const p = r(c.Value(t)); return [p.X(), p.Y(), p.Z()]; }
   finally { r.done(); }
 }
+// Kenar kurucuları: replicad makeLine/makeThreePointArc kurucu nesneyi silmiyor (kenar ve onu paylaşan şekiller bellekte kalıyor, F-20)
+export function makeLine(a, b) { const O = oc(); const r = scope(); try { const m = r(new O.BRepBuilderAPI_MakeEdge(P(r, a), P(r, b))); return new R.Edge(m.Edge()); } finally { r.done(); } }
+export function makeArc3(a, m, b) { const O = oc(); const r = scope(); try { const g = r(new O.GC_MakeArcOfCircle(P(r, a), P(r, m), P(r, b))); const c = r(g.Value()); const e = r(new O.BRepBuilderAPI_MakeEdge(c)); return new R.Edge(e.Edge()); } finally { r.done(); } }
+export function makePolygon(pts) { return R.makeFace(R.assembleWire(pts.map((p, i) => makeLine(p, pts[(i + 1) % pts.length])))); }
 export function faceWrap(raw) { const O = oc(); return new R.Face(O.TopoDS.Face(raw)); }
 export function edgeWrap(raw) { const O = oc(); return new R.Edge(O.TopoDS.Edge(raw)); }
 

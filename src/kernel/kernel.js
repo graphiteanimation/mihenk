@@ -340,7 +340,7 @@ export class Kernel {
     const parts = [], pos = [];
     for (const u of uniq) {
       const pts = prof.map(([rr, z]) => V.add(V.add(u.w, V.mul(S.plane.x, rr)), V.mul(d, z)));
-      const face = R.makePolygon(pts);
+      const face = TP.makePolygon(pts);
       const rv = TP.revol(face, u.w, d, 360); if (!rv) throw new KErr('hole.failed');
       const fn = Array.from({ length: TP.topoOf(rv.shape).faces.size }, () => []);
       const segMid = prof.map((a, i) => { const b = prof[(i + 1) % prof.length]; return V.add(V.add(u.w, V.mul(S.plane.x, (a[0] + b[0]) / 2)), V.mul(d, (a[1] + b[1]) / 2)); });
@@ -631,7 +631,7 @@ function stlToSolid(bin) {
   const oc = R.getOC(); const r = TP.scope();
   try {
     const sew = r(new oc.BRepBuilderAPI_Sewing(1e-6, true, true, true, false));
-    for (const t of tris) { if (V.len(V.cross(V.sub(t[1], t[0]), V.sub(t[2], t[0]))) < 1e-12) continue; const f = R.makePolygon(t); sew.Add(f.wrapped); }
+    for (const t of tris) { if (V.len(V.cross(V.sub(t[1], t[0]), V.sub(t[2], t[0]))) < 1e-12) continue; const f = TP.makePolygon(t); sew.Add(f.wrapped); }
     sew.Perform(r(new oc.Message_ProgressRange()));
     const sewn = TP.wrap(sew.SewedShape());
     const shells = new TP.SubIndex(sewn.wrapped, 'shell'); if (shells.size !== 1) { shells.list.forEach((x) => x.delete()); throw new KErr('import.stl_not_closed'); }

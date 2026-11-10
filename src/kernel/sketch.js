@@ -5,6 +5,7 @@ import { KErr } from '../shared/errors.js';
 import { findRegions } from '../shared/profiles.js';
 import * as V from '../shared/vec.js';
 import { scope, edgeMid, faceValid, SubIndex } from './topo.js';
+import * as TP from './topo.js';
 
 export const MIN_EDGE = 1e-4; // mm
 export const MAX_COORD = 1e5; // mm
@@ -132,8 +133,8 @@ function segEnt(sk, s, eps) {
 
 // OCCT kenarı (dünya koordinatı)
 function segEdge(s, W, plane, sc) {
-  if (s.type === 'line') return R.makeLine(W(s.p0), W(s.p1));
-  if (s.type === 'arc') { if (d2(s.p0, s.p1) < 1e-9 * sc) return R.makeCircle(s.r, W(s.c), plane.n); return R.makeThreePointArc(W(s.p0), W(s.mid), W(s.p1)); }
+  if (s.type === 'line') return TP.makeLine(W(s.p0), W(s.p1));
+  if (s.type === 'arc') { if (d2(s.p0, s.p1) < 1e-9 * sc) return R.makeCircle(s.r, W(s.c), plane.n); return TP.makeArc3(W(s.p0), W(s.mid), W(s.p1)); }
   if (s.type === 'circle') return R.makeCircle(s.r, W(s.c), plane.n);
   if (s.type === 'ellipse' || s.type === 'ellarc') {
     const rot = s.rot || 0; const u = V.add(V.mul(plane.x, Math.cos(rot)), V.mul(plane.y, Math.sin(rot))); const v = V.cross(plane.n, u);
