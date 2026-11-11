@@ -1,6 +1,6 @@
 // Düzenleme araçları ve eskiz yardımcıları (Sketcher.prototype'a eklenir): budama/uzatma/bölme, ofset, köşe, ayna,
 // desenler, taşı/kopyala/döndür/ölçekle, izdüşüm, pano, sağ tık menüsü ve çizerken sayısal giriş.
-import { THREE } from '../viewport.js';
+import { THREE, COL } from '../viewport.js';
 import { h } from '../dom.js';
 import { G, clone, getEnt, segOf, entPts } from './core.js';
 import { trimAt, extendAt, breakAt, trimSpan, offsetEnts, cornerAt, mirrorEnts, patternRect, patternCirc, transformEnts, projectPolylines, copySelection, pasteClip } from './ops.js';
@@ -11,7 +11,6 @@ import { toLocal } from '../../shared/vec.js';
 
 export const EDIT_TOOLS = ['trim', 'extend', 'break', 'offset', 'fillet', 'chamfer', 'mirror', 'patrect', 'patcirc', 'move', 'copy', 'rotate', 'scale', 'project'];
 const NEEDS_SEL = new Set(['offset', 'mirror', 'patrect', 'patcirc', 'move', 'copy', 'rotate', 'scale']);
-const RED = 0xd32f2f, BLUE = 0x0b62d6, GREEN = 0x2e8b3d;
 const fmt = (v) => fmtNum(Number(v), 3);
 let CLIP = null; // oturumlar arası pano
 let PASTE_N = 0;
@@ -30,7 +29,7 @@ export const EDIT_METHODS = {
     });
     return p.then((r) => { if (r.ok && extra.after) extra.after(res); return r; });
   },
-  _previewOp(fn, color = BLUE, dashed = true) {
+  _previewOp(fn, color = COL.sketch, dashed = true) {
     const sk2 = clone(this.sk); let r; try { r = fn(sk2); } catch (e) { return null; }
     if (!r || !r.ok) return r;
     const old = new Set(this.sk.ents.map((e) => e.id)); const mine = (e) => !old.has(e.id) || (r.changed && r.changed.has && r.changed.has(e.id));
@@ -185,15 +184,15 @@ export const EDIT_METHODS = {
   _editPreview(cur) {
     const tool = this.tool, ed = this._ed || {}; let tip = ''; const loc = cur ? cur.loc : null;
     const thick = (pts, col) => { const w = this.vp.worldPerPixel(); for (const o of [[0, 0], [w, 0], [-w, 0], [0, w], [0, -w]]) this._line(pts.map((p) => [p[0] + o[0], p[1] + o[1]]), col); };
-    if (tool === 'trim' && ed.span && !this._trimming) thick(ed.span.pts, RED);
-    else if (tool === 'extend' && ed.hot && loc) { this._previewOp((sk) => extendAt(sk, ed.hot, loc), GREEN, false); const sk2 = clone(this.sk); if (extendAt(sk2, ed.hot, loc).ok) { const e = getEnt(sk2, ed.hot), sg = e && segOf(sk2, e); if (sg) thick(G.sample(sg, 0.05), GREEN); } }
-    else if (tool === 'break' && loc) { const hit = this._hitEnt(loc); if (hit && hit.kind === 'ent') { const w = this.vp.worldPerPixel() * 5; this._line([[hit.x - w, hit.y - w], [hit.x + w, hit.y + w]], RED); this._line([[hit.x - w, hit.y + w], [hit.x + w, hit.y - w]], RED); } }
+    if (tool === 'trim' && ed.span && !this._trimming) thick(ed.span.pts, COL.err);
+    else if (tool === 'extend' && ed.hot && loc) { this._previewOp((sk) => extendAt(sk, ed.hot, loc), COL.ok, false); const sk2 = clone(this.sk); if (extendAt(sk2, ed.hot, loc).ok) { const e = getEnt(sk2, ed.hot), sg = e && segOf(sk2, e); if (sg) thick(G.sample(sg, 0.05), COL.ok); } }
+    else if (tool === 'break' && loc) { const hit = this._hitEnt(loc); if (hit && hit.kind === 'ent') { const w = this.vp.worldPerPixel() * 5; this._line([[hit.x - w, hit.y - w], [hit.x + w, hit.y + w]], COL.err); this._line([[hit.x - w, hit.y + w], [hit.x + w, hit.y - w]], COL.err); } }
     else if (tool === 'offset' && this.selection.length && loc) {
       const pl = this._offsetPlan(loc);
       if (pl) { const r = this._previewOp((sk) => offsetEnts(sk, pl.ids, pl.dist, pl.expr, loc, pl.join)); tip = r && !r.ok ? t(r.err.key, r.err.params || {}) : 'd = ' + fmt(pl.dist) + ' mm'; }
     } else if ((tool === 'fillet' || tool === 'chamfer') && loc) {
       const hit = this._hit(loc); const plan = this._cornerPlan(hit, true);
-      if (plan) { const r = this._previewOp((sk) => cornerAt(sk, plan.vid, tool, plan.val, plan.expr, plan.a, plan.b), BLUE, false); if (r && !r.ok) tip = t(r.err.key, r.err.params || {}); }
+      if (plan) { const r = this._previewOp((sk) => cornerAt(sk, plan.vid, tool, plan.val, plan.expr, plan.a, plan.b), COL.sketch, false); if (r && !r.ok) tip = t(r.err.key, r.err.params || {}); }
       else if (this._cornerFirst) tip = t('sk.op.corner_second');
     } else if (tool === 'mirror' && ed.phase === 1 && loc) {
       const hit = this._hit(loc); if (hit && hit.kind === 'ent' && getEnt(this.sk, hit.id).type === 'line') this._previewOp((sk) => mirrorEnts(sk, this._entsSel(), hit.id, true));

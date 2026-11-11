@@ -1,4 +1,5 @@
 // Mihenk uygulama çekirdeği: belge durumu, çekirdek (worker) köprüsü, geri al/yinele, dosya, araçlar.
+import './prefs.js';
 import './style.css';
 import pkg from '../../package.json';
 import planegcsWasm from '@salusoft89/planegcs/dist/planegcs_dist/planegcs.wasm?url';
@@ -15,6 +16,8 @@ import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
 import { defaults, newId, autoName, featLabel, dependents } from './features.js';
 import { initChrome } from './chrome.js';
+import { onPrefsChange, getStr, setStr } from './prefs.js';
+import { showSettings, renderWelcome } from './screens.js';
 import { FeaturePanel, SketchPanel, SectionPanel, paramsModal, showBox, hideBox, measureRows, showProps } from './panels.js';
 
 // sketcher.js ayrı bir modüldür; yoksa ya da bozuksa model kipi çalışmaya devam eder.
@@ -41,6 +44,7 @@ class App {
     this.selection = []; this.selFeature = null; this.hiddenBodies = new Set(); this.hiddenSketches = new Set();
     this.edit = null; this.tool = null; this.measureSel = []; this.sketchSession = null; this.sketcher = null; this.sectionPanel = null;
     this._seq = 0; this._chain = Promise.resolve(); this._timer = 0; this._pending = new Map(); this._wid = 0; this.needFit = true; this.regionCount = null;
+    this.busy = false; this.stale = false; this.lastAutosave = null; this.welcome = false; this._cancelled = false;
     this.problems = {}; this._rev = 0; this._recRev = -1; this._resetP = Promise.resolve(); this.recoveryMs = RECOVERY_MS; this._recTimer = 0;
     this.ready = new Promise((res, rej) => { this._readyRes = res; this._readyRej = rej; });
     this.ready.catch(() => {});
@@ -51,6 +55,7 @@ class App {
     document.documentElement.lang = getLang(); applyI18n();
     this.C = initChrome(this);
     onLangChange(() => this.relang());
+    onPrefsChange(() => this.retheme());
     this.pushNativeStrings();
     try { this.viewport = new Viewport($('#viewport')); }
     catch (e) { this.loadFail(t('ld.webgl', { detail: e.message }), 420); this._readyRej(e); return; }
@@ -58,6 +63,7 @@ class App {
     this.viewport.onCamera = () => {};
     this.C.renderViewBtns(); this.C.renderAll();
     this.bindKeys();
+    this.showWelcome(getStr('welcome') !== 'off');
     // sürükle-bırak ile dosyaya gezinmeyi engelle (S-03); gezinti ayrıca ana süreçte de engellidir
     for (const ev of ['dragover', 'drop']) window.addEventListener(ev, (e) => e.preventDefault());
     if (!window.native) window.addEventListener('beforeunload', (e) => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
@@ -81,22 +87,40 @@ class App {
   // Başlangıç hatası: yükleme katmanında kırmızı metin (kullanıcı verisi textContent ile basılır).
   loadFail(text, width, extra) {
     const box = $('#loading'); box.replaceChildren();
-    const sp = h('span', { style: { color: '#c62828', maxWidth: width + 'px', textAlign: 'center' }, text });
+    const sp = h('span', { class: 'load-fail', style: { maxWidth: width + 'px' }, text });
     if (extra) sp.append(h('br'), extra);
     box.append(sp);
   }
 
   // ------------------------------------------------------------ dil
   setLanguage(l) { setLang(l); }
+  // Tema/yoğunluk değişince 3B görünüm ve eskiz katmanı renkleri CSS değişkenlerinden yeniden okunur.
+  retheme() {
+    try { this.viewport?.applyTheme(); this.refreshSketches(); this.sketcher?.retheme?.(); } catch (e) { console.error(e); }
+    this.C?.renderAll?.();
+  }
+  showSettings(tab) { return showSettings(this, tab); }
+  showWelcome(on) { this.welcome = !!on; document.getElementById('app').classList.toggle('welcome-on', this.welcome); renderWelcome(this); this.C?.renderAll?.(); }
+  async openRecent(i) { if (!window.native?.openRecent) return; if (this.guard()) return; if (!(await this.confirmDiscard())) return; const f = await window.native.openRecent(i); if (f) await this.openBytes(f.data, f.name, f.path || f.name); }
+  toastInfo(m) { toast(m, { kind: 'info' }); }
+  badFeatures() { const st = this.result?.status || {}; return this.doc.features.filter((f) => st[f.id] && st[f.id].ok === false); }
+  gotoFirstError() { const f = this.badFeatures()[0]; if (!f || this.guard()) return; this.selectFeature(f.id); this.toastInfo(errText(this.result.status[f.id].error)); }
+  // Uzun hesaplamayı iptal eder: işçi sonlandırılır ve yeniden başlatılır (`reset`); sonuç eski kalır (bayat).
+  async cancelCompute() {
+    if (!this.busy) return;
+    this._cancelled = true; this._seq++; clearTimeout(this._timer); this._timer = 0; this.busy = false; this.stale = true; this.C.renderStatus();
+    try { await this._resetWorker(); } catch (e) { console.error(e); }
+    this._cancelled = false; this.setLeft(() => t('st.cancelled')); this.C.renderStatus();
+  }
   // Electron ana süreci kapatma onayı gibi diyalog metinlerini buradan alır (tek sözlük).
   pushNativeStrings() {
     window.native?.setStrings?.({ closeMsg: t('native.close_msg'), closeDetail: t('native.close_detail'), closeCancel: t('native.close_cancel'), closeDiscard: t('native.close_discard'),
-      filterDoc: t('file.filter_acad'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
+      filterDoc: t('file.filter_doc'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
   }
   // Dil değişince her yer yeniden çizilir; açık panel, sketch, kesit, ölçü kutusu ve durum satırı dahil.
   relang() {
     this.pushNativeStrings();
-    this.C.relang(); this.updateTitle();
+    this.C.relang(); this.updateTitle(); if (this.welcome) renderWelcome(this);
     if (this.edit && !this.edit.closed) { this.edit.relang(); }
     if (this.sketchSession) { this.sketchPanel?.render(); this.sketcher?.relang(); }
     if (this.sectionPanel) this.sectionPanel.relang();
@@ -181,6 +205,7 @@ class App {
     if (reset) await this.resetKernel();
     if (this.edit) this.edit.cancel(); if (this.sketchSession) this.cancelSketch(); this.endTool(true); if (this.sectionPanel) this.sectionPanel.close();
     try { upgradeDocProfiles(doc); } catch (e) { console.error('profile upgrade failed', e); }
+    if (this.welcome) this.showWelcome(false);
     this.doc = this.normalize(doc); this.undoStack = []; this.redoStack = []; this.fileName = name; this.filePath = path; this.selection = []; this.selFeature = null;
     this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.needFit = true; this.markDirty(false); this.C.renderAll();
     await this.requestRebuild();
@@ -208,6 +233,7 @@ class App {
   async _rebuildTask(seq) {
     if (seq !== this._seq) return;
     const e = this.edit; const t0 = performance.now();
+    clearTimeout(this._busyT); this._busyT = setTimeout(() => { this.busy = true; this.C.renderStatus(); }, 300);
     try {
       if (e && !e.closed) {
         const err = e.validate();
@@ -222,12 +248,14 @@ class App {
       this.lastMs = performance.now() - t0;
       this.applyResult(res, false);
     } catch (err) {
-      console.error(err); toast(t('msg.rebuild_failed', { msg: errText(err) }), true);
+      if (!this._cancelled) { console.error(err); toast(t('msg.rebuild_failed', { msg: errText(err) }), true); }
+    } finally {
+      clearTimeout(this._busyT); if (this.busy) { this.busy = false; this.C.renderStatus(); }
     }
   }
   applyResult(res, preview) {
     const had = (this.result?.bodies.length || 0) > 0;
-    this.result = res;
+    this.result = res; this.stale = false;
     this.viewport.setBodies(res.bodies, this.hiddenBodies);
     this.selection = this.selection.filter((s) => s.kind === 'body' && res.bodies.some((b) => b.id === s.body));
     this.refreshSketches();
@@ -246,7 +274,7 @@ class App {
     const list = this.doc.features.filter((f) => f.type === 'sketch').map((f) => ({ id: f.id, sk: f, plane: res.sketches?.[f.id]?.plane, visible: !this.hiddenSketches.has(f.id) && !(this.sketchSession && this.sketchSession.draft.id === f.id) }));
     this.viewport.setSketches(list);
   }
-  setHint(text) { $('#hint').textContent = text || ''; }
+  setHint(text) { $('#hint-text').textContent = text || ''; $('#hint').classList.toggle('hidden', !text); }
   // Durum satırı: metin ya da dil değişince yeniden çağrılacak işlev
   setLeft(v) { this._left = v; this.C.setLeft(typeof v === 'function' ? v() : v || ''); }
   refreshLeft() { if (typeof this._left === 'function') this.C.setLeft(this._left()); }
@@ -599,7 +627,7 @@ class App {
     if (!this.sketchSession || !this.sketcher) { toast(t('dxf.need_sketch')); return; }
     const out = this.sketcher.exportDxf(version);
     if (!out.count) { toast(t('dxf.nothing'), true); return; }
-    const name = ((this.sketchSession.draft.name || 'Sketch') + '.dxf').replace(/[\\/:*?"<>|]/g, '_');
+    const name = ((this.sketchSession.draft.name || 'Sketch') + '.dxf').replace(/[\\/:*?"<>|]/g, '_'); // i18n-ignore: dosya adı yedeği
     const a = h('a', { href: URL.createObjectURL(new Blob([out.text], { type: 'application/dxf' })), download: name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     toast(t('dxf.exported', { n: out.count, name }));
   }
@@ -611,7 +639,7 @@ class App {
     const rev = this._rev;
     try {
       const bytes = new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: this.doc, fileName: this.fileName }));
-      await recovery.save(bytes); this._recRev = rev; return true;
+      await recovery.save(bytes); this._recRev = rev; this.lastAutosave = new Date(); this.C.renderStatus(); return true;
     } catch (e) { console.error('recovery save failed', e); return false; }
   }
   clearRecovery() { this._recRev = -1; return recovery.clear().catch((e) => console.error('recovery clear failed', e)); }
@@ -660,6 +688,10 @@ class App {
       if (modalOpen()) return;
       const tag = e.target.tagName; const inField = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
       const ctrl = e.ctrlKey || e.metaKey; const k = e.key.toLowerCase();
+      if (ctrl && k === 'k') { e.preventDefault(); this.C.openPalette(); return; }
+      if (ctrl && e.key === ',') { e.preventDefault(); this.showSettings(); return; }
+      if (ctrl && !e.shiftKey && k === 'n') { e.preventDefault(); this.C.run('new'); return; }
+      if (ctrl && !e.shiftKey && k === 'o') { e.preventDefault(); this.C.run('open'); return; }
       if (ctrl && k === 's') { e.preventDefault(); this.save(e.shiftKey); return; }
       if (this.sketchSession) { if (this.sketcher && this.sketcher.handleKey(e)) e.preventDefault(); return; }
       if (ctrl && !inField && (k === 'z' || k === 'y')) { e.preventDefault(); (k === 'y' || e.shiftKey) ? this.redo() : this.undo(); return; }

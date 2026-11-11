@@ -34,7 +34,7 @@ try:
     # Arayüz dili: Türkçe sabitlenir (kayıtlı tercih yoksa); dil testi en sonda (bölüm H) tercihin saklanmasını da sınar.
     ctx = br.new_context(viewport={'width': 1400, 'height': 860}, accept_downloads=True, locale='tr-TR')
     # otomatik kurtarma zamanlayıcısı bu testte kapalı (60 sn'lik zamanlayıcı bölüm S'de ayrı bağlamda sınanır)
-    ctx.add_init_script("try { if (!localStorage.getItem('atolye.lang')) localStorage.setItem('atolye.lang', 'tr'); localStorage.setItem('atolye.recoveryMs', '0'); } catch (e) {}")
+    ctx.add_init_script("try { if (!localStorage.getItem('atolye.lang')) localStorage.setItem('atolye.lang', 'tr'); localStorage.setItem('atolye.recoveryMs', '0'); localStorage.setItem('mihenk.welcome', 'off'); } catch (e) {}")
     # CSP ihlali dinleyicisi: sıkı CSP (meta) altında uygulama hiçbir ihlal olmadan çalışmalı
     ctx.add_init_script("window.__csp = []; document.addEventListener('securitypolicyviolation', (e) => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI + ' ' + (e.sample || '') + ' @' + e.sourceFile + ':' + e.lineNumber));")
     page = ctx.new_page()
@@ -47,14 +47,16 @@ try:
     def shot(n): page.screenshot(path=os.path.join(SHOTS, n + '.png'))
     def vol(i=0): return ev(f'app.result.bodies[{i}] ? app.result.bodies[{i}].volume : null')
     def nbodies(): return ev('app.result.bodies.length')
-    def tb(act): page.click(f'#toolbar button[data-act="{act}"]')
+    def tb(act):
+        if act in ('box', 'cylinder', 'sphere'): page.click('#toolbar button[data-cmd="dd-prim"]'); page.click(f'#ddpop [data-cmd="{act}"]')
+        else: page.click(f'#toolbar button[data-cmd="{act}"]')
     def fill(k, v): page.fill(f'#panel [data-k="{k}"]', str(v)); 
     def select(k, v): page.select_option(f'#panel select[data-k="{k}"]', v)
     def ok(): page.click('#p-ok'); idle()
-    MENU_ID = {'Dosya': 'file', 'Düzen': 'edit', 'Görünüm': 'view', 'Yardım': 'help'}
+    FILE_ID = {'Yeni': 'new', 'Kaydet': 'save', 'Aç…': 'open', 'STEP Dışa Aktar…': 'export-step', 'STL Dışa Aktar…': 'export-stl', 'STEP İçe Aktar…': 'import-step'}
     def menu(m, item):
-        page.click(f'#menubar button[data-menu="{MENU_ID.get(m, m)}"]')
-        page.locator('#menubar .drop button').filter(has=page.get_by_text(item, exact=True)).first.click()
+        page.click('#menubar button[data-menu="file"]')
+        page.click(f'#menubar .drop [data-cmd="{FILE_ID[item]}"]')
     def px(w):
         x, y = ev('(w) => { const [x, y] = app.viewport.project(w); const r = app.viewport.renderer.domElement.getBoundingClientRect(); return [r.left + x, r.top + y]; }', w)
         return x, y
@@ -69,8 +71,8 @@ try:
     page.wait_for_function('() => (window.app)', timeout=30000)
     ev('app.ready')
     check('uygulama açıldı, çekirdek yüklendi', ev('document.querySelector("#loading").classList.contains("hidden")'))
-    check('menü başlıkları', ev('[...document.querySelectorAll("#menubar .menu > button")].map(b => b.textContent).join(",")') == 'Dosya,Düzen,Görünüm,Yardım')
-    groups = ev('[...document.querySelectorAll("#toolbar .gl")].map(g => g.textContent).join(",")')
+    check('menü başlıkları', ev('[...document.querySelectorAll("#menubar [data-menu=file]")].map(b => b.textContent.trim()).join(",")') == 'Dosya')
+    groups = ev('[...document.querySelectorAll("#toolbar .glabel")].map(g => g.textContent).join(",")')
     check('araç çubuğu grupları', groups.lower() == 'oluştur,düzenle,i̇ncele' or groups.replace('İ', 'i').lower().startswith('oluştur,düzenle,'), groups)
     check('görünüm düğmeleri', ev('document.querySelectorAll("#viewbtns button").length') == 5)
     shot('01_acilis')
@@ -338,7 +340,7 @@ try:
     check('sketch: düzlem seç ipucu', 'düzlem' in ev('document.querySelector("#hint").textContent'))
     click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
     check('sketch kipine girildi (XY düzlemi)', ev('app.sketcher.active') and ev('app.sketchSession.draft.plane.name') == 'XY', ev('JSON.stringify([app.sketcher.active, app.sketchSession.draft.plane])'))
-    check('sketch araç çubuğu: ÇİZ, ÖLÇÜ, KISIT', page.locator('#toolbar button[data-act="rect"]').count() == 1 and page.locator('#toolbar button[data-act="c-parallel"]').count() == 1 and page.locator('#sk-finish').count() >= 1)
+    check('sketch araç çubuğu: ÇİZ, ÖLÇÜ, KISIT', page.locator('#toolbar button[data-cmd="rect"]').count() == 1 and page.locator('#toolbar button[data-cmd="c-parallel"]').count() == 1 and page.locator('#sk-finish').count() >= 1)
     def sk_px(u, v):
         return ev('([u, v]) => { const V = app.sketcher.plane; const w = [V.o[0] + V.x[0]*u + V.y[0]*v, V.o[1] + V.x[1]*u + V.y[1]*v, V.o[2] + V.x[2]*u + V.y[2]*v]; const [x, y] = app.viewport.project(w); const r = app.viewport.renderer.domElement.getBoundingClientRect(); return [r.left + x, r.top + y]; }', [u, v])
     def sk_click(u, v):
@@ -354,7 +356,7 @@ try:
     xs = ev('Object.values(app.sketcher.sk.points).map(p => p.x)')
     check('ölçü verildi: genişlik 50', max(xs) - min(xs) > 49.9 and max(xs) - min(xs) < 50.1, str(xs))
     shot('17_sketch_olcu')
-    page.click('#toolbar button[data-act="sk-finish"]'); idle()
+    page.click('#toolbar button[data-cmd="sk-finish"]'); idle()
     check('Sketch\'i Bitir: belgede sketch', ev('app.doc.features.length') == 1 and ev('app.doc.features[0].type') == 'sketch' and ev('app.sketcher.active') is False)
     tb('extrude'); page.wait_for_selector('#panel [data-k="dist"]'); fill('dist', 10); ok()
     check('extrude: 50x30x10 gövde', near(vol(), 15000), vol())
@@ -365,7 +367,7 @@ try:
     tb('circle'); page.wait_for_timeout(200)
     sk_click(25, 15); sk_click(30, 15); page.wait_for_timeout(200)
     check('daire çizildi', ev('app.sketcher.sk.ents.filter(e => e.type === "circle").length') == 1)
-    page.click('#toolbar button[data-act="sk-finish"]'); idle()
+    page.click('#toolbar button[data-cmd="sk-finish"]'); idle()
     tb('extrude'); page.wait_for_selector('#panel [data-k="dist"]')
     check('yüz sketch\'i + gövde var: varsayılan Kes + ters çevir', ev('app.edit.draft.op') == 'cut' and ev('app.edit.draft.flip') is True)
     fill('dist', 4); ok()
@@ -374,7 +376,7 @@ try:
     # sketch düzenle (tarayıcıdan çift tık), iptal
     page.locator('#browser [data-sketch]').first.dblclick(); page.wait_for_function('() => (app.sketchSession)', timeout=8000); ev('app.sketcher.idle()')
     check('sketch düzenleme kipi', ev('app.sketchSession.idx') == 0 and ev('app.sketcher.active'))
-    page.click('#toolbar button[data-act="sk-cancel"]'); idle()
+    page.click('#toolbar button[data-cmd="sk-cancel"]'); idle()
     check('sketch iptali', ev('!app.sketchSession') and nbodies() == 1)
 
     # ---------------------------------------------------------------- G: kısıtlar (araç çubuğu düğmeleri)
@@ -394,9 +396,9 @@ try:
     E = lambda i: {'kind': 'ent', 'id': i}; Pt = lambda i: {'kind': 'point', 'id': i}
     def cons(t): return ev('(t) => app.sketcher.sk.cons.filter(c => c.type === t).length', t)
     def apply(btn, t, label):
-        sel_ = f'#toolbar button[data-act="c-{btn}"]'
+        sel_ = f'#toolbar button[data-cmd="c-{btn}"]'
         if page.locator(sel_).count() == 0:  # seyrek kısıtlar "Kısıt ▾" açılır grubunda
-            page.click('#toolbar button[data-act="dd-cons"]'); sel_ = f'#ddpop button[data-act="c-{btn}"]'
+            page.click('#toolbar button[data-cmd="dd-cons"]'); sel_ = f'#ddpop button[data-cmd="c-{btn}"]'
         page.click(sel_); ev('app.sketcher.idle()'); page.wait_for_timeout(250); ev('app.sketcher.idle()')
         solved = ev('app.sketcher.lastSolve && app.sketcher.lastSolve.ok')
         check(f'kısıt düğmesi: {label}', cons(t) >= 1 and solved, f'cons={cons(t)} solve={ev("JSON.stringify(app.sketcher.lastSolve)")} status={ev("document.querySelector(\"#st-left\").textContent")}')
@@ -422,18 +424,18 @@ try:
     ax = draw_line((-8, 14), (-8, 40)); p1 = ev('(id) => app.sketcher.sk.ents.find(e => e.id === id).a', F2); p2 = ev('(id) => app.sketcher.sk.ents.find(e => e.id === id).a', G1)
     sel([Pt(p1), Pt(p2), E(ax)]); apply('symmetric', 'symmetric', 'Simetri')
     # sabitle
-    sel([Pt(ev('(id) => app.sketcher.sk.ents.find(e => e.id === id).a', C))]); page.click('#toolbar button[data-act="c-fix"]'); ev('app.sketcher.idle()'); page.wait_for_timeout(250)
+    sel([Pt(ev('(id) => app.sketcher.sk.ents.find(e => e.id === id).a', C))]); page.click('#toolbar button[data-cmd="c-fix"]'); ev('app.sketcher.idle()'); page.wait_for_timeout(250)
     check('kısıt düğmesi: Sabitle', ev('(id) => !!app.sketcher.sk.points[id].fixed', ev('(id) => app.sketcher.sk.ents.find(e => e.id === id).a', C)))
     # yapı kipi düğmesi aktif görünür
-    page.click('#toolbar button[data-act="c-construct"]'); page.wait_for_timeout(200)
-    check('Yapı kipi düğmesi etkin görünür', 'active' in page.get_attribute('#toolbar button[data-act="c-construct"]', 'class'))
-    page.click('#toolbar button[data-act="c-construct"]'); page.wait_for_timeout(100)
+    page.click('#toolbar button[data-cmd="c-construct"]'); page.wait_for_timeout(200)
+    check('Yapı kipi düğmesi etkin görünür', 'active' in page.get_attribute('#toolbar button[data-cmd="c-construct"]', 'class'))
+    page.click('#toolbar button[data-cmd="c-construct"]'); page.wait_for_timeout(100)
     # açı ölçüsü: iki çizgi seç, Ölçü aracı
-    sel([E(A), E(D)]); page.click('#toolbar button[data-act="dim"]'); page.wait_for_selector('input.sk-input', timeout=5000)
+    sel([E(A), E(D)]); page.click('#toolbar button[data-cmd="dim"]'); page.wait_for_selector('input.sk-input', timeout=5000)
     page.fill('input.sk-input', '25'); page.press('input.sk-input', 'Enter'); ev('app.sketcher.idle()'); page.wait_for_timeout(300)
     check('açı ölçüsü', cons('angle') == 1 and ev('app.sketcher.lastSolve.ok'), ev('JSON.stringify(app.sketcher.sk.cons.slice(-2))'))
     # nokta-çizgi ölçüsü
-    sel([Pt(ev('(id) => app.sketcher.sk.ents.find(e => e.id === id).a', T1)), E(L1)]); page.click('#toolbar button[data-act="dim"]')
+    sel([Pt(ev('(id) => app.sketcher.sk.ents.find(e => e.id === id).a', T1)), E(L1)]); page.click('#toolbar button[data-cmd="dim"]')
     try:
         page.wait_for_selector('input.sk-input', timeout=5000); page.fill('input.sk-input', '20'); page.press('input.sk-input', 'Enter'); ev('app.sketcher.idle()'); page.wait_for_timeout(300)
     except Exception as e: pass
@@ -569,11 +571,11 @@ try:
 
     # ---------------------------------------------------------------- H: dil değiştirme (Türkçe -> English -> Türkçe)
     print('H: dil değiştirme')
-    def menu_titles(): return ev('[...document.querySelectorAll("#menubar .menu > button")].map(b => b.textContent).join(",")')
-    def group_titles(): return ev('[...document.querySelectorAll("#toolbar .gl")].map(g => g.textContent).join(",")')
-    def btn_text(act): return page.inner_text(f'#toolbar button[data-act="{act}"]').strip()
+    def menu_titles(): return ev('[...document.querySelectorAll("#menubar [data-menu=file]")].map(b => b.textContent.trim()).join(",")')
+    def group_titles(): return ev('[...document.querySelectorAll("#toolbar .glabel")].map(g => g.textContent).join(",")')
+    def btn_text(act): return page.inner_text(f'#toolbar button[data-cmd="{act}"]').strip()
     def lang_menu(code):
-        page.click('#menubar button[data-menu="view"]'); page.click('#menubar button[data-item="lang"]'); page.click(f'#menubar button[data-item="lang-{code}"]')
+        page.click('#menubar [data-cmd="settings"]'); page.click(f'[data-testid="set-lang-{code}"]'); page.keyboard.press('Escape')
         idle(); page.wait_for_timeout(200)
     def stored_lang(): return ev("localStorage.getItem('atolye.lang')")
     def left_text(): return page.inner_text('#st-left').strip()
@@ -582,19 +584,19 @@ try:
     for loc, want, word in [('en-US', 'en', 'File'), ('de-DE', 'en', 'File'), ('tr-TR', 'tr', 'Dosya')]:
         c2 = br.new_context(viewport={'width': 1200, 'height': 800}, locale=loc)
         p2 = c2.new_page(); p2.goto(f'http://127.0.0.1:{PORT}/'); p2.wait_for_function('() => (window.app && document.querySelector("#menubar button"))', timeout=30000)
-        got = p2.evaluate('[...document.querySelectorAll("#menubar .menu > button")][0].textContent')
+        got = p2.evaluate('document.querySelector("#menubar [data-menu=file]").textContent.trim()')
         check(f'ilk açılış ({loc}): menü "{word}", tercih yazılmadı', got == word and p2.evaluate("localStorage.getItem('atolye.lang')") is None and p2.evaluate('document.documentElement.lang') == want, got)
         c2.close()
 
     ev('app.loadDoc({params: [], features: []})'); idle(); ev('app.viewport.view("iso", true)')
-    check('H başlangıç: Türkçe', menu_titles() == 'Dosya,Düzen,Görünüm,Yardım' and stored_lang() == 'tr')
+    check('H başlangıç: Türkçe', menu_titles() == 'Dosya' and stored_lang() == 'tr')
     tb('sketch'); page.wait_for_timeout(300)
     click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
     tb('rect'); page.wait_for_timeout(300)
     sk_click(0, 0); sk_click(40, 30); page.wait_for_timeout(300)
     check('H: sketch kipi Türkçe (kısıt, durum)', btn_text('c-perpendicular') == 'Dik' and 'Serbestlik' in left_text(), left_text())
     lang_menu('en')
-    check('İngilizce: menü başlıkları', menu_titles() == 'File,Edit,View,Help', menu_titles())
+    check('İngilizce: menü başlıkları', menu_titles() == 'File', menu_titles())
     check('İngilizce: html lang, tercih saklandı', ev('document.documentElement.lang') == 'en' and stored_lang() == 'en')
     check('İngilizce: sketch araç çubuğu grupları', group_titles() == 'Draw,Edit,Dimension,Constrain,Sketch', group_titles())
     check('İngilizce: sketch düğmeleri', btn_text('rect') == 'Rectangle' and btn_text('c-perpendicular') == 'Perpendicular' and btn_text('c-tangent') == 'Tangent' and btn_text('c-parallel') == 'Parallel' and btn_text('sk-finish') == 'Finish Sketch' and btn_text('c-construct') == 'Construction')
@@ -609,7 +611,7 @@ try:
     check('İngilizce: ölçü durumu', 'type a value' in left_text(), left_text())
     page.fill('input.sk-input', '50'); page.press('input.sk-input', 'Enter'); ev('app.sketcher.idle()'); page.wait_for_timeout(400)
     check('İngilizce: kısıt listesi', 'Distance: 50' in page.inner_text('#sk-cons'), page.inner_text('#sk-cons'))
-    page.click('#toolbar button[data-act="sk-finish"]'); idle()
+    page.click('#toolbar button[data-cmd="sk-finish"]'); idle()
     check('İngilizce: sketch kaydedildi', ev('app.doc.features.length') == 1 and ev('app.doc.features[0].name') == 'Sketch 1', ev('app.doc.features.map(f => f.name)'))
 
     tb('extrude'); page.wait_for_selector('#panel [data-k="dist"]')
@@ -680,12 +682,12 @@ try:
     # tercih saklanır: sayfayı yeniden yükle
     ev('app.markDirty(false)')
     page.reload(); page.wait_for_function('() => (window.app)', timeout=30000); ev('app.ready')
-    check('yeniden yükleme: İngilizce korundu', menu_titles() == 'File,Edit,View,Help' and ev('document.documentElement.lang') == 'en' and stored_lang() == 'en', menu_titles())
+    check('yeniden yükleme: İngilizce korundu', menu_titles() == 'File' and ev('document.documentElement.lang') == 'en' and stored_lang() == 'en', menu_titles())
     check('yeniden yükleme: yükleme metni/ayarlar İngilizce', group_titles() == 'Create,Modify,Inspect' and page.inner_text('#st-left').strip() == 'Ready', group_titles())
     lang_menu('tr')
-    check('Türkçeye dön: menü, araç çubuğu, tercih', menu_titles() == 'Dosya,Düzen,Görünüm,Yardım' and group_titles().lower().startswith('oluştur,düzenle,') and stored_lang() == 'tr' and ev('document.documentElement.lang') == 'tr', menu_titles())
+    check('Türkçeye dön: menü, araç çubuğu, tercih', menu_titles() == 'Dosya' and group_titles().lower().startswith('oluştur,düzenle,') and stored_lang() == 'tr' and ev('document.documentElement.lang') == 'tr', menu_titles())
     page.reload(); page.wait_for_function('() => (window.app)', timeout=30000); ev('app.ready')
-    check('yeniden yükleme: Türkçe korundu', menu_titles() == 'Dosya,Düzen,Görünüm,Yardım' and page.inner_text('#st-left').strip() == 'Hazır', menu_titles())
+    check('yeniden yükleme: Türkçe korundu', menu_titles() == 'Dosya' and page.inner_text('#st-left').strip() == 'Hazır', menu_titles())
 
     # ---------------------------------------------------------------- K-018: uygulama düzeyi (dikdörtgen + daire -> Buda -> Extrude)
     print('K-018: uygulama düzeyinde buda ve extrude')
@@ -731,7 +733,7 @@ try:
     o = overflow(); check('TR: sketch araç çubuğu taşmıyor (1200 px)', o['scroll'] <= 1 and not o['out'], o)
     shot('toolbar_tr_sketch')
     for dd in ['draw', 'edit', 'cons']:
-        page.click(f'#toolbar button[data-act="dd-{dd}"]'); page.wait_for_timeout(150)
+        page.click(f'#toolbar button[data-cmd="dd-{dd}"]'); page.wait_for_timeout(150)
         pr = ev("() => { const p = document.querySelector('#ddpop'); if (!p) return null; const r = p.getBoundingClientRect(); return {l: r.left, r: r.right, b: r.bottom, w: innerWidth, h: innerHeight, n: p.querySelectorAll('button').length}; }")
         check(f'TR: "{dd}" açılır grubu ekrana sığıyor', pr and pr['l'] >= 0 and pr['r'] <= pr['w'] and pr['b'] <= pr['h'], pr)
         shot(f'toolbar_tr_{dd}'); page.mouse.click(5, 5); page.wait_for_timeout(100)
@@ -739,7 +741,7 @@ try:
     o = overflow(); check('EN: sketch araç çubuğu taşmıyor (1200 px)', o['scroll'] <= 1 and not o['out'], o)
     shot('toolbar_en_sketch')
     for dd in ['draw', 'edit', 'cons']:
-        page.click(f'#toolbar button[data-act="dd-{dd}"]'); page.wait_for_timeout(150)
+        page.click(f'#toolbar button[data-cmd="dd-{dd}"]'); page.wait_for_timeout(150)
         pr = ev("() => { const p = document.querySelector('#ddpop'); if (!p) return null; const r = p.getBoundingClientRect(); return {l: r.left, r: r.right, b: r.bottom, w: innerWidth, h: innerHeight}; }")
         check(f'EN: "{dd}" açılır grubu ekrana sığıyor', pr and pr['l'] >= 0 and pr['r'] <= pr['w'] and pr['b'] <= pr['h'], pr)
         shot(f'toolbar_en_{dd}'); page.mouse.click(5, 5); page.wait_for_timeout(100)

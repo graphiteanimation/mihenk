@@ -163,6 +163,7 @@ export class Sketcher {
     this._statusSpec = k ? (typeof k === 'function' ? k : () => t(k, params)) : null;
     this._setStatus(this._statusSpec ? this._statusSpec() : '');
   }
+  retheme() { if (this.active) { this._renderGL(); this._renderPreview(); this._buildOverlay(); } }
   relang() {
     this.setHint(this._hintSpec); this._status(this._statusSpec);
     if (this.active) { this._buildOverlay(); this.onChange(); }
@@ -762,7 +763,7 @@ export class Sketcher {
   _openInput({ anchor, text, submit, label }) {
     this._closeInput();
     const inp = document.createElement('input'); inp.type = 'text'; inp.value = text; inp.className = 'sk-input'; inp.title = label || '';
-    inp.style.cssText = 'position:absolute;width:84px;transform:translate(-50%,-50%);pointer-events:auto;padding:1px 4px;font-size:12px;border:2px solid #1769e0;border-radius:3px;background:#fff;user-select:text;z-index:5;';
+    inp.style.cssText = 'position:absolute;transform:translate(-50%,-50%);pointer-events:auto;z-index:5;';
     let busy = false;
     inp.addEventListener('keydown', async (ev) => {
       ev.stopPropagation();
@@ -770,10 +771,10 @@ export class Sketcher {
       else if (ev.key === 'Enter') {
         ev.preventDefault(); if (busy) return; busy = true;
         const err = await submit(inp.value); busy = false;
-        if (err) inp.style.borderColor = '#c62828'; else this._closeInput();
+        if (err) inp.classList.add('bad'); else this._closeInput();
       }
     });
-    inp.addEventListener('input', () => { inp.style.borderColor = '#1769e0'; });
+    inp.addEventListener('input', () => { inp.classList.remove('bad'); });
     inp.addEventListener('blur', () => setTimeout(() => { if (this._input === inp && !busy) this._closeInput(); }, 150));
     this.ovl.appendChild(inp); this._input = inp; this._inputAnchor = anchor; this._posInput();
     inp.focus(); inp.select();
@@ -848,7 +849,7 @@ export class Sketcher {
     const isSel = (k, id) => this.selection.some((s) => s.kind === k && s.id === id), isHov = (k, id) => this.hover && this.hover.kind === k && this.hover.id === id;
     for (const s of sketchPolylines(sk)) {
       const e = s.e, sel = isSel('ent', e.id), hov = isHov('ent', e.id);
-      const color = sel ? COL.cons : hov ? 0xffb020 : e.cons ? COL.sketchDim : entDark(e) ? 0x1c2430 : COL.sketch;
+      const color = sel ? COL.cons : hov ? COL.hover : e.cons ? COL.sketchDim : entDark(e) ? COL.dark : COL.sketch;
       const geo = new THREE.BufferGeometry().setFromPoints(s.pts.map((p) => new THREE.Vector3(p[0], p[1], 0)));
       const mat = e.cons ? new THREE.LineDashedMaterial({ color, dashSize: 7 * wpp, gapSize: 4 * wpp, depthTest: false }) : new THREE.LineBasicMaterial({ color, depthTest: false });
       const line = new THREE.Line(geo, mat); if (e.cons) line.computeLineDistances();
@@ -857,7 +858,7 @@ export class Sketcher {
     const pos = [], col = [], c = new THREE.Color();
     for (const [id, p] of Object.entries(sk.points)) {
       pos.push(p.x, p.y, 0);
-      c.set(isSel('point', id) ? COL.cons : isHov('point', id) ? 0xffb020 : id === 'O' ? 0xc62828 : p.fixed ? 0x111111 : ptDark(id) ? 0x1c2430 : COL.sketch); col.push(c.r, c.g, c.b);
+      c.set(isSel('point', id) ? COL.cons : isHov('point', id) ? COL.hover : id === 'O' ? COL.err : p.fixed ? COL.dark : ptDark(id) ? COL.dark : COL.sketch); col.push(c.r, c.g, c.b);
     }
     const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); pg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     const pts = new THREE.Points(pg, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true, depthTest: false })); pts.renderOrder = 6; pts.frustumCulled = false; this.gMain.add(pts);
@@ -876,7 +877,7 @@ export class Sketcher {
     const cur = this.cursor, tool = this.tool; let tip = '';
     if (EDIT_TOOLS.includes(tool)) { this._editPreview(cur); this.vp.dirty = true; return; }
     if (!cur || tool === 'select' || DIM_TOOLS.includes(tool)) { this._hideTip(); this._hideSnap(); this.vp.dirty = true; return; }
-    let s = cur; const B = 0x0b62d6;
+    let s = cur; const B = COL.sketch;
     if (DEFS[tool] && this._ds) {
       const r = DEFS[tool].preview(this, this._ds.pts, cur); for (const pl of r.polys) this._line(pl.pts, B, pl.dashed); tip = r.tip || '';
     } else if (tool === 'spline' && this._sp) {
@@ -911,7 +912,7 @@ export class Sketcher {
     this.vp.dirty = true;
   }
   _showTip(text) {
-    if (!this._tip) { this._tip = document.createElement('div'); this._tip.className = 'sk-tip'; this._tip.style.cssText = 'position:absolute;pointer-events:none;background:rgba(31,42,58,.88);color:#fff;font-size:11.5px;padding:1px 6px;border-radius:3px;white-space:nowrap;font-variant-numeric:tabular-nums;'; this.ovl.appendChild(this._tip); }
+    if (!this._tip) { this._tip = document.createElement('div'); this._tip.className = 'sk-tip'; this._tip.style.cssText = 'position:absolute;pointer-events:none;'; this.ovl.appendChild(this._tip); }
     this._tip.textContent = text; this._tip.style.display = ''; this._posTip();
   }
   _hideTip() { if (this._tip) this._tip.style.display = 'none'; }

@@ -5,7 +5,21 @@ import { findRegions, arcGeom, entSeg } from '../shared/profiles.js';
 import { sample as sampleSeg } from '../shared/geom2d.js';
 import * as V from '../shared/vec.js';
 
-const COL = { body: 0x9aa7b8, edge: 0x1c2430, hover: 0xffb020, sel: 0x1769e0, sketch: 0x0b62d6, sketchDim: 0x7d8da6, cons: 0xe07b00, region: 0x3b82f6, regionSel: 0x16a34a };
+// 3B görünüm renkleri tema belirteçlerinden (--vp-*) okunur; tema değişince readTheme() yeniden çağrılır.
+const COL = {};
+const _c = new THREE.Color();
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const colorOf = (n) => { try { _c.set(cssVar(n)); return _c.getHex(); } catch (e) { return 0x808080; } };
+export function readTheme() {
+  Object.assign(COL, {
+    body: colorOf('--vp-body'), edge: colorOf('--vp-edge'), hover: colorOf('--vp-hover'), sel: colorOf('--vp-sel'),
+    sketch: colorOf('--vp-sk-free'), sketchDim: colorOf('--vp-sk-construct'), cons: colorOf('--vp-sk-sel'), dark: colorOf('--vp-sk-full'), err: colorOf('--vp-sk-error'), ok: colorOf('--ok-fg'),
+    region: colorOf('--vp-region-sel'), regionSel: colorOf('--vp-region-sel'),
+    gridMinor: colorOf('--vp-grid-minor'), gridMajor: colorOf('--vp-grid-major'), axX: colorOf('--vp-axis-x'), axY: colorOf('--vp-axis-y'), axZ: colorOf('--vp-axis-z'),
+  });
+  return COL;
+}
+readTheme();
 
 export function planeMatrix(pl) {
   const m = new THREE.Matrix4();
@@ -16,7 +30,7 @@ export function planeMatrix(pl) {
 
 export class Viewport {
   constructor(el) {
-    this.el = el;
+    readTheme(); this.el = el;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.localClippingEnabled = true;
@@ -47,16 +61,24 @@ export class Viewport {
 
   _helpers() {
     const g = this.helperGroup;
-    const grid = new THREE.GridHelper(400, 40, 0x9aa9bd, 0xc3cddb); grid.rotation.x = Math.PI / 2; grid.material.transparent = true; grid.material.opacity = 0.55; grid.material.depthWrite = false; g.add(grid); this.grid = grid;
+    const grid = new THREE.GridHelper(400, 40, COL.gridMajor, COL.gridMinor); grid.rotation.x = Math.PI / 2; grid.material.transparent = true; grid.material.opacity = 0.55; grid.material.depthWrite = false; g.add(grid); this.grid = grid;
     const ax = (d, c) => { const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(...d).multiplyScalar(40)]); return new THREE.Line(geo, new THREE.LineBasicMaterial({ color: c, depthTest: false })); };
-    g.add(ax([1, 0, 0], 0xd32f2f), ax([0, 1, 0], 0x2e7d32), ax([0, 0, 1], 0x1565c0));
+    g.add(ax([1, 0, 0], COL.axX), ax([0, 1, 0], COL.axY), ax([0, 0, 1], COL.axZ));
     this.planeMeshes = [];
-    for (const [name, col] of [['XY', 0x1565c0], ['XZ', 0x2e7d32], ['YZ', 0xd32f2f]]) {
+    for (const [name, col] of [['XY', COL.axZ], ['XZ', COL.axY], ['YZ', COL.axX]]) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false }));
       const pl = V.basePlane(name, 0); m.applyMatrix4(planeMatrix(pl)); m.position.add(new THREE.Vector3(...pl.x).multiplyScalar(30)).add(new THREE.Vector3(...pl.y).multiplyScalar(30));
       m.userData = { basePlane: name }; g.add(m); this.planeMeshes.push(m);
       const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.5 })); m.add(e);
     }
+  }
+  // Tema değişti: renkleri yeniden oku, yardımcıları ve gövde malzemelerini güncelle.
+  applyTheme() {
+    readTheme();
+    for (const o of [...this.helperGroup.children]) { this.helperGroup.remove(o); o.traverse((c) => { c.geometry && c.geometry.dispose(); c.material && c.material.dispose(); }); }
+    this._helpers(); this.setPlanesVisible(this.planesVisible);
+    for (const b of this.bodies.values()) { b.mesh.material.color.setHex(COL.body); b.lines.material.color.setHex(COL.edge); }
+    this._drawHL(); this.dirty = true;
   }
   setPlanesVisible(v) { this.planesVisible = v; this.planeMeshes.forEach((m) => (m.visible = v)); this.dirty = true; }
 

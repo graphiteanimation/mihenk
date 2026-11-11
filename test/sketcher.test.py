@@ -29,7 +29,7 @@ try:
   with sync_playwright() as p:
     br = p.chromium.launch(channel='chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'])
     # Durum/ipucu metinleri Türkçe beklenir: dil tercihi sabitlenir (varsayılan dil işletim sisteminden gelir).
-    ctx = br.new_context(viewport={'width': 1100, 'height': 760}, locale='tr-TR')
+    ctx = br.new_context(viewport={'width': 1400, 'height': 860}, locale='tr-TR')
     ctx.add_init_script("const _ce = console.error; console.error = (...a) => { _ce(a.join(' ') + ' @@ ' + new Error().stack.split('\\n').slice(2,8).join(' | ')); };")
     ctx.add_init_script("try { localStorage.setItem('atolye.lang', 'tr'); } catch (e) {}")
     page = ctx.new_page()
@@ -290,7 +290,7 @@ try:
     check('üst üste çizimde 3 ayrı bölge', regions() == 3, regions())
     tool('trim'); move(-8, 0); page.wait_for_timeout(80)
     check('budama: kırmızı önizleme aralığı hesaplandı', ev('!!(sk._ed && sk._ed.span && sk._ed.span.pts.length > 1)'))
-    check('budama: kırmızı çizgi sahnede', ev('sk.gPrev.children.some(c => c.material && c.material.color.getHex() === 0xd32f2f)'))
+    check('budama: kırmızı çizgi sahnede', ev('sk.gPrev.children.some(c => c.material && c.material.color.getHexString() === getComputedStyle(document.documentElement).getPropertyValue("--vp-sk-error").trim().replace("#", "").toLowerCase())'))
     click(-8, 0)
     s = S(); check('daire yaya dönüştü', any(e['type'] == 'arc' for e in s['ents']) and not any(e['type'] == 'circle' for e in s['ents']))
     move(0, 3); click(0, 3)

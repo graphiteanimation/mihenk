@@ -48,6 +48,9 @@ export function setLang(l, persist = true) {
   return true;
 }
 
+// Başka bir dildeki karşılık (komut arama iki dilde süzer).
+export const tLang = (l, key) => (DICTS[l] && DICTS[l][key]) || DICTS.tr[key] || key;
+
 // {ad} yer tutucuları doldurulur. Eksik anahtar: konsola uyarı, ekranda Türkçe karşılığı.
 export function t(key, params) {
   let s = DICTS[lang][key];

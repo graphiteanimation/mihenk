@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr">
+<html lang="tr" data-theme="light" data-density="normal">
 <head>
 <meta charset="utf-8" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
@@ -9,27 +9,31 @@
 <link rel="stylesheet" href="/src/ui/style.css" />
 </head>
 <body>
-<div id="app">
-  <header id="menubar"></header>
-  <div id="toolbar"></div>
-  <div id="main">
-    <aside id="browser"></aside>
-    <div id="viewwrap">
-      <div id="viewport"></div>
+<div id="app" class="app">
+  <header id="menubar" class="titlebar on-dark"></header>
+  <nav id="tabs" class="tabs" role="tablist"></nav>
+  <div id="toolbar" class="ribbon" role="toolbar"></div>
+  <div id="main" class="main">
+    <aside id="browser" class="browser" aria-label="browser"></aside>
+    <div id="viewwrap" class="viewwrap">
+      <div id="viewport" tabindex="0" role="application"></div>
       <div id="overlay"></div>
-      <div id="viewbtns"></div>
-      <div id="hint"></div>
+      <div class="vp-overlay-tl"><div id="hud" class="hud hidden" data-testid="hud"></div></div>
+      <div class="vp-overlay-tr"><div id="viewcube" class="viewcube" data-testid="viewcube"></div><div id="viewbtns" class="vbtns" data-testid="viewbtns"></div><div id="viewtoggles" class="vbtns"></div></div>
+      <div id="hint" class="vp-hint hidden" role="status"><span id="hint-text"></span></div>
       <div id="measurebox" class="hidden"></div>
+      <div id="empty" class="hidden"></div>
       <div id="loading"><div class="spinner"></div><span data-i18n="ld.loading"></span></div>
     </div>
-    <aside id="panel" class="hidden"></aside>
+    <aside id="panel" class="panel hidden"></aside>
   </div>
-  <div id="timeline"></div>
-  <footer id="status"><span id="st-left"></span><span id="st-right"></span></footer>
+  <div id="timeline" class="timeline"></div>
+  <footer id="status" class="statusbar on-dark"><div id="statusbar-main" class="sb-main"></div><div id="statusbar-quick" class="sb-quick"></div></footer>
+  <section id="welcome" class="welcome hidden" data-testid="welcome"></section>
+  <div id="toast" class="toasts hidden" aria-live="polite"></div>
+  <div id="ctx" class="hidden"></div>
+  <div id="modal" class="scrim hidden"></div>
 </div>
-<div id="ctx" class="hidden"></div>
-<div id="modal" class="hidden"></div>
-<div id="toast" class="hidden"></div>
 <script type="module" src="/src/ui/app.js"></script>
 </body>
 </html>

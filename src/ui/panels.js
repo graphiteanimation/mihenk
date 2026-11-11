@@ -1,5 +1,6 @@
 // Sağ panel: özellik formu (canlı önizleme), sketch paneli, kesit paneli; parametre tablosu ve inceleme araçları.
 import { h, $, toast, modal, fmt, esc } from './dom.js';
+import { icon } from './icons.js';
 import { t, tk, errText } from '../shared/i18n.js';
 import { toErr } from '../shared/errors.js';
 import { fieldsFor, featLabel, THREADS, patternSources } from './features.js';
@@ -10,6 +11,15 @@ import { findRegions, resolveProfiles, selectionFor } from '../shared/profiles.j
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const num = (v) => fmt(v, 4);
+// Ortak panel kabuğu: üst şerit (başlık + kapat), gövde, alt şerit (birincil + iptal).
+const unitBox = (inp, unit, cls = '') => h('div', { class: 'input ' + cls }, inp, unit ? h('span', { class: 'unit', text: unit }) : null);
+const checkBox = (inp) => { const l = h('label', { class: 'check' + (inp.checked ? ' on' : '') }, inp, h('span', { class: 'box', html: icon('check', 'sm') })); inp.addEventListener('change', () => l.classList.toggle('on', inp.checked)); return l; };
+function shell(title, bodyKids, footKids, onClose, titleAttrs = {}) {
+  const p = $('#panel'); p.classList.remove('hidden');
+  p.replaceChildren(h('header', {}, h('h3', { text: title, ...titleAttrs }), onClose ? h('button', { class: 'btn ghost icon x', type: 'button', 'aria-label': t('common.close'), 'data-testid': 'panel-close', onclick: onClose, html: icon('close') }) : null),
+    h('div', { class: 'body' }, ...bodyKids), h('footer', {}, ...footKids));
+  return p;
+}
 // Seçim alanı metinleri: [sayaç, boşken ipucu]
 const SEL_KEYS = { edge: [tk('sel.n_edge'), tk('sel.pick_edge')], face: [tk('sel.n_face'), tk('sel.pick_face')], body: [tk('sel.n_body'), tk('sel.pick_body')], item: [tk('sel.n_item'), tk('sel.pick_item')] };
 
@@ -63,44 +73,45 @@ export class FeaturePanel {
 
   // --- görünüm
   render() {
-    const p = $('#panel'); p.classList.remove('hidden');
-    const body = h('div', { class: 'body' });
-    for (const fd of this.fields()) { const row = this.fieldRow(fd); if (row) body.append(row); }
-    this.errEl = h('div', { class: 'err', id: 'p-err' }); this.noteEl = h('div', { class: 'note', id: 'p-note' });
-    body.append(this.errEl, this.noteEl);
-    p.replaceChildren(h('h3', { text: this.titleText(), 'data-title': '' }), body,
-      h('div', { class: 'actions' }, h('button', { class: 'btn pri', id: 'p-ok', onclick: () => this.ok() }, t('common.ok')), h('button', { class: 'btn', id: 'p-cancel', onclick: () => this.cancel() }, t('common.cancel'))));
+    const rows = []; for (const fd of this.fields()) { const row = this.fieldRow(fd); if (row) rows.push(row); }
+    this.errEl = h('div', { class: 'callout err', id: 'p-err', role: 'alert', hidden: true }); this.noteEl = h('div', { class: 'note', id: 'p-note' });
+    shell(this.titleText(), [...rows, this.errEl, this.noteEl],
+      [h('button', { class: 'btn primary pri', id: 'p-ok', 'data-testid': 'panel-ok', onclick: () => this.ok() }, t('common.ok')), h('button', { class: 'btn', id: 'p-cancel', 'data-testid': 'panel-cancel', onclick: () => this.cancel() }, t('common.cancel'))],
+      () => this.cancel(), { 'data-title': '' });
     this.setStatus(this.status);
     this.refreshSels();
   }
-  row(label, ctl, extra = '') { return h('div', { class: 'fld ' + extra }, h('label', { text: t(label) }), ctl); }
+  row(label, ctl, extra = '') { return h('div', { class: 'fld ' + extra }, h('label', { text: t(label) }), h('div', { class: 'ctl' }, ctl)); }
 
   fieldRow(fd) {
     const d = this.draft, app = this.app;
     switch (fd.t) {
       case 'expr': {
-        const inp = h('input', { type: 'text', 'data-k': fd.k, value: d[fd.k] ?? '', autocomplete: 'off', spellcheck: 'false' });
-        const hint = h('span', { class: 'unit' });
+        const inp = h('input', { type: 'text', 'data-k': fd.k, value: d[fd.k] ?? '', autocomplete: 'off', spellcheck: 'false', class: 'expr' });
+        const hint = h('div', { class: 'resolved', 'data-testid': 'resolved' }); const msg = h('div', { class: 'fieldmsg', role: 'alert', hidden: true });
+        const box = unitBox(inp, fd.unit);
         const upd = () => {
-          let txt = fd.unit || '';
-          try { const v = evalExpr(inp.value, app.vars()); if (!/^\s*-?[0-9]*[.,]?[0-9]+\s*$/.test(inp.value)) txt = '= ' + num(v) + ' ' + (fd.unit || ''); inp.style.borderColor = ''; hint.style.color = ''; }
-          catch (e) { txt = errText(e); inp.style.borderColor = 'var(--danger)'; hint.style.color = 'var(--danger)'; }
-          hint.textContent = txt;
+          let txt = ''; let bad = '';
+          try { const v = evalExpr(inp.value, app.vars()); if (!/^\s*-?[0-9]*[.,]?[0-9]+\s*$/.test(inp.value)) txt = '= ' + num(v) + ' ' + (fd.unit || ''); }
+          catch (e) { bad = errText(e); }
+          box.classList.toggle('err', !!bad); inp.setAttribute('aria-invalid', bad ? 'true' : 'false');
+          hint.textContent = txt; hint.hidden = !txt;
+          msg.hidden = !bad; msg.replaceChildren(...(bad ? [h('span', { html: icon('error', 'sm') }), h('span', { text: bad })] : []));
         };
         upd();
         inp.addEventListener('input', () => { d[fd.k] = inp.value; upd(); this.setActive(null); this.changed(); });
         inp.addEventListener('focus', () => this.setActive(null));
-        return this.row(fd.label, h('div', {}, inp, hint));
+        return this.row(fd.label, h('div', {}, box, hint, msg));
       }
       case 'select': {
         const s = h('select', { 'data-k': fd.k }, fd.opts.map(([v, l]) => h('option', { value: v, selected: String(d[fd.k]) === String(v) }, l == null ? v : t(l))));
         s.addEventListener('change', () => { d[fd.k] = s.value; this.setActive(null); this.fieldChanged(fd.k); });
-        return this.row(fd.label, s);
+        return this.row(fd.label, unitBox(s));
       }
       case 'check': {
         const c = h('input', { type: 'checkbox', 'data-k': fd.k, checked: !!d[fd.k] });
         c.addEventListener('change', () => { d[fd.k] = c.checked; this.setActive(null); this.changed(); });
-        return this.row(fd.label, h('label', {}, c));
+        return this.row(fd.label, checkBox(c));
       }
       case 'sketch': {
         let list = this.ctx().sketches;
@@ -109,12 +120,12 @@ export class FeaturePanel {
         if (!list.some((s) => s.id === d.sketch)) d.sketch = list[list.length - 1].id;
         const s = h('select', { 'data-k': fd.k }, list.map((x) => h('option', { value: x.id, selected: x.id === d.sketch }, x.name || x.id)));
         s.addEventListener('change', () => { d.sketch = s.value; d.profiles = 'all'; this.fieldChanged('sketch'); });
-        return this.row(fd.label, s);
+        return this.row(fd.label, unitBox(s));
       }
       case 'profiles': {
         this.profEl = h('span', { 'data-k': fd.k });
-        const btn = h('button', { class: 'btn', style: { padding: '1px 8px' }, onclick: () => { d.profiles = 'all'; this.refreshProfiles(); this.changed(); } }, t('common.all'));
-        const box = h('div', { class: 'selbox active', style: { cursor: 'default' } }, this.profEl, btn);
+        const btn = h('button', { class: 'btn sm', type: 'button', onclick: () => { d.profiles = 'all'; this.refreshProfiles(); this.changed(); } }, t('common.all'));
+        const box = h('div', { class: 'input pick active', style: { cursor: 'default' } }, this.profEl, btn);
         this.refreshProfiles();
         return this.row(fd.label, box);
       }
@@ -125,7 +136,7 @@ export class FeaturePanel {
         const cur = d.axis?.kind === 'line' ? 'line:' + d.axis.ent : d.axis?.kind || 'sketchX';
         const s = h('select', { 'data-k': 'axis' }, opts.map(([v, l]) => h('option', { value: v, selected: v === cur }, l)));
         s.addEventListener('change', () => { d.axis = s.value.startsWith('line:') ? { kind: 'line', ent: s.value.slice(5) } : { kind: s.value }; this.changed(); });
-        return this.row(fd.label, s);
+        return this.row(fd.label, unitBox(s));
       }
       case 'thread': {
         const cur = d.thread?.designation || '';
@@ -136,11 +147,12 @@ export class FeaturePanel {
           if (th) d.dia = String(Math.round((th.major - th.pitch) * 1000) / 1000);
           this.fieldChanged('thread');
         });
-        return this.row(fd.label, s);
+        return this.row(fd.label, unitBox(s));
       }
       case 'sel': {
-        const el = h('div', { class: 'selbox', 'data-k': fd.k, tabindex: '0', onclick: () => this.setActive(fd.k) });
-        el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr', title: t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel(fd.k); } }, t('common.clear')));
+        const el = h('div', { class: 'selbox input pick', 'data-k': fd.k, 'data-testid': 'sel-' + fd.k, tabindex: '0', role: 'button', onclick: () => this.setActive(fd.k) });
+        el.addEventListener('keydown', (e) => { if (e.key === ' ' || (e.key === 'Enter' && e.target === el)) { e.preventDefault(); e.stopPropagation(); this.setActive(fd.k); } });
+        el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', title: t('fld.clear_sel'), 'aria-label': t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel(fd.k); } }, t('common.clear')));
         return this.row(fd.label, el);
       }
       case 'source': {
@@ -148,10 +160,10 @@ export class FeaturePanel {
         const cur = d.source?.kind === 'feature' ? 'f:' + d.source.id : 'b';
         const s = h('select', { 'data-k': 'source' }, [...srcs.map((f) => h('option', { value: 'f:' + f.id, selected: cur === 'f:' + f.id }, f.name || f.id)), h('option', { value: 'b', selected: cur === 'b' }, t('fld.bodies_pick'))]);
         s.addEventListener('change', () => { d.source = s.value === 'b' ? { kind: 'body', bodies: [] } : { kind: 'feature', id: s.value.slice(2) }; this.fieldChanged('source'); });
-        const wrap = h('div', {}, s);
+        const wrap = h('div', {}, unitBox(s));
         if (d.source?.kind === 'body') {
-          const el = h('div', { class: 'selbox', 'data-k': 'source.bodies', style: { marginTop: '4px' }, tabindex: '0', onclick: () => this.setActive('source.bodies') });
-          el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr', onclick: (e) => { e.stopPropagation(); this.clearSel('source.bodies'); } }, t('common.clear')));
+          const el = h('div', { class: 'selbox input pick', 'data-k': 'source.bodies', style: { marginTop: '4px' }, tabindex: '0', role: 'button', onclick: () => this.setActive('source.bodies') });
+          el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', onclick: (e) => { e.stopPropagation(); this.clearSel('source.bodies'); } }, t('common.clear')));
           wrap.append(el);
         }
         return this.row(fd.label, wrap);
@@ -236,8 +248,9 @@ export class FeaturePanel {
   setStatus(st) {
     this.status = st;
     if (!this.errEl) return;
-    this.errEl.textContent = st && st.ok === false ? (st.error ? errText(st.error) : t('panel.error')) : '';
-    this.errEl.dataset.bad = st && st.ok === false ? '1' : '';
+    const bad = !!(st && st.ok === false);
+    this.errEl.hidden = !bad; this.errEl.dataset.bad = bad ? '1' : '';
+    this.errEl.replaceChildren(...(bad ? [h('span', { html: icon('error', 'sm') }), h('div', { text: st.error ? errText(st.error) : t('panel.error') })] : []));
   }
 
   async onPick(hit) {
@@ -291,14 +304,14 @@ export class FeaturePanel {
 export class SketchPanel {
   constructor(app, session) { this.app = app; this.s = session; }
   render() {
-    const app = this.app, s = this.s, p = $('#panel'); p.classList.remove('hidden');
-    const body = h('div', { class: 'body' });
+    const app = this.app, s = this.s;
+    const body = h('div', { class: 'sk-body' });
     const isBase = s.draft.plane?.kind === 'base';
     body.append(h('div', { class: 'note', text: isBase ? t('skp.plane', { name: s.draft.plane.name }) : t('skp.plane_face') }));
     if (isBase) {
       const inp = h('input', { type: 'text', 'data-k': 'offset', value: s.draft.plane.offset ?? '0' });
       inp.addEventListener('change', () => app.setSketchOffset(inp.value));
-      body.append(h('div', { class: 'fld' }, h('label', { text: t('skp.offset') }), h('div', {}, inp, h('span', { class: 'unit', text: 'mm' }))));
+      body.append(h('div', { class: 'fld' }, h('label', { text: t('skp.offset') }), h('div', { class: 'ctl' }, unitBox(inp, 'mm'))));
     }
     this.dof = h('div', { class: 'note', id: 'sk-dof' });
     this.bad = h('div', { class: 'bad-list', id: 'sk-bad' });
@@ -308,10 +321,10 @@ export class SketchPanel {
     this.circ = h('input', { type: 'checkbox', 'data-k': 'circum' });
     const setOpt = () => { const o = app.sketcher?.opts; if (!o) return; const n = Math.round(parseFloat(String(this.sides.value).replace(',', '.'))); if (n >= 3 && n <= 200) o.polySides = n; o.polyCircum = this.circ.checked; app.sketcher._renderPreview(); };
     this.sides.addEventListener('input', setOpt); this.circ.addEventListener('change', setOpt);
-    this.poly = h('div', { class: 'polyopt', id: 'sk-poly' }, h('div', { class: 'fld' }, h('label', { text: t('skp.sides') }), this.sides), h('div', { class: 'fld' }, h('label', { text: t('skp.circum') }), h('label', {}, this.circ)));
+    this.poly = h('div', { class: 'polyopt', id: 'sk-poly' }, h('div', { class: 'fld' }, h('label', { text: t('skp.sides') }), h('div', { class: 'ctl' }, unitBox(this.sides))), h('div', { class: 'fld' }, h('label', { text: t('skp.circum') }), h('div', { class: 'ctl' }, checkBox(this.circ))));
     body.append(this.dof, this.bad, this.poly, h('div', { class: 'note', text: t('skp.constraints') }), this.list);
-    p.replaceChildren(h('h3', { text: t('skp.title', { name: s.draft.name || '' }) }), body,
-      h('div', { class: 'actions' }, h('button', { class: 'btn pri', id: 'sk-finish', onclick: () => app.finishSketch() }, t('sk.finish')), h('button', { class: 'btn', id: 'sk-cancel', onclick: () => app.cancelSketch() }, t('common.cancel'))));
+    shell(t('skp.title', { name: s.draft.name || '' }), [body],
+      [h('button', { class: 'btn primary pri', id: 'sk-finish', onclick: () => app.finishSketch() }, t('sk.finish')), h('button', { class: 'btn', id: 'sk-cancel', onclick: () => app.cancelSketch() }, t('common.cancel'))]);
     this.refresh();
   }
   refresh() {
@@ -339,10 +352,9 @@ export class SectionPanel {
   relang() { this.build(); }
   build() {
     const app = this.app;
-    const p = $('#panel'); p.classList.remove('hidden');
     const [lo, hi] = this.range(); if (this.pos == null) this.pos = Math.round((lo + hi) / 2);
     const sel = h('select', { id: 'sec-axis' }, ['X', 'Y', 'Z'].map((a) => h('option', { value: a, selected: a === this.axis }, a)));
-    this.slider = h('input', { type: 'range', id: 'sec-pos', min: lo, max: hi, step: 0.5, value: this.pos, style: { width: '100%' } });
+    this.slider = h('input', { type: 'range', id: 'sec-pos', min: lo, max: hi, step: 0.5, value: this.pos, 'aria-label': t('sec.pos') });
     this.val = h('input', { type: 'text', id: 'sec-val', value: String(this.pos) });
     const flip = h('input', { type: 'checkbox', id: 'sec-flip', checked: this.flip });
     const apply = () => { app.viewport.setSection(this.axis, this.pos, this.flip); };
@@ -350,10 +362,10 @@ export class SectionPanel {
     this.slider.addEventListener('input', () => { this.pos = +this.slider.value; this.val.value = String(this.pos); apply(); });
     this.val.addEventListener('change', () => { const v = parseFloat(this.val.value.replace(',', '.')); if (Number.isFinite(v)) { this.pos = v; this.slider.value = v; apply(); } });
     flip.addEventListener('change', () => { this.flip = flip.checked; apply(); });
-    p.replaceChildren(h('h3', { text: t('sec.title') }), h('div', { class: 'body' },
-      h('div', { class: 'fld' }, h('label', { text: t('sec.axis') }), sel), h('div', { class: 'fld' }, h('label', { text: t('sec.pos') }), this.val), this.slider,
-      h('div', { class: 'fld' }, h('label', { text: t('sec.flip') }), h('label', {}, flip)), h('div', { class: 'note', text: t('sec.note') })),
-      h('div', { class: 'actions' }, h('button', { class: 'btn pri', id: 'sec-close', onclick: () => this.close() }, t('sec.close'))));
+    shell(t('sec.title'), [
+      h('div', { class: 'fld' }, h('label', { text: t('sec.axis') }), h('div', { class: 'ctl' }, unitBox(sel))), h('div', { class: 'fld' }, h('label', { text: t('sec.pos') }), h('div', { class: 'ctl' }, unitBox(this.val, 'mm'))), h('div', { class: 'slider' }, this.slider),
+      h('div', { class: 'fld' }, h('label', { text: t('sec.flip') }), h('div', { class: 'ctl' }, checkBox(flip))), h('div', { class: 'note', text: t('sec.note') })],
+      [h('button', { class: 'btn primary pri', id: 'sec-close', onclick: () => this.close() }, t('sec.close'))], () => this.close());
     apply();
   }
   close() { this.app.viewport.setSection(null); this.app.sectionPanel = null; $('#panel').classList.add('hidden'); $('#panel').replaceChildren(); }
@@ -365,7 +377,7 @@ const RESERVED = new Set(['pi', 'sin', 'cos', 'tan', 'sqrt', 'abs', 'min', 'max'
 export async function paramsModal(app) {
   let rows = clone(app.doc.params || []);
   const tbody = h('tbody');
-  const errBox = h('div', { class: 'err', id: 'par-err' });
+  const errBox = h('div', { class: 'fieldmsg', id: 'par-err', role: 'alert' });
   const check = () => {
     const errs = rows.map(() => null); const seen = new Set();
     rows.forEach((r, i) => {
@@ -395,8 +407,8 @@ export async function paramsModal(app) {
     tbody.replaceChildren(...rows.map((r, i) => {
       const mk = (k, w) => { const inp = h('input', { type: 'text', value: r[k] ?? '', 'data-k': k, style: { width: w } }); inp.addEventListener('input', () => { r[k] = inp.value; draw(); }); return h('td', {}, inp); };
       return h('tr', { 'data-i': i }, mk('name', '90px'), mk('expr', '130px'), h('td', { class: 'pv', style: { fontVariantNumeric: 'tabular-nums', minWidth: '60px' } }), mk('note', '150px'),
-        h('td', {}, h('button', { class: 'btn danger', title: t('par.delete'), style: { padding: '1px 8px' }, onclick: () => { rows.splice(i, 1); build(); } }, '✕')),
-        h('td', { class: 'pe err', style: { fontSize: '11px', minWidth: '120px' } }));
+        h('td', {}, h('button', { class: 'btn ghost icon', type: 'button', title: t('par.delete'), 'aria-label': t('par.delete'), onclick: () => { rows.splice(i, 1); build(); }, html: icon('trash') })),
+        h('td', { class: 'pe' }));
     }));
     draw();
   };
@@ -418,7 +430,7 @@ const rowsHtml = (rows) => '<table>' + rows.map(([a, b]) => `<tr><td>${esc(a)}</
 const box = () => $('#measurebox');
 export function showBox(title, bodyHtml, onClose) {
   const b = box(); b.classList.remove('hidden');
-  b.replaceChildren(h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' } }, h('b', { text: title }), h('button', { class: 'btn', style: { padding: '0 7px' }, id: 'mb-close', onclick: () => { hideBox(); onClose && onClose(); } }, '✕')), h('div', { html: bodyHtml, id: 'mb-body' }));
+  b.replaceChildren(h('div', { class: 'mb-head' }, h('b', { text: title }), h('button', { class: 'btn ghost icon', type: 'button', id: 'mb-close', 'aria-label': t('common.close'), onclick: () => { hideBox(); onClose && onClose(); }, html: icon('close') })), h('div', { html: bodyHtml, id: 'mb-body' }));
 }
 export function hideBox() { box().classList.add('hidden'); box().replaceChildren(); }
 
