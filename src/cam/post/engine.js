@@ -9,7 +9,7 @@ export const MIHENK_VERSION = '0.2.0'; // yalniz baslik yorumu icin; opts.appVer
 export const perr = (code, params = {}) => new KErr(code, params);
 
 // ---------------------------------------------------------------- yorum ASCII'ye cevirme
-const TR_MAP = { 'ğ': 'g', 'Ğ': 'G', 'ü': 'u', 'Ü': 'U', 'ş': 's', 'Ş': 'S', 'ı': 'i', 'İ': 'I', 'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C' };
+const TR_MAP = { '\u011f': 'g', '\u011e': 'G', '\u00fc': 'u', '\u00dc': 'U', '\u015f': 's', '\u015e': 'S', '\u0131': 'i', '\u0130': 'I', '\u00f6': 'o', '\u00d6': 'O', '\u00e7': 'c', '\u00c7': 'C' };
 export function sanitizeComment(text) {
   let s = String(text ?? '');
   s = s.replace(/[ğĞüÜşŞıİöÖçÇ]/g, (c) => TR_MAP[c]);

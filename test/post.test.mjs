@@ -177,6 +177,16 @@ console.log('6. secenekler: A kilidi cikti yok, 6b kolu, satir numarasi, dogrula
   const lt = postProgram(lh, S.testMachine({ props: { cannedCycles: false } }), OPTS);
   ok(!/G8[1-9]/.test(lt.text) && /G1 Z-2\./.test(lt.text), 'acik hareket cevrimi');
   throwsCode(() => postProgram(S.drillSample().program, S.testMachine({ props: { cannedCycles: false } }), OPTS), 'cam.post.cycle_unsupported', 'peck acik harekete acilmaz');
+  // G04 X + saniye birimi; yuksek hizli mod secenegi (G05 P10000 / G05 P0)
+  const dm = S.testMachine({ props: { dwellAddress: 'X', dwellUnit: 's', cycleDwellAddress: 'P', cycleDwellUnit: 's', highSpeedOn: 'G05 P10000', highSpeedOff: 'G05 P0' } });
+  const dt = postProgram(S.drillSample().program, dm, OPTS);
+  ok(/G04 X1\.5/.test(dt.text) && /G82 X-30\. Y-15\. Z-2\. R5\. P0\.5 F150\./.test(dt.text), 'G04 X saniye, G82 P saniye');
+  throwsCode(() => postProgram(S.drillSample().program, S.testMachine({ props: { cycleDwellAddress: 'X' } }), OPTS), 'cam.post.bad_prop', 'cevrim bekleme adresi eksen harfi olamaz');
+  ok(/\nG05 P10000\n/.test(dt.text) && /\nG05 P0\n/.test(dt.text), 'G05 P10000 / G05 P0 secenegi');
+  const db = readNC(dt.text, { machine: dm });
+  ok(db.events.filter((e) => e.ev === 'highSpeed').length === 2, 'G05 olaylari geri okundu');
+  S.drillSample().program.sections.forEach((sec, i) => { const c = compareToolpaths(normalizeRapids(sec.toolpath), db.program.sections[i].toolpath); ok(c.equal, `G04 X/s delik[${i}] ${c.diffs.slice(0, 3)}`); });
+  throwsCode(() => postProgram(S.surfaceSample().program, S.testMachine({ props: { highSpeedOn: 'G05 P10000' } }), OPTS), 'cam.post.prop_missing', 'G05 cifti eksik');
   // karisik hizli hareket boler
   const mixed = JSON.parse(JSON.stringify(S.surfaceSample().program));
   const mv = mixed.sections[0].toolpath.moves; mv.splice(1, 1, mk.rapid(-50, -10, 2));

@@ -104,7 +104,7 @@ export function readNC(text, opts = {}) {
     for (const g of Gs) {
       if (g === 0 || g === 1 || g === 2 || g === 3) newMotion = g;
       else if (g === 4) dwell = true;
-      else if (g === 5 || g === 5.1) { events.push({ line: ln, ev: 'highSpeed', code: 'G' + g, p: W('P')?.v ?? W('Q')?.v }); }
+      else if (g === 5 || g === 5.1) { events.push({ line: ln, ev: 'highSpeed', word: 'G' + g, p: W('P')?.v ?? W('Q')?.v }); }
       else if (g === 17 || g === 21 || g === 94) { /* sabit lehce */ }
       else if (g === 90) S.inc = false;
       else if (g === 91) S.inc = true;

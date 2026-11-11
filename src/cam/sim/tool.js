@@ -1,12 +1,13 @@
 // Takim ucu geometrisi: uc profili (takim ekseninden r uzakligindaki alt yuzey yuksekligi), saft, tutucu.
 import { KErr } from '../../shared/errors.js';
+const simErr = (code, params = {}) => new KErr(code, params);
 
 const FLAT = new Set(['flat', 'face', 'tap', 'reamer', 'bore']);
 const CONE = new Set(['drill', 'spot', 'chamfer']);
 
 // tool: IR tool alanlari + {shaftDia?, holder?:{dia,len}}. Eksik/gecersiz geometri = hata (tahmin yok).
 export function toolGeom(tool) {
-  const bad = (field) => new KErr('cam.sim.tool_geom', { field, type: tool && tool.type });
+  const bad = (field) => simErr('cam.sim.tool_geom', { field, type: tool && tool.type });
   if (!tool || !(tool.dia > 0)) throw bad('dia');
   const R = tool.dia / 2;
   let kind;

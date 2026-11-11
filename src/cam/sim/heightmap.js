@@ -1,11 +1,12 @@
 // Yukseklik haritasi (tek degerli dexel): Z yonunde her XY hucresi icin stok ust yuksekligi. Saf JS.
 // Heightmap = { x0, y0, res, nx, ny, data: Float32Array(nx*ny), err? }   hucre (i,j) merkezi: (x0+(i+0.5)res, y0+(j+0.5)res); data[j*nx+i]
 import { KErr } from '../../shared/errors.js';
+const simErr = (code, params = {}) => new KErr(code, params);
 
 export function createHeightmap(minXY, maxXY, res, fill = 0) {
-  if (!(res > 0) || !Number.isFinite(res)) throw new KErr('cam.sim.bad_res', { res });
+  if (!(res > 0) || !Number.isFinite(res)) throw simErr('cam.sim.bad_res', { res });
   const nx = Math.max(1, Math.round((maxXY[0] - minXY[0]) / res)), ny = Math.max(1, Math.round((maxXY[1] - minXY[1]) / res));
-  if (nx * ny > 64e6) throw new KErr('cam.sim.grid_too_big', { nx, ny });
+  if (nx * ny > 64e6) throw simErr('cam.sim.grid_too_big', { nx, ny });
   const data = new Float32Array(nx * ny); data.fill(fill);
   return { x0: minXY[0], y0: minXY[1], res, nx, ny, data };
 }
@@ -24,7 +25,7 @@ export function sampleHeightmap(h, x, y) {
 }
 // a ile b arasindaki hacim farki (a - b) * hucre alani; ayni izgara olmali
 export function volumeBetween(a, b) {
-  if (a.nx !== b.nx || a.ny !== b.ny) throw new KErr('cam.sim.grid_mismatch', {});
+  if (a.nx !== b.nx || a.ny !== b.ny) throw simErr('cam.sim.grid_mismatch', {});
   let s = 0; for (let k = 0; k < a.data.length; k++) s += a.data[k] - b.data[k];
   return s * a.res * a.res;
 }

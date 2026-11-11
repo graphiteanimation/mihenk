@@ -49,7 +49,8 @@ export function createFanucPost(over = {}) {
       Object.assign(this.state, { tool: null, spindle: null, coolant: 'off', aCur: 0, positioned: false, cycle: null, comp: false, highSpeed: false });
     },
     _resetPos() { this.v.x.reset(); this.v.y.reset(); this.v.z.reset(); },
-    _dwellWord(addr, unit, s) {
+    _dwellWord(addr, unit, s, inCycle = false) {
+      if (inCycle && addr != null && 'XYZRQFI'.includes(addr)) throw perr('cam.post.bad_prop', { prop: 'cycleDwellAddress', value: String(addr) });
       if (addr == null) throw perr('cam.post.prop_missing', { prop: 'dwellAddress', post: this.post.id });
       if (unit == null) throw perr('cam.post.prop_missing', { prop: 'dwellUnit', post: this.post.id });
       if (unit === 'ms') return addr + String(Math.round(s * 1000));
@@ -259,7 +260,7 @@ export function createFanucPost(over = {}) {
       if (first) {
         const words = [retr, 'G' + code, this.v.x.formatForced(x), this.v.y.formatForced(y), fmtd('Z', c.bottom), fmtd('R', c.retract)];
         if (code === 73 || code === 83) words.push(fmtd('Q', c.peck));
-        if (code === 82 || code === 89) words.push(post._dwellWord.call(this, p.cycleDwellAddress, p.cycleDwellUnit, c.dwell ?? 0));
+        if (code === 82 || code === 89) words.push(post._dwellWord.call(this, p.cycleDwellAddress, p.cycleDwellUnit, c.dwell ?? 0, true));
         if (code === 84 || code === 74) {
           if (p.tapMode === 'pitch') words.push('F' + createFormat({ decimals: 3 }).format(c.pitch));
           else words.push(this.fmt.f.format(c.f));
