@@ -3,7 +3,7 @@
 // stok ustunun (stockTop) UZERINDEDIR; boylece hizli hareket asla stok icinde yatay gitmez. Inis: retract'tan ilerlemeyle.
 import { cerr, issue } from '../geom/err.js';
 import * as P from '../geom/path2d.js';
-import { mk, computeStats, validateToolpath } from '../ir.js';
+import { mk, computeStats, validateToolpath, ARC_MIN_CHORD } from '../ir.js';
 import { irTool } from '../tools.js';
 
 export const COOLANTS = ['flood', 'mist', 'air', 'through', 'off'];
@@ -80,6 +80,8 @@ export class Builder {
   seg(s, z0, z1, f, kind = 'cut') {
     if (s.k === 'L') { this.feed(s.b[0], s.b[1], z1, f, kind); return; }
     // yay: |sw| <= PI (path2d garantisi); baslangic konumu = s.a
+    // kirisi ARC_MIN_CHORD'dan kisa yay (sehim < kiris/2) dogru olarak yazilir: NC'de tam daireye donusmesin (V-05)
+    if (Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]) < ARC_MIN_CHORD) { this.feed(s.b[0], s.b[1], z1, f, kind); return; }
     this.moves.push(mk.arc(s.b[0], s.b[1], z1, s.c[0] - s.a[0], s.c[1] - s.a[1], s.sw > 0 ? 'ccw' : 'cw', f, kind)); this.pos = [s.b[0], s.b[1], z1];
   }
   segs(list, z, f, kind = 'cut') { for (const s of list) this.seg(s, z, z, f, kind); }
@@ -125,8 +127,17 @@ export function loopFromKernel(items) {
   if (!P.isClosedLoop(out, 1e-5)) throw cerr('cam.geom.loop_open');
   // kucuk bosluklari kapat (uclari bir sonrakinin baslangicina esitle)
   for (let i = 0; i < out.length; i++) { const nx = out[(i + 1) % out.length]; const s = out[i]; if (P.dist(s.b, nx.a) > 0) { if (s.k === 'L') s.b = nx.a.slice(); else s.b = nx.a.slice(); } }
+  if (P.selfIntersects(out)) throw cerr('cam.geom.self_intersect'); // V-17: kendini kesen sinir belirsiz bolge -> acik hata
   return out;
 }
 export const warn = (code, params = {}) => issue(code, params);
+// V-12: stok tabaninin altina bilincli inis payi (mm). Yalniz taban model/stok tabanina ya da secime gore NEGATIF ofsetle
+// verildiyse (boydan boya kesim niyeti) ve en cok o ofset kadar izin; 'abs' ya da ofsetsiz taban 0 -> simulasyon stok
+// tabani altini ENGEL sayar (tabla/baglama modellenmez).
+export function belowStockAllow(op, S, zBot) {
+  const b = op.heights?.bottom; const off = b?.off ?? 0;
+  if (!b || !['modelBottom', 'stockBottom', 'selection'].includes(b.from) || !(off < 0)) return 0;
+  return Math.min(-off, Math.max(0, S.stockBox.min[2] - zBot));
+}
 // tolerans-yuvarlama: kullaniciya gosterilecek sayi
 export const r3 = (x) => Math.round(x * 1000) / 1000;

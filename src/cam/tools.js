@@ -30,6 +30,8 @@ export function normalizeTool(t, path = 'tool') {
   req('flutes', (v) => Number.isInteger(v) && v >= 1 && v <= 100, 'integer >= 1');
   req('centerCutting', (v) => typeof v === 'boolean', 'boolean');
   opt('shaftDia', (v) => isNum(v) && v > 0, 'number > 0');
+  // kesmeyen uclu takimda izinli en buyuk rampa/helis acisi (derece; ureticiden). Yoksa kapi 4 rampa/helisi engeller (V-10).
+  opt('maxRampAngle', (v) => isNum(v) && v > 0 && v <= 90, '0 < angle <= 90');
   for (const k of ['name', 'material', 'note']) opt(k, (v) => typeof v === 'string' && v.length <= LIB_LIMITS.str, 'text');
   if (o.type === 'ball') { if (o.cornerR != null && Math.abs(o.cornerR - o.dia / 2) > 1e-9) throw bad(`${path}.cornerR`, 'dia/2'); o.cornerR = o.dia / 2; }
   else if (o.type === 'bullnose') req('cornerR', (v) => isNum(v) && v > 0 && v < o.dia / 2, '0 < cornerR < dia/2');
@@ -59,7 +61,7 @@ export function normalizeTool(t, path = 'tool') {
 }
 // IR'deki takim alt kumesi
 export function irTool(t) {
-  return { number: t.number, H: t.lengthOffset, D: t.diaOffset ?? null, type: t.type, dia: t.dia, cornerR: t.cornerR ?? 0, tipAngle: t.tipAngle ?? null, fluteLen: t.fluteLen, bodyLen: t.bodyLen, centerCutting: t.centerCutting, pitch: t.pitch ?? null };
+  return { number: t.number, H: t.lengthOffset, D: t.diaOffset ?? null, type: t.type, dia: t.dia, cornerR: t.cornerR ?? 0, tipAngle: t.tipAngle ?? null, fluteLen: t.fluteLen, bodyLen: t.bodyLen, centerCutting: t.centerCutting, pitch: t.pitch ?? null, ...(t.maxRampAngle != null ? { maxRampAngle: t.maxRampAngle } : {}) };
 }
 // matkap ucu boyu (tam captan uca): (d/2)/tan(aci/2)
 export function tipLength(t) { return t.tipAngle && t.tipAngle < 180 ? (t.dia / 2) / Math.tan((t.tipAngle * Math.PI) / 360) : 0; }

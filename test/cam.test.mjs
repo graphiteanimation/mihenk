@@ -11,6 +11,7 @@ import { builtinMachines, checkMachine, copyMachine } from '../src/cam/machines/
 import { normalizeTool, importLibrary, exportLibrary, applyPreset, toolListIssues } from '../src/cam/tools.js';
 import { validateToolpath, validateProgram, walk, sampleArc } from '../src/cam/ir.js';
 import { blocked } from '../src/cam/gates.js';
+import { heightmapFromFn } from '../src/cam/sim/index.js';
 import { validateDoc } from '../src/shared/schema.js';
 import { initKernel } from '../src/kernel/kernel.js';
 import { findRegions } from '../src/shared/profiles.js';
@@ -268,9 +269,56 @@ section('6. guvenlik kapilari');
   const ga = codes(CAM.gates(prog(tp, { ...S0, aAngle: 400 }), M)); ok(ga.includes('cam.gate.a_limit'), 'A siniri');
   const ga2 = codes(CAM.gates(prog(tp, { ...S0, aAngle: 90 }), { ...M, axes: { X: M.axes.X, Y: M.axes.Y, Z: M.axes.Z } })); ok(ga2.includes('cam.gate.no_rotary'), 'A ekseni yok');
   // kapi 5: B simulasyonu bagli
-  const gs = CAM.gates(prog(tp), M, { sim: { res: 1 } }); ok(!blocked(gs) && !codes(gs, 'warn').includes('cam.gate.sim_not_run'), 'sim calisti, temiz yol: ' + codes(gs));
+  const hmNone = heightmapFromFn([S0.stockBox.min[0], S0.stockBox.min[1]], [S0.stockBox.max[0], S0.stockBox.max[1]], 1, () => -Infinity);
+  const gs = CAM.gates(prog(tp), M, { sim: { res: 1, modelHeightmaps: { s1: hmNone } } }); ok(!blocked(gs) && !codes(gs, 'warn').includes('cam.gate.sim_not_run'), 'sim calisti, temiz yol: ' + codes(gs));
   const bad = { ...tp, moves: [...tp.moves.slice(0, -1), { t: 'rapid', x: 50, y: 30, z: tp.clearanceZ }, { t: 'rapid', x: 50, y: 30, z: -5 }, { t: 'rapid', x: 60, y: 30, z: -5 }, { t: 'rapid', x: 60, y: 30, z: tp.clearanceZ }] };
-  const gsb = CAM.gates(prog(bad), M, { sim: { res: 1 } }); ok(codes(gsb).includes('cam.sim.rapid_in_stock'), 'sim: stok icinde hizli block');
+  const gsb = CAM.gates(prog(bad), M, { sim: { res: 1, modelHeightmaps: { s1: hmNone } } }); ok(codes(gsb).includes('cam.sim.rapid_in_stock'), 'sim: stok icinde hizli block');
+  // V-06: model haritasi yoksa oyma denetlenemez -> block
+  ok(codes(CAM.gates(prog(tp), M, { sim: { res: 1 } })).includes('cam.gate.sim_no_model'), 'V-06: model haritasiz sim block');
+  // V-11: sim cozunurlugu en kucuk takim yaricapindan kaba -> block; V-24: yanal tolerans acikca uyarilir
+  { const g11 = CAM.gates(prog(tp), M, { sim: { res: 6, modelHeightmaps: { s1: hmNone } } }); ok(codes(g11).includes('cam.gate.sim_res_coarse') && codes(g11, 'warn').includes('cam.gate.sim_lateral_tol'), 'V-11: res > r block + yanal tolerans uyarisi'); }
+  // V-08: korunan WCS yazimi normalize
+  ok(codes(CAM.gates(prog(tp, { ...S0, workOffset: { kind: 'G54.1', p: 1 } }), { ...M, protected: { ...M.protected, wcs: ['G54.1P1'] } })).includes('cam.gate.protected:WCS'), 'V-08: G54.1P1 (bosluksuz) korunur');
+  // V-09: kesmeyen uclu takim + kopru: kopru sonu inisi 'plunge' ve kapi 4 geometriye bakar (tur 'cut' olsa da)
+  { const ncT = flat(10, { centerCutting: false, maxRampAngle: 5 });
+    const ct = CAM.computeOp({ id: 'ct', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], side: 'outside', stepdown: 4, ramp: { kind: 'ramp', angle: 3 }, tabs: { n: 4, width: 6, height: 3 } }, { setup: S0, tool: ncT, geom: { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] } });
+    let vcut = 0; walk(ct, (m, k, f) => { if (f && m.t === 'feed' && m.kind === 'cut' && m.z < f.z - 1e-9 && Math.hypot(m.x - f.x, m.y - f.y) < 1e-9) vcut++; });
+    ok(vcut === 0, 'V-09: kopru inisi cut degil plunge');
+    ok(codes(CAM.gates(prog(ct), M)).includes('cam.gate.plunge_center'), 'V-09: kopru inisi kesmeyen ucta block');
+    const relabeled = { ...ct, moves: ct.moves.map((m) => (m.t === 'feed' && m.kind === 'plunge' && !m.clear ? { ...m, kind: 'cut' } : m)) };
+    ok(codes(CAM.gates(prog(relabeled), M)).includes('cam.gate.plunge_center'), 'V-09: dikey asagi cut da dalma sayilir');
+    // V-10: kesmeyen uc + rampa: maxRampAngle yoksa block, asilirsa block, icindeyse serbest
+    const rampOp = { id: 'cr', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], side: 'outside', stepdown: 4, ramp: { kind: 'ramp', angle: 45 } };
+    const geomR = { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] };
+    const r45 = CAM.computeOp(rampOp, { setup: S0, tool: flat(10, { centerCutting: false }), geom: geomR }); ok(codes(CAM.gates(prog(r45), M)).includes('cam.gate.ramp_no_limit'), 'V-10: rampa acisi siniri tanimsiz -> block');
+    const r45b = CAM.computeOp(rampOp, { setup: S0, tool: flat(10, { centerCutting: false, maxRampAngle: 5 }), geom: geomR }); ok(codes(CAM.gates(prog(r45b), M)).includes('cam.gate.ramp_center'), 'V-10: 45 > 5 derece block');
+    const r3 = CAM.computeOp({ ...rampOp, ramp: { kind: 'ramp', angle: 3 } }, { setup: S0, tool: flat(10, { centerCutting: false, maxRampAngle: 5 }), geom: geomR }); const c3 = codes(CAM.gates(prog(r3), M)); ok(!c3.includes('cam.gate.ramp_center') && !c3.includes('cam.gate.plunge_center') && !c3.includes('cam.gate.ramp_no_limit'), 'V-10: 3 derece <= 5 serbest: ' + c3); }
+  // V-15: 50 mm kenarda 0,001 mm kirik -> dis ofset kapanir, her nokta sinirdan d uzakta
+  { const ln = (a, b) => ({ ...G.mkLine(a, b), fwd: true, open: false });
+    const outerK = [ln([0, 0], [50, 1e-3]), ln([50, 1e-3], [100, 0]), ln([100, 0], [100, 50]), ln([100, 50], [0, 50]), ln([0, 50], [0, 0])];
+    let e15 = null, ct15 = null; try { ct15 = CAM.computeOp({ id: 'k', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], side: 'outside', stepdown: 20 }, { setup: setupOf([-20, -20, -30], [120, 70, 0]), tool: flat(10), geom: { faces: [{ z: -10, outer: outerK, inners: [] }] } }); } catch (e) { e15 = e.code; }
+    ok(ct15 && !e15, 'V-15: neredeyse dogrusal kirikta ofset basarili: ' + e15);
+    const loopP = outerK.flatMap((x) => P.fromGeom2d(x, true)); const regs = P.offsetRegions([{ outer: loopP, holes: [] }], -5);
+    let worst = 0; for (const sg of regs[0].outer) for (const t of [0, 0.25, 0.5, 0.75, 1]) worst = Math.max(worst, Math.abs(P.distTo(P.pointAt(sg, t), loopP) - 5));
+    ok(regs.length === 1 && regs[0].holes.length === 0 && worst < 1e-6, 'V-15: ofset tam d (hata ' + worst + ')'); }
+  // V-17: kendini kesen dis sinir -> acik hata (cep ve kontur)
+  { const ln = (a, b) => ({ ...G.mkLine(a, b), fwd: true, open: false }); const bow = [ln([0, 0], [40, 30]), ln([40, 30], [40, 0]), ln([40, 0], [0, 30]), ln([0, 30], [0, 0])];
+    throwsCode(() => CAM.computeOp({ id: 'pb', type: 'pocket', ...base, geom: [{ kind: 'face' }], stepover: 2, stepdown: 3, entry: { kind: 'plunge' } }, { setup: S0, tool: flat(6), geom: { faces: [{ z: -10, normalOk: true, outer: bow, inners: [] }] } }), 'cam.geom.self_intersect', 'V-17: papyon cep hata');
+    throwsCode(() => CAM.computeOp({ id: 'cb', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], stepdown: 3 }, { setup: S0, tool: flat(6), geom: { faces: [{ z: -10, outer: bow, inners: [] }] } }), 'cam.geom.self_intersect', 'V-17: papyon kontur hata'); }
+  // V-19: farkli z'deki yuzlerden secim tabanli kontur -> hata
+  throwsCode(() => CAM.computeOp({ id: 'c19', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }, { kind: 'face', loops: 'outer' }], stepdown: 4 }, { setup: S0, tool: flat(6), geom: { faces: [{ z: -20, outer: sq(0, 0, 30, 30), inners: [] }, { z: -5, outer: sq(60, 0, 90, 30), inners: [] }] } }), 'cam.contour.faces_differ_z', 'V-19: farkli z profiller');
+  // V-05: islem yolunda kirisi < 0,001 mm yay yok (Builder dogruya cevirir)
+  { const ln = (a, b) => ({ ...G.mkLine(a, b), fwd: true, open: false }); const outerK = [ln([0, 0], [50, 1e-5]), ln([50, 1e-5], [100, 0]), ln([100, 0], [100, 50]), ln([100, 50], [0, 50]), ln([0, 50], [0, 0])];
+    const ct = CAM.computeOp({ id: 'k5', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], side: 'outside', stepdown: 20 }, { setup: setupOf([-20, -20, -30], [120, 70, 0]), tool: flat(10), geom: { faces: [{ z: -10, outer: outerK, inners: [] }] } });
+    let tiny = 0; walk(ct, (m, k, f) => { if (f && m.t === 'arc' && Math.hypot(m.x - f.x, m.y - f.y) < 1e-3) tiny++; }); ok(tiny === 0, 'V-05: islemde dejenere yay yok'); }
+  // V-27: kesmeyen uclu kilavuz/rayba/bara cevrimi (onceden delinmis delik) dalma sayilmaz; delme cevrimi sayilir
+  { const cyc = (cycle) => ({ ...tp, tool: { ...tp.tool, centerCutting: false }, moves: [tp.moves[0], { t: 'cycle', cycle, points: [[10, 10]], top: 0, bottom: -10, retract: 2, clearance: tp.moves[0].z, f: tp.rpm * 1.25, pitch: 1.25, peck: 2 }, tp.moves[tp.moves.length - 1]] });
+    ok(!codes(CAM.gates(prog(cyc('tap')), M)).includes('cam.gate.plunge_center') && !codes(CAM.gates(prog(cyc('ream')), M)).includes('cam.gate.plunge_center'), 'V-27: kilavuz/rayba cevrimi kesmeyen uc engeli yok');
+    ok(codes(CAM.gates(prog(cyc('peck')), M)).includes('cam.gate.plunge_center'), 'V-27: delme cevrimi kesmeyen ucta block'); }
+  // V-23b: S0'a yuvarlanan devir block
+  ok(codes(CAM.gates(prog({ ...tp, rpm: 0.4 }), M)).includes('cam.gate.rpm_low'), 'V-23b: rpm 0.4 block');
+  // V-01: 3+1 bolumde A yonu dogrulanmadi uyarisi
+  ok(codes(CAM.gates(prog(tp, { ...S0, aAngle: 90 }), M), 'warn').includes('cam.gate.a_dir_unverified'), 'V-01: A yonu teyit uyarisi');
 }
 
 // ================================================================== 7. setup cozumu, sema, i18n
@@ -284,9 +332,18 @@ section('7. setup, sema, metinler');
   ok(S.stockBox.max[2] === 0 && S.stockBox.min[0] === 0 && Math.abs(S.stockBox.max[0] - 104) < 1e-9 && S.frame.o[2] === 11, 'kutu stok + kose orijini');
   const Sr = CAM.resolveSetup({ ...st, frame: { origin: { kind: 'point', p: [0, 0, 0] } }, stock: { kind: 'cyl', dia: 40, len: 110, axis: 'X' }, rotary: { enabled: true, aAngle: 90 } }, rb, M);
   const q = (p) => [0, 1, 2].map((k) => (p[0] - Sr.frame.o[0]) * [Sr.frame.x, Sr.frame.y, Sr.frame.z][k][0] + (p[1] - Sr.frame.o[1]) * [Sr.frame.x, Sr.frame.y, Sr.frame.z][k][1] + (p[2] - Sr.frame.o[2]) * [Sr.frame.x, Sr.frame.y, Sr.frame.z][k][2]);
-  const qp = q([0, 5, 0]); // A=90, dir -X: phi = -90 -> +Y noktasi -Z'ye
+  const qp = q([0, 5, 0]); // A kelimesi 90, dir -X: Rot(-X, 90) = Rx(-90) -> +Y noktasi -Z'ye
   ok(Sr.aAngle === 90 && Math.abs(qp[2] + 5) < 1e-9 && Math.abs(qp[1]) < 1e-9 && Sr.stockBox.max[2] === 20, '3+1: A=90 etkin cerceve (A.dir isareti) ve silindir stok');
   throwsCode(() => CAM.resolveSetup({ ...st, rotary: { enabled: true, aAngle: 90 } }, rb, builtinMachines()[1]), 'cam.setup.no_rotary', 'A ekseni olmayan makinede 3+1');
+  // V-01: bagimsiz fizik: parca noktasi tezgahta Rot(A.dir, A kelimesi)·p; setup koordinati bununla AYNI olmali; post A'yi aAngle olarak yazar
+  { const rot = (u, deg) => { const t = deg * Math.PI / 180, c = Math.cos(t), s2 = Math.sin(t), [x, y, z] = u; return [[c + x * x * (1 - c), x * y * (1 - c) - z * s2, x * z * (1 - c) + y * s2], [y * x * (1 - c) + z * s2, c + y * y * (1 - c), y * z * (1 - c) - x * s2], [z * x * (1 - c) - y * s2, z * y * (1 - c) + x * s2, c + z * z * (1 - c)]]; };
+    for (const dx of [-1, 1]) for (const a of [30, 90, 270]) {
+      const Md = JSON.parse(JSON.stringify(M)); Md.axes.A.dir = [dx, 0, 0];
+      const Sd = CAM.resolveSetup({ ...st, frame: { origin: { kind: 'model' } }, stock: { kind: 'cyl', dia: 40, len: 110, axis: 'X' }, rotary: { enabled: true, aAngle: a } }, rb, Md);
+      const p = [3, 5, 3]; const qd = [Sd.frame.x, Sd.frame.y, Sd.frame.z].map((ax) => ax[0] * (p[0] - Sd.frame.o[0]) + ax[1] * (p[1] - Sd.frame.o[1]) + ax[2] * (p[2] - Sd.frame.o[2]));
+      const ph = rot([dx, 0, 0], a).map((row) => row[0] * p[0] + row[1] * p[1] + row[2] * p[2]);
+      ok(Math.hypot(qd[0] - ph[0], qd[1] - ph[1], qd[2] - ph[2]) < 1e-9, `V-01: dir=${dx} A=${a}: cerceve fiziksel donusle ayni`);
+    } }
   throwsCode(() => CAM.resolveSetup({ ...st, stock: { kind: 'cyl', dia: 10, len: 110 }, frame: { origin: { kind: 'model' } } }, rb, M), 'cam.setup.stock_small', 'silindir stok kucuk');
   throwsCode(() => CAM.resolveSetup({ ...st, frame: { zAxis: { kind: 'face', ref: {} } } }, rb, M), 'cam.setup.face_axis_unresolved', 'yuz ekseni cozulmeden');
   // sema

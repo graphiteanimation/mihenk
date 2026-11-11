@@ -195,6 +195,27 @@ function aaX(a, b, tol) {
 }
 function dedupe(hs, tol) { const out = []; for (const h of hs) if (!out.some((o) => dist(o.p, h.p) <= Math.max(tol, 1e-12))) out.push(h); return out; }
 
+// V-17: kapali dongu kendini kesiyor mu (komsu olmayan parcalar arasinda kesisim; x-supurmeli aday eleme)
+export function selfIntersects(loop, tol = 1e-7) {
+  const n = loop.length; if (n < 3) return false;
+  const bb = loop.map(bbox); const order = [...loop.keys()].sort((i, j) => bb[i][0] - bb[j][0]);
+  for (let a = 0; a < n; a++) {
+    const i = order[a];
+    for (let b = a + 1; b < n; b++) {
+      const j = order[b]; if (bb[j][0] > bb[i][2] + tol) break;
+      if (bb[j][1] > bb[i][3] + tol || bb[i][1] > bb[j][3] + tol) continue;
+      const adj = (j === (i + 1) % n) || (i === (j + 1) % n);
+      for (const h of intersect(loop[i], loop[j], tol)) {
+        if (adj) { // komsu: yalniz ortak uc disindaki kesisim (geri donus/ortusme) sayilir
+          const shared = j === (i + 1) % n ? loop[i].b : loop[j].b;
+          if (dist(h.p, shared) <= Math.max(tol * 10, 1e-6)) continue;
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
 // parcayi verilen noktalarda bol (noktalar parca uzerinde). Uclari tam verilen noktalar olur.
 export function splitAt(s, pts, tol = 1e-9) {
   const L = length(s); if (!pts.length || L < EPS) return [s];
@@ -377,10 +398,30 @@ export function offsetRegions(regions, d, opts = {}) {
     if (ok) keep.push(s);
   }
   // ayni yonde cakisan kopyalar tek; ters yonde cakisan cift (sifir genislik) ikisi birden atilir
-  const pk = dropDuplicates(keep, ctol);
+  const artLen = 2 * Math.sqrt(ad * dtol) + ctol; // yapay (tolerans kaynakli) parca/halka boyu siniri (V-15)
+  const pk = pruneDangling(dropDuplicates(keep, ctol), ctol, artLen);
   if (!pk.length) return [];
-  const loops = chainLoops(pk, ctol).map((l) => mergeLoop(l.map(clean), tol)).filter((l) => Math.abs(area(l)) > 1e-9 * scale * scale);
+  const diag = (l) => { const b = loopBBox([l]); return Math.hypot(b[2] - b[0], b[3] - b[1]); };
+  const loops = chainLoops(pk, ctol).map((l) => mergeLoop(l.map(clean), tol)).filter((l) => Math.abs(area(l)) > 1e-9 * scale * scale && diag(l) > artLen);
   return regionsFromLoops(loops, ptol);
+}
+// V-15: neredeyse dogrusal kirikta (orn. 50 mm kenarda 0,001 mm) iki ofset cizgisi cok kucuk acida kesisir; kesisim
+// otesindeki kisa uclarin uzakligi d'den yalniz ~1e-8 kisa oldugu icin suzgecten gecer ve zincirde sarkan uc kalir.
+// Ucu baska parcaya baglanmayan parcalar yalniz bu yapay uzunlugun altindaysa (maxLen = 2*sqrt(d*dtol)) atilir;
+// daha uzun sarkan parca gercek hatadir ve zincirleme acik hata verir (sessiz parca kaybi yok).
+function pruneDangling(list, tol, maxLen) {
+  let cur = list.slice();
+  for (let guard = 0; guard < 50; guard++) {
+    const drop = new Set();
+    cur.forEach((s, i) => {
+      if (length(s) > maxLen) return;
+      const hasIn = cur.some((q, j) => j !== i && dist(q.b, s.a) <= tol), hasOut = cur.some((q, j) => j !== i && dist(q.a, s.b) <= tol);
+      if (!hasIn || !hasOut) drop.add(i);
+    });
+    if (!drop.size) return cur;
+    cur = cur.filter((s, i) => !drop.has(i));
+  }
+  return cur;
 }
 function dropDuplicates(list, tol) {
   const out = []; const dead = new Set();

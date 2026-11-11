@@ -8,6 +8,16 @@ import { simulate } from './sim/index.js';
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const G = (level, c, params, extra) => ({ level, code: c, params: params || {}, ...(extra || {}) });
 export const wcsName = (w) => (w ? (w.kind === 'G54.1' ? `G54.1 P${w.p}` : w.kind) : null);
+// V-08: korunan listede 'G54.1P1' / 'g54.1 p1' gibi yazimlar ayni ofsettir: bosluksuz, buyuk harf karsilastir
+const wcsKey = (s) => String(s).replace(/\s+/g, '').toUpperCase();
+// iki nokta arasi XY uzunlugu (yay: yay boyu)
+function xyLen(from, m) {
+  if (m.t !== 'arc') return Math.hypot(m.x - from.x, m.y - from.y);
+  const cx = from.x + m.i, cy = from.y + m.j, r = Math.hypot(m.i, m.j);
+  const a0 = Math.atan2(from.y - cy, from.x - cx), a1 = Math.atan2(m.y - cy, m.x - cx);
+  let sw = m.dir === 'ccw' ? a1 - a0 : a0 - a1; sw = ((sw % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  return r * sw;
+}
 
 // opts.sim: { res, modelHeightmaps?:{[setupId]}, tools?:{[number]:{shaftDia, holder}}, ...diger simulate secenekleri } | false
 export function gates(program, machine, opts = {}) {
@@ -27,6 +37,7 @@ export function gates(program, machine, opts = {}) {
     if (!Number.isInteger(T.H) || T.H < 1) out.push(G('block', 'cam.gate.missing', { field: 'tool.H', op: tp.opName }, X));
     if (tp.comp === 'wear' && !(Number.isInteger(T.D) && T.D >= 1)) out.push(G('block', 'cam.gate.missing', { field: 'tool.D', op: tp.opName }, X));
     if (!(isNum(tp.rpm) && tp.rpm > 0)) out.push(G('block', 'cam.gate.missing', { field: 'rpm', op: tp.opName }, X));
+    else if (Math.round(tp.rpm) < 1) out.push(G('block', 'cam.gate.rpm_low', { rpm: tp.rpm, min: 1, op: tp.opName }, X)); // V-23b: S0
     const wo = s.setup?.workOffset; if (!wo || !wo.kind) out.push(G('block', 'cam.gate.missing', { field: 'workOffset', op: tp.opName }, X));
     let fMax = 0; let fBad = false;
     walk(tp, (m) => { if (m.t === 'feed' || m.t === 'arc' || m.t === 'cycle') { if (!(isNum(m.f) && m.f > 0)) fBad = true; else fMax = Math.max(fMax, m.f); } });
@@ -35,7 +46,7 @@ export function gates(program, machine, opts = {}) {
     if ((prot.T || []).includes(T.number)) out.push(G('block', 'cam.gate.protected', { kind: 'T', value: T.number, op: tp.opName }, X));
     if ((prot.H || []).includes(T.H)) out.push(G('block', 'cam.gate.protected', { kind: 'H', value: T.H, op: tp.opName }, X));
     if (tp.comp === 'wear' && (prot.D || []).includes(T.D)) out.push(G('block', 'cam.gate.protected', { kind: 'D', value: T.D, op: tp.opName }, X));
-    const wn = wcsName(wo); if (wn && (prot.wcs || []).map((w) => w.replace(/\s+/g, ' ')).includes(wn)) out.push(G('block', 'cam.gate.protected', { kind: 'WCS', value: wn, op: tp.opName }, X));
+    const wn = wcsName(wo); if (wn && (prot.wcs || []).map(wcsKey).includes(wcsKey(wn))) out.push(G('block', 'cam.gate.protected', { kind: 'WCS', value: wn, op: tp.opName }, X));
     // ---- 3: sinirlar
     if (isNum(maxRpm) && tp.rpm > maxRpm) out.push(G('block', 'cam.gate.rpm_high', { rpm: tp.rpm, max: maxRpm, op: tp.opName }, X));
     if (isNum(minRpm) && tp.rpm < minRpm) out.push(G('block', 'cam.gate.rpm_low', { rpm: tp.rpm, min: minRpm, op: tp.opName }, X));
@@ -47,16 +58,27 @@ export function gates(program, machine, opts = {}) {
     // ---- 4: dalma, kesici boyu, govde boyu
     const box = s.setup?.stockBox; const stockTop = box ? box.max[2] : tp.meta?.stockTop;
     if (T.centerCutting === false) {
-      let bad = false;
+      // V-09/V-10: hareket TURUNE degil geometriye bakilir. Stok ayak izi icinde, stok ustunun altinda:
+      //  - XY'siz asagi her ilerleme (bu islemde bosaltilmis bolgeye 'clear' inis haric) -> dalma
+      //  - XY'li asagi ilerleme (rampa/helis) -> aci takimin maxRampAngle'ini asmamali; tanimsizsa engel (tahmin yok)
+      let bad = false, rampMax = 0, rampAt = false;
       walk(tp, (m, k, from) => {
-        if (bad || !from) return;
-        if (m.t === 'cycle') { bad = true; return; }
-        if (m.t === 'feed' && m.kind === 'plunge' && !m.clear && m.z < from.z - 1e-9 && Math.hypot(m.x - from.x, m.y - from.y) < 1e-9 && isNum(stockTop) && m.z < stockTop - 1e-6) {
-          const inside = !box || (m.x > box.min[0] + 1e-6 && m.x < box.max[0] - 1e-6 && m.y > box.min[1] + 1e-6 && m.y < box.max[1] - 1e-6);
-          if (inside) bad = true;
-        }
+        if (!from) return;
+        // delme cevrimleri merkezden kesen uc ister; kilavuz/rayba/bara ONCEDEN DELINMIS deliğe girer (V-27: yanlis engel idi)
+        if (m.t === 'cycle') { if (!['tap', 'ream', 'bore'].includes(m.cycle)) bad = true; return; }
+        if (m.t !== 'feed' && m.t !== 'arc') return;
+        if (!(m.z < from.z - 1e-9) || !isNum(stockTop) || !(m.z < stockTop - 1e-6)) return;
+        const inside = !box || (m.x > box.min[0] + 1e-6 && m.x < box.max[0] - 1e-6 && m.y > box.min[1] + 1e-6 && m.y < box.max[1] - 1e-6);
+        if (!inside) return;
+        const L = xyLen(from, m), dz = Math.min(from.z, stockTop) - m.z; if (!(dz > 1e-9)) return;
+        if (L < 1e-6) { if (!(m.t === 'feed' && m.clear)) bad = true; return; }
+        rampAt = true; rampMax = Math.max(rampMax, Math.atan2(from.z - m.z, L) * 180 / Math.PI);
       });
       if (bad) out.push(G('block', 'cam.gate.plunge_center', { tool: T.number, op: tp.opName }, X));
+      if (rampAt) {
+        if (!isNum(T.maxRampAngle)) out.push(G('block', 'cam.gate.ramp_no_limit', { tool: T.number, op: tp.opName }, X));
+        else if (rampMax > T.maxRampAngle + 1e-6) out.push(G('block', 'cam.gate.ramp_center', { tool: T.number, angle: Math.round(rampMax * 100) / 100, max: T.maxRampAngle, op: tp.opName }, X));
+      }
     }
     const pd = tp.meta?.passDepth; if (isNum(pd) && isNum(T.fluteLen) && pd > T.fluteLen + 1e-9) out.push(G('block', 'cam.gate.flute_short', { depth: Math.round(pd * 1000) / 1000, fluteLen: T.fluteLen, op: tp.opName }, X));
     const zMin = tp.stats?.zMin; if (isNum(zMin) && isNum(stockTop) && isNum(T.bodyLen) && stockTop - zMin > T.bodyLen + 1e-9) out.push(G('block', 'cam.gate.body_short', { depth: Math.round((stockTop - zMin) * 1000) / 1000, bodyLen: T.bodyLen, op: tp.opName }, X));
@@ -70,10 +92,24 @@ export function gates(program, machine, opts = {}) {
     // islem uyarilari
     for (const w of tp.warnings || []) out.push(G('warn', w.code, { ...w.params, op: tp.opName }, X));
   });
+  // ---- 6: A isareti makinede dogrulanmadi (V-01): profil A.dir'i yanlis girilmisse yol ters yuze gider
+  if (machine?.axes?.A && secs.some((s) => s.setup?.aAngle != null)) out.push(G('warn', 'cam.gate.a_dir_unverified', { dir: JSON.stringify(machine.axes.A.dir ?? null) }));
   // ---- 5: simulasyon (yalniz once gelen kapilar engellemiyorsa anlamli; yine de calistirilir)
   if (opts.sim === false || !opts.sim) out.push(G('warn', 'cam.gate.sim_not_run', {}));
   else if (secs.length) {
     const stockBoxes = {}; for (const s of secs) if (s.setup?.stockBox) stockBoxes[s.setup.id] = s.setup.stockBox;
+    // V-06: model haritasi yoksa oyma denetlenemez -> engel (sessizce kapali denetim yok)
+    const hasModel = (id) => !!(opts.sim.modelHeightmaps?.[id]?.data || opts.sim.modelHeightmap?.data);
+    const seenS = new Set();
+    secs.forEach((s, si) => { const id = s.setup?.id; if (seenS.has(id)) return; seenS.add(id); if (!hasModel(id)) out.push(G('block', 'cam.gate.sim_no_model', { setup: s.setup?.name ?? id }, { section: si })); });
+    // V-11: hucre merkezi takim diskine dusmezse hizli/carpma gorulmez -> cozunurluk en kucuk takim yaricapindan buyuk olamaz
+    const res = opts.sim.res;
+    if (isNum(res) && res > 0) {
+      let rMin = Infinity, tMin = null; for (const s of secs) { const T = s.toolpath?.tool; if (T && isNum(T.dia) && T.dia / 2 < rMin) { rMin = T.dia / 2; tMin = T.number; } }
+      if (res > rMin + 1e-9) out.push(G('block', 'cam.gate.sim_res_coarse', { res, r: rMin, tool: tMin }));
+      // V-24: duvar hucre sinirina hizaliyken res/2'ye kadar yanal oyma haritada gorunmez -> denetimin siniri acikca yazilir
+      out.push(G('warn', 'cam.gate.sim_lateral_tol', { tol: Math.round((res / 2) * 1000) / 1000 }));
+    }
     try {
       const res = simulate(program, { stockBoxes, ...opts.sim });
       for (const it of res.issues) out.push(G(it.level === 'error' ? 'block' : 'warn', it.code, it.params, { opId: secs[it.section]?.toolpath?.opId, section: it.section, moveIndex: it.moveIndex }));

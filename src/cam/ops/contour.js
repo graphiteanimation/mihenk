@@ -4,7 +4,7 @@
 // Yon: tirmanma (climb) = malzeme gidis yonunun SAGINDA (saat yonu mil, G41 ile ayni).
 import { cerr } from '../geom/err.js';
 import * as P from '../geom/path2d.js';
-import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3 } from './common.js';
+import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3, belowStockAllow } from './common.js';
 
 const TURN_EPS = 1e-6;
 
@@ -134,6 +134,9 @@ export function computeContour(op, ctx) {
   const tabs = op.tabs && op.tabs.n > 0 ? { n: need(op, 'tabs.n', (v) => Number.isInteger(v) && v >= 1 && v <= 100, 'integer 1..100'), width: need(op, 'tabs.width'), height: need(op, 'tabs.height') } : null;
   const items = contourInputs(op, geom);
   const zSel = items.find((it) => Number.isFinite(it.z))?.z;
+  // V-19: secimden taban alinirken farkli z'deki profiller ilk profilin tabanina inerdi (sessiz derin/eksik kesim) -> hata (cepteki gibi)
+  const bFrom = op.heights?.bottom?.from ?? 'selection', tFrom = op.heights?.top?.from ?? 'stockTop';
+  if (bFrom === 'selection' || tFrom === 'selection') { const zs = items.map((it) => it.z).filter(Number.isFinite); if (zs.some((v) => Math.abs(v - zs[0]) > 1e-6)) throw cerr('cam.contour.faces_differ_z', { z1: r3(Math.min(...zs)), z2: r3(Math.max(...zs)) }); }
   const h = heights({ ...op, heights: { top: { from: 'stockTop', off: 0 }, bottom: { from: 'selection', off: 0 }, ...op.heights } }, S, { bottom: zSel, top: zSel });
   const zBot = h.zBot + stA; if (!(h.zTop > zBot + 1e-9)) throw cerr('cam.contour.nothing', { top: r3(h.zTop), bottom: r3(zBot) });
   if (tabs && !(tabs.height < h.zTop - zBot)) throw cerr('cam.contour.tab_too_high');
@@ -206,10 +209,11 @@ export function computeContour(op, ctx) {
           let up = false;
           for (const pc of splitByIntervals(L, ivs)) {
             if (pc.tab && !up) { b.feed(pc.s.a[0], pc.s.a[1], zTabTop, cut.feedCut, 'cut'); up = true; }
-            if (!pc.tab && up) { b.feed(pc.s.a[0], pc.s.a[1], z, cut.feedPlunge, 'cut'); up = false; }
+            // kopru sonu inisi malzemeye dikey dalmadir: 'plunge' (kapi 4 kesmeyen ucu engeller, V-09)
+            if (!pc.tab && up) { b.feed(pc.s.a[0], pc.s.a[1], z, cut.feedPlunge, 'plunge'); up = false; }
             b.seg(pc.s, up ? zTabTop : z, up ? zTabTop : z, cut.feedCut, 'cut');
           }
-          if (up) b.feed(L[0].a[0], L[0].a[1], z, cut.feedPlunge, 'cut');
+          if (up) b.feed(L[0].a[0], L[0].a[1], z, cut.feedPlunge, 'plunge', { clear: true }); // baslangic noktasi bu pasoda z'de kesildi
         } else b.segs(L, z, cut.feedCut, 'cut');
         for (const s of post) b.seg(s, z, z, cut.feedCut, 'lead');
         if (comp === 'wear') { // telafi kapama: zorunlu kisa dogrusal cikis (cikis cizgisinin devami)
@@ -221,7 +225,7 @@ export function computeContour(op, ctx) {
       }
     }
   }
-  return finishToolpath(op, tool, cut, { ...h, zBot }, b, { warnings, passDepth, comp, compSide: comp === 'wear' ? compSide : undefined, rapidFeed: machine?.feed?.rapid ?? undefined });
+  return finishToolpath(op, tool, cut, { ...h, zBot }, b, { warnings, passDepth, comp, compSide: comp === 'wear' ? compSide : undefined, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { belowStock: belowStockAllow(op, S, zBot) } });
 }
 
 // dongu boyunca z0'dan z1'e rampa (aci derece), sonra z1'de tam tur

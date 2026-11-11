@@ -123,4 +123,12 @@ export default {
   "err.cam.silhouette.not_prismatic": "Gövde takım ekseni boyunca düz duvarlı değil ({n} eğik ya da eğri yüz); dış kontur güvenle çıkarılamıyor. Bir yüz ya da sketch seçin.",
   "err.cam.silhouette.multiple": "Gövdenin Z {z} kesitinde {n} ayrı dış sınır var; tek dış kontur yok. Ayrı seçimler yapın.",
   "err.cam.silhouette.not_nested": "Gövdenin kesitleri iç içe değil; dış kontur tek bir kesitten alınamıyor. Bir yüz ya da sketch seçin.",
+  "err.cam.gate.sim_no_model": "\"{setup}\" için model yükseklik haritası yok: oyma denetlenemez. NC üretilmez.",
+  "err.cam.gate.sim_res_coarse": "Simülasyon çözünürlüğü ({res} mm) en küçük takım yarıçapından ({r} mm, T{tool}) kaba; hızlı hareket ve çarpmalar kaçabilir. NC üretilmez.",
+  "err.cam.gate.sim_lateral_tol": "Simülasyon {tol} mm'den (ızgara aralığının yarısı) küçük yanal oymaları göremez. Duvar doğruluğu takım yolu hesabından gelir.",
+  "err.cam.gate.a_dir_unverified": "A ekseni yönü (profil dir {dir}) tezgâhta doğrulanmadı. Kesmeden önce A yönünü işaretli bir parçayla teyit edin.",
+  "err.cam.gate.ramp_no_limit": "T{tool} merkezden kesmiyor ve malzemeye rampa/helisle iniyor, ama takımda en büyük rampa açısı tanımlı değil. Üretici değerini girin ya da merkezden kesen takım kullanın.",
+  "err.cam.gate.ramp_center": "T{tool} merkezden kesmiyor ve {angle}° ile rampa yapıyor; en büyük rampa açısı {max}°.",
+  "err.cam.contour.faces_differ_z": "Seçilen profiller farklı yükseklikte (Z {z1} ve Z {z2}); seçimden alınan taban birisi için yanlış olur. Ayrı işlemler oluşturun.",
+  "err.cam.geom.self_intersect": "Sınır kendini kesiyor; bölge belirsiz. Sketch'i ya da modeli düzeltin.",
 };

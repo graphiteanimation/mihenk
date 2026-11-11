@@ -233,5 +233,5 @@ export default {
   "cam.vf.what_body": "The software does not verify the NC by itself. Here you declare that you checked the NC yourself, for example with a dry run on the machine. The declaration lapses when the document changes.",
   "cam.vf.what_title": "This declaration is yours",
   "err.cam.no_machine": "No machine profile is selected. Pick a machine in the browser.",
-  "err.cam.ui.sim_no_model": "Model height could not be computed ({setup}): {msg} The gouge check was skipped for this setup.",
+  "err.cam.ui.sim_no_model": "Model height could not be computed ({setup}): {msg} Gouges cannot be checked for this setup; no NC is generated.",
 };

@@ -7,7 +7,7 @@
 import { cerr } from '../geom/err.js';
 import * as P from '../geom/path2d.js';
 import * as G from '../../shared/geom2d.js';
-import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3 } from './common.js';
+import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3, belowStockAllow } from './common.js';
 import { rampAlong } from './contour.js';
 
 const MAX_RINGS = 5000;
@@ -235,7 +235,7 @@ export function computePocket(op, ctx) {
   }
   if (restArea > 1e-3) warnings.push(warn('cam.pocket.rest_material', { area: r3(restArea) }));
   if (unreachable) warnings.push(warn('cam.pocket.unreachable', {}));
-  return finishToolpath(op, tool, cut, { ...h, zBot }, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { restArea: r3(restArea) } });
+  return finishToolpath(op, tool, cut, { ...h, zBot }, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { restArea: r3(restArea), belowStock: belowStockAllow(op, S, zBot) } });
 }
 
 // iki nokta arasindaki dogru baglanti guvenli mi: izinli bolgenin sinirlarini kesmiyor ve orta nokta izinli bolgede

@@ -133,13 +133,20 @@ export class CamOps {
 
   // ---------------------------------------------------------------- program, kapılar, simülasyon
   progName() { const n = String(this.app.fileName || '').replace(/\.[^.]*$/, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase().slice(0, 24); return n || 'PROGRAM'; }
-  simRes(Ss) { let a = 0; for (const S of Ss) a = Math.max(a, (S.stockBox.max[0] - S.stockBox.min[0]) * (S.stockBox.max[1] - S.stockBox.min[1])); return Math.max(0.5, Math.ceil(Math.sqrt(a / 400000) * 10) / 10); }
-  async simOpts(Ss) {
-    const res = this.simRes(Ss); const modelHeightmaps = {}; const notes = [];
+  // V-11: çözünürlük en küçük takım yarıçapını aşamaz (hücre merkezi takım diskine düşmezse hızlı/çarpma görülmez).
+  // Hücre sayısı büyürse çekirdek camHeightmap_too_big verir → kapı engeller (sessiz kaba çözünürlük yok).
+  simRes(Ss, program) {
+    let a = 0; for (const S of Ss) a = Math.max(a, (S.stockBox.max[0] - S.stockBox.min[0]) * (S.stockBox.max[1] - S.stockBox.min[1]));
+    let res = Math.max(0.5, Math.ceil(Math.sqrt(a / 400000) * 10) / 10);
+    for (const sec of program?.sections || []) { const d = sec.toolpath?.tool?.dia; if (d > 0) res = Math.min(res, Math.floor((d / 2) * 1000) / 1000); }
+    return res;
+  }
+  async simOpts(Ss, program) {
+    const res = this.simRes(Ss, program); const modelHeightmaps = {}; const notes = [];
     for (const S of Ss) {
       const b = S.stockBox;
       try { modelHeightmaps[S.id] = await this.app.query('camHeightmap', { bodies: S.bodies, frame: S.frame, res, bbox: [b.min[0], b.min[1], b.max[0], b.max[1]] }); }
-      catch (e) { notes.push({ level: 'warn', code: 'cam.ui.sim_no_model', params: { setup: S.name, msg: errText(e) } }); }
+      catch (e) { notes.push({ level: 'block', code: 'cam.ui.sim_no_model', params: { setup: S.name, msg: errText(e) } }); } // V-06: oyma denetlenemez → engel
     }
     const tools = {}; for (const tl of this.cam.tools()) { const o = {}; if (tl.shaftDia != null) o.shaftDia = tl.shaftDia; if (tl.holder) o.holder = tl.holder; if (Object.keys(o).length) tools[tl.number] = o; }
     return { opts: { res, modelHeightmaps, tools }, notes };
@@ -159,7 +166,7 @@ export class CamOps {
       }
       const machine = this.cam.machine();
       const program = buildProgram({ name: this.progName(), number: this.progNo, machine, sections });
-      const so = await this.simOpts(sections.map((x) => x.setup));
+      const so = await this.simOpts(sections.map((x) => x.setup), program);
       const g = [...so.notes, ...runGates(program, machine, { sim: so.opts })];
       return { program, items, gates: g, simOpts: so.opts, docSig: this.docSig() };
     } catch (e) { toast(errText(e), { kind: 'err' }); return null; } finally { this.busy = false; }

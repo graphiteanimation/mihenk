@@ -122,4 +122,12 @@ export default {
   "err.cam.silhouette.not_prismatic": "The body does not have straight walls along the tool axis ({n} slanted or curved faces); the outline cannot be derived safely. Select a face or a sketch.",
   "err.cam.silhouette.multiple": "The body section at Z {z} has {n} separate outer boundaries; there is no single outline. Make separate selections.",
   "err.cam.silhouette.not_nested": "The body sections are not nested; the outline cannot be taken from one section. Select a face or a sketch.",
+  "err.cam.gate.sim_no_model": "No model height map for \"{setup}\": gouges cannot be checked. No NC is generated.",
+  "err.cam.gate.sim_res_coarse": "Simulation resolution ({res} mm) is coarser than the smallest tool radius ({r} mm, T{tool}); rapids and collisions could be missed. No NC is generated.",
+  "err.cam.gate.sim_lateral_tol": "The simulation cannot see side gouges smaller than {tol} mm (half the grid size). Wall accuracy comes from the toolpath calculation.",
+  "err.cam.gate.a_dir_unverified": "A axis direction (profile dir {dir}) is not verified on the machine. Confirm the A direction with a marked part before cutting.",
+  "err.cam.gate.ramp_no_limit": "T{tool} is not center cutting and ramps/helixes into material, but the tool has no maximum ramp angle. Enter the manufacturer's value or use a center-cutting tool.",
+  "err.cam.gate.ramp_center": "T{tool} is not center cutting and ramps at {angle}°, above its maximum ramp angle ({max}°).",
+  "err.cam.contour.faces_differ_z": "The selected profiles are at different heights (Z {z1} and Z {z2}); the bottom from the selection would be wrong for one of them. Create separate operations.",
+  "err.cam.geom.self_intersect": "The boundary crosses itself; the region is ambiguous. Fix the sketch or model.",
 };

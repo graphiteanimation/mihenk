@@ -233,5 +233,5 @@ export default {
   "cam.vf.what_body": "Yazılım NC kodunu kendiliğinden doğrulamaz. Burada, NC'yi tezgâhta kuru çalıştırma ya da başka bir yolla kendinizin kontrol ettiğini beyan edersiniz. Belge değişirse beyan düşer.",
   "cam.vf.what_title": "Bu beyan sizindir",
   "err.cam.no_machine": "Tezgâh profili seçilmedi. Tarayıcıdan bir tezgâh seçin.",
-  "err.cam.ui.sim_no_model": "Model yüksekliği hesaplanamadı ({setup}): {msg} Oyma denetimi bu setup için yapılmadı.",
+  "err.cam.ui.sim_no_model": "Model yüksekliği hesaplanamadı ({setup}): {msg} Bu setup için oyma denetlenemez; NC üretilmez.",
 };
