@@ -81,7 +81,7 @@ section('2. makine profili ve takim');
   const c1 = checkMachine(nw), c2 = checkMachine(gen);
   ok(!c1.errors.length && c1.missing.includes('spindle.maxRpm') && c1.missing.includes('feed.maxCut') && !c1.missing.includes('axes.X.travel'), 'Neway: kurslar dolu, maxRpm/maxCut null');
   ok(!c2.errors.length && c2.missing.includes('axes.X.travel'), 'Genel: tum sayilar null');
-  ok(JSON.stringify(nw.protected.T) === '[1,3,12]' && nw.protected.wcs.includes('G54') && nw.protected.wcs.includes('G56') && nw.protected.wcs.includes('G58'), 'Neway korunan liste on dolu');
+  ok(JSON.stringify(nw.protected.T) === '[1,3,12]' && nw.protected.wcs.includes('G54') && nw.protected.wcs.includes('G56') && !nw.protected.wcs.includes('G58'), 'Neway korunan liste on dolu');
   ok(nw.axes.A.dir[0] === -1 && nw.axes.A.limits === null && nw.axes.A.shortest === true && nw.post.props.safeRetract === null && nw.post.props.tapMode === 'pitch', 'Neway A ekseni ve post ozellikleri');
   ok(checkMachine({ ...nw, axes: { ...nw.axes, A: { ...nw.axes.A, dir: [0, 1, 0] } } }).errors.length > 0, 'A dir X e paralel degil: hata');
   const cp = copyMachine(nw, 'm2', 'Benim'); ok(cp.id === 'm2' && !cp.builtin && nw.builtin, 'kopya');

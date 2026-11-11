@@ -21,7 +21,7 @@ const NEWAY = {
   // rastgele takim yonetimi; 24 cep dolu, T1-T25 kayitli (magazin kapasitesi tabloda yok)
   toolChange: { maxTools: null, kind: 'random', pos: null },
   // Korunan: G54, G56, T1/T3/T12, H1/H3/H12; 4. eksen isi G58; D1/D3/D12 on dolu. Makine projesinden teyit edilmeli.
-  protected: { T: [1, 3, 12], H: [1, 3, 12], D: [1, 3, 12], wcs: ['G54', 'G56', 'G58'], noteKey: 'cam.machine.protected_confirm' },
+  protected: { T: [1, 3, 12], H: [1, 3, 12], D: [1, 3, 12], wcs: ['G54', 'G56'], noteKey: 'cam.machine.protected_confirm' },
   table: { x: 1200, y: 600 },
   // post ozellikleri: adlar docs/POST.md bolum 3; bilinmeyen (makine projesinden teyit edilmemis) degerler null.
   post: { props: {
