@@ -60,3 +60,14 @@ Tasarım sözleşmesi: DESIGN.md (v0.2 eki bağlayıcı).
 Kod bu sohbetin çalışma alanındaydı; yeni sohbette o alan YOKTUR. Güncel kopya (git geçmişiyle):
 `Documents\Fusion-Klon-Spec\AtolyeCAD\Mihenk-repo-2026-11-11.zip` → çalışma alanına aç, `npm install`, `npm run test:all`.
 Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("yapıldı / kaldı"). Sonra: CAM → son doğrulama → kılavuz → kurulum 0.2.0 → Docs'a K-016…K-023.
+
+## Durum — 2026-11-11 (tasarım uygulaması BİTTİ; sürüm 0.2.0)
+- Mihenk CAD/CAM 0.2.0: yeniden adlandırma, .mhnk, açık/koyu tema, yoğunluk, yeni ikonlar, komut arama, karşılama, ayarlar. Rapor: docs/UI-IMPL.md.
+- Kurulum: Mihenk-Kurulum-0.2.0.exe (SHA-256 ec2d53214092e623baa7eec07f2d33b683267295582caa027955474877b7acb0) klasörde. Windows'ta HENÜZ denenmedi.
+- Testler (son koşu): kernel 104, solver 16, geom2d 128, profiles 1265, sketchops 94, dxf 40, stability 29, i18n 27, security 71, app 196, sketcher 143, ui 28, electron 67 — hepsi geçti.
+  test/models/run-all bu son koşuda 400 sn sınırında kesildi (kalan yok; tamamı koşulmadı). `npm run test:all` tek seferde baştan sona koşulmadı.
+- Küçük açıklar: araç çubuğunda "Taşı/Kopyala" etiketi kırpılıyor; sketch kipinde sol ağaç model ağacı; ayarlarda yalnız Genel/Hakkında; "Örnek parça" yok;
+  durum çubuğu hızlı seçici 24 px; hesap iptali düğmesi testsiz; pah ölçü kısıtı eklemiyor; spline/elips teğet yok; yüz tıklayarak izdüşüm yok.
+- SIRADAKİ: CAM (DEVAM.md "Sıradaki işler" 6. madde; UI-SPEC'teki İmalat çalışma alanı iskeleti ve design/mockups/05-imalat-cam.html hedef görünüm;
+  delik verisi `holes[]` desenlerde tüm örnekleri taşıyor) → bağımsız son doğrulama → kılavuz (TR/EN) → Docs'a K-016…K-023 + Aşama 9.
+- Kod kopyası: Mihenk-repo-2026-11-11b.zip (git geçmişiyle).
