@@ -926,7 +926,7 @@ export default {
   "ui.need_two": "At least two bodies are needed.",
   "ui.need_sketch_mode": "Available in sketch mode.",
   "ui.nothing": "Nothing to undo.",
-  "br.in_use": "Used by another feature",
+  "br.in_use": "in use",
   "tl.editing": "Editing",
   "ui.mode_model": "Model",
   "ui.mode_sketch": "Sketch",

@@ -926,7 +926,7 @@ export default {
   "ui.need_two": "En az iki gövde gerekir.",
   "ui.need_sketch_mode": "Eskiz kipinde kullanılır.",
   "ui.nothing": "Geri alınacak bir şey yok.",
-  "br.in_use": "Başka özellik tarafından kullanılıyor",
+  "br.in_use": "kullanımda",
   "tl.editing": "Düzenleniyor",
   "ui.mode_model": "Model",
   "ui.mode_sketch": "Eskiz",

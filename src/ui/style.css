@@ -140,8 +140,8 @@
 .modal { min-width: 440px; max-width: 880px; }
 .modal > .body { min-height: 0; }
 .modal > header h3 { margin: 0; font: inherit; }
-.modal > header .ic { color: var(--warn-fg); }
-.modal.dlg-warn > header .ic { color: var(--warn-fg); }
+.modal > header > span .ic { color: var(--text-muted); }
+.modal.dlg-warn > header > span .ic { color: var(--warn-fg); }
 .confirm-text { white-space: pre-wrap; max-width: 520px; }
 .modal table { border-collapse: collapse; width: 100%; }
 .modal th { text-align: left; font-weight: var(--fw-semibold); color: var(--text-muted); font-size: var(--fs-sm); padding: var(--sp-2) var(--sp-3); }
@@ -279,3 +279,4 @@
 .welcome-on .sb-quick { flex: 1; }
 .sb-quick .quick { display: inline-flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-xs); }
 .welcome h1 + .lead { margin-top: var(--sp-3); }
+.input.pick > span[data-k=profiles] { flex: 1; color: var(--text); }

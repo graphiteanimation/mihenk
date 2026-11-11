@@ -29,3 +29,14 @@ Yapıldı
 - Ekran görüntüsü turu 1: `test/shots-ui.py` → `test/shots/ui/` (açık TR / koyu EN x 1440 / 1920 x karşılama, model, eskiz, ayarlar) tasarım/shots ile yan yana karşılaştırıldı; düzeltilenler: kenar seçim alanında "Temizle" kırpılması (X simgesi), panel altında Enter/Esc ipuçları, panel başlığında özellik simgesi, kısıt listesi satırları, ayarlar alt satırı, karşılama başlığı.
 Kaldı
 - "Simetrik" kırpılması, onay penceresi biçimleri, ekran görüntüsü turları (açık/koyu x TR/EN x 1440/1920), Electron öz sınama, `npm run dist`.
+
+## Tur 2 ve paketleme
+Yapıldı
+- Ekran görüntüsü turu 2 (eskiz, extrude paneli, onay penceresi): modal başlığındaki kapat düğmesi uyarı renginde görünüyordu (düzeltildi), tarayıcıda uzun "kullanımda" metni taşıyordu (kısaltıldı), profil alanındaki "Tümü" düğmesi hayalet düğme yapıldı. "Simetrik" artık kırpılmıyor (seçim kutusu panel genişliğinde; kontrol: r2 görüntüsü).
+- `npm run dist`: `release/Mihenk-Kurulum-0.2.0.exe` (file: PE32 NSIS) + `release/SHA256SUMS.txt`.
+Kaldı / sapmalar
+- Eskiz kipinde sol tarayıcı hâlâ model ağacını gösterir (mockup'taki "Eskiz içeriği" listesi yok).
+- Görünüm küpü düğmeleri mockup'tan farklı gruplanmış (5 görünüm + 2 anahtar).
+- Durum çubuğundaki hızlı seçici düğmeleri 24 px (32 px hedef kuralının istisnası; çubuk yüksekliği 28 px).
+- Kurtarma, karşılama ekranındaki uyarı yerine modal onay olarak kaldı.
+- Windows'ta çalıştırılıp görülmedi: kurulum, exe simge/sürüm bilgisi, `.mhnk` ilişkilendirmesi, userData kopyalama (Linux'ta yalnız Electron öz sınaması ve yapı doğrulandı).

@@ -124,7 +124,7 @@ export class FeaturePanel {
       }
       case 'profiles': {
         this.profEl = h('span', { 'data-k': fd.k });
-        const btn = h('button', { class: 'btn sm', type: 'button', onclick: () => { d.profiles = 'all'; this.refreshProfiles(); this.changed(); } }, t('common.all'));
+        const btn = h('button', { class: 'btn sm ghost', type: 'button', onclick: () => { d.profiles = 'all'; this.refreshProfiles(); this.changed(); } }, t('common.all'));
         const box = h('div', { class: 'input pick active', style: { cursor: 'default' } }, this.profEl, btn);
         this.refreshProfiles();
         return this.row(fd.label, box);
