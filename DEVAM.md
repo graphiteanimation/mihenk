@@ -78,3 +78,10 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - B (post+sim) BİTTİ, commit'li: src/cam/ir.js, post/**, sim/**, docs/POST.md. post 148, sim 58, i18n 27, security 70 geçti. M80V'de null özellikler (safeRetract, dwellAddress/Unit, g541Range…) docs/POST.md'de; yerleşik makine şablonu bu alanları içermeli.
 - A (çekirdek, Opus) kesildiğinde SÜRÜYORDU: src/cam/{index,ops,geom,tools,machines,gates}, kernel cam* komutları, test/cam.test.mjs, docs/CAM.md. Durumu git log + git status + docs/CAM.md'den oku; yarımsa aynı görevle sürdür (CAM-DESIGN "Dosya sahipliği → A").
 - SIRADAKİ: A'yı bitir → kapı 5 (sim) bağla, sim 'error'→'block' → C (İmalat arayüzü, src/ui/cam/**, i18n cam-*.js sözlüğe bağlama, Electron saveFile kind 'nc', test:all'a cam/post/sim testleri) → bağımsız doğrulama → kılavuz → 0.3.0 kurulum → Docs'a K-016…K-023 + Aşama 9/10.
+
+## Durum — 2026-11-11 öğleden sonra (CAM A+B+C BİTTİ; kod kopyası Mihenk-repo-2026-11-11e.zip)
+- A çekirdek (3e5bfd9), B post+sim, C İmalat arayüzü (fc2316d) commit'li. Testler (ajan raporu): cam 141, post 148, sim 58, cam-ui 130, app 196, ui 28, electron 67, i18n 27, security 71. `npm run test:all` baştan sona tek seferde KOŞULMADI.
+- Belgeler: docs/CAM-DESIGN.md (sözleşme), docs/CAM.md, docs/POST.md, docs/CAM-UI.md (yapıldı/kaldı).
+- Karar: Neway korunan WCS yalnız G54/G56 (G58 serbest; 4. eksen işi). Neway şablonunda maxRpm, ilerleme sınırları, safeRetract, G04 adres/birim vb. null → kullanıcı doldurana kadar post durur.
+- Bilinen açıklar: NC başlığında kapı uyarıları ham kod (`GATE WARN cam.gate...`) → okunur metne çevrilecek; gerçek Electron penceresinde NC kaydı denenmedi; setup ekseni yüzden seçilemiyor; delme 'points', açık zincir kontur arayüzde yok; kontur helis rampası/predrill yok; sim ana iş parçacığında.
+- SIRADAKİ: bağımsız doğrulama (içeriği yazmamış ajan) → bulgu düzeltmeleri → kılavuz TR/EN + OKUBENI → sürüm 0.3.0 + `npm run dist` + SHA-256 → Docs'a K-016…K-023 + aşama kayıtları → klasöre aktarım.
