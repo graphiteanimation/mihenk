@@ -85,3 +85,11 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - Karar: Neway korunan WCS yalnız G54/G56 (G58 serbest; 4. eksen işi). Neway şablonunda maxRpm, ilerleme sınırları, safeRetract, G04 adres/birim vb. null → kullanıcı doldurana kadar post durur.
 - Bilinen açıklar: NC başlığında kapı uyarıları ham kod (`GATE WARN cam.gate...`) → okunur metne çevrilecek; gerçek Electron penceresinde NC kaydı denenmedi; setup ekseni yüzden seçilemiyor; delme 'points', açık zincir kontur arayüzde yok; kontur helis rampası/predrill yok; sim ana iş parçacığında.
 - SIRADAKİ: bağımsız doğrulama (içeriği yazmamış ajan) → bulgu düzeltmeleri → kılavuz TR/EN + OKUBENI → sürüm 0.3.0 + `npm run dist` + SHA-256 → Docs'a K-016…K-023 + aşama kayıtları → klasöre aktarım.
+
+## DURAKLATILDI — 2026-11-11 (kullanıcı isteğiyle; kod kopyası Mihenk-repo-2026-11-11f.zip)
+- İki bağımsız doğrulayıcı başlar başlamaz durduruldu; bulgu YOK, rapor yazılmadı. Yeni oturumda ikisi baştan başlatılır:
+  (1) Opus: çekirdek/post/sim'de sessiz yanlış yol, çarpışma, hatalı NC arar → docs/CAM-VERIFY.md + test/verify/**;
+  (2) Sonnet: `npm run test:all` baştan sona + örnek parçayla uçtan uca arayüz (TR/EN, ekran görüntüsü) → docs/CAM-UI-VERIFY.md.
+  İkisi de kod düzeltmez; bulgular sonra yazan ajanlara düzelttirilir.
+- Sonra: kılavuz TR/EN + OKUBENI → sürüm 0.3.0 + `npm run dist` + SHA-256 → Docs'a K-016…K-023 + aşama kayıtları → klasöre aktarım.
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-11f.zip'ten geri yükle, bağımsız CAM doğrulamasından devam et."
