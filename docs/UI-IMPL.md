@@ -22,8 +22,9 @@ Yapıldı
 - Kabuk: üst çubuk (logo, Dosya menüsü, geri al/yinele/kaydet, belge adı + kaydedilmedi göstergesi, Ctrl+K komut arama, makine rozeti "Neway VM1160H", ayarlar, yardım), çalışma alanı sekmeleri (Tasarım; İmalat/Teknik resim "Yakında" devre dışı), şerit (gruplar, açılır listeler, "Son kullanılan komutlar", taşma menüsü »), tarayıcı, sağ panel, zaman çizelgesi, durum çubuğu (kip, araç, hatalı özellik sayısı, seçim, birim, hesap süresi, otomatik kayıt zamanı), görünüm küpü/düğmeleri, ipuçları (ad + kısayol + cümle), boş durum, toast/modal/onay desenleri; 141 simgelik marka kümesi `icons.js`.
 - HMI: parametre alanlarında birim yanında, ifade altında çözülmüş değer, alan hatası simge+metin; hesaplama iptali (işçi sonlandırılıp yeniden başlatılır, sonuç "güncel değil" işaretlenir); kalıcı hata bildirimi, kalıcı olmayanlar 5-8 sn.
 - Bilinen kusur: eskiz komutu ile model komutu kimlik çakışması (fillet/chamfer/mirror/move) `sk-` önekiyle çözüldü.
-- Testler uyarlandı (`data-cmd`/`data-testid` bağları): app.test.py 196 geçti.
+- Testler uyarlandı (`data-cmd`/`data-testid` bağları): app.test.py 196, sketcher 143, electron 66 geçti.
+- Yeni `test/ui.test.py` (28 geçti; `test:all`'a eklendi): tema + kalıcılık + sistem teması, yoğunluk, Ctrl+K komut arama (TR/EN), karşılama, klavye turu (Tab ana bölgelere), odak görünürlüğü, hedef boyutu >=32/>=40 px, kontrast aracı (kalan çift 0), belirteç kayması, HEX taraması, azaltılmış hareket, ekranda "AtolyeCAD" yok.
+- DXF için Electron dosya türü `dxf` (kaydet/aç diyaloğu, testli); pencere en küçük boyutu 1200x700; bildirim sütunu sol altta (sağ panel düğmelerini örtmez).
 Kaldı
-- Yeni testler: tema+kalıcılık, yoğunluk, komut arama, karşılama, klavye turu, kontrast, ≥32/40 px hedef taraması.
-- Karşılama ekranı son dosyalar (ana süreç `recentList`/`openRecent`), DXF dosya türü (main.cjs), pencere en küçük boyutu 1200x700.
+- Karşılama ekranı son dosyalar (ana süreç `recentList`/`openRecent`).
 - "Simetrik" kırpılması, onay penceresi biçimleri, ekran görüntüsü turları (açık/koyu x TR/EN x 1440/1920), Electron öz sınama, `npm run dist`.

@@ -20,7 +20,7 @@ const MIME = {
 };
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
 // 'doc' = Mihenk belgesi: okuma .mhnk ve eski .acad; yazma her zaman .mhnk (eski dosyaya dokunulmaz).
-const KINDS = { doc: ['.mhnk', '.acad'], step: ['.step', '.stp'], stl: ['.stl'] };
+const KINDS = { doc: ['.mhnk', '.acad'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'] };
 const DOC_EXT = '.mhnk';
 
 protocol.registerSchemesAsPrivileged([
@@ -93,7 +93,7 @@ function applyInstallLang() {
 
 // Arayüzün gönderdiği diyalog metinleri (tek sözlük arayüz tarafında; dil değişince yenilenir)
 const strings = {};
-const STRING_KEYS = ['closeMsg', 'closeDetail', 'closeCancel', 'closeDiscard', 'filterDoc', 'filterStep', 'filterStl', 'tSave', 'tOpen', 'tImport', 'tExport'];
+const STRING_KEYS = ['closeMsg', 'closeDetail', 'closeCancel', 'closeDiscard', 'filterDoc', 'filterStep', 'filterStl', 'filterDxf', 'tSave', 'tOpen', 'tImport', 'tExport'];
 
 // ---- kurtarma dosyası (S-06): userData/recovery/autosave.mhnk
 const recoveryFile = () => path.join(app.getPath('userData'), 'recovery', 'autosave.mhnk');
@@ -122,7 +122,7 @@ function readLimited(p) {
 
 function safeFilters(filters, kind, save) {
   const exts = (kind === 'doc' && !save ? KINDS.doc : kind === 'doc' ? [DOC_EXT] : KINDS[kind]).map((e) => e.slice(1));
-  const names = { doc: strings.filterDoc, step: strings.filterStep, stl: strings.filterStl };
+  const names = { doc: strings.filterDoc, step: strings.filterStep, stl: strings.filterStl, dxf: strings.filterDxf };
   return [{ name: String(names[kind] || kind.toUpperCase()).slice(0, 60), extensions: exts }];
 }
 function safeName(n, kind) {
@@ -236,7 +236,7 @@ function registerIpc() {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 900, minHeight: 600, title: 'Mihenk CAD/CAM', icon: path.join(__dirname, 'icon.png'), show: !SELFTEST || process.env.ATOLYE_SHOW === '1',
+    width: 1400, height: 900, minWidth: 1200, minHeight: 700, title: 'Mihenk CAD/CAM', icon: path.join(__dirname, 'icon.png'), show: !SELFTEST || process.env.ATOLYE_SHOW === '1',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true,
       allowRunningInsecureContent: false, webviewTag: false, spellcheck: false, devTools: DEV,

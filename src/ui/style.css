@@ -257,3 +257,8 @@
 .btn.pri:disabled { background: var(--bg-disabled); border-color: var(--line); color: var(--text-disabled); }
 /* Bildirim sütunu: sol altta (sağ panelin Tamam/İptal düğmelerini örtmesin); kalıcı hata bildirimi çalışmayı engellemez. */
 .toasts { right: auto; left: var(--sp-5); bottom: calc(var(--status-h) + var(--timeline-h) + var(--sp-5)); max-width: calc(var(--browser-w) - var(--sp-5) * 2 + 80px); }
+/* tıklama hedefi: en az 32 px (Büyük yoğunlukta 40 px = --ctl-h) */
+.trow .tw { min-width: var(--ctl-h); width: var(--ctl-h); height: var(--ctl-h); margin: 0 calc(-1 * (var(--ctl-h) - 20px) / 2); }
+.bsec .btn { height: var(--ctl-h); }
+.trow .tw svg { width: 16px; height: 16px; }
+#status:focus-visible { outline: var(--focus-w) solid var(--focus-on-dark); outline-offset: -3px; }

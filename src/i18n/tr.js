@@ -626,6 +626,7 @@ export default {
   "ef.count2": "Adet 2",
   "ef.step1": "Aralık 1",
   "ef.step2": "Aralık 2",
+  "file.filter_dxf": "DXF dosyası",
   "file.filter_step": "STEP dosyası",
   "file.filter_stl": "STL dosyası",
   "msg.file_invalid": "Bu dosya açılamadı: {msg}",

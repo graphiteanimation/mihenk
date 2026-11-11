@@ -115,7 +115,7 @@ class App {
   // Electron ana süreci kapatma onayı gibi diyalog metinlerini buradan alır (tek sözlük).
   pushNativeStrings() {
     window.native?.setStrings?.({ closeMsg: t('native.close_msg'), closeDetail: t('native.close_detail'), closeCancel: t('native.close_cancel'), closeDiscard: t('native.close_discard'),
-      filterDoc: t('file.filter_doc'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
+      filterDoc: t('file.filter_doc'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), filterDxf: t('file.filter_dxf'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
   }
   // Dil değişince her yer yeniden çizilir; açık panel, sketch, kesit, ölçü kutusu ve durum satırı dahil.
   relang() {
@@ -597,6 +597,7 @@ class App {
   // ------------------------------------------------------------ DXF (yalnız sketch içinde)
   // Dosya seçimi her zaman <input type=file>: Electron ana süreci 'dxf' türünü bilmez (o dosya bu işin kapsamı dışında).
   pickTextFile(accept) {
+    if (window.native) return window.native.openFile('dxf').then((r) => (r ? { name: r.name, text: new TextDecoder().decode(new Uint8Array(r.data)) } : null));
     return new Promise((resolve) => {
       const inp = h('input', { type: 'file', accept, style: { display: 'none' } }); document.body.append(inp);
       inp.addEventListener('change', async () => { const f = inp.files[0]; inp.remove(); resolve(f ? { name: f.name, text: await f.text() } : null); });
@@ -628,8 +629,10 @@ class App {
     const out = this.sketcher.exportDxf(version);
     if (!out.count) { toast(t('dxf.nothing'), true); return; }
     const name = ((this.sketchSession.draft.name || 'Sketch') + '.dxf').replace(/[\\/:*?"<>|]/g, '_'); // i18n-ignore: dosya adı yedeği
-    const a = h('a', { href: URL.createObjectURL(new Blob([out.text], { type: 'application/dxf' })), download: name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast(t('dxf.exported', { n: out.count, name }));
+    let saved = name;
+    try { saved = await this.writeOut(new TextEncoder().encode(out.text), name, 'dxf', true); } catch (e) { toast(t('msg.save_failed', { msg: errText(e) }), true); return; }
+    if (!saved) return;
+    toast(t('dxf.exported', { n: out.count, name: String(saved).split(/[\\/]/).pop() }));
   }
 
   // ------------------------------------------------------------ otomatik kurtarma (S-06)

@@ -626,6 +626,7 @@ export default {
   "ef.count2": "Count 2",
   "ef.step1": "Spacing 1",
   "ef.step2": "Spacing 2",
+  "file.filter_dxf": "DXF file",
   "file.filter_step": "STEP file",
   "file.filter_stl": "STL file",
   "msg.file_invalid": "This file could not be opened: {msg}",
