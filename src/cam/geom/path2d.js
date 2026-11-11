@@ -10,11 +10,10 @@
 // Ek alanlar (ornegin open:true) parcayla birlikte tasinir (bolmede korunur).
 // Halka (loop) = uc uca bagli parca dizisi (son.b == ilk.a). Bolge = {outer: loop (CCW), holes: [loop (CW)]};
 // yonlendirme kurali: bolge her zaman gidis yonunun SOLUNDADIR.
-import { KErr } from '../../shared/errors.js';
+import { cerr } from './err.js';
 
 export const TAU = Math.PI * 2;
 export const EPS = 1e-9;
-const cerr = (code, params = {}) => new KErr(code, params);
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
