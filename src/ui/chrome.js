@@ -10,6 +10,9 @@ import { getStr, setStr } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
 
 // Eskiz araç listeleri: [kimlik, etiket anahtarı, simge adı]
+const FEAT_IDS = new Set(['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section']);
+// Eskiz aracı ile model komutu aynı kimliği paylaşırsa eskiz komutu 'sk-' önekini alır.
+const cid = (id) => (FEAT_IDS.has(id) ? 'sk-' + id : id);
 const SK_DRAW = [['select', tk('tb.select'), 'select'], ['line', tk('tb.line'), 'line'], ['rect', tk('tb.rect'), 'rect'], ['circle', tk('tb.circle'), 'circle'], ['arc', tk('tb.arc'), 'arc']];
 const SK_DRAW_MORE = [['point', tk('tb.point'), 'point'], ['rectc', tk('tb.rectc'), 'rect-center'], ['rect3', tk('tb.rect3'), 'rect3'], ['circle2', tk('tb.circle2'), 'circle'], ['circle3', tk('tb.circle3'), 'circle-3pt'], ['arc3', tk('tb.arc3'), 'arc-3pt'], ['arct', tk('tb.arct'), 'arc-tangent'], ['polygon', tk('tb.polygon'), 'polygon'], ['slot', tk('tb.slot'), 'slot'], ['ellipse', tk('tb.ellipse'), 'ellipse'], ['spline', tk('tb.spline'), 'spline']];
 const SK_EDIT = [['trim', tk('tb.trim'), 'trim'], ['offset', tk('tb.offset'), 'offset'], ['mirror', tk('tb.sk_mirror'), 'sketch-mirror']];
@@ -83,7 +86,7 @@ export function initChrome(app) {
   reg('interf', 'tb.interf', 'interference', () => app.runInterference(), { tip: 'tip.interf', feature: true, off: needTwo });
   reg('section', 'tb.section', 'section', () => app.toggleSection(), { tip: 'tip.section', feature: true, off: needBody });
   // eskiz komutları (yalnız sketch kipinde şeritte)
-  const skTool = ([id, nm, ic]) => reg(id, nm, ic, () => app.sketchTool(id), { kbd: SHORT[id], tip: 'hint.' + id, sk: true, skTool: true });
+  const skTool = ([id, nm, ic]) => reg(cid(id), nm, ic, () => app.sketchTool(id), { kbd: SHORT[id], tip: 'hint.' + id, sk: true, skTool: true });
   [...SK_DRAW, ...SK_DRAW_MORE, ...SK_EDIT, ...SK_EDIT_MORE, ...SK_DIMS, ...SK_DIMS_MORE].forEach(skTool);
   for (const [id, nm] of [...SK_CONS, ...SK_CONS_MORE]) reg('c-' + id, nm, id, () => app.sketchConstraint(id), { sk: true, tip: 'tip.con', tipParams: { name: nm } });
   reg('c-construct', tk('con.construction'), 'construction', () => app.sketchConstruction(), { sk: true, tip: 'tip.construct' });
@@ -195,7 +198,7 @@ export function initChrome(app) {
   const group = (key, nm, kids, o = {}) => { const g = h('div', { class: 'rgroup' + (o.cls ? ' ' + o.cls : ''), 'data-group': key, role: 'group', 'aria-label': t(nm) }, h('div', { class: 'btns' }, kids), h('div', { class: 'glabel', text: t(nm) })); g._items = o.items || []; return g; };
   const ddBtn = (id, nm, ic) => { const b = h('button', { class: 'tool', 'data-cmd': 'dd-' + id, 'data-testid': 'dd-' + id, 'aria-haspopup': 'menu', 'aria-expanded': C.ddOpen === id ? 'true' : 'false', onclick: (e) => { e.stopPropagation(); C.ddOpen = C.ddOpen === id ? null : id; C.renderDD(); } },
     h('span', { html: icon(ic, 'lg') }), h('span', { class: 'l', text: t(nm) }), h('span', { html: icon('chevron-down', 'caret') })); tip(b, { name: t(nm), body: t('tip.dd') }); if (C.ddOpen === id) b.classList.add('on'); return b; };
-  const ddItems = (id) => id === 'draw' ? SK_DRAW_MORE.map((x) => x[0]) : id === 'edit' ? SK_EDIT_MORE.map((x) => x[0]) : id === 'cons' ? [...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...SK_DIMS_MORE.map((x) => x[0])] : id === 'prim' ? ['box', 'cylinder', 'sphere'] : [];
+  const ddItems = (id) => id === 'draw' ? SK_DRAW_MORE.map((x) => cid(x[0])) : id === 'edit' ? SK_EDIT_MORE.map((x) => cid(x[0])) : id === 'cons' ? [...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...SK_DIMS_MORE.map((x) => cid(x[0]))] : id === 'prim' ? ['box', 'cylinder', 'sphere'] : [];
   // açılır alt menü (şeridin kaydırılabilir/taşabilir olması nedeniyle gövdeye sabitlenir)
   C.renderDD = () => {
     document.getElementById('ddpop')?.remove();
@@ -252,8 +255,8 @@ export function initChrome(app) {
     const bar = $('#toolbar'); const sk = app.sketcher; bar.classList.toggle('sk', !!app.sketchSession);
     if (app.sketchSession) {
       const cur = sk?.tool;
-      const tools = (list) => list.map((x) => toolBtn(x[0], { on: cur === x[0] }));
-      const ids = (list) => list.map((x) => x[0]);
+      const tools = (list) => list.map((x) => toolBtn(cid(x[0]), { on: cur === x[0] }));
+      const ids = (list) => list.map((x) => cid(x[0]));
       const consIds = [...SK_CONS.map((x) => 'c-' + x[0])];
       bar.replaceChildren(
         group('draw', tk('grp.draw'), [...tools(SK_DRAW), ddBtn('draw', tk('dd.draw'), 'more')], { items: [...ids(SK_DRAW), ...ids(SK_DRAW_MORE)] }),

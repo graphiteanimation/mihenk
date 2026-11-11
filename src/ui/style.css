@@ -18,7 +18,7 @@
 .mono { font-family: var(--font-mono); }
 
 /* ---- başlık şeridi: menüler ---- */
-.titlebar { z-index: var(--z-dock); }
+.titlebar { position: relative; z-index: var(--z-menu); }
 .titlebar .menu { position: relative; }
 .titlebar .menu .drop { position: absolute; top: calc(100% + 4px); left: 0; display: none; z-index: var(--z-menu); color: var(--text); text-align: left; }
 .titlebar .menu.right .drop { left: auto; right: 0; }
@@ -255,3 +255,5 @@
 .btn.pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .btn.pri:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn.pri:disabled { background: var(--bg-disabled); border-color: var(--line); color: var(--text-disabled); }
+/* Bildirim sütunu: sol altta (sağ panelin Tamam/İptal düğmelerini örtmesin); kalıcı hata bildirimi çalışmayı engellemez. */
+.toasts { right: auto; left: var(--sp-5); bottom: calc(var(--status-h) + var(--timeline-h) + var(--sp-5)); max-width: calc(var(--browser-w) - var(--sp-5) * 2 + 80px); }

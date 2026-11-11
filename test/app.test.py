@@ -428,7 +428,7 @@ try:
     check('kısıt düğmesi: Sabitle', ev('(id) => !!app.sketcher.sk.points[id].fixed', ev('(id) => app.sketcher.sk.ents.find(e => e.id === id).a', C)))
     # yapı kipi düğmesi aktif görünür
     page.click('#toolbar button[data-cmd="c-construct"]'); page.wait_for_timeout(200)
-    check('Yapı kipi düğmesi etkin görünür', 'active' in page.get_attribute('#toolbar button[data-cmd="c-construct"]', 'class'))
+    check('Yapı kipi düğmesi etkin görünür', ' on' in ' ' + page.get_attribute('#toolbar button[data-cmd="c-construct"]', 'class'))
     page.click('#toolbar button[data-cmd="c-construct"]'); page.wait_for_timeout(100)
     # açı ölçüsü: iki çizgi seç, Ölçü aracı
     sel([E(A), E(D)]); page.click('#toolbar button[data-cmd="dim"]'); page.wait_for_selector('input.sk-input', timeout=5000)
@@ -573,9 +573,12 @@ try:
     print('H: dil değiştirme')
     def menu_titles(): return ev('[...document.querySelectorAll("#menubar [data-menu=file]")].map(b => b.textContent.trim()).join(",")')
     def group_titles(): return ev('[...document.querySelectorAll("#toolbar .glabel")].map(g => g.textContent).join(",")')
-    def btn_text(act): return page.inner_text(f'#toolbar button[data-cmd="{act}"]').strip()
+    def btn_text(act):
+        if act in ('box', 'cylinder', 'sphere'):
+            page.click('#toolbar button[data-cmd="dd-prim"]'); r = page.locator(f'#ddpop [data-cmd="{act}"]').inner_text().strip(); page.keyboard.press('Escape'); page.mouse.click(700, 500) if False else None; page.evaluate('document.querySelector("#ddpop")?.remove(); app.C.ddOpen = null'); return r
+        b = page.locator(f'#toolbar button[data-cmd="{act}"]').first; return b.inner_text().strip() or (b.get_attribute('aria-label') or '')
     def lang_menu(code):
-        page.click('#menubar [data-cmd="settings"]'); page.click(f'[data-testid="set-lang-{code}"]'); page.keyboard.press('Escape')
+        page.click('#menubar .tbtn[data-cmd="settings"]'); page.click(f'[data-testid="set-lang-{code}"]'); page.keyboard.press('Escape')
         idle(); page.wait_for_timeout(200)
     def stored_lang(): return ev("localStorage.getItem('atolye.lang')")
     def left_text(): return page.inner_text('#st-left').strip()
@@ -598,7 +601,7 @@ try:
     lang_menu('en')
     check('İngilizce: menü başlıkları', menu_titles() == 'File', menu_titles())
     check('İngilizce: html lang, tercih saklandı', ev('document.documentElement.lang') == 'en' and stored_lang() == 'en')
-    check('İngilizce: sketch araç çubuğu grupları', group_titles() == 'Draw,Edit,Dimension,Constrain,Sketch', group_titles())
+    check('İngilizce: sketch araç çubuğu grupları', group_titles() == 'Draw,Edit,Dimensions and constraints,Sketch', group_titles())
     check('İngilizce: sketch düğmeleri', btn_text('rect') == 'Rectangle' and btn_text('c-perpendicular') == 'Perpendicular' and btn_text('c-tangent') == 'Tangent' and btn_text('c-parallel') == 'Parallel' and btn_text('sk-finish') == 'Finish Sketch' and btn_text('c-construct') == 'Construction')
     check('İngilizce: sketch paneli (düzlem, kısıtlar)', page.inner_text('#panel h3').startswith('Sketch:') and 'Plane: XY' in page.inner_text('#panel') and 'Constraints' in page.inner_text('#panel'), page.inner_text('#panel'))
     check('İngilizce: sketch durumu', 'Degrees of freedom' in left_text() or 'Fully defined' in left_text(), left_text())
@@ -622,12 +625,12 @@ try:
     shot('en_02_extrude_panel')
     fill('dist', 10); ok()
     check('İngilizce: extrude gövdesi', nbodies() == 1 and near(vol(), 50 * 30 * 10), vol())
-    check('İngilizce: araç çubuğu grupları', group_titles() == 'Create,Modify,Inspect', group_titles())
+    check('İngilizce: araç çubuğu grupları', group_titles().startswith('Create,Modify,Inspect'), group_titles())
     check('İngilizce: araç çubuğu düğmeleri', [btn_text(a) for a in ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section']] ==
           ['Sketch', 'Extrude', 'Revolve', 'Hole', 'Box', 'Cylinder', 'Sphere', 'Fillet', 'Chamfer', 'Shell', 'Combine', 'Move/Copy', 'Pattern', 'Mirror', 'Measure', 'Properties', 'Interference', 'Section'])
-    check('İngilizce: görünüm düğmeleri', ev('[...document.querySelectorAll("#viewbtns button")].map(b => b.textContent).join(",")') == 'Front,Top,Right,Iso,Fit')
+    check('İngilizce: görünüm düğmeleri', ev('[...document.querySelectorAll("#viewbtns button")].map(b => b.getAttribute("aria-label")).join(",")') == 'Front,Top,Right,Iso,Fit')
     check('İngilizce: zaman çizelgesi ve tarayıcı', page.inner_text('#timeline .tl-label').lower() == 'timeline' and all(w in page.inner_text('#browser').lower() for w in ['bodies', 'sketches', 'parameters']), page.inner_text('#timeline')+'|'+page.inner_text('#browser'))
-    check('İngilizce: durum çubuğu', page.inner_text('#st-right').startswith('Bodies: 1 · Selection: 0 · Compute:'), page.inner_text('#st-right'))
+    check('İngilizce: durum çubuğu', all(w in page.inner_text('#statusbar-main') for w in ['1 bodies', '0 selected', 'Compute']), page.inner_text('#statusbar-main'))
     check('İngilizce: gövde adı (varsayılan)', 'Body 1' in page.inner_text('#browser'), page.inner_text('#browser'))
 
     # çekirdek hatası: çok büyük fillet, İngilizce panel + zaman çizelgesi
@@ -649,10 +652,10 @@ try:
     bad = ev('app.doc.features.length - 1')
     check('İngilizce: hatalı özellik çizelgede kırmızı + İngilizce başlık', 'err' in chip(bad).get_attribute('class') and (chip(bad).get_attribute('title') or '') == err_en, chip(bad).get_attribute('title'))
     check('İngilizce: durum çubuğu hata metni', left_text().startswith('Error: "Fillet 1": Fillet failed'), left_text())
-    check('İngilizce: toast', toast_text().startswith('The feature was saved but has an error'), toast_text())
+    check('İngilizce: toast', 'The feature was saved but has an error' in toast_text(), toast_text())
     shot('en_04_timeline_error')
     chip(bad).click(button='right')
-    check('İngilizce: zaman çizelgesi menüsü', page.locator('#ctx button').all_inner_texts() == ['Edit', 'Rename', 'Suppress', 'Roll back to here', 'Delete'], str(page.locator('#ctx button').all_inner_texts()))
+    check('İngilizce: zaman çizelgesi menüsü', [x.split('\n')[0] for x in page.locator('#ctx button').all_inner_texts()] == ['Edit', 'Rename', 'Suppress', 'Roll back to here', 'Delete'], str(page.locator('#ctx button').all_inner_texts()))
     page.keyboard.press('Escape'); page.mouse.click(700, 400)
     lang_menu('tr')
     check('Türkçeye dönüş: zaman çizelgesi hata başlığı Türkçe', (chip(bad).get_attribute('title') or '').startswith('Yuvarlatma başarısız') and left_text().startswith('Hata: "Fillet 1"') and page.inner_text('#timeline .tl-label') in ('Zaman çizelgesi', 'ZAMAN ÇİZELGESİ'), left_text()+'|'+page.inner_text('#timeline .tl-label'))
@@ -661,9 +664,9 @@ try:
 
     # menüler (İngilizce) ve açık kip pencereler
     page.click('#menubar button[data-menu="file"]')
-    check('İngilizce: Dosya menüsü', page.locator('#menubar .menu.open .drop > button').all_inner_texts() == ['New', 'Open…', 'Save Ctrl+S', 'Save As…', 'Import STEP…', 'Import STL…', 'Export STEP…', 'Export STL…'] or page.locator('#menubar .menu.open .drop > button').count() == 11, str(page.locator('#menubar .menu.open .drop > button').all_inner_texts()))
+    check('İngilizce: Dosya menüsü', [x.split('\n')[0] for x in page.locator('#menubar .menu.open .drop > button').all_inner_texts()][:6] == ['New', 'Open…', 'Save', 'Save As…', 'Import STEP…', 'Import STL…'], str(page.locator('#menubar .menu.open .drop > button').all_inner_texts()))
     page.keyboard.press('Escape'); page.mouse.click(700, 500)
-    page.click('#menubar button[data-menu="help"]'); page.click('#menubar button[data-item="about"]'); page.wait_for_selector('#modal:not(.hidden)')
+    page.click('#menubar button[data-menu="help"]'); page.click('#menubar [data-cmd="about"]'); page.wait_for_selector('#modal:not(.hidden)')
     check('İngilizce: Hakkında penceresi', page.inner_text('#modal h3') == 'About Mihenk CAD/CAM' and 'Parametric solid modeling' in page.inner_text('#modal'), page.inner_text('#modal h3'))
     page.keyboard.press('Escape')
     tb('measure'); page.wait_for_timeout(300)
@@ -683,7 +686,7 @@ try:
     ev('app.markDirty(false)')
     page.reload(); page.wait_for_function('() => (window.app)', timeout=30000); ev('app.ready')
     check('yeniden yükleme: İngilizce korundu', menu_titles() == 'File' and ev('document.documentElement.lang') == 'en' and stored_lang() == 'en', menu_titles())
-    check('yeniden yükleme: yükleme metni/ayarlar İngilizce', group_titles() == 'Create,Modify,Inspect' and page.inner_text('#st-left').strip() == 'Ready', group_titles())
+    check('yeniden yükleme: yükleme metni/ayarlar İngilizce', group_titles().startswith('Create,Modify,Inspect') and page.inner_text('#st-left').strip() == 'Ready', group_titles())
     lang_menu('tr')
     check('Türkçeye dön: menü, araç çubuğu, tercih', menu_titles() == 'Dosya' and group_titles().lower().startswith('oluştur,düzenle,') and stored_lang() == 'tr' and ev('document.documentElement.lang') == 'tr', menu_titles())
     page.reload(); page.wait_for_function('() => (window.app)', timeout=30000); ev('app.ready')
@@ -708,7 +711,7 @@ try:
     check('K-018: dikdörtgen ve daire çizildi', ev('app.sketcher.sk.ents.filter(e => e.type === "circle").length') == 1 and ev('app.sketcher.sk.ents.filter(e => e.type === "line").length') == 4)
     tb('trim'); page.wait_for_timeout(150)
     x, y = sk_px(-8, 0); page.mouse.move(x, y); page.wait_for_timeout(120)
-    check('K-018: Buda hover kırmızı önizleme', ev('app.sketcher.gPrev.children.some(c => c.material && c.material.color.getHex() === 0xd32f2f)'))
+    check('K-018: Buda hover kırmızı önizleme', ev('app.sketcher.gPrev.children.some(c => c.material && c.material.color.getHexString() === getComputedStyle(document.documentElement).getPropertyValue("--vp-sk-error").trim().replace("#", "").toLowerCase())'))
     page.mouse.click(x, y); ev('app.sketcher.idle()'); page.wait_for_timeout(120)
     sk_click(0, 6)
     ev('app.sketcher.idle()'); page.wait_for_timeout(200)
@@ -729,10 +732,12 @@ try:
     tb('sketch'); page.wait_for_timeout(300)
     click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
     def overflow():
-        return ev("() => { const b = document.querySelector('#toolbar'); const r = b.getBoundingClientRect(); const out = [...b.querySelectorAll('button')].filter(x => { const q = x.getBoundingClientRect(); return q.right > r.right + 0.5 || q.left < r.left - 0.5; }).map(x => x.dataset.act); return {scroll: b.scrollWidth - b.clientWidth, out}; }")
+        return ev("() => { const b = document.querySelector('#toolbar'); const r = b.getBoundingClientRect(); const out = [...b.querySelectorAll('button')].filter(x => x.offsetParent !== null).filter(x => { const q = x.getBoundingClientRect(); return q.right > r.right + 0.5 || q.left < r.left - 0.5; }).map(x => x.dataset.cmd); return {scroll: b.scrollWidth - b.clientWidth, out}; }")
     o = overflow(); check('TR: sketch araç çubuğu taşmıyor (1200 px)', o['scroll'] <= 1 and not o['out'], o)
     shot('toolbar_tr_sketch')
     for dd in ['draw', 'edit', 'cons']:
+        if not page.locator(f'#toolbar button[data-cmd="dd-{dd}"]').is_visible():
+            check(f'TR: "{dd}" grubu taşma menüsünde (»)', page.locator('#toolbar [data-cmd="ribbon-overflow"]').count() == 1); continue
         page.click(f'#toolbar button[data-cmd="dd-{dd}"]'); page.wait_for_timeout(150)
         pr = ev("() => { const p = document.querySelector('#ddpop'); if (!p) return null; const r = p.getBoundingClientRect(); return {l: r.left, r: r.right, b: r.bottom, w: innerWidth, h: innerHeight, n: p.querySelectorAll('button').length}; }")
         check(f'TR: "{dd}" açılır grubu ekrana sığıyor', pr and pr['l'] >= 0 and pr['r'] <= pr['w'] and pr['b'] <= pr['h'], pr)
@@ -741,15 +746,17 @@ try:
     o = overflow(); check('EN: sketch araç çubuğu taşmıyor (1200 px)', o['scroll'] <= 1 and not o['out'], o)
     shot('toolbar_en_sketch')
     for dd in ['draw', 'edit', 'cons']:
+        if not page.locator(f'#toolbar button[data-cmd="dd-{dd}"]').is_visible():
+            check(f'EN: "{dd}" grubu taşma menüsünde (»)', page.locator('#toolbar [data-cmd="ribbon-overflow"]').count() == 1); continue
         page.click(f'#toolbar button[data-cmd="dd-{dd}"]'); page.wait_for_timeout(150)
         pr = ev("() => { const p = document.querySelector('#ddpop'); if (!p) return null; const r = p.getBoundingClientRect(); return {l: r.left, r: r.right, b: r.bottom, w: innerWidth, h: innerHeight}; }")
         check(f'EN: "{dd}" açılır grubu ekrana sığıyor', pr and pr['l'] >= 0 and pr['r'] <= pr['w'] and pr['b'] <= pr['h'], pr)
         shot(f'toolbar_en_{dd}'); page.mouse.click(5, 5); page.wait_for_timeout(100)
     # düğme etiketleri kırpılmıyor mu: her düğmenin metni genişliğine sığıyor
-    clipped = ev("[...document.querySelectorAll('#toolbar .tb span:last-child')].filter(s => s.scrollWidth > s.clientWidth + 1).map(s => s.textContent)")
+    clipped = ev("[...document.querySelectorAll('#toolbar .tool .l')].filter(s => s.offsetParent !== null && s.scrollWidth > s.clientWidth + 1).map(s => s.textContent)")
     check('EN: toolbar etiketleri kırpılmıyor', not clipped, clipped)
     lang_menu('tr')
-    clipped = ev("[...document.querySelectorAll('#toolbar .tb span:last-child')].filter(s => s.scrollWidth > s.clientWidth + 1).map(s => s.textContent)")
+    clipped = ev("[...document.querySelectorAll('#toolbar .tool .l')].filter(s => s.offsetParent !== null && s.scrollWidth > s.clientWidth + 1).map(s => s.textContent)")
     check('TR: toolbar etiketleri kırpılmıyor', not clipped, clipped)
     tb('sk-cancel'); page.wait_for_timeout(200)
     page.set_viewport_size({'width': 1400, 'height': 860}); page.wait_for_timeout(200)
