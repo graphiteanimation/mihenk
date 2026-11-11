@@ -8,6 +8,7 @@ import * as V from '../shared/vec.js';
 import * as TP from './topo.js';
 import { faceName, edgeName, resolveName, aliasSet, faceKey, vertKey } from './naming.js';
 import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
+import * as CAM from './cam.js';
 
 export { KErr };
 export const LIMITS = { minDim: 1e-3, maxDim: 1e5, maxPattern: 2000, maxStlTris: 50000 };
@@ -571,6 +572,10 @@ export class Kernel {
     }
     return out;
   }
+  // CAM geometri sorgulari (src/kernel/cam.js; son rebuild sonucuna gore)
+  camFaceLoops(args) { return CAM.camFaceLoops(this, args || {}); }
+  camSection(args) { return CAM.camSection(this, args || {}); }
+  camHeightmap(args) { return CAM.camHeightmap(this, args || {}); }
   async exportFile(format, ids, names) {
     const shapes = [...(this.last?.bodies || [])].filter(([id]) => !ids || ids.includes(id));
     if (!shapes.length) throw new KErr('export.no_body');
