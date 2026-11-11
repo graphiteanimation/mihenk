@@ -74,5 +74,34 @@ if (!g.some((x) => x.level === 'block')) postProgram(program, machine, { gates: 
 - Yerleşik şablonlar: `nameKey` (`cam.machine.neway`, `cam.machine.generic3`) arayüzde çevrilir; `protected.noteKey` = "makine projesinden teyit edin".
 - `normalizeTool(t)` doğrular ve normalleştirilmiş kopya döner (ball: cornerR = dia/2). `importLibrary(text) → {tools, errors:[{index,code,params}]}`; `exportLibrary(tools) → string`.
 
-## 2. Algoritmalar ve sınırlar
-(Testler bölümüyle birlikte sonda güncellenir.)
+## 2. Algoritmalar
+- **Ofset (`src/cam/geom/path2d.js`)**: yönlü çizgi/yay parçaları. Ham ofset (her parçanın ofseti + boşluk köşesinde köşe merkezli |d| yayı) → tüm ham parçalar karşılıklı kesişimlerde bölünür → her parça 3 noktada ORİJİNAL sınıra uzaklıkla süzülür (≥ |d| − 1e-7·ölçek ve doğru taraf) → kalanlar kapalı halkalara zincirlenir. Kendi kendini kesen ofset bu yolla temizlenir; dar boğazda bölgeler ayrılır; adalar aynı hesaba girer. Zincir kapanmazsa `cam.geom.offset_failed` (tahmin yok).
+- **Cep**: halkalar her seviyede orijinal sınırdan `d_k = r + yanal pay (+ finishStock) + k·stepover` (birikimli hata yok); halka ağacı (dar boğazda dallanır); yapraklarda sınırdan en uzak nokta (ızgara + yerel iyileştirme) son halkadan 0,9r'den uzaksa ek halka. Kesim içten dışa; bağlantı: çocuktan ebeveyne en yakın noktaya doğru (disk savı: iç noktadan en yakın sınır noktasına doğru parça bölge içindedir), aynı seviyede halkalar arası bağlantı izinli bölge sınırını kesmiyorsa doğrudan, kesiyorsa geri çekilip yeniden giriş (rampa/dalma). Helis: yaprağın en derin noktasında, `D(c) ≥ d0 + helixDia/2` değilse `cam.pocket.helix_no_fit`. Açık kenar: sanal dış sınır açık parçaları `W = 2r + yanal pay` dışarı taşır (komşu taşıyıcılarla kesiştirilir); uzatma bandı `above` kesitine değerse `cam.pocket.open_edge_blocked`. Tabanda aşağı inen (tüm kenarları açık) iç döngü ada sayılmaz. Kalan malzeme: örnekleme ile (h ≈ r/8) yaklaşık alan → `cam.pocket.rest_material` uyarısı (keskin iç köşeler doğal olarak kalır).
+- **Kontur**: kesin bölge ofseti (dışarı: −d, içeri: +d). Tırmanma = malzeme sağda. Giriş/çıkış yayı 90°, takım tarafında; giriş/çıkışın her noktası `r + pay` kuralıyla denetlenir. Köprü: son derinlik(ler)de `width + takım çapı` boyunca köprü yüksekliğine çıkış. Wear: programlanan yol = parça konturu + yanal pay; takım tarafında yarıçapı ≤ r yay varsa hata (kontrol alarmı önlemi).
+- **Yüzey**: zikzak; hat aralığı ≤ stepover (< çap), ilk/son hat stok kenarında, uçlar stok dışında `r + extend`; dalmalar stok dışında.
+- **Delme**: `holes[]` setup uzayına; eksen −Z'ye paralel değilse atlanır (uyarı). R = delik üstü + retract. Aynı üst/dip ve R ≥ stok üstü olan noktalar tek çevrim (G99 ara geçişi stok üstünde); aksi her nokta ayrı çevrim. Çevrim başlangıç (clearance) düzlemi = max(stok üstü + retract, tüm R). Boydan boya: model tabanı + breakThrough (uyarı). Kılavuz: F = devir × hatve.
+- **Bağlama**: yatay hızlı hareket yalnız retract (stok üstü + retract > stok üstü) ya da clearance düzleminde; uzak geçiş (> max(20 mm, 10·çap)) clearance'tan. İniş daima ilerlemeyle (`kind:'plunge'`; bu işlemde boşaltılmış bölgeye iniş `clear:true`).
+- **Açık kenar tespiti (çekirdek)**: kenara oturan komşu yüz üçgenlerinin üçüncü köşesi taban z'sinin 1e-4 mm üstünde değilse açık; üçgen bulunamazsa komşu yüzün tamamının en yüksek noktası (muhafazakâr: kapalı sayar).
+
+## 3. Sınırlar (bu sürüm)
+- Sketch/silhouette GeomSel `generateProgram` içinde desteklenmez (`cam.geom.sel_unsupported`); `computeOp` setup uzayına çevrilmiş zinciri `{kind:'chain'}` ile kabul eder (çeviri C'de). Kontur `ramp.kind:'helix'`, cep `entry:'predrill'` → `cam.op.unsupported`.
+- Açık zincir kontur yalnız `side:'on'` (giriş/çıkış, köprü, wear yok). Aşınma telafisinde kaba yanal paso, rampa, bölünen kontur desteklenmez (hata).
+- Bir cep işleminin taban yüzleri aynı z'de olmalı. Cepte her derinlik aynı XY halkalarını kullanır (2,5D; eğimli duvar yok).
+- Kenar/yüz eğrileri: çizgi ve takım eksenine dik daire tam; diğerleri ≤ 0,005 mm kirişe bölünür.
+- Kalan malzeme alanı örnekleme tahminidir (uyarı amaçlı). Uzak/yakın geçiş eşiği sabittir (makineye özel değil).
+- `resolveSetup` model kutusunu görüntü ağı köşelerinden hesaplar (ağ toleransı kadar yaklaşık; boxOffset stoku için).
+- Kapı 3: makine konumu (`setup.machinePos`) modeli yok → mutlak kurs denetimi yapılamaz, yalnız yol açıklığı (uyarı `cam.gate.travel_abs_unchecked`).
+- Kapı 4 dalma denetimi: kesmeyen uçla, stok ayak izi içinde, stok üstünün altına inen ve `clear` işaretsiz dikey ilerleme + her çevrim. Kapı 5 = B'nin `simulate` (yalnız +Z tek değerli harita; fikstür yok).
+
+## 4. Sözleşmeden sapmalar / ekler
+- `camFaceLoops` parçaları geom2d'ye ek `fwd` ve `edge` alanı taşır (yay kanonik CCW olduğundan gidiş yönü için gerekli); sonuçta ek `open`, `above`, `aboveDz`, `body`.
+- `camHeightmap` sonucu B'nin Heightmap biçimindedir (`data`, hücre merkezi, `err`) — sözleşmedeki "Float32Array" bununla uyumlu.
+- Toolpath ek alanları: `warnings`, `meta`, dalmada `clear`. IR doğrulaması (B) bunları yok sayar.
+- Cep `finishPass` için `finishStock` zorunlu; helis için `entry.helixDia` (takım merkezi çapı) ve `entry.angle` zorunlu (varsayılan uydurulmadı).
+- Yükseklikler: `clearance`/`retract` stok üstünden mm; `abs` için `off` mutlak z; drill `depth.z` (abs).
+- Wear (sözleşme metnine göre): programlanan yol = parça konturu + yanal pay; kontrol D değerindeki TAM yarıçapı uygular (Fusion'daki "in control" anlamı). B'nin simülasyonu da böyle modelliyor. Makinede D'ye ne yazılacağı (yarıçap mı, yalnız aşınma mı) makine projesinde teyit edilmeli.
+- Yerleşik Neway şablonu: `toolChange.maxTools: null` (tabloda magazin kapasitesi yok; "24 cep dolu, T1–T25 kayıtlı"), korunan WCS listesine "4. eksen işi G58" de eklendi; `post.props` docs/POST.md adlarıyla, bilinmeyenler `null`.
+
+## 5. Testler
+`node test/cam.test.mjs` → 136 geçti, 0 kaldı (≈7 s). Kapsam: ofset doğruluğu (her nokta sınırdan tam d, hata < 1e-9), L şekli, dış ofset yayları; makine/takım/kütüphane; yüzey kapsaması ve stok dışı dalma; delme gruplama/uç telafisi/kılavuz F; kontur (tam r+pay, ihlal yok, tırmanma yönü, iç köşe uyarısı, takım sığmıyor, giriş çarpması, köprü, wear G41, kaba pasolar, rampa, açık zincir); cep (ihlal yok, kapsama ≤ köşe kalıntısı + örnekleme payı, adalar, dar boğazda ayrılma, açık kenar taşması ve engel hatası, helis sığmıyor, dalma reddi, bitirme); kapılar (T/H/D/WCS/G54.1, eksik makine/H/D, devir, ilerleme, kurs, magazin, dalma, kesici boyu, gövde boyu, A sınırı, A yok, sim bağlı + kasıtlı stok içi hızlı); setup (kutu/köşe, 3+1 A işareti, silindir), şema, metin anahtarları; çekirdekli uçtan uca (blok + cep + ada + açık basamak + delikler → rebuild → camFaceLoops/camSection/camHeightmap → generateProgram → kapılar + B simülasyonu (oyma dahil) temiz → B postu G83 NC).
+Diğer: `node test/kernel.test.mjs` 104/0, `node test/security.test.mjs` 70/0, `node test/i18n.test.mjs` 27/0 (temiz HEAD ağacında; çalışma ağacındaki C'nin yarım tr.js değişikliğiyle `cam-ui-tr.js` eksik olduğu için o an çalışmıyordu).
