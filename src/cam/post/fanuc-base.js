@@ -72,7 +72,7 @@ export function createFanucPost(over = {}) {
         this.writeBlock('G90', 'G40', 'G49');
         this.writeBlock('G53', 'G0', createFormat({ prefix: 'Z', decimals: this.props.decimals }).format(z));
       } else throw perr('cam.post.bad_prop', { prop: 'safeRetract', value: String(m) });
-      this.pos = null; this._resetPos(); this.g.motion.reset(); this.state.positioned = false;
+      this.pos = null; this.v.x.reset(); this.v.y.reset(); this.v.z.reset(); this.g.motion.reset(); this.state.positioned = false;
     },
 
     // ------------------------------------------------------------ giris fonksiyonlari
@@ -185,7 +185,7 @@ export function createFanucPost(over = {}) {
         st.positioned = true;
         return;
       }
-      this.writeBlock(this.g.motion.format(0), this.v.x.format(x), this.v.y.format(y), this.v.z.format(z));
+      if (!this.writeBlock(this.g.motion.format(0), this.v.x.format(x), this.v.y.format(y), this.v.z.format(z))) this.warn('cam.post.zero_move');
     },
 
     onRadiusCompensation(on, side, D) {
@@ -199,7 +199,7 @@ export function createFanucPost(over = {}) {
         comp = r.on ? [r.side === 'left' ? 'G41' : 'G42', 'D' + r.D] : 'G40';
         st.comp = r.on;
       }
-      this.writeBlock(this.g.motion.format(1), comp, this.v.x.format(x), this.v.y.format(y), this.v.z.format(z), this.v.f.format(f));
+      if (!this.writeBlock(this.g.motion.format(1), comp, this.v.x.format(x), this.v.y.format(y), this.v.z.format(z), this.v.f.format(f))) this.warn('cam.post.zero_move');
     },
 
     onCircular(cw, cx, cy, cz, x, y, z, f) {
@@ -241,15 +241,15 @@ export function createFanucPost(over = {}) {
     onCyclePoint(x, y, z) {
       const st = this.state, { c } = st.cycle, p = this.props, d = p.decimals;
       const last = st.cycle.n === c.points.length - 1;
-      if (!p.cannedCycles) { // acik hareket
-        const Z = createFormat({ prefix: 'Z', decimals: d });
-        this.writeBlock('G0', this.v.x.format(x), this.v.y.format(y));
-        this.writeBlock('G0', Z.format(c.retract));
-        this.writeBlock('G1', Z.format(c.bottom), this.v.f.format(c.f));
-        if (c.dwell > 0) this.writeBlock('G04', post._dwellWord.call(this, p.dwellAddress, p.dwellUnit, c.dwell));
-        this.writeBlock('G0', Z.format(c.cycle === 'bore' || c.cycle === 'ream' ? c.retract : c.clearance));
-        if (last) this.writeBlock('G0', Z.format(c.clearance));
-        this.v.z.reset(); this.g.motion.reset(); st.cycle.n++;
+      if (!p.cannedCycles) { // acik hareket: XY hizli, R'ye hizli, dibe kesme, bekleme, R'ye (son nokta: clearance) hizli
+        const xy = [this.v.x.format(x), this.v.y.format(y)];
+        if (xy.some(Boolean)) this.writeBlock(this.g.motion.format(0), ...xy);
+        const rz = this.v.z.format(c.retract);
+        if (rz) this.writeBlock(this.g.motion.format(0), rz);
+        this.writeBlock(this.g.motion.format(1), this.v.z.format(c.bottom), this.v.f.format(c.f));
+        if (c.dwell > 0) { this.writeBlock('G04', post._dwellWord.call(this, p.dwellAddress, p.dwellUnit, c.dwell)); this.g.motion.reset(); }
+        this.writeBlock(this.g.motion.format(0), this.v.z.format(last ? c.clearance : c.retract));
+        st.cycle.n++;
         return;
       }
       const code = post._cycleCode.call(this, c);

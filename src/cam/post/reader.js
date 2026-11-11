@@ -144,7 +144,7 @@ export function readNC(text, opts = {}) {
     const tW = W('T'); if (tW) S.pendingT = tW.v;
     const fW = W('F'); if (fW && !(wantCycle != null)) S.f = fW.v;
     if (tChange) { if (S.pendingT == null) fail('cam.post.read_missing_word', ln, { word: 'T' }); S.tool = S.pendingT; events.push({ line: ln, ev: 'toolChange', tool: S.tool }); }
-    if (S.cycle == null && words.some((w) => w.l === ',R')) fail('cam.post.read_unknown_word', ln, { text: ',R' });
+    if (S.cycle == null && wantCycle == null && words.some((w) => w.l === ',R')) fail('cam.post.read_unknown_word', ln, { text: ',R' });
 
     const X = W('X'), Y = W('Y'), Z = W('Z'), A = W('A'), I = W('I'), J = W('J');
     const hasXYZ = !!(X || Y || Z);
@@ -204,7 +204,7 @@ export function readNC(text, opts = {}) {
     if (newMotion != null) S.motion = newMotion;
     if (compReq !== undefined && (hasXYZ || newMotion != null)) { /* asagida */ }
     if (!hasXYZ) {
-      if (compReq !== undefined) fail('cam.post.read_comp_no_move', ln);
+      if (compReq) fail('cam.post.read_comp_no_move', ln);
       return; // durum satirlari (S M3, T M6, G54 vb.)
     }
     if (S.motion == null) fail('cam.post.read_no_motion_mode', ln);
