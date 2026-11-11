@@ -1,6 +1,6 @@
 // Sağ panel: özellik formu (canlı önizleme), sketch paneli, kesit paneli; parametre tablosu ve inceleme araçları.
 import { h, $, toast, modal, fmt, esc } from './dom.js';
-import { icon } from './icons.js';
+import { icon, featureIcon } from './icons.js';
 import { t, tk, errText } from '../shared/i18n.js';
 import { toErr } from '../shared/errors.js';
 import { fieldsFor, featLabel, THREADS, patternSources } from './features.js';
@@ -14,9 +14,9 @@ const num = (v) => fmt(v, 4);
 // Ortak panel kabuğu: üst şerit (başlık + kapat), gövde, alt şerit (birincil + iptal).
 const unitBox = (inp, unit, cls = '') => h('div', { class: 'input ' + cls }, inp, unit ? h('span', { class: 'unit', text: unit }) : null);
 const checkBox = (inp) => { const l = h('label', { class: 'check' + (inp.checked ? ' on' : '') }, inp, h('span', { class: 'box', html: icon('check', 'sm') })); inp.addEventListener('change', () => l.classList.toggle('on', inp.checked)); return l; };
-function shell(title, bodyKids, footKids, onClose, titleAttrs = {}) {
+function shell(title, bodyKids, footKids, onClose, titleAttrs = {}, ic = '') {
   const p = $('#panel'); p.classList.remove('hidden');
-  p.replaceChildren(h('header', {}, h('h3', { text: title, ...titleAttrs }), onClose ? h('button', { class: 'btn ghost icon x', type: 'button', 'aria-label': t('common.close'), 'data-testid': 'panel-close', onclick: onClose, html: icon('close') }) : null),
+  p.replaceChildren(h('header', {}, ic ? h('span', { class: 'hic', html: ic }) : null, h('h3', { text: title, ...titleAttrs }), onClose ? h('button', { class: 'btn ghost icon x', type: 'button', 'aria-label': t('common.close'), 'data-testid': 'panel-close', onclick: onClose, html: icon('close') }) : null),
     h('div', { class: 'body' }, ...bodyKids), h('footer', {}, ...footKids));
   return p;
 }
@@ -76,8 +76,8 @@ export class FeaturePanel {
     const rows = []; for (const fd of this.fields()) { const row = this.fieldRow(fd); if (row) rows.push(row); }
     this.errEl = h('div', { class: 'callout err', id: 'p-err', role: 'alert', hidden: true }); this.noteEl = h('div', { class: 'note', id: 'p-note' });
     shell(this.titleText(), [...rows, this.errEl, this.noteEl],
-      [h('button', { class: 'btn primary pri', id: 'p-ok', 'data-testid': 'panel-ok', onclick: () => this.ok() }, t('common.ok')), h('button', { class: 'btn', id: 'p-cancel', 'data-testid': 'panel-cancel', onclick: () => this.cancel() }, t('common.cancel'))],
-      () => this.cancel(), { 'data-title': '' });
+      [h('button', { class: 'btn primary pri', id: 'p-ok', 'data-testid': 'panel-ok', onclick: () => this.ok() }, t('common.ok'), h('span', { class: 'kbd', text: 'Enter' })), h('button', { class: 'btn', id: 'p-cancel', 'data-testid': 'panel-cancel', onclick: () => this.cancel() }, t('common.cancel'), h('span', { class: 'kbd', text: 'Esc' }))],
+      () => this.cancel(), { 'data-title': '' }, featureIcon(this.draft, 'md'));
     this.setStatus(this.status);
     this.refreshSels();
   }
@@ -152,7 +152,7 @@ export class FeaturePanel {
       case 'sel': {
         const el = h('div', { class: 'selbox input pick', 'data-k': fd.k, 'data-testid': 'sel-' + fd.k, tabindex: '0', role: 'button', onclick: () => this.setActive(fd.k) });
         el.addEventListener('keydown', (e) => { if (e.key === ' ' || (e.key === 'Enter' && e.target === el)) { e.preventDefault(); e.stopPropagation(); this.setActive(fd.k); } });
-        el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', title: t('fld.clear_sel'), 'aria-label': t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel(fd.k); } }, t('common.clear')));
+        el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', title: t('fld.clear_sel'), 'aria-label': t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel(fd.k); }, html: icon('close', 'sm') }));
         return this.row(fd.label, el);
       }
       case 'source': {
@@ -163,7 +163,7 @@ export class FeaturePanel {
         const wrap = h('div', {}, unitBox(s));
         if (d.source?.kind === 'body') {
           const el = h('div', { class: 'selbox input pick', 'data-k': 'source.bodies', style: { marginTop: '4px' }, tabindex: '0', role: 'button', onclick: () => this.setActive('source.bodies') });
-          el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', onclick: (e) => { e.stopPropagation(); this.clearSel('source.bodies'); } }, t('common.clear')));
+          el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', 'aria-label': t('fld.clear_sel'), title: t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel('source.bodies'); }, html: icon('close', 'sm') }));
           wrap.append(el);
         }
         return this.row(fd.label, wrap);

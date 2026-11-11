@@ -25,6 +25,7 @@ Yapıldı
 - Testler uyarlandı (`data-cmd`/`data-testid` bağları): app.test.py 196, sketcher 143, electron 66 geçti.
 - Yeni `test/ui.test.py` (28 geçti; `test:all`'a eklendi): tema + kalıcılık + sistem teması, yoğunluk, Ctrl+K komut arama (TR/EN), karşılama, klavye turu (Tab ana bölgelere), odak görünürlüğü, hedef boyutu >=32/>=40 px, kontrast aracı (kalan çift 0), belirteç kayması, HEX taraması, azaltılmış hareket, ekranda "AtolyeCAD" yok.
 - DXF için Electron dosya türü `dxf` (kaydet/aç diyaloğu, testli); pencere en küçük boyutu 1200x700; bildirim sütunu sol altta (sağ panel düğmelerini örtmez).
+- Karşılama: son dosyalar ana süreçte (`userData/recent.json`, `native:recentList`/`native:openRecent` yalnız dizin alır, testli), alt çubukta hızlı dil/tema/yoğunluk seçicileri, başlık "Atölye için CAD/CAM."; ayarlar penceresi altında "Değişiklikler anında uygulanır" + "Varsayılana dön" + Kapat, üstte kapat (X).
+- Ekran görüntüsü turu 1: `test/shots-ui.py` → `test/shots/ui/` (açık TR / koyu EN x 1440 / 1920 x karşılama, model, eskiz, ayarlar) tasarım/shots ile yan yana karşılaştırıldı; düzeltilenler: kenar seçim alanında "Temizle" kırpılması (X simgesi), panel altında Enter/Esc ipuçları, panel başlığında özellik simgesi, kısıt listesi satırları, ayarlar alt satırı, karşılama başlığı.
 Kaldı
-- Karşılama ekranı son dosyalar (ana süreç `recentList`/`openRecent`).
 - "Simetrik" kırpılması, onay penceresi biçimleri, ekran görüntüsü turları (açık/koyu x TR/EN x 1440/1920), Electron öz sınama, `npm run dist`.

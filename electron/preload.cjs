@@ -13,6 +13,9 @@ if (location.protocol === 'app:' && location.host === 'atolye') {
     docState: (s) => ipcRenderer.send('native:docState', String(s)),
     setTitle: (t) => ipcRenderer.send('native:title', String(t)),
     // komut satırından (çift tık) açılan .mhnk/.acad dosyası → {name,data} | null
+    // son kullanılan belgeler: [{name, dir, ms}] ve dizinle açma (yolu renderer vermez)
+    recentList: () => ipcRenderer.invoke('native:recentList'),
+    openRecent: (i) => ipcRenderer.invoke('native:openRecent', Number(i)),
     argvFile: () => ipcRenderer.invoke('native:argv'),
     // arayüz kaydedilmemiş değişiklik durumunu bildirir (kapatırken onay için)
     setDirty: (d) => ipcRenderer.send('native:dirty', !!d),

@@ -95,6 +95,19 @@ function applyInstallLang() {
 const strings = {};
 const STRING_KEYS = ['closeMsg', 'closeDetail', 'closeCancel', 'closeDiscard', 'filterDoc', 'filterStep', 'filterStl', 'filterDxf', 'tSave', 'tOpen', 'tImport', 'tExport'];
 
+// ---- son kullanılan belgeler: userData/recent.json (yol + zaman); arayüze yalnız ad/klasör/zaman gider, açma dizinle yapılır
+const recentFile = () => path.join(app.getPath('userData'), 'recent.json');
+function loadRecent() {
+  try { const j = JSON.parse(fs.readFileSync(recentFile(), 'utf8')); return Array.isArray(j) ? j.filter((x) => x && typeof x.path === 'string' && Number.isFinite(x.ms)).slice(0, 8) : []; } catch (e) { return []; }
+}
+function addRecent(p) {
+  try {
+    const list = [{ path: p, ms: Date.now() }, ...loadRecent().filter((x) => x.path !== p)].slice(0, 8);
+    fs.mkdirSync(path.dirname(recentFile()), { recursive: true }); fs.writeFileSync(recentFile(), JSON.stringify(list));
+  } catch (e) { console.error('recent write failed:', e.message); }
+}
+const liveRecent = () => loadRecent().filter((x) => { try { return fs.statSync(x.path).isFile(); } catch (e) { return false; } });
+
 // ---- kurtarma dosyası (S-06): userData/recovery/autosave.mhnk
 const recoveryFile = () => path.join(app.getPath('userData'), 'recovery', 'autosave.mhnk');
 function clearRecovery() { try { fs.rmSync(recoveryFile(), { force: true }); } catch (e) { /* yoksa sorun değil */ } }
@@ -203,14 +216,14 @@ function registerIpc() {
       if (!(kind === 'doc' ? [DOC_EXT] : KINDS[kind]).includes(path.extname(p).toLowerCase())) p += kind === 'doc' ? DOC_EXT : KINDS[kind][0];
     }
     await atomicWrite(p, Buffer.from(data.buffer, data.byteOffset, data.byteLength), { backup: kind === 'doc' });
-    if (kind === 'doc') currentPath = p;
+    if (kind === 'doc') { currentPath = p; addRecent(p); }
     return p;
   }));
 
   // Arayüz belgeyi yükledi / yeni belge açtı: geçerli belge yolunu ana süreç günceller (yolu renderer vermez)
   ipcMain.on('native:docState', (ev, state) => {
     if (!okSender(ev)) return;
-    if (state === 'opened') { if (pendingPath) currentPath = pendingPath; pendingPath = null; }
+    if (state === 'opened') { if (pendingPath) { currentPath = pendingPath; addRecent(currentPath); } pendingPath = null; }
     else if (state === 'new') { currentPath = null; pendingPath = null; }
   });
   ipcMain.on('native:title', (ev, t) => { if (okSender(ev) && win && !win.isDestroyed() && typeof t === 'string') win.setTitle(t.slice(0, 300)); });
@@ -219,6 +232,12 @@ function registerIpc() {
   ipcMain.on('native:getSetting', (ev, k) => { ev.returnValue = okSender(ev) && validKey(k) && Object.hasOwn(settings, k) ? settings[k] : null; });
   ipcMain.on('native:setSetting', (ev, k, v) => { if (okSender(ev) && validKey(k) && validVal(v)) { settings[k] = v; saveSettings(); } });
   ipcMain.on('native:strings', (ev, o) => { if (okSender(ev) && o && typeof o === 'object') for (const k of STRING_KEYS) if (typeof o[k] === 'string') strings[k] = o[k].slice(0, 400); });
+  ipcMain.handle('native:recentList', guarded(async () => liveRecent().map((x) => ({ name: path.basename(x.path), dir: path.dirname(x.path), ms: x.ms }))));
+  ipcMain.handle('native:openRecent', guarded(async (ev, i) => {
+    const list = liveRecent(); if (!Number.isInteger(i) || i < 0 || i >= list.length) return null;
+    const p = list[i].path; if (!KINDS.doc.includes(path.extname(p).toLowerCase())) return null;
+    const data = readLimited(p); pendingPath = p; return { name: path.basename(p), data };
+  }));
   ipcMain.handle('native:argv', guarded(async () => {
     const p = argvDoc(process.argv);
     try { if (!p || !fs.existsSync(p)) return null; const data = readLimited(p); pendingPath = p; return { name: path.basename(p), data }; } catch (e) { return null; }

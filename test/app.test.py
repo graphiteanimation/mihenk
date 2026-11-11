@@ -621,7 +621,7 @@ try:
     labels = page.locator('#panel .fld > label').all_inner_texts()
     check('İngilizce: Extrude paneli', page.inner_text('#panel h3') == 'New Extrude' and labels[:3] == ['Sketch', 'Profiles', 'Operation'] and 'Distance' in labels and 'Flip' in labels, str(labels))
     check('İngilizce: Extrude seçenekleri', page.inner_text('#panel select[data-k="op"]').split() == ['New', 'body', 'Join', 'Cut', 'Intersect'] and 'Symmetric' in page.inner_text('#panel select[data-k="dir"]'), page.inner_text('#panel select[data-k="op"]'))
-    check('İngilizce: Tamam/İptal', page.inner_text('#p-ok') == 'OK' and page.inner_text('#p-cancel') == 'Cancel')
+    check('İngilizce: Tamam/İptal', page.inner_text('#p-ok').startswith('OK') and page.inner_text('#p-cancel').startswith('Cancel'))
     shot('en_02_extrude_panel')
     fill('dist', 10); ok()
     check('İngilizce: extrude gövdesi', nbodies() == 1 and near(vol(), 50 * 30 * 10), vol())
@@ -644,7 +644,7 @@ try:
     # panel açıkken Türkçeye geç: başlık, etiketler, hata metni anında Türkçe olur; geri İngilizce
     lang_menu('tr')
     err_tr = ev('document.querySelector("#p-err").textContent')
-    check('açık panel dil değişince Türkçe (başlık, etiket, hata)', page.inner_text('#panel h3') == 'Yeni Yuvarlat' and 'Kenarlar' in page.inner_text('#panel') and err_tr.startswith('Yuvarlatma başarısız') and page.inner_text('#p-ok') == 'Tamam', page.inner_text('#panel h3')+'|'+page.inner_text('#panel')[:200]+'|'+page.inner_text('#p-ok'))
+    check('açık panel dil değişince Türkçe (başlık, etiket, hata)', page.inner_text('#panel h3') == 'Yeni Yuvarlat' and 'Kenarlar' in page.inner_text('#panel') and err_tr.startswith('Yuvarlatma başarısız') and page.inner_text('#p-ok').startswith('Tamam'), page.inner_text('#panel h3')+'|'+page.inner_text('#panel')[:200]+'|'+page.inner_text('#p-ok'))
     check('panel taslağı dil değişince korundu (r=500, kenar seçili)', page.input_value('#panel [data-k="r"]') == '500' and ev('document.querySelector("#panel .selbox[data-k=edges]").dataset.count') == '1')
     lang_menu('en')
     check('açık panel tekrar İngilizce', page.inner_text('#panel h3') == 'New Fillet' and ev('document.querySelector("#p-err").textContent') == err_en)

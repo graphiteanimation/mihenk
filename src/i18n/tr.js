@@ -1015,4 +1015,7 @@ export default {
   "set.legacy_note": "Eski AtolyeCAD (.acad) dosyaları açılır; kayıt her zaman .mhnk olarak yapılır.",
   "set.offline": "Çevrimdışı çalışır; verileriniz bu bilgisayarda kalır.",
   "st.cancelled": "Hesaplama iptal edildi",
+  "w.lead": "Çevrimdışı çalışır. Dosyalarınız bu bilgisayarda kalır. Hesabın sonucu ekranda görünür; doğrulanmayan hiçbir şey sessizce geçmez.",
+  "w.open_sub": "Mihenk, eski AtolyeCAD ve STEP dosyaları",
+  "w.legacy": "eski biçim",
 };

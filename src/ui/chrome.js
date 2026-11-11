@@ -6,7 +6,7 @@ import { h, $, ctxMenu, fmt, tip, hideTip, modal } from './dom.js';
 import { icon, featureIcon } from './icons.js';
 import { featLabel } from './features.js';
 import { t, tk, errText, getLang, LANGS, tLang } from '../shared/i18n.js';
-import { getStr, setStr } from './prefs.js';
+import { getStr, setStr, prefs, setPref } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
 
 // Eskiz araç listeleri: [kimlik, etiket anahtarı, simge adı]
@@ -351,7 +351,18 @@ export function initChrome(app) {
   const hhmm = (d) => d.toLocaleTimeString(getLang() === 'tr' ? 'tr-TR' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
   const seg = (id, ...kids) => h('span', { class: 'seg-i', 'data-testid': id, id: id === 'st-left' ? 'st-left' : null }, ...kids);
   const div = () => h('span', { class: 'div' });
+  // Karşılama ekranında alt çubuk: çevrimdışı rozeti + hızlı dil / tema / yoğunluk seçicileri
+  C.renderQuick = () => {
+    const q = $('#statusbar-quick'); if (!q) return;
+    const sg = (label, tid, opts, cur, pick) => h('span', { class: 'quick' }, h('span', { class: 'muted-od', text: label }), h('span', { class: 'seg', role: 'group', 'data-testid': tid },
+      ...opts.map(([v, l]) => h('button', { type: 'button', 'aria-pressed': String(v === cur), 'data-testid': tid + '-' + v, onclick: () => pick(v), text: l }))));
+    q.replaceChildren(h('span', { class: 'seg-i' }, h('span', { html: icon('lock', 'sm') }), h('span', { text: t('ui.offline') })), h('span', { class: 'grow' }),
+      sg(t('set.language'), 'q-lang', [['tr', 'TR'], ['en', 'EN']], getLang(), (v) => app.setLanguage(v)),
+      sg(t('set.theme'), 'q-theme', [['light', t('set.theme_light')], ['dark', t('set.theme_dark')], ['system', t('set.theme_system')]], prefs.theme, (v) => setPref('theme', v)),
+      sg(t('set.density'), 'q-density', [['normal', t('set.density_normal')], ['large', t('set.density_large')]], prefs.density, (v) => setPref('density', v)));
+  };
   C.renderStatus = () => {
+    C.renderQuick();
     const r = app.result; const n = r ? r.bodies.length : 0;
     const bad = app.badFeatures();
     const sk = !!app.sketchSession;

@@ -26,8 +26,7 @@ export function showSettings(app, tab = 'general') {
     wel.addEventListener('change', () => setStr('welcome', wel.checked ? 'on' : 'off'));
     return [h('div', { class: 'sec', text: t('set.sec_look') }), field(t('set.language'), lang), field(t('set.theme'), theme), field(t('set.density'), dens, t('set.density_help')),
       h('div', { class: 'sec', text: t('set.sec_start') }), field(t('set.show_welcome'), h('label', { class: 'check' }, wel, h('span', { text: t('set.show_welcome_on') }))),
-      h('div', { class: 'note', text: t('set.applied') }),
-      h('button', { class: 'btn', 'data-testid': 'set-reset', onclick: () => { resetPrefs(); app.setLanguage('tr'); draw(); } }, t('set.reset'))];
+      ];
   };
   const about = () => [h('div', { class: 'sec', text: 'Mihenk CAD/CAM' }), h('table', { class: 'kv' }, h('tr', {}, h('td', { text: t('set.version') }), h('td', { text: pkg.version }))),
     h('div', { class: 'note', text: t('set.about_note') }), h('div', { class: 'note', text: t('set.legacy_note') }), h('div', { class: 'note', text: t('set.offline') })];
@@ -36,7 +35,7 @@ export function showSettings(app, tab = 'general') {
     pane.replaceChildren(...(cur === 'about' ? about() : general()));
   };
   draw();
-  return modal({ title: t('set.title'), content: h('div', { class: 'settings', 'data-testid': 'settings' }, nav, pane), buttons: [{ label: t('common.close'), cls: 'pri', value: true }], width: 720, icon: 'settings' });
+  return modal({ title: t('set.title'), content: h('div', { class: 'settings', 'data-testid': 'settings' }, nav, pane), buttons: [{ label: t('set.reset'), cls: 'ghost', testid: 'set-reset', onClick: () => { resetPrefs(); app.setLanguage('tr'); draw(); } }, { label: t('common.close'), cls: 'pri primary', value: true }], note: t('set.applied'), width: 720, icon: 'settings' });
 }
 
 export function renderWelcome(app) {
@@ -47,11 +46,11 @@ export function renderWelcome(app) {
   const big = (cls, ic, title, sub, kbd, tid, fn) => h('button', { type: 'button', class: 'bigact ' + cls, 'data-testid': tid, onclick: fn }, h('span', { html: icon(ic) }), h('span', {}, title, sub ? h('span', { class: 'sub', text: sub }) : null), kbd ? h('span', { class: 'kbd', text: kbd }) : null);
   const left = h('div', { class: 'left' },
     h('img', { class: 'logo logo-light', src: logoLight, alt: 'Mihenk' }), h('img', { class: 'logo logo-dark', src: logoDark, alt: 'Mihenk' }),
-    h('div', {}, h('h1', { text: t('w.title') }), h('p', { class: 'lead', text: t('w.tagline') })),
+    h('div', {}, h('h1', { text: t('w.tagline') }), h('p', { class: 'lead', text: t('w.lead') })),
     h('div', { class: 'acts', style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
       big('primary', 'file-new', t('w.new'), t('w.new_sub'), 'Ctrl+N', 'w-new', go()),
-      big('', 'file-open', t('w.open'), null, 'Ctrl+O', 'w-open', () => { app.showWelcome(false); app.openFile().then(() => { if (!app.fileName) app.showWelcome(false); }); })),
-    h('div', { class: 'foot' }, h('span', { text: t('w.version', { v: pkg.version }) }), h('span', { text: t('set.offline') })));
+      big('', 'file-open', t('w.open'), t('w.open_sub'), 'Ctrl+O', 'w-open', () => { app.showWelcome(false); app.openFile().then(() => { if (!app.fileName) app.showWelcome(false); }); })),
+    h('div', { class: 'foot' }, h('span', { text: t('w.version', { v: pkg.version }) }), h('span', { text: t('ui.offline') })));
   const list = h('div', { class: 'rlist', 'data-testid': 'w-recent' });
   const right = h('div', { class: 'right' }, h('div', { class: 'rhead' }, h('span', { text: t('w.recent') })), list,
     h('div', { class: 'card' }, h('div', { class: 'rhead', text: t('w.steps_title') }), h('div', { class: 'steps' }, h('span', { class: 'chip', text: '1 ' + t('w.step1') }), h('span', { class: 'chip', text: '2 ' + t('w.step2') }), h('span', { class: 'chip', text: '3 ' + t('w.step3') }))));
@@ -60,7 +59,7 @@ export function renderWelcome(app) {
   if (window.native?.recentList) window.native.recentList().then((items) => {
     if (!Array.isArray(items) || !items.length) return;
     list.replaceChildren(...items.slice(0, 6).map((it, i) => h('button', { type: 'button', class: 'ri', 'data-testid': 'w-recent-item', onclick: go(() => app.openRecent(i)) },
-      h('span', { class: 'thumb', html: icon('file-open') }), h('span', {}, h('span', { class: 'nm', text: it.name }), h('span', { class: 'path', text: it.dir || '' })), h('span', { class: 'meta', text: it.when || '' }))));
+      h('span', { class: 'thumb', html: icon('file-open') }), h('span', {}, h('span', { class: 'nm', text: it.name }), h('span', { class: 'path', text: it.dir || '' })), h('span', { class: 'meta' }, h('span', { text: new Date(it.ms).toLocaleString(getLang(), { dateStyle: 'medium', timeStyle: 'short' }) }), /\.acad$/i.test(it.name) ? h('span', { class: 'badge', text: t('w.legacy') }) : null))));
   }).catch(() => {});
   root.replaceChildren(left, right);
 }

@@ -48,14 +48,14 @@ export function toast(msg, opt = false) {
 // buttons: [{label, cls, value, check?, safe?}] → seçilen değer ile çözülen Promise. Esc = iptal (null). Enter = ilk "pri" düğmesi
 // (odak bir düğmedeyse o düğme). safe: true olan düğme ilk odağı alır (geri alınamaz işlemlerde varsayılan = güvenli seçenek).
 // Odak pencerenin içinde döner (Tab tuzağı); kapanınca odak önceki öğeye döner.
-export function modal({ title, content, buttons, width, cls, icon: ic }) {
+export function modal({ title, content, buttons, width, cls, icon: ic, note }) {
   const root = $('#modal');
   const prev = document.activeElement;
   return new Promise((resolve) => {
     const close = (v) => { root.classList.add('hidden'); root.replaceChildren(); document.removeEventListener('keydown', onKey, true); try { prev && prev.focus && prev.focus(); } catch (e) { /* öğe kalkmış olabilir */ } resolve(v); };
     const btns = (buttons || [{ label: t('common.ok'), cls: 'pri primary', value: true }]).map((b) => h('button', {
       class: 'btn ' + (b.cls || ''), 'data-v': String(b.value), 'data-testid': b.testid || null,
-      onclick: () => { if (b.check && b.check() === false) return; close(b.value); },
+      onclick: () => { if (b.onClick) { b.onClick(); return; } if (b.check && b.check() === false) return; close(b.value); },
     }, b.label));
     const pri = btns.find((b) => b.classList.contains('pri'));
     const safe = (buttons || []).findIndex((b) => b.safe);
@@ -71,8 +71,8 @@ export function modal({ title, content, buttons, width, cls, icon: ic }) {
     };
     document.addEventListener('keydown', onKey, true);
     const box = h('div', { class: 'modal' + (cls ? ' ' + cls : ''), role: 'dialog', 'aria-modal': 'true' },
-      h('header', {}, ic ? h('span', { html: icon(ic) }) : null, h('h3', { text: title })),
-      h('div', { class: 'body content' }, content), h('footer', { class: 'actions' }, btns));
+      h('header', {}, ic ? h('span', { html: icon(ic) }) : null, h('h3', { text: title }), h('button', { class: 'btn ghost icon x', type: 'button', 'aria-label': t('common.close'), 'data-testid': 'modal-close', onclick: () => close(null), html: icon('close') })),
+      h('div', { class: 'body content' }, content), h('footer', { class: 'actions' }, note ? h('span', { class: 'fnote', text: note }) : null, btns));
     if (width) box.style.width = width + 'px';
     root.replaceChildren(box);
     root.classList.remove('hidden');

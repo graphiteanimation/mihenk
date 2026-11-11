@@ -71,7 +71,7 @@ const R = await page.evaluate(async ([PORT, ASSETS]) => {
   return o;
 }, [PORT, ASSETS]);
 check('Node globalleri renderer\'da yok', R.nodeGlobals === 'undefined,undefined,undefined', R.nodeGlobals);
-check('köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler', R.nativeKeys === 'argvFile,docState,getSetting,openFile,recoveryClear,recoveryLoad,recoverySave,saveFile,setDirty,setSetting,setStrings,setTitle,versions', R.nativeKeys);
+check('köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler', R.nativeKeys === 'argvFile,docState,getSetting,openFile,openRecent,recentList,recoveryClear,recoveryLoad,recoverySave,saveFile,setDirty,setSetting,setStrings,setTitle,versions', R.nativeKeys);
 check('CSP yanıt başlığı = electron/csp.cjs', R.csp === CSP, R.csp);
 check('CSP meta etiketi = başlık', R.cspMeta === CSP);
 check('ana betik de aynı sıkı CSP\'yi alır (unsafe-eval yok)', R.mainJsCsp === CSP && !/'unsafe-eval'/.test(R.mainJsCsp || ''), String(R.mainJsCsp));
@@ -223,6 +223,8 @@ check('.acad açıkken Kaydet: diyalog açıldı, .mhnk yazıldı (app=Mihenk), 
 const noExt = path.join(TMP, 'uzantisiz'); await stubDialogs(app, { save: noExt });
 await page.evaluate(() => window.app.save(true));
 check('uzantısız kayıt adına .mhnk eklenir (.acad eklenmez)', fs.existsSync(noExt + '.mhnk') && !fs.existsSync(noExt + '.acad'));
+const recent = await page.evaluate(() => window.native.recentList());
+check('son kullanılanlar: kaydedilen .mhnk listede, açma dizinle', Array.isArray(recent) && recent.length >= 1 && recent[0].name === 'uzantisiz.mhnk' && (await page.evaluate(async () => { const r = await window.native.openRecent(0); return r && r.name; })) === 'uzantisiz.mhnk' && (await page.evaluate(() => window.native.openRecent(99))) === null);
 const dxfOut = path.join(TMP, 'cizim.dxf'); await stubDialogs(app, { save: dxfOut });
 const dxfRes = await page.evaluate(async () => { const r = await window.native.saveFile({ saveAs: true, data: new TextEncoder().encode('0\nSECTION\n0\nEOF\n'), defaultName: 'cizim.dxf', kind: 'dxf' }); return r; });
 check('DXF dosya türü: kayıt diyaloğu .dxf yazar', typeof dxfRes === 'string' && fs.existsSync(dxfOut) && fs.readFileSync(dxfOut, 'utf8').includes('SECTION'));
