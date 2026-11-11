@@ -67,6 +67,59 @@ const TYPES = {
 };
 export const KNOWN_TYPES = Object.keys(TYPES);
 
+// ---- doc.cam (isteğe bağlı; yoksa CAM boş). Ayrıntılı anlamsal denetim CAM çekirdeğindedir (src/cam/tools.js, index.js);
+// burada tür, sınır ve zararlı yapı denetlenir. Bilinmeyen ek alanlar genel denetimden geçer.
+export const CAM_LIMITS = { tools: 5000, setups: 500, ops: 5000, presets: 100, geom: 5000, num: 1e6 };
+const camNum = (lo = -CAM_LIMITS.num, hi = CAM_LIMITS.num) => (v, p) => { num()(v, p); if (v < lo || v > hi) fail('schema.bad_field', { path: p, expect: 'number' }); };
+const posInt = (max = 99999) => (v, p) => { if (!Number.isInteger(v) || v < 1 || v > max) fail('schema.bad_field', { path: p, expect: 'number' }); };
+const idStr = str(LIMITS.shortStr);
+const COOL = ['flood', 'mist', 'air', 'through', 'off'];
+const camTool = obj({
+  id: idStr, number: posInt(), lengthOffset: posInt(), diaOffset: nullable(posInt()),
+  type: oneOf(['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore']),
+  dia: camNum(0, 2000), cornerR: camNum(0, 1000), tipAngle: camNum(0, 180), fluteLen: camNum(0), bodyLen: camNum(0), shaftDia: camNum(0, 2000),
+  flutes: posInt(100), centerCutting: bool(), pitch: camNum(0, 100), holder: nullable(obj({ dia: camNum(0), len: camNum(0) })),
+  material: str(LIMITS.shortStr), note: str(), name: str(LIMITS.shortStr),
+  presets: arrOf(obj({ name: str(LIMITS.shortStr), rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), stepdown: camNum(0), stepover: camNum(0), coolant: oneOf(COOL) }), CAM_LIMITS.presets),
+});
+const axisSpec = obj({ kind: oneOf(['base', 'face']), dir: oneOf(['+X', '-X', '+Y', '-Y', '+Z', '-Z']), ref: obj(), flip: bool() });
+const heightRef = obj({ from: oneOf(['stockTop', 'stockBottom', 'modelTop', 'modelBottom', 'selection', 'abs']), off: camNum() });
+const camOp = obj({
+  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
+  rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), coolant: oneOf(COOL), suppressed: bool(),
+  heights: obj({ clearance: camNum(), retract: camNum(), top: heightRef, bottom: heightRef }),
+  geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr }), CAM_LIMITS.geom),
+  stepover: camNum(0), stepdown: camNum(0), finishStepdown: camNum(0), finishStock: camNum(0), direction: camNum(), extend: camNum(0),
+  side: oneOf(['outside', 'inside', 'on']), dir: oneOf(['climb', 'conv']), comp: oneOf(['computer', 'wear']), finishPass: bool(),
+  cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
+  holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr }), sketch: idStr, ents: strArr() }),
+  depth: obj({ from: oneOf(['hole', 'abs']), tipComp: bool(), breakThrough: camNum(0), z: camNum() }),
+  entry: obj({ kind: oneOf(['helix', 'ramp', 'plunge', 'predrill']), angle: camNum(0, 90), helixDia: camNum(0) }),
+  leadIn: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }), leadOut: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }),
+  tabs: obj({ n: posInt(100), width: camNum(0), height: camNum(0) }), ramp: obj({ kind: oneOf(['plunge', 'ramp', 'helix']), angle: camNum(0, 90) }),
+  roughPasses: obj({ n: posInt(100), stepover: camNum(0) }),
+});
+const camSetup = obj({
+  id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),
+  frame: obj({ origin: obj({ kind: oneOf(['model', 'stockCorner', 'stockTopCenter', 'point']), corner: str(16), p: arrOf(camNum(), 3) }), zAxis: axisSpec, xAxis: axisSpec }),
+  rotary: obj({ enabled: bool(), aAngle: camNum(-36000, 36000) }),
+  workOffset: obj({ kind: oneOf(['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1']), p: posInt(9999) }),
+  stock: obj({ kind: oneOf(['boxOffset', 'box', 'cyl']), side: camNum(0), top: camNum(0), bottom: camNum(0), min: arrOf(camNum(), 3), max: arrOf(camNum(), 3), dia: camNum(0), len: camNum(0), axis: oneOf(['X']) }),
+  clearanceZ: camNum(0), ops: arrOf(camOp, CAM_LIMITS.ops),
+});
+export function validateCam(cam) {
+  if (!isObj(cam)) fail('schema.bad_field', { path: 'cam', expect: 'object' });
+  if (cam.machineId !== undefined && cam.machineId !== null) str(LIMITS.shortStr)(cam.machineId, 'cam.machineId');
+  if (cam.tools !== undefined) arrOf(camTool, CAM_LIMITS.tools)(cam.tools, 'cam.tools');
+  if (cam.setups !== undefined) arrOf(camSetup, CAM_LIMITS.setups)(cam.setups, 'cam.setups');
+  if (cam.verified !== undefined && cam.verified !== null) obj({ by: str(LIMITS.shortStr), date: str(40), note: str(), hash: str(LIMITS.shortStr) })(cam.verified, 'cam.verified');
+  const ids = new Set();
+  for (const [i, t] of (cam.tools || []).entries()) { if (!t.id) fail('schema.bad_field', { path: `cam.tools[${i}].id`, expect: 'text' }); if (ids.has(t.id)) fail('schema.dup_id', { id: t.id }); ids.add(t.id); }
+  const oids = new Set();
+  for (const s of cam.setups || []) for (const o of s.ops || []) { if (!o.id) fail('schema.bad_field', { path: 'cam.setups.ops.id', expect: 'text' }); if (oids.has(o.id)) fail('schema.dup_id', { id: o.id }); oids.add(o.id); }
+  return true;
+}
+
 // Genel gezinti: iç içelik, düğüm sayısı, dizge uzunluğu, tehlikeli anahtar (__proto__). Özyinelemesiz (4000 katman bile yığını taşırmaz).
 function walk(root) {
   const stack = [[root, 1, '']]; let nodes = 0;
@@ -107,6 +160,7 @@ export function validateDoc(doc, { byteLength } = {}) {
     const ks = Object.keys(doc.bodyNames); if (ks.length > LIMITS.bodyNames) fail('schema.too_many', { what: 'bodyNames', max: LIMITS.bodyNames });
     for (const k of ks) str(LIMITS.shortStr)(doc.bodyNames[k], 'bodyNames.' + k);
   }
+  if (doc.cam !== undefined && doc.cam !== null) validateCam(doc.cam);
   const feats = doc.features === undefined ? [] : doc.features;
   if (!Array.isArray(feats)) fail('schema.bad_field', { path: 'features', expect: 'list' });
   if (feats.length > LIMITS.features) fail('schema.too_many_features', { max: LIMITS.features });
