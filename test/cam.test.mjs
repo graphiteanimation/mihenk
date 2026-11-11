@@ -6,6 +6,7 @@ import * as CAM from '../src/cam/index.js';
 import * as P from '../src/cam/geom/path2d.js';
 import * as G from '../src/shared/geom2d.js';
 import { ringTree, pocketRegion, SegGrid } from '../src/cam/ops/pocket.js';
+import { sketchFaces } from '../src/cam/geom/select.js';
 import { builtinMachines, checkMachine, copyMachine } from '../src/cam/machines/builtin.js';
 import { normalizeTool, importLibrary, exportLibrary, applyPreset, toolListIssues } from '../src/cam/tools.js';
 import { validateToolpath, validateProgram, walk, sampleArc } from '../src/cam/ir.js';
@@ -340,10 +341,12 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
     { id: 'o2', type: 'pocket', name: 'Cep', toolId: 'em6', ...base, heights: { ...hh, top: { from: 'modelTop', off: 0 }, bottom: { from: 'selection', off: 0 } }, geom: [{ kind: 'face', ref: floor }], stepover: 2.5, stepdown: 3, stockToLeave: { radial: 0, axial: 0 }, entry: { kind: 'helix', angle: 3, helixDia: 3 } },
     { id: 'o3', type: 'pocket', name: 'Basamak', toolId: 'em6', ...base, heights: { ...hh, top: { from: 'modelTop', off: 0 }, bottom: { from: 'selection', off: 0 } }, geom: [{ kind: 'face', ref: step }], stepover: 2.5, stepdown: 5, entry: { kind: 'ramp', angle: 3 } },
     { id: 'o4', type: 'contour', name: 'Dis', toolId: 'em10', ...base, heights: { ...hh, top: { from: 'modelTop', off: 0 }, bottom: { from: 'abs', off: -31 } }, geom: [{ kind: 'face', ref: bottom, loops: 'outer' }], stepdown: 4, leadIn: { kind: 'arc', r: 4 }, leadOut: { kind: 'arc', r: 4 } },
+    { id: 'o6', type: 'contour', name: 'Siluet', toolId: 'em10', ...base, heights: { ...hh, top: { from: 'modelTop', off: 0 }, bottom: { from: 'selection', off: -0.5 } }, geom: [{ kind: 'silhouette', body: bid }], stepdown: 6, stockToLeave: { radial: 0.5, axial: 0 }, leadIn: { kind: 'arc', r: 4 }, leadOut: { kind: 'arc', r: 4 } },
+    { id: 'o7', type: 'pocket', name: 'SketchCep', toolId: 'em6', ...base, heights: { ...hh, top: { from: 'modelTop', off: 0 }, bottom: { from: 'abs', off: -11 } }, geom: [{ kind: 'sketch', sketch: 's2', profiles: [ring] }], stepover: 2.5, stepdown: 3, stockToLeave: { radial: 0.1, axial: 0.05 }, entry: { kind: 'helix', angle: 3, helixDia: 3 } },
     { id: 'o5', type: 'drill', name: 'Delik', toolId: 'dr', ...base, heights: hh, holes: { kind: 'feature' }, cycle: 'peck', peck: 3, depth: { from: 'hole', tipComp: false }, order: 'shortest' },
   ] }] };
   ok(validateDoc({ ...doc, cam }), 'uctan uca belge semadan gecer');
-  const query = async (cmd, args) => (cmd === 'camFaceLoops' ? K.camFaceLoops(args) : cmd === 'facePlane' ? K.facePlane(args.ref) : null);
+  const query = async (cmd, args) => { if (cmd === 'facePlane') return K.facePlane(args.ref); if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
   const S = CAM.resolveSetup(cam.setups[0], rb, M);
   const fl = K.camFaceLoops({ ref: floor, frame: S.frame }); const sl = K.camFaceLoops({ ref: step, frame: S.frame });
   ok(Math.abs(fl.z + 11) < 1e-9 && fl.inners.length === 1 && !fl.open && fl.outer.length === 4, 'camFaceLoops taban: z, ada, kapali duvarlar');
@@ -353,7 +356,7 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
   const hm = K.camHeightmap({ bodies: [bid], frame: S.frame, res: 0.5, bbox: [S.stockBox.min[0], S.stockBox.min[1], S.stockBox.max[0], S.stockBox.max[1]] });
   const at = (x, y) => hm.data[Math.floor((y - hm.y0) / hm.res) * hm.nx + Math.floor((x - hm.x0) / hm.res)];
   ok(Math.abs(at(32, 22) + 11) < 1e-3 && Math.abs(at(52, 32) + 1) < 1e-3 && at(0.5, 0.5) === -Infinity, 'yukseklik haritasi: taban/ada/bos');
-  const res = await CAM.generateProgram(cam, { rebuild: rb, machine: M, query, name: 'O1000', sim: { res: 0.5, modelHeightmaps: { S1: hm } } });
+  const res = await CAM.generateProgram(cam, { rebuild: rb, machine: M, query, doc, name: 'O1000', sim: { res: 0.5, modelHeightmaps: { S1: hm } } });
   ok(res.ops.every((o) => o.ok), 'tum islemler hesaplandi: ' + JSON.stringify(res.ops.filter((o) => !o.ok).map((o) => [o.opId, o.error])));
   const blocks = res.gates.filter((g) => g.level === 'block'); ok(res.program && !blocks.length, 'kapilar temiz (sim + oyma dahil): ' + JSON.stringify(blocks.slice(0, 5)));
   ok(res.program && res.program.sections.every((s) => rapidsOk(s.toolpath, S.stockTop)), 'hicbir hizli stok icinde yatay gitmiyor');
@@ -363,9 +366,34 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
     ok(pts.every((p) => P.distTo([p[0], p[1]], P.regionSegs(Rg)) >= 3 - 1e-6), 'cekirdek cebi: duvar/adaya ihlal yok');
   }
   const stp = res.ops.find((o) => o.opId === 'o3')?.toolpath; if (stp) ok(Math.max(...cutPoints(stp, (z) => z < S.stockTop - 1).map((p) => p[0])) >= 102 + 3 - 1e-6, 'acik basamak: takim acik kenarin otesine tasar');
+  // silhouette: dis kontur tam r + pay, hicbir nokta govde ayak izinde degil
+  const so = res.ops.find((o) => o.opId === 'o6')?.toolpath;
+  if (so) {
+    const fp = kloop(sq(2, 2, 102, 62)); const pts = cutPoints(so, (z) => z < S.stockTop - 1, 0.1);
+    const md = Math.min(...pts.map((p) => P.distTo([p[0], p[1]], fp)));
+    ok(Math.abs(md - 5.5) < 1e-6 && pts.every((p) => !P.inRegion([p[0], p[1]], { outer: fp, holes: [] })) && Math.abs(so.stats.zMin - (S.modelBBox.min[2] - 0.5)) < 1e-6, `silhouette kontur: en yakin ${md} = r+pay, govde tabani - 0,5`);
+  } else ok(false, 'silhouette islemi yok');
+  // sketch cebi: yuz secimli cep ile ayni sinirlar (duvar/ada) -> r + pay
+  const sp = res.ops.find((o) => o.opId === 'o7')?.toolpath;
+  if (sp) {
+    const Rg = { outer: kloop(fl.outer), holes: fl.inners.map(kloop) }; const pts = cutPoints(sp, (z) => z < S.stockTop - 1, 0.1);
+    const md = Math.min(...pts.map((p) => P.distTo([p[0], p[1]], P.regionSegs(Rg))));
+    ok(Math.abs(md - 3.1) < 1e-6 && pts.every((p) => P.inRegion([p[0], p[1]], Rg)) && Math.abs(sp.stats.zMin + 10.95) < 1e-6, `sketch cebi: en yakin ${md} = r+pay, bolge icinde, eksenel pay`);
+  } else ok(false, 'sketch cebi yok');
+  // sketch duzlemi takim eksenine dik degil -> hata; aynali (normal -Z) sketch dogru tarafta
+  throwsCode(() => sketchFaces({ kind: 'sketch', sketch: 's2', profiles: 'all' }, sk2, { o: [0, 0, 0], x: [1, 0, 0], y: [0, 0, 1], n: [0, -1, 0] }, S.frame), 'cam.geom.sketch_not_perpendicular', 'dik olmayan sketch');
+  const mir = sketchFaces({ kind: 'sketch', sketch: 's2', profiles: [ring] }, sk2, { o: [0, 0, 30], x: [-1, 0, 0], y: [0, 1, 0], n: [0, 0, -1] }, S.frame)[0];
+  const mo = kloop(mir.outer); const mb = P.loopBBox([mo]);
+  ok(P.area(mo) > 0 && Math.abs(mb[0] - (2 - 80)) < 1e-9 && Math.abs(mb[2] - (2 - 20)) < 1e-9 && mir.inners.length === 1, 'aynali sketch: dis CCW, x ters, ada var');
   // B postu ile NC (makine profilindeki null post ozellikleri olmadan)
   try { const { postProgram } = await import('../src/cam/post/index.js'); const nc = postProgram(res.program, M, { gates: res.gates, date: '2026-11-11' }); ok(typeof nc.text === 'string' && /UNVERIFIED/.test(nc.text) && nc.text.includes('G83'), 'B postu ile NC uretildi'); }
   catch (e) { ok(false, 'post: ' + (e.code || e.message)); }
+  // prizmatik olmayan govde (X eksenli silindir) -> silhouette acik hata
+  const rbC = await K.rebuild({ params: [], features: [{ id: 'cy', type: 'primitive', kind: 'cylinder', x: '0', y: '30', z: '20', dia: '20', h: '100', axis: 'X', op: 'new' }] });
+  const SC = CAM.resolveSetup({ ...cam.setups[0], bodies: [rbC.bodies[0].id] }, rbC, M);
+  try { await CAM.resolveGeom({ geom: [{ kind: 'silhouette', body: rbC.bodies[0].id }] }, SC, { rebuild: rbC, doc: null, query }); ok(false, 'silindir silhouette hata vermeliydi'); }
+  catch (e) { ok(e.code === 'cam.silhouette.not_prismatic', 'prizmatik olmayan govde: ' + e.code); }
+  await K.rebuild(doc);
   // eksik veri: genel makine sablonu -> block
   const r2b = await CAM.generateProgram(cam, { rebuild: rb, machine: builtinMachines()[1], query, name: 'O1' }); ok(r2b.blocked && r2b.gates.some((g) => g.code === 'cam.gate.missing'), 'sablon makine: eksik veri block');
 }

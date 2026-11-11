@@ -17,6 +17,7 @@ import { TOOL_TYPES, normalizeTool, applyPreset, irTool, tipLength, toolListIssu
 | --- | --- | --- |
 | `camFaceLoops` | `{ref, frame}` | `{ z, normalOk, outer:[seg], inners:[[seg]], open, above:[[seg]]|null, aboveDz, body }` |
 | `camSection` | `{body, frame, z}` | `{ z, loops:[[seg]] }` (malzeme gidiş yönünün solunda; dış CCW) |
+| `camZLevels` | `{body, frame}` | `{ levels:[z] (eksene dik düzlem yüzlerin z'leri), prismatic, bad, badBoxes:[[x0,y0,x1,y1]] }` |
 | `camHeightmap` | `{bodies:[id], frame, res, bbox:[x0,y0,x1,y1]}` | `{ x0, y0, res, nx, ny, data:Float32Array, err }` — B'nin Heightmap biçimi (hücre MERKEZİ); boş hücre `-Infinity` |
 
 - `frame = {o, x, y, z}` model uzayında (birim, dik); setup koordinatı `q = [ (p−o)·x, (p−o)·y, (p−o)·z ]`. Her zaman `resolveSetup(...).frame` verin.
@@ -56,8 +57,14 @@ Toolpath = IR (`src/cam/ir.js validateToolpath`'ten geçer) + ek alanlar: `warni
 Toolpath uyarıları da `warn` olarak eklenir. `blocked(list)` (gates.js) yardımcı.
 
 ### `buildProgram({name, number?, machine, sections:[{setup:S, toolpaths:[tp]}]}) → Program` (validateProgram'dan geçer; bölüm `setup` = `{id,name,workOffset,aAngle,stockBox,machinePos}`)
-### `generateProgram(cam, {rebuild, machine, query, name, number?, sim?, onlyOps?}) → Promise<{program|null, ops:[{opId,setupId,ok,error?,toolpath?}], gates, blocked}>`
-`query(cmd, args)` → worker çağrısı (`facePlane`, `camFaceLoops`). Hesaplanamayan işlem `ops[].error` + `cam.gate.op_failed` (block).
+### `resolveGeom(op, S, {rebuild, doc, query}) → Promise<{sels, faces}>`
+Seçimleri yüz nesnelerine çözer (sıra korunur; bir sketch seçimi birden çok bölge verebilir, `sels` buna göre genişler — `computeOp`'a `{...op, geom: sels}` ve `geom.faces = faces` verin):
+- `{kind:'face', ref, loops?}` → `camFaceLoops`.
+- `{kind:'sketch', sketch, profiles, loops?}` → `doc.features` içindeki sketch + `rebuild.sketches[id].plane`; `findRegions` + `resolveProfiles` (sayısal ya da `{ents,hint}`); bölge dışı CCW, delikleri iç döngü/ada; z = sketch düzlemi. Düzlem takım eksenine dik değilse `cam.geom.sketch_not_perpendicular`; normal −Z ise ayna doğru uygulanır. Çizgi/yay/daire dışı eğri (elips, spline) → `cam.geom.unsupported_curve`. Kayıp profil → `cam.geom.sketch_profile_lost`.
+- `{kind:'silhouette', body, loops?}` → `camZLevels` + ardışık seviyelerin ortasında `camSection`; her kesitte tek dış sınır (`cam.silhouette.multiple`), kesitler iç içe (`cam.silhouette.not_nested`), en geniş dış sınır alınır, z = gövde tabanı. Eksene dik/paralel düzlem ve eksene paralel silindir dışındaki yüzler yalnız XY kutuları dış sınırın kesin içindeyse (ör. delik ucu konisi) kabul edilir; aksi `cam.silhouette.not_prismatic` (ör. eğik duvar, dış pah/yuvarlatma, yatay silindir).
+
+### `generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?}) → Promise<{program|null, ops:[{opId,setupId,ok,error?,toolpath?}], gates, blocked}>`
+`query(cmd, args)` → worker çağrısı (`facePlane`, `camFaceLoops`, `camSection`, `camZLevels`). `doc` sketch seçimleri için gerekir. Hesaplanamayan işlem `ops[].error` + `cam.gate.op_failed` (block).
 
 Örnek:
 ```js
@@ -84,7 +91,7 @@ if (!g.some((x) => x.level === 'block')) postProgram(program, machine, { gates: 
 - **Açık kenar tespiti (çekirdek)**: kenara oturan komşu yüz üçgenlerinin üçüncü köşesi taban z'sinin 1e-4 mm üstünde değilse açık; üçgen bulunamazsa komşu yüzün tamamının en yüksek noktası (muhafazakâr: kapalı sayar).
 
 ## 3. Sınırlar (bu sürüm)
-- Sketch/silhouette GeomSel `generateProgram` içinde desteklenmez (`cam.geom.sel_unsupported`); `computeOp` setup uzayına çevrilmiş zinciri `{kind:'chain'}` ile kabul eder (çeviri C'de). Kontur `ramp.kind:'helix'`, cep `entry:'predrill'` → `cam.op.unsupported`.
+- Sketch seçimi yalnız kapalı bölgeler (açık sketch zinciri için `{kind:'chain'}` + `geom.items`, çeviri çağıranda). Silhouette yalnız prizmatik dış sınır (yukarıdaki kural); alt kesme/eğik duvarlı gövdede açık hata. Kontur `ramp.kind:'helix'`, cep `entry:'predrill'` → `cam.op.unsupported`.
 - Açık zincir kontur yalnız `side:'on'` (giriş/çıkış, köprü, wear yok). Aşınma telafisinde kaba yanal paso, rampa, bölünen kontur desteklenmez (hata).
 - Bir cep işleminin taban yüzleri aynı z'de olmalı. Cepte her derinlik aynı XY halkalarını kullanır (2,5D; eğimli duvar yok).
 - Kenar/yüz eğrileri: çizgi ve takım eksenine dik daire tam; diğerleri ≤ 0,005 mm kirişe bölünür.
@@ -100,8 +107,8 @@ if (!g.some((x) => x.level === 'block')) postProgram(program, machine, { gates: 
 - Cep `finishPass` için `finishStock` zorunlu; helis için `entry.helixDia` (takım merkezi çapı) ve `entry.angle` zorunlu (varsayılan uydurulmadı).
 - Yükseklikler: `clearance`/`retract` stok üstünden mm; `abs` için `off` mutlak z; drill `depth.z` (abs).
 - Wear (sözleşme metnine göre): programlanan yol = parça konturu + yanal pay; kontrol D değerindeki TAM yarıçapı uygular (Fusion'daki "in control" anlamı). B'nin simülasyonu da böyle modelliyor. Makinede D'ye ne yazılacağı (yarıçap mı, yalnız aşınma mı) makine projesinde teyit edilmeli.
-- Yerleşik Neway şablonu: `toolChange.maxTools: null` (tabloda magazin kapasitesi yok; "24 cep dolu, T1–T25 kayıtlı"), korunan WCS listesine "4. eksen işi G58" de eklendi; `post.props` docs/POST.md adlarıyla, bilinmeyenler `null`.
+- Yerleşik Neway şablonu: `toolChange.maxTools: null` (tabloda magazin kapasitesi yok; "24 cep dolu, T1–T25 kayıtlı"), korunan WCS yalnız G54/G56 (G58 4. eksen işinin kullandığı ofset; koordinatör düzeltmesi aaeedc3); `post.props` docs/POST.md adlarıyla, bilinmeyenler `null`.
 
 ## 5. Testler
-`node test/cam.test.mjs` → 136 geçti, 0 kaldı (≈7 s). Kapsam: ofset doğruluğu (her nokta sınırdan tam d, hata < 1e-9), L şekli, dış ofset yayları; makine/takım/kütüphane; yüzey kapsaması ve stok dışı dalma; delme gruplama/uç telafisi/kılavuz F; kontur (tam r+pay, ihlal yok, tırmanma yönü, iç köşe uyarısı, takım sığmıyor, giriş çarpması, köprü, wear G41, kaba pasolar, rampa, açık zincir); cep (ihlal yok, kapsama ≤ köşe kalıntısı + örnekleme payı, adalar, dar boğazda ayrılma, açık kenar taşması ve engel hatası, helis sığmıyor, dalma reddi, bitirme); kapılar (T/H/D/WCS/G54.1, eksik makine/H/D, devir, ilerleme, kurs, magazin, dalma, kesici boyu, gövde boyu, A sınırı, A yok, sim bağlı + kasıtlı stok içi hızlı); setup (kutu/köşe, 3+1 A işareti, silindir), şema, metin anahtarları; çekirdekli uçtan uca (blok + cep + ada + açık basamak + delikler → rebuild → camFaceLoops/camSection/camHeightmap → generateProgram → kapılar + B simülasyonu (oyma dahil) temiz → B postu G83 NC).
+`node test/cam.test.mjs` → 141 geçti, 0 kaldı (≈7 s). Kapsam: ofset doğruluğu (her nokta sınırdan tam d, hata < 1e-9), L şekli, dış ofset yayları; makine/takım/kütüphane; yüzey kapsaması ve stok dışı dalma; delme gruplama/uç telafisi/kılavuz F; kontur (tam r+pay, ihlal yok, tırmanma yönü, iç köşe uyarısı, takım sığmıyor, giriş çarpması, köprü, wear G41, kaba pasolar, rampa, açık zincir); cep (ihlal yok, kapsama ≤ köşe kalıntısı + örnekleme payı, adalar, dar boğazda ayrılma, açık kenar taşması ve engel hatası, helis sığmıyor, dalma reddi, bitirme); kapılar (T/H/D/WCS/G54.1, eksik makine/H/D, devir, ilerleme, kurs, magazin, dalma, kesici boyu, gövde boyu, A sınırı, A yok, sim bağlı + kasıtlı stok içi hızlı); setup (kutu/köşe, 3+1 A işareti, silindir), şema, metin anahtarları; çekirdekli uçtan uca (blok + cep + ada + açık basamak + delikler → rebuild → camFaceLoops/camSection/camHeightmap → generateProgram → kapılar + B simülasyonu (oyma dahil) temiz → B postu G83 NC); silhouette kontur (tam r+pay, gövde dışında) ve sketch cebi (yüz cebiyle aynı sınırlar) uçtan uca sim temiz; dik olmayan/aynalı sketch, prizmatik olmayan gövde hataları).
 Diğer: `node test/kernel.test.mjs` 104/0, `node test/security.test.mjs` 70/0, `node test/i18n.test.mjs` 27/0 (temiz HEAD ağacında; çalışma ağacındaki C'nin yarım tr.js değişikliğiyle `cam-ui-tr.js` eksik olduğu için o an çalışmıyordu).

@@ -31,7 +31,6 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
     } else if (sel.kind === 'silhouette') {
       if (!S.bodies.includes(sel.body)) throw cerr('cam.setup.body_missing', { body: String(sel.body) });
       const zl = await query('camZLevels', { body: sel.body, frame: S.frame });
-      if (!zl.prismatic) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
       const secs = []; for (const z of midLevels(zl.levels)) secs.push(await query('camSection', { body: sel.body, frame: S.frame, z }));
       sels.push({ ...sel, kind: 'face', loops: sel.loops ?? 'outer' }); faces.push(silhouetteFace(zl, secs));
     } else throw cerr('cam.geom.sel_unsupported', { kind: String(sel.kind) });

@@ -219,24 +219,31 @@ function rasterTri(P, a, b, c, Z, nx, ny, x0, y0, res) {
   }
 }
 
-// camZLevels {body, frame} -> { levels:[z], prismatic, bad }
+// camZLevels {body, frame} -> { levels:[z], prismatic, bad, badBoxes:[[x0,y0,x1,y1]|null] }
 // Prizmatik govde: her yuz ya takim eksenine dik duzlem (seviye), ya eksene paralel duzlem, ya ekseni takim eksenine
 // paralel silindir. Boyle govdede kesit iki ardisik seviye arasinda sabittir (silhouette bu seviyelerin ortasindan kesitle kesin).
 export function camZLevels(K, { body: bodyId, frame }) {
   checkFrame(frame);
   const b = K.last?.bodies.get(bodyId); if (!b) throw E('cam.body_missing', { body: String(bodyId) });
-  const T = TP.topoOf(b.shape); const lv = []; let bad = 0;
-  for (const raw of T.faces.list) {
+  const T = TP.topoOf(b.shape); const lv = []; let bad = 0; const badBoxes = [];
+  const mesh = K.mesh(b); if (mesh.error) throw E('cam.mesh_failed');
+  const box = (fi) => { // yuzun setup XY kutusu (ag koselerinden) + ag sapmasi payi
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; const V3 = mesh.vertices, Tr = mesh.triangles;
+    for (const g of mesh.faceGroups) if (g.idx === fi) for (let k = g.start; k < g.start + g.count; k++) { const q = toF(frame, [V3[Tr[k] * 3], V3[Tr[k] * 3 + 1], V3[Tr[k] * 3 + 2]]); x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }
+    const bb = b.shape.boundingBox; const pad = 0.05 + Math.max(0.005, Math.hypot(bb.width, bb.height, bb.depth) / 2000);
+    return Number.isFinite(x0) ? [x0 - pad, y0 - pad, x1 + pad, y1 + pad] : null;
+  };
+  for (const [fi, raw] of T.faces.list.entries()) {
     const f = TP.faceWrap(raw); const g = f.geomType;
     if (g === 'PLANE') {
       const k = V.dot(f.normalAt(f.center).toTuple(), frame.z);
       if (Math.abs(Math.abs(k) - 1) <= 1e-7) lv.push(toF(frame, f.center.toTuple())[2]);
-      else if (Math.abs(k) > 1e-7) bad++;
+      else if (Math.abs(k) > 1e-7) { bad++; badBoxes.push(box(fi)); }
     } else if (g === 'CYLINDRE') {
       let ok = false; try { const cyl = f.surface.wrapped.Cylinder(); const d = cyl.Axis().Direction(); ok = Math.abs(Math.abs(V.dot([d.X(), d.Y(), d.Z()], frame.z)) - 1) <= 1e-7; } catch (e) { ok = false; }
-      if (!ok) bad++;
-    } else bad++;
+      if (!ok) { bad++; badBoxes.push(box(fi)); }
+    } else { bad++; badBoxes.push(box(fi)); }
   }
   lv.sort((a, c) => a - c); const levels = []; for (const z of lv) if (!levels.length || z - levels[levels.length - 1] > 1e-6) levels.push(z);
-  return { levels, prismatic: bad === 0, bad };
+  return { levels, prismatic: bad === 0, bad, badBoxes };
 }

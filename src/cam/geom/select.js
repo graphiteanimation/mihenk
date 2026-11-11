@@ -61,8 +61,9 @@ export function sketchFaces(sel, sk, plane, frame) {
 
 // silhouette(zl, sections) -> yuz (dis sinir, z = govde tabani)
 //   zl: camZLevels sonucu; sections: seviyeler arasi orta z'lerdeki camSection sonuclari
+//   Prizmatik olmayan yuzler (ornegin delik ucu konisi) yalniz XY kutulari dis sinirin KESIN icindeyse kabul edilir:
+//   boyle bir yuz dis siniri (kesitlerin birlesimini) genisletemez.
 export function silhouetteFace(zl, sections) {
-  if (!zl.prismatic) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
   if (zl.levels.length < 2 || !sections.length) throw cerr('cam.silhouette.not_prismatic', { n: 0 });
   const outs = [];
   for (const sec of sections) {
@@ -77,6 +78,13 @@ export function silhouetteFace(zl, sections) {
   let big = outs[0]; for (const l of outs) if (P.area(l) > P.area(big)) big = l;
   const R = { outer: big, holes: [] };
   for (const l of outs) for (const s of l) for (const t of [0, 0.5]) { const p = P.pointAt(s, t); if (!P.inRegion(p, R) && P.distTo(p, big) > 1e-6) throw cerr('cam.silhouette.not_nested'); }
+  for (const b of zl.badBoxes || (zl.bad ? [null] : [])) {
+    if (!b) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
+    const cs = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
+    const edges = cs.map((c, i) => P.line(c, cs[(i + 1) % 4]));
+    const inside = cs.every((c) => P.inRegion(c, R)) && !edges.some((e) => big.some((s) => P.intersect(e, s, 1e-9).length));
+    if (!inside) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
+  }
   return { z: zl.levels[0], normalOk: true, outer: toItems(P.mergeLoop(big)), inners: [], open: false, above: null, src: 'silhouette' };
 }
 export const midLevels = (levels) => { const out = []; for (let i = 1; i < levels.length; i++) out.push((levels[i - 1] + levels[i]) / 2); return out; };
