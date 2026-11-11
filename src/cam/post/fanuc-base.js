@@ -1,0 +1,304 @@
+// Fanuc tarzi ortak post cekirdegi. Makineye/kontrole ozgu degerler KODA GOMULMEZ: ya ozellik (props) ya makine profili.
+// Varsayilanlar genel Fanuc kurallaridir (spesifikasyonda M80V icin dogrulanmadi); turetilen postlar (mitsubishi-m80v.js) ezer.
+// Bu dosyanin urettigi NC YALNIZ TEST CIKTISIDIR; makinede kosturulabilir diye sunulmaz.
+import { createFormat, createVariable, createModal, sanitizeComment, perr, MIHENK_VERSION } from './engine.js';
+
+export const FANUC_DEFAULT_PROPS = {
+  lineNumbers: false, lineNumberStart: 10, lineNumberStep: 10,
+  programNumberDigits: 4, percentLeader: false,
+  decimals: 3,
+  safeRetract: 'G28',            // 'G28' | 'G53' | null (null -> prop_missing)
+  safeRetractZ: null,            // yalniz G53: makine Z konumu (mm)
+  dwellAddress: 'P',             // G04 adresi: 'P' | 'X' | null
+  dwellUnit: 'ms',               // G04 birimi: 'ms' | 's' | null
+  cycleDwellAddress: 'P',        // G82/G89 bekleme adresi
+  cycleDwellUnit: 'ms',
+  coolantCodes: { flood: 'M8', mist: 'M7', air: null, through: null, off: 'M9' },
+  optionalStop: false,           // her islem basinda M01
+  rapidSplit: true,              // karisik XY+Z hizliyi guvenli siraya boler
+  cannedCycles: true,            // false: acik hareket (yalniz drill/spot/ream/bore)
+  tapMode: 'feed',               // 'feed': F = devir x adim (+ rigidTapM); 'pitch': F = adim
+  rigidTapM: 'M29',              // 'feed' kipinde G84 oncesi senkron kilavuz kodu (null: yazma)
+  tapR1: false,                  // G84 satirina ,R1 ekle
+  rotaryMode: '6a',              // '6a': NC A ekseni; '6b': A yazilmaz, M00 ile indeks
+  aReturnZero: true,             // program sonunda A -> 0
+  aSplit180: true,               // kisa yol kipinde 180 derece iki adimda
+  g541Range: null,               // G54.1 Pn icin [min,max]; null -> G54.1 kullanilinca prop_missing
+  highSpeedOn: null, highSpeedOff: null, // ornek 'G05 P10000' / 'G05 P0' (cift olmali)
+  toolChangeCode: 'M6',
+  endCode: 'M30',
+  safeStartExtra: [],
+};
+
+const ucfirst = (s) => String(s).toUpperCase();
+
+export function createFanucPost(over = {}) {
+  const base = {
+    id: 'fanuc-generic',
+    defaultProps: { ...FANUC_DEFAULT_PROPS },
+
+    // ------------------------------------------------------------ yardimcilar (this = PostContext)
+    _init() {
+      const d = this.props.decimals;
+      this.fmt = { xyz: createFormat({ decimals: d }), ang: createFormat({ prefix: 'A', decimals: 3 }), f: createFormat({ prefix: 'F', decimals: 3 }), ij: createFormat({ decimals: d }) };
+      this.v = {
+        x: createVariable({ prefix: 'X', decimals: d }), y: createVariable({ prefix: 'Y', decimals: d }), z: createVariable({ prefix: 'Z', decimals: d }),
+        f: createVariable({ prefix: 'F', decimals: 3 }),
+      };
+      this.g = { motion: createModal({}), wcs: createModal({ force: true }), cyc: createModal({}) };
+      Object.assign(this.state, { tool: null, spindle: null, coolant: 'off', aCur: 0, positioned: false, cycle: null, comp: false, highSpeed: false });
+    },
+    _resetPos() { this.v.x.reset(); this.v.y.reset(); this.v.z.reset(); },
+    _dwellWord(addr, unit, s) {
+      if (addr == null) throw perr('cam.post.prop_missing', { prop: 'dwellAddress', post: this.post.id });
+      if (unit == null) throw perr('cam.post.prop_missing', { prop: 'dwellUnit', post: this.post.id });
+      if (unit === 'ms') return addr + String(Math.round(s * 1000));
+      if (unit === 's') return createFormat({ prefix: addr, decimals: 3 }).format(s);
+      throw perr('cam.post.bad_prop', { prop: 'dwellUnit', value: String(unit) });
+    },
+    _coolantCode(name) {
+      const table = this.need('coolantCodes'); const c = table[name];
+      if (c == null) throw perr('cam.post.prop_missing', { prop: 'coolantCodes.' + name, post: this.post.id });
+      return c;
+    },
+    _safeRetract() {
+      const m = this.need('safeRetract');
+      if (m === 'G28') {
+        this.writeBlock('G90', 'G40', 'G49');
+        this.writeBlock('G91', 'G28', 'Z0.');
+        this.writeBlock('G90');
+      } else if (m === 'G53') {
+        const z = this.need('safeRetractZ');
+        this.writeBlock('G90', 'G40', 'G49');
+        this.writeBlock('G53', 'G0', createFormat({ prefix: 'Z', decimals: this.props.decimals }).format(z));
+      } else throw perr('cam.post.bad_prop', { prop: 'safeRetract', value: String(m) });
+      this.pos = null; this._resetPos(); this.g.motion.reset(); this.state.positioned = false;
+    },
+
+    // ------------------------------------------------------------ giris fonksiyonlari
+    onOpen() {
+      post._init.call(this);
+      const p = this.props, prog = this.program, o = this.opts;
+      if (p.percentLeader) this.writeRaw('%');
+      if (prog.number != null) this.writeBlock('O' + String(prog.number).padStart(p.programNumberDigits, '0'));
+      this.writeComment(`UNVERIFIED POST - DOGRULANMADI - MIHENK ${o.appVersion || MIHENK_VERSION}`);
+      this.writeComment(`PROGRAM ${prog.name}`);
+      this.writeComment(`DATE ${o.date || new Date().toISOString().slice(0, 10)}`);
+      if (this.machine) this.writeComment(`MACHINE ${this.machine.name ?? this.machine.id} REV ${this.machine.rev ?? '?'} CONTROL ${this.machine.control ?? '?'}`);
+      if (o.verified) this.writeComment(`VERIFIED BY ${o.verified.by} ON ${o.verified.date}`);
+      const seen = new Map();
+      for (const s of prog.sections) { const t = s.toolpath.tool; if (!seen.has(t.number)) seen.set(t.number, t); }
+      for (const t of [...seen.values()].sort((a, b) => a.number - b.number)) {
+        this.writeComment(`T${t.number} H${t.H}${t.D != null ? ' D' + t.D : ''} DIA ${t.dia.toFixed(3)} ${ucfirst(t.type)}`);
+      }
+      const gates = o.gates || [];
+      const nb = gates.filter((g) => g.level === 'block').length, nw = gates.filter((g) => g.level === 'warn').length;
+      this.writeComment(`GATES ${nb} BLOCK ${nw} WARN`);
+      for (const g of gates) this.writeComment(`GATE ${String(g.level).toUpperCase()} ${g.code}${g.opId ? ' ' + g.opId : ''}`);
+      this.writeBlock('G90', 'G17', 'G21', 'G40', 'G49', 'G80', 'G94', ...p.safeStartExtra);
+      if (p.highSpeedOn != null || p.highSpeedOff != null) {
+        this.need('highSpeedOn'); this.need('highSpeedOff');
+        this.writeBlock(p.highSpeedOn); this.state.highSpeed = true;
+      }
+    },
+
+    onSection(sec) {
+      const tp = sec.toolpath, st = sec.setup, p = this.props;
+      this.writeComment(`OP ${sec.index + 1}: ${tp.opName} [${tp.opType}] SETUP ${st.name ?? st.id ?? ''}`);
+      post._safeRetract.call(this);
+      if (this.state.spindle) this.writeBlock('M5');
+      if (this.state.coolant !== 'off') this.writeBlock(post._coolantCode.call(this, 'off'));
+      this.state.spindle = null; this.state.coolant = 'off';
+      if (p.optionalStop) this.writeBlock('M01');
+      if (this.state.tool !== tp.tool.number) { this.writeBlock('T' + tp.tool.number, p.toolChangeCode); this.state.tool = tp.tool.number; }
+      post._indexRotary.call(this, st.aAngle ?? 0);
+      this.call('onSpindleSpeed', tp.rpm, tp.spindleDir);
+      this.state.comp = false; this.state.compRequest = null; this.state.cycle = null;
+    },
+
+    // 3+1: Z guvenli (onSection'da yapildi) -> [M11] -> A -> [M10]
+    _indexRotary(angle) {
+      const R = this.rotary, p = this.props, st = this.state;
+      const eps = 1e-9;
+      if (p.rotaryMode === '6b') {
+        const prev = st.aShown ?? 0;
+        if (Math.abs(angle - prev) > eps) {
+          this.writeComment(`INDEX A TO ${angle.toFixed(3)} DEG THEN LOCK`);
+          this.call('onCommand', 'COMMAND_STOP'); st.aShown = angle;
+        }
+        return;
+      }
+      if (!R) { if (Math.abs(angle) > eps) this.fail('cam.post.no_a_axis', { angle }); return; }
+      if (R.sign == null) throw perr('cam.post.prop_missing', { prop: 'machine.axes.A.dir', post: this.post.id });
+      let out = R.sign * angle;
+      if (R.limits && (out < R.limits[0] - eps || out > R.limits[1] + eps)) this.fail('cam.post.a_out_of_limits', { angle: out, min: R.limits[0], max: R.limits[1] });
+      const norm = (a) => ((a % 360) + 360) % 360;
+      if (R.shortest) out = norm(out);
+      const cur = st.aCur;
+      const same = R.shortest ? Math.abs(norm(cur) - out) < 1e-6 || Math.abs(norm(cur) - out - 360) < 1e-6 : Math.abs(cur - out) < 1e-6;
+      if (same) return;
+      if (R.clamp.output) { if (R.clamp.unlock == null || R.clamp.lock == null) throw perr('cam.post.prop_missing', { prop: 'machine.axes.A.clamp', post: this.post.id }); this.call('onCommand', 'COMMAND_UNLOCK_MULTI_AXIS'); }
+      const aOut = (v) => this.writeBlock('G0', createFormat({ prefix: 'A', decimals: 3 }).format(v));
+      if (R.shortest && p.aSplit180 && Math.abs(Math.abs(norm(cur) - out) - 180) < 1e-6) aOut(norm(norm(cur) + 90));
+      aOut(out);
+      st.aCur = out;
+      if (R.clamp.output) this.call('onCommand', 'COMMAND_LOCK_MULTI_AXIS');
+      this.g.motion.reset();
+    },
+
+    onSpindleSpeed(rpm, dir) {
+      this.writeBlock('S' + Math.round(rpm), dir === 'cw' ? 'M3' : 'M4');
+      this.state.spindle = { rpm, dir };
+    },
+
+    onCommand(cmd) {
+      const R = this.rotary;
+      switch (cmd) {
+        case 'COMMAND_STOP': this.writeBlock('M00'); break;
+        case 'COMMAND_OPTIONAL_STOP': this.writeBlock('M01'); break;
+        case 'COMMAND_STOP_SPINDLE': this.writeBlock('M5'); this.state.spindle = null; break;
+        case 'COMMAND_COOLANT_OFF': this.writeBlock(post._coolantCode.call(this, 'off')); this.state.coolant = 'off'; break;
+        case 'COMMAND_UNLOCK_MULTI_AXIS': if (R?.clamp.output) this.writeBlock(R.clamp.unlock); break;
+        case 'COMMAND_LOCK_MULTI_AXIS': if (R?.clamp.output) this.writeBlock(R.clamp.lock); break;
+        case 'COMMAND_END': this.writeBlock(this.props.endCode); break;
+        default: throw perr('cam.post.unknown_command', { cmd });
+      }
+    },
+    onComment(text) { this.writeComment(text); },
+
+    // Ilk hareket: G0 XY (G43 oncesi) sonra G43 H Z; sonra sogutma
+    onRapid(x, y, z) {
+      const st = this.state, tp = this.section.toolpath;
+      if (!st.positioned) {
+        const w = this.section.setup.workOffset;
+        let wcs;
+        if (w.kind === 'G54.1') {
+          const [lo, hi] = this.need('g541Range');
+          if (w.p < lo || w.p > hi) this.fail('cam.post.wcs_range', { p: w.p, min: lo, max: hi });
+          wcs = 'G54.1 P' + w.p;
+        } else wcs = w.kind;
+        this.writeBlock('G0', 'G90', wcs, this.v.x.formatForced(x), this.v.y.formatForced(y));
+        this.g.motion.format(0);
+        this.writeBlock('G43', 'H' + tp.tool.H, this.v.z.formatForced(z));
+        const cc = tp.coolant;
+        if (cc !== 'off') { this.writeBlock(post._coolantCode.call(this, cc)); st.coolant = cc; }
+        st.positioned = true;
+        return;
+      }
+      this.writeBlock(this.g.motion.format(0), this.v.x.format(x), this.v.y.format(y), this.v.z.format(z));
+    },
+
+    onRadiusCompensation(on, side, D) {
+      this.state.compRequest = { on, side, D };
+    },
+
+    onLinear(x, y, z, f) {
+      const st = this.state; let comp = '';
+      if (st.compRequest) {
+        const r = st.compRequest; st.compRequest = null;
+        comp = r.on ? [r.side === 'left' ? 'G41' : 'G42', 'D' + r.D] : 'G40';
+        st.comp = r.on;
+      }
+      this.writeBlock(this.g.motion.format(1), comp, this.v.x.format(x), this.v.y.format(y), this.v.z.format(z), this.v.f.format(f));
+    },
+
+    onCircular(cw, cx, cy, cz, x, y, z, f) {
+      const s = this.pos; const d = this.props.decimals;
+      const I = createFormat({ prefix: 'I', decimals: d }), J = createFormat({ prefix: 'J', decimals: d });
+      this.writeBlock(this.g.motion.format(cw ? 2 : 3), this.v.x.format(x), this.v.y.format(y), this.v.z.format(z), I.format(cx - s.x), J.format(cy - s.y), this.v.f.format(f));
+    },
+
+    onDwell(s) {
+      const p = this.props;
+      this.writeBlock('G04', post._dwellWord.call(this, p.dwellAddress, p.dwellUnit, s));
+      this.g.motion.reset();
+    },
+
+    // ------------------------------------------------------------ delik cevrimleri
+    onCycle(c) {
+      const p = this.props, tp = this.section.toolpath;
+      this.state.cycle = { c, n: 0 };
+      if (!p.cannedCycles) {
+        if (!['drill', 'spot', 'ream', 'bore'].includes(c.cycle)) this.fail('cam.post.cycle_unsupported', { cycle: c.cycle });
+        return;
+      }
+      if (c.cycle === 'tap') {
+        if (p.tapMode === 'feed' && p.rigidTapM) this.writeBlock(p.rigidTapM, 'S' + Math.round(tp.rpm));
+      }
+    },
+    _cycleCode(c) {
+      const tp = this.section.toolpath;
+      switch (c.cycle) {
+        case 'drill': case 'spot': return c.dwell > 0 ? 82 : 81;
+        case 'peck': return 83;
+        case 'chipbreak': return 73;
+        case 'tap': return tp.spindleDir === 'ccw' ? 74 : 84;
+        case 'ream': return 85;
+        case 'bore': return 89;
+        default: throw perr('cam.post.cycle_unsupported', { cycle: c.cycle });
+      }
+    },
+    onCyclePoint(x, y, z) {
+      const st = this.state, { c } = st.cycle, p = this.props, d = p.decimals;
+      const last = st.cycle.n === c.points.length - 1;
+      if (!p.cannedCycles) { // acik hareket
+        const Z = createFormat({ prefix: 'Z', decimals: d });
+        this.writeBlock('G0', this.v.x.format(x), this.v.y.format(y));
+        this.writeBlock('G0', Z.format(c.retract));
+        this.writeBlock('G1', Z.format(c.bottom), this.v.f.format(c.f));
+        if (c.dwell > 0) this.writeBlock('G04', post._dwellWord.call(this, p.dwellAddress, p.dwellUnit, c.dwell));
+        this.writeBlock('G0', Z.format(c.cycle === 'bore' || c.cycle === 'ream' ? c.retract : c.clearance));
+        if (last) this.writeBlock('G0', Z.format(c.clearance));
+        this.v.z.reset(); this.g.motion.reset(); st.cycle.n++;
+        return;
+      }
+      const code = post._cycleCode.call(this, c);
+      const retr = (last || c.retract === c.clearance) ? 'G98' : 'G99';
+      const first = st.cycle.n === 0;
+      const fmtd = (pre, v) => createFormat({ prefix: pre, decimals: d }).format(v);
+      if (first) {
+        const words = [retr, 'G' + code, this.v.x.formatForced(x), this.v.y.formatForced(y), fmtd('Z', c.bottom), fmtd('R', c.retract)];
+        if (code === 73 || code === 83) words.push(fmtd('Q', c.peck));
+        if (code === 82 || code === 89) words.push(post._dwellWord.call(this, p.cycleDwellAddress, p.cycleDwellUnit, c.dwell ?? 0));
+        if (code === 84 || code === 74) {
+          if (p.tapMode === 'pitch') words.push('F' + createFormat({ decimals: 3 }).format(c.pitch));
+          else words.push(this.fmt.f.format(c.f));
+          if (p.tapR1) words.push(',R1');
+        } else words.push(this.fmt.f.format(c.f));
+        this.v.f.reset(); // cevrimde F degisti; sonraki kesme hareketi F'yi yeniden yazar
+        this.writeBlock(words);
+      } else {
+        const rw = retr !== st.cycleRetr ? retr : '';
+        const xs = this.v.x.format(x), ys = this.v.y.format(y);
+        if (!rw && !xs && !ys) this.fail('cam.post.duplicate_point', { x, y });
+        this.writeBlock(rw, xs, ys);
+      }
+      st.cycleRetr = retr;
+      st.cycle.n++;
+    },
+    onCycleEnd() {
+      if (this.props.cannedCycles) this.writeBlock('G80');
+      this.g.motion.reset(); this.v.x.reset(); this.v.y.reset(); this.v.z.reset();
+      this.state.cycle = null;
+    },
+
+    onSectionEnd() {
+      if (this.state.cycle) this.writeBlock('G80');
+    },
+
+    onClose() {
+      const p = this.props, st = this.state;
+      this.writeComment('END OF PROGRAM');
+      post._safeRetract.call(this);
+      if (p.rotaryMode === '6a' && this.rotary && p.aReturnZero) post._indexRotary.call(this, 0);
+      else if (p.rotaryMode === '6b' && (st.aShown ?? 0) !== 0) this.writeComment('RESET INDEXER TO ZERO');
+      if (st.spindle) this.writeBlock('M5');
+      if (st.coolant !== 'off') this.writeBlock(post._coolantCode.call(this, 'off'));
+      if (st.highSpeed) this.writeBlock(p.highSpeedOff);
+      this.writeBlock(p.endCode);
+      if (p.percentLeader) this.writeRaw('%');
+    },
+  };
+  const post = { ...base, ...over, defaultProps: { ...base.defaultProps, ...(over.defaultProps || {}) } };
+  return post;
+}
