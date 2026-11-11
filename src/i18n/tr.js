@@ -2,6 +2,7 @@
 import camCore from './cam-core-tr.js';
 import camPost from './cam-post-tr.js';
 import camUi from './cam-ui-tr.js';
+import camUi2 from './cam-ui2-tr.js';
 
 const base = {
   // Ortak
@@ -1025,4 +1026,4 @@ const base = {
 };
 
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
-export default { ...base, ...camCore, ...camPost, ...camUi };
+export default { ...base, ...camCore, ...camPost, ...camUi, ...camUi2 };

@@ -36,3 +36,39 @@
 .simbar .num { color: var(--text-muted); font-size: var(--fs-sm); white-space: nowrap; }
 .simbar .seg { width: auto; flex: none; } .simbar .seg button { padding: 0 var(--sp-3); flex: none; }
 .simbar .chk { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); white-space: nowrap; }
+/* işlem paneli */
+.op-body { margin-top: var(--sp-4); }
+.op-res { margin-top: var(--sp-5); }
+.op-res .callout { margin: var(--sp-2) 0; }
+.op-geom { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.op-grow { display: flex; align-items: center; gap: var(--sp-3); border: var(--bw) solid var(--line); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); background: var(--bg-surface); font-size: var(--fs-sm); }
+.op-grow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#panel .seg { width: 100%; }
+#panel .seg button { flex: 1; }
+/* yol göstergesi (lejant) */
+.legend { display: inline-flex; gap: var(--sp-4); align-items: center; font-size: var(--fs-sm); color: var(--text-muted); }
+.lg-i { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
+.lg-sw { display: inline-block; width: 22px; height: 0; border-top: 3px solid var(--vp-toolpath-cut); }
+.lg-sw.rapid { border-top: 3px dashed var(--vp-toolpath-rapid); }
+.lg-sw.cut { border-top-color: var(--vp-toolpath-cut); }
+.lg-sw.lead { border-top-color: var(--vp-toolpath-lead); }
+.timeline .chk { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); white-space: nowrap; }
+.simbar select { min-height: 28px; }
+/* sorun listesi */
+.is-list { display: flex; flex-direction: column; gap: var(--sp-2); max-height: 48vh; overflow: auto; margin: var(--sp-3) 0; }
+.is-row { display: flex; gap: var(--sp-3); align-items: flex-start; text-align: left; width: 100%; font: inherit; color: var(--text); background: var(--bg-surface); border: var(--bw) solid var(--line); border-left: 3px solid var(--warn-fg); border-radius: var(--r-sm); padding: var(--sp-3); }
+.is-row.block { border-left-color: var(--err-fg); }
+button.is-row { cursor: pointer; }
+button.is-row:hover { background: var(--bg-hover); }
+.is-ic { flex: none; }
+.is-row.block .is-ic { color: var(--err-fg); } .is-row.warn .is-ic { color: var(--warn-fg); }
+/* NC önizleme */
+.nc-text { height: 38vh; overflow: auto; background: var(--bg-sunken); border: var(--bw) solid var(--line); border-radius: var(--r-sm); font-family: var(--font-mono); font-size: var(--fs-sm); margin-top: var(--sp-3); }
+.nc-line { display: flex; gap: var(--sp-4); padding: 0 var(--sp-3); cursor: pointer; white-space: pre; content-visibility: auto; contain-intrinsic-size: auto 20px; }
+.nc-line:hover { background: var(--bg-hover); }
+.nc-line.sel { background: var(--accent-bg, var(--bg-pressed)); outline: 1px solid var(--accent); }
+.nc-line .ln { flex: none; width: 5ch; text-align: right; color: var(--text-subtle); user-select: none; }
+.nc-info .callout { margin: var(--sp-2) 0; }
+.row-inline { display: flex; gap: var(--sp-3); align-items: center; }
+.row-inline .input { flex: 1; }
+.op-compute { width: 100%; margin-top: var(--sp-5); justify-content: center; }

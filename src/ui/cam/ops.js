@@ -1,18 +1,219 @@
-// İşlem paneli, hesap, simülasyon, post (Aşama 2). Bu sürüm: durum rozetleri ve alt çubuk iskeleti.
-import { h } from '../dom.js';
+// İmalat işlemleri: hesap önbelleği, durum rozetleri, takım yolu gösterimi, simülasyon ve post akışı.
+// Hesap sonuçları (takım yolu, NC) belgeye yazılmaz; anahtar (işlem + setup + takım + tezgâh + model) değişince "Eski" olur.
+import { h, toast } from '../dom.js';
 import { icon } from '../icons.js';
-import { t } from '../../shared/i18n.js';
+import { t, errText } from '../../shared/i18n.js';
+import { resolveSetup, buildProgram, generateProgram, gates as runGates } from '../../cam/index.js';
+import { blocked } from '../../cam/gates.js';
+import { postProgram } from '../../cam/post/index.js';
+import { uid, hashStr } from './util.js';
+import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
+import { SimRun } from './simbar.js';
+import { showIssueList, showNc as showNcModal, openVerify as openVerifyDlg } from './postui.js';
+
+const errObj = (e) => ({ code: e?.code || 'internal', params: e?.params || { message: String(e?.message ?? e) } });
+const APP_VERSION = '0.2.0';
 
 export class CamOps {
-  constructor(cam) { this.cam = cam; this.cache = new Map(); this.nc = null; }
-  enter() {} leave() {} reset() { this.cache.clear(); this.nc = null; } onResult() {} relang() {}
-  state(op) { if (op.suppressed) return { state: 'sup' }; const c = this.cache.get(op.id); return c ? { state: 'ok' } : { state: 'none' }; }
-  create() { this.cam.app.toastInfo(t('cam.soon_op')); }
-  onPick() {}
-  edit() {} computeAll() {} simulate() {} post() {} showNc() {}
-  verifiedState() { return { ok: false }; }
-  openVerify() {}
-  renderBar(tl) {
-    tl.replaceChildren(h('div', { class: 'tl-label' }, h('span', { html: icon('simulate', 'sm') }), h('span', { text: t('cam.sim.label') })), h('span', { class: 'note', text: t('cam.sim.empty') }));
+  constructor(cam) { this.cam = cam; this.cache = new Map(); this.nc = null; this.sim = null; this.progNo = 1000; this.showPath = true; this.busy = false; this.selOp = null; this.draftPath = null; this._mh = new WeakMap(); this._envFor = undefined; this._pathSig = ''; }
+  get app() { return this.cam.app; }
+  enter() { this.refreshPaths(this.selOp); }
+  leave() { this.stopSim(true); this.cam.view?.pathsVisible(false); this.cam.view?.hideMove(); }
+  reset() { this.cache.clear(); this.nc = null; this.draftPath = null; this.selOp = null; this.stopSim(true); this.cam.view?.clearPaths(); }
+  onResult() { if (this.sim) this.stopSim(); }
+  relang() { this.app.C.renderTimeline?.(); }
+
+  // ---------------------------------------------------------------- önbellek anahtarı ve durum
+  envKey() {
+    const r = this.app.result; if (this._envFor === r && this._env) return this._env;
+    const sk = (this.app.doc.features || []).filter((f) => f && f.type === 'sketch');
+    this._envFor = r; this._env = hashStr(JSON.stringify(sk)) + hashStr(JSON.stringify(r?.holes || [])) + this.cam.modelSig(); return this._env;
   }
+  machineKey() { const m = this.cam.machine(); if (!m) return ''; let k = this._mh.get(m); if (!k) { k = hashStr(JSON.stringify(m)); this._mh.set(m, k); } return k; }
+  keyOf(op, setup) {
+    const tool = this.cam.tools().find((x) => x.id === op.toolId) || null;
+    return hashStr(JSON.stringify([op, { ...setup, ops: 0 }, tool])) + this.machineKey() + this.envKey();
+  }
+  state(op, setup) {
+    if (op.suppressed) return { state: 'sup' };
+    setup = setup || this.cam.opLoc(op.id)?.setup; const c = this.cache.get(op.id); if (!c || !setup) return { state: 'none' };
+    if (c.key !== this.keyOf(op, setup)) return { state: 'stale', msg: t('cam.st.stale_why') };
+    if (c.error) return { state: 'err', msg: errText(c.error) };
+    const w = (c.tp?.warnings || []).length;
+    return { state: 'ok', msg: w ? t('cam.st.warn_n', { n: w }) : '' };
+  }
+  opName(id) { return this.cam.opLoc(id)?.op.name || ''; }
+
+  // ---------------------------------------------------------------- işlem oluştur / düzenle
+  create(type, cycle) {
+    const cam = this.cam; const s = cam.sel;
+    const su = s?.kind === 'setup' ? cam.setup(s.id) : s?.kind === 'op' ? cam.opLoc(s.id)?.setup : cam.setups().at(-1);
+    if (!su) { toast(t('cam.need_setup'), { kind: 'warn' }); return; }
+    const id = uid('op'); const key = type === 'drill' && cycle === 'tap' ? 'thread' : type;
+    const n = cam.setups().reduce((a, x) => a + (x.ops || []).filter((o) => OP_TYPE_KEY(o) === key).length, 0) + 1;
+    const op = defaultOp(type, cycle, id, t('cam.op.name_n', { type: t('cam.op.type.' + key), n }), cam.tools());
+    cam.mut((c) => { c.setups.find((x) => x.id === su.id).ops.push(op); });
+    cam.sel = { kind: 'op', id }; this.edit(id, { isNew: true });
+  }
+  edit(id, o = {}) { if (!this.cam.opLoc(id)) return; this.selOp = id; this.cam.sel = { kind: 'op', id }; this.cam.openPanel(new OpPanel(this.cam, id, o)); }
+  onPick(hit, ev) { this.cam.panel?.onPick?.(hit, ev); }
+
+  // ---------------------------------------------------------------- hesap
+  async resolveS(setup) {
+    const planes = {};
+    for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face') planes[k] = await this.app.query('facePlane', { ref: ax.ref }); }
+    return resolveSetup(setup, this.app.result, this.cam.machine(), { planes });
+  }
+  // setup.ops içinden ids hesaplanır; sonuç önbelleğe yazılır. Dönüş: Map(opId → {key,S,tp,error})
+  async computeSetup(setup, ids) {
+    const out = new Map(); const ops = (setup.ops || []).filter((o) => ids.includes(o.id) && !o.suppressed);
+    let S = null;
+    try { S = await this.resolveS(setup); } catch (e) { for (const o of ops) { const x = { key: this.keyOf(o, setup), error: errObj(e) }; this.cache.set(o.id, x); out.set(o.id, x); } return out; }
+    const sub = { tools: this.cam.tools(), setups: [{ ...setup, ops }] };
+    const r = await generateProgram(sub, { rebuild: this.app.result, machine: this.cam.machine(), query: (c, a) => this.app.query(c, a), doc: this.app.doc, name: 'PROG' });
+    for (const o of ops) {
+      const q = r.ops.find((x) => x.opId === o.id);
+      const x = { key: this.keyOf(o, setup), S, tp: q?.toolpath || null, error: q ? (q.ok ? null : q.error) : errObj({ code: 'cam.gate.op_failed', params: { op: o.name, code: 'internal' } }) };
+      this.cache.set(o.id, x); out.set(o.id, x);
+    }
+    return out;
+  }
+  async computeDraft(setup, d) {
+    if (!this.cam.machine()) return { error: { code: 'cam.no_machine', params: {} } };
+    try {
+      const m = await this.computeSetup({ ...setup, ops: [d] }, [d.id]); const x = m.get(d.id);
+      this.draftPath = x && !x.error ? { opId: d.id, S: x.S, tp: x.tp } : null;
+      return x?.error ? { error: x.error } : { tp: x.tp, S: x.S };
+    } catch (e) { return { error: errObj(e) }; }
+  }
+  // geçerli önbelleği olmayan (ya da force) işlemleri hesaplar; dönüş: hatalı işlemler
+  async ensure(ids, force) {
+    const fails = [];
+    for (const s of this.cam.setups()) {
+      const need = (s.ops || []).filter((o) => ids.includes(o.id) && !o.suppressed && (force || this.state(o, s).state !== 'ok'));
+      if (need.length) await this.computeSetup(s, need.map((o) => o.id));
+      for (const o of (s.ops || [])) { if (!ids.includes(o.id) || o.suppressed) continue; const c = this.cache.get(o.id); if (!c || c.error) fails.push({ op: o, error: c?.error || { code: 'internal', params: {} } }); }
+    }
+    return fails;
+  }
+  allIds() { const ids = []; for (const s of this.cam.setups()) for (const o of s.ops || []) if (!o.suppressed) ids.push(o.id); return ids; }
+  guard() {
+    if (this.busy) return false;
+    if (!this.cam.machine()) { toast(t('cam.br.machine_missing'), { kind: 'warn' }); return false; }
+    if (!this.allIds().length) { toast(t('cam.need_ops'), { kind: 'warn' }); return false; }
+    return true;
+  }
+  failRows(fails) { return fails.map((f) => ({ level: 'block', op: f.op.name, text: errText(f.error), opId: f.op.id })); }
+  async computeAll() {
+    if (!this.guard()) return; this.busy = true;
+    try {
+      this.stopSim(); const fails = await this.ensure(this.allIds(), true);
+      this.refreshPaths(this.selOp); this.app.C.renderAll();
+      if (fails.length) await showIssueList(this, { title: t('cam.run.fail_title'), intro: t('cam.run.fail_intro', { n: fails.length }), rows: this.failRows(fails), kind: 'err', onPick: (r) => { if (r.opId) this.edit(r.opId); } });
+      else toast(t('cam.run.done', { n: this.allIds().length }), { kind: 'ok' });
+    } catch (e) { toast(errText(e), { kind: 'err' }); } finally { this.busy = false; }
+  }
+
+  // ---------------------------------------------------------------- takım yolu gösterimi
+  validItems() {
+    const items = [];
+    for (const s of this.cam.setups()) for (const o of s.ops || []) {
+      if (o.suppressed) continue;
+      if (this.draftPath && this.draftPath.opId === o.id) { items.push(this.draftPath); continue; }
+      const c = this.cache.get(o.id); if (c && !c.error && c.tp && c.key === this.keyOf(o, s)) items.push({ opId: o.id, S: c.S, tp: c.tp });
+    }
+    return items;
+  }
+  refreshPaths(sel = this.selOp, clearDraft = false) {
+    if (clearDraft) this.draftPath = null; this.selOp = sel; const view = this.cam.view; if (!view) return;
+    const items = this.validItems(); this._pathSig = items.map((x) => x.opId + x.tp.moves.length).join(',') + '|' + sel;
+    view.showPaths(items, sel); view.pathsVisible(this.showPath && !this.sim);
+  }
+  pathCount() { return this.validItems().length; }
+
+  // ---------------------------------------------------------------- program, kapılar, simülasyon
+  progName() { const n = String(this.app.fileName || '').replace(/\.[^.]*$/, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase().slice(0, 24); return n || 'PROGRAM'; }
+  simRes(Ss) { let a = 0; for (const S of Ss) a = Math.max(a, (S.stockBox.max[0] - S.stockBox.min[0]) * (S.stockBox.max[1] - S.stockBox.min[1])); return Math.max(0.5, Math.ceil(Math.sqrt(a / 400000) * 10) / 10); }
+  async simOpts(Ss) {
+    const res = this.simRes(Ss); const modelHeightmaps = {}; const notes = [];
+    for (const S of Ss) {
+      const b = S.stockBox;
+      try { modelHeightmaps[S.id] = await this.app.query('camHeightmap', { bodies: S.bodies, frame: S.frame, res, bbox: [b.min[0], b.min[1], b.max[0], b.max[1]] }); }
+      catch (e) { notes.push({ level: 'warn', code: 'cam.ui.sim_no_model', params: { setup: S.name, msg: errText(e) } }); }
+    }
+    const tools = {}; for (const tl of this.cam.tools()) { const o = {}; if (tl.shaftDia != null) o.shaftDia = tl.shaftDia; if (tl.holder) o.holder = tl.holder; if (Object.keys(o).length) tools[tl.number] = o; }
+    return { opts: { res, modelHeightmaps, tools }, notes };
+  }
+  // tüm işlemleri hesapla (eskileri), program kur, kapıları (simülasyon dahil) çalıştır. Hata → null (kullanıcıya gösterilmiş)
+  async prepare() {
+    if (!this.guard()) return null; this.busy = true;
+    try {
+      const fails = await this.ensure(this.allIds(), false);
+      this.refreshPaths(this.selOp); this.app.C.renderAll();
+      if (fails.length) { await showIssueList(this, { title: t('cam.run.fail_title'), intro: t('cam.run.fail_intro', { n: fails.length }), rows: this.failRows(fails), kind: 'err', onPick: (r) => { if (r.opId) this.edit(r.opId); } }); return null; }
+      const sections = [], items = [];
+      for (const s of this.cam.setups()) {
+        const tps = []; let S = null;
+        for (const o of s.ops || []) { if (o.suppressed) continue; const c = this.cache.get(o.id); tps.push(c.tp); S = c.S; items.push({ op: o, setup: s, S: c.S, tp: c.tp }); }
+        if (tps.length) sections.push({ setup: S, toolpaths: tps });
+      }
+      const machine = this.cam.machine();
+      const program = buildProgram({ name: this.progName(), number: this.progNo, machine, sections });
+      const so = await this.simOpts(sections.map((x) => x.setup));
+      const g = [...so.notes, ...runGates(program, machine, { sim: so.opts })];
+      return { program, items, gates: g, simOpts: so.opts, docSig: this.docSig() };
+    } catch (e) { toast(errText(e), { kind: 'err' }); return null; } finally { this.busy = false; }
+  }
+  gateRows(list) {
+    return list.map((g) => ({ level: g.level, op: g.opId ? this.opName(g.opId) : '', text: errText({ code: g.code, params: g.params }), g }));
+  }
+  async simulate() {
+    const r = await this.prepare(); if (!r) return;
+    this.stopSim(true);
+    try { this.sim = new SimRun(this, r); this.sim.start(); } catch (e) { this.sim = null; toast(errText(e), { kind: 'err' }); }
+    this.app.C.renderTimeline(); this.app.C.renderBrowser();
+  }
+  stopSim(quiet) {
+    if (!this.sim) return; this.sim.dispose(); this.sim = null;
+    this.refreshPaths(this.selOp); if (!quiet) this.app.C.renderTimeline();
+  }
+  renderBar(tl) {
+    if (this.sim && this.sim.r.docSig !== this.docSig()) this.stopSim(true); // belge değişti: simülasyon eskidi
+    if (this.sim) { this.sim.render(tl); return; }
+    if (this._pathSig !== this.validItems().map((x) => x.opId + x.tp.moves.length).join(',') + '|' + this.selOp) this.refreshPaths(this.selOp);
+    const kids = [h('div', { class: 'tl-label' }, h('span', { html: icon('simulate', 'sm') }), h('span', { text: t('cam.sim.label') }))];
+    if (this.pathCount()) {
+      const sw = (cls, key) => h('span', { class: 'lg-i' }, h('span', { class: 'lg-sw ' + cls }), h('span', { text: t(key) }));
+      kids.push(h('span', { class: 'legend', 'data-testid': 'path-legend' }, sw('rapid', 'cam.leg.rapid'), sw('cut', 'cam.leg.cut'), sw('lead', 'cam.leg.lead')));
+      const c = h('input', { type: 'checkbox', 'data-testid': 'path-toggle', checked: this.showPath }); c.addEventListener('change', () => { this.showPath = c.checked; this.cam.view?.pathsVisible(this.showPath); });
+      kids.push(h('label', { class: 'chk' }, c, h('span', { text: t('cam.leg.show') })));
+    } else kids.push(h('span', { class: 'note', text: t('cam.sim.empty') }));
+    tl.replaceChildren(...kids);
+  }
+
+  // ---------------------------------------------------------------- post / NC
+  docSig() { const doc = this.app.doc; return hashStr(JSON.stringify([doc.features, doc.cam ? { ...doc.cam, verified: undefined } : null])); }
+  verifiedState() {
+    const v = this.cam.data().verified; if (!v) return { ok: false };
+    return v.sig === this.docSig() ? { ok: true, rec: v } : { ok: false, lapsed: true, rec: v };
+  }
+  openVerify() { return openVerifyDlg(this); }
+  runPost(program, gates) {
+    const v = this.verifiedState(); program.number = this.progNo;
+    return postProgram(program, this.cam.machine(), { gates, appVersion: APP_VERSION, date: new Date().toISOString().slice(0, 10), ...(v.ok ? { verified: { by: v.rec.by, date: v.rec.date, note: v.rec.note } } : {}) });
+  }
+  async post() {
+    const r = await this.prepare(); if (!r) return;
+    this.stopSim(true);
+    const bl = r.gates.filter((g) => g.level === 'block');
+    if (bl.length) {
+      this.nc = null; this.app.C.renderAll();
+      await showIssueList(this, { title: t('cam.post.blocked_title'), intro: t('cam.post.blocked_intro', { n: bl.length }), rows: this.gateRows(bl), warns: this.gateRows(r.gates.filter((g) => g.level !== 'block')), kind: 'err', onPick: (row) => { if (row.g?.opId) this.edit(row.g.opId); } });
+      return;
+    }
+    let res; try { res = this.runPost(r.program, r.gates); } catch (e) { this.nc = null; this.app.C.renderAll(); await showIssueList(this, { title: t('cam.post.fail_title'), intro: t('cam.post.fail_intro'), rows: [{ level: 'block', op: '', text: errText(e) }], kind: 'err' }); return; }
+    this.nc = { ...res, items: r.items, program: r.program, gates: r.gates, docSig: r.docSig, name: this.progName() };
+    this.app.C.renderAll(); await this.showNc();
+  }
+  async showNc() { if (!this.nc) { toast(t('cam.need_post'), { kind: 'warn' }); return; } await showNcModal(this); this.cam.view?.hideMove(); }
 }

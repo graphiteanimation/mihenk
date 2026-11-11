@@ -90,3 +90,6 @@ export function panelKeys(panel, ok, cancel) {
   };
   document.addEventListener('keydown', fn); return () => document.removeEventListener('keydown', fn);
 }
+export function hashStr(s) { let x = 2166136261; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 16777619); return (x >>> 0).toString(36); }
+export const getP = (o, p) => p.split('.').reduce((a, k) => (a == null ? undefined : a[k]), o);
+export function setP(o, p, v) { const ks = p.split('.'); let a = o; for (let i = 0; i < ks.length - 1; i++) { if (a[ks[i]] == null || typeof a[ks[i]] !== 'object') a[ks[i]] = {}; a = a[ks[i]]; } if (v === undefined) delete a[ks.at(-1)]; else a[ks.at(-1)] = v; }

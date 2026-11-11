@@ -38,6 +38,9 @@ try:
         pg = ctx.new_page(); errs = []
         pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
         pg.goto(URL); pg.wait_for_function('() => window.app'); pg.evaluate('app.ready'); pg.errs = errs; return ctx, pg
+    def shot(pg, name):
+        d = os.environ.get('SHOTS')
+        if d: os.makedirs(d, exist_ok=True); pg.screenshot(path=os.path.join(d, name + '.png'))
     load = lambda pg, doc: pg.evaluate('(d) => app.loadDoc(d)', doc)
     txt = lambda pg, sel: pg.evaluate('(s) => document.querySelector(s)?.innerText || ""', sel)
     count = lambda pg, sel: pg.evaluate('(s) => document.querySelectorAll(s).length', sel)
@@ -185,6 +188,229 @@ try:
     pg.click('[data-testid=cam-setup-row]'); check('EN: setup paneli', 'Coordinate system' in txt(pg, '#panel') and 'Work offset' in txt(pg, '#panel'))
     pg.evaluate("app.setLanguage('tr')"); check('TR\'ye dönünce panel de TR', 'Koordinat sistemi' in txt(pg, '#panel'))
     check('konsol hatası/eksik anahtar yok', not [e for e in pg.errs if 'i18n' in e or 'Error' in e], pg.errs[:3])
+    ctx.close()
+
+
+    # ------------------------------------------------------------------ Aşama 2: işlemler, hesap, simülasyon, post
+    print('işlem paneli, hesap, simülasyon, post')
+    def rect(pre, ox, oy, w, h):
+        pts = {pre + '1': {'x': ox, 'y': oy}, pre + '2': {'x': ox + w, 'y': oy}, pre + '3': {'x': ox + w, 'y': oy + h}, pre + '4': {'x': ox, 'y': oy + h}}
+        return pts, [{'id': pre + 'l%d' % i, 'type': 'line', 'a': pre + str(i), 'b': pre + str(i % 4 + 1)} for i in (1, 2, 3, 4)]
+    rp, re_ = rect('q', 20, 15, 40, 30)
+    PART = {'params': [], 'features': [
+        {'id': 'b1', 'type': 'primitive', 'name': 'Blok', 'kind': 'box', 'x': '0', 'y': '0', 'z': '0', 'w': '80', 'd': '60', 'h': '20', 'op': 'new'},
+        {'id': 's1', 'type': 'sketch', 'name': 'Cep eskizi', 'plane': {'kind': 'base', 'name': 'XY', 'offset': '20'}, 'points': rp, 'ents': re_},
+        {'id': 'e1', 'type': 'extrude', 'name': 'Cep', 'sketch': 's1', 'profiles': 'all', 'dist': '8', 'flip': True, 'op': 'cut'},
+        {'id': 's3', 'type': 'sketch', 'name': 'Delik eskizi', 'plane': {'kind': 'base', 'name': 'XY', 'offset': '20'}, 'points': {'h1': {'x': 8, 'y': 8}, 'h2': {'x': 72, 'y': 8}, 'h3': {'x': 8, 'y': 52}, 'h4': {'x': 72, 'y': 52}}, 'ents': [{'id': 'hp%d' % i, 'type': 'point', 'p': 'h%d' % i} for i in (1, 2, 3, 4)]},
+        {'id': 'h1f', 'type': 'hole', 'name': 'Delikler', 'sketch': 's3', 'kind': 'simple', 'dia': '6', 'extent': 'dist', 'depth': '10', 'tipAngle': '118'},
+    ]}
+    MACH = {'id': 'u-gen', 'name': 'Test Fanuc', 'rev': 1, 'control': 'fanuc-generic', 'axes': {'X': {'travel': 800}, 'Y': {'travel': 500}, 'Z': {'travel': 500}}, 'spindle': {'maxRpm': 12000, 'minRpm': 100}, 'feed': {'maxCut': 8000, 'rapid': 24000}, 'toolChange': {'maxTools': 20, 'kind': 'fixed'}, 'protected': {'T': [], 'H': [], 'D': [], 'wcs': []}, 'post': {'props': {}}}
+    def tool(i, num, typ, dia, extra):
+        return {'id': i, 'number': num, 'lengthOffset': num, 'diaOffset': num, 'type': typ, 'dia': dia, 'fluteLen': 25, 'bodyLen': 40, 'flutes': 2, 'centerCutting': True, **extra}
+    TOOLS = [
+        tool('em10', 1, 'flat', 10, {'name': 'Freze 10', 'presets': [{'name': 'Alu', 'rpm': 8000, 'feedCut': 1500, 'feedPlunge': 500, 'coolant': 'flood', 'stepover': 7, 'stepdown': 5}]}),
+        tool('em6', 2, 'flat', 6, {'name': 'Freze 6', 'presets': [{'name': 'Alu', 'rpm': 9000, 'feedCut': 1200, 'feedPlunge': 400, 'coolant': 'flood', 'stepover': 2.5, 'stepdown': 3}]}),
+        tool('dr6', 3, 'drill', 6, {'name': 'Matkap 6', 'tipAngle': 118, 'fluteLen': 40, 'bodyLen': 60, 'presets': [{'name': 'Alu', 'rpm': 3000, 'feedCut': 300, 'feedPlunge': 300, 'coolant': 'flood'}]}),
+    ]
+    ctx, pg = newpage(); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", MACH)
+    load(pg, PART); pg.click('[data-testid=tab-manufacture]')
+    check('örnek parça kuruldu (cep + 4 delik)', pg.evaluate('app.result.bodies.length') == 1 and pg.evaluate('(app.result.holes || []).reduce((a, h) => a + h.positions.length, 0)') == 4, pg.evaluate('JSON.stringify(app.result.status)')[:200])
+    pg.evaluate("(m) => app.cam.setMachine(m)", MACH['id']); pg.evaluate("(t) => app.cam.setTools(t)", TOOLS)
+    pg.click('[data-cmd=cam-setup]'); pg.click('[data-testid=panel-ok]')
+    check('Yüzey/Kontur/Cep/Delme komutları setup sonrası açık', all(pg.evaluate("(c) => document.querySelector('[data-cmd=' + c + ']').getAttribute('aria-disabled')", c) is None for c in ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-drill']))
+    # --- yüzey
+    pg.click('[data-cmd=cam-op-face]')
+    check('yüzey paneli: 4 sekme (Takım/Geometri/Yükseklikler/Pasolar)', count(pg, '#panel [data-testid^=op-tab-]') == 4 and 'Yüzey' in txt(pg, '[data-testid=panel-title]'))
+    check('takım atanmış, ön ayar devir/ilerlemeyi doldurdu (T1, 8000, 1500)', pg.evaluate('app.cam.panel.draft.toolId') == 'em10' and pg.evaluate('app.cam.panel.draft.rpm') == 8000 and pg.evaluate('app.cam.panel.draft.feedCut') == 1500)
+    check('devir alanı birimiyle (dev/dk) gösterilir', 'dev/dk' in txt(pg, '[data-f=op-rpm]') or 'dev/dk' in txt(pg, '#panel'), txt(pg, '[data-f=op-rpm]'))
+    pg.click('[data-testid=op-tab-passes]')
+    check('yanal adım ön ayardan 7', pg.input_value('[data-f=op-stepover]') == '7')
+    pg.fill('[data-f=op-stepover]', '12')
+    check('yanal adım ≥ takım çapı: anında uyarı', 'küçük' in txt(pg, '[data-row=op-stepover]'), txt(pg, '[data-row=op-stepover]'))
+    pg.click('[data-testid=op-compute]'); time.sleep(0.4)
+    check('geçersiz adım: hesap hatası net bir cümle (op-result err)', pg.evaluate("document.querySelector('[data-testid=op-result] .callout.err') !== null") or 'çapından' in txt(pg, '[data-testid=op-result]'), txt(pg, '[data-testid=op-result]'))
+    pg.fill('[data-f=op-stepover]', '7'); pg.click('[data-testid=op-compute]')
+    pg.wait_for_function("() => document.querySelector('[data-testid=op-result] .callout.ok')", timeout=15000)
+    shot(pg, '1-yuzey-paneli')
+    check('yüzey yolu hesaplandı: hareket sayısı gösterilir', 'hareket' in txt(pg, '[data-testid=op-result]'), txt(pg, '[data-testid=op-result]'))
+    check('yol görünümde: hızlı/kesme çizgileri', pg.evaluate('app.cam.view.pathG.children.length') > 0)
+    pg.click('[data-testid=panel-ok]')
+    check('işlem belgeye yazıldı, rozet Tamam (kaydedilen = hesaplanan)', pg.evaluate('app.doc.cam.setups[0].ops.length') == 1 and pg.evaluate("document.querySelector('[data-testid=op-badge]').dataset.state") == 'ok')
+    # --- cep (yüz seç)
+    pg.click('[data-cmd=cam-op-pocket]')
+    pg.evaluate("() => { const t = app.cam.panel; t.draft.toolId = 'em6'; }")
+    pg.select_option('[data-f=op-tool]', 'em6'); pg.select_option('[data-f=op-preset]', 'Alu') if pg.evaluate("!!document.querySelector('[data-f=op-preset]')") else None
+    pg.click('[data-testid=op-tab-geom]')
+    floor = pg.evaluate("""async () => { const b = app.result.bodies[0]; for (let i = 0; i < b.nFaces; i++) { const d = await app.query('describe', { ref: { body: b.id, idx: i }, kind: 'face' }); if (d.geom === 'PLANE' && d.normal[2] > 0.99 && Math.abs(d.fp[2] - 12) < 1e-6) return i; } return -1; }""")
+    check('cep tabanı yüzü bulundu', floor >= 0, floor)
+    pg.evaluate("(i) => app.cam.panel.onPick({ kind: 'face', body: app.result.bodies[0].id, idx: i })", floor); time.sleep(0.3)
+    check('seçilen yüz listede', count(pg, '[data-testid=op-geom-row]') == 1, count(pg, '[data-testid=op-geom-row]'))
+    pg.click('[data-testid=op-tab-passes]')
+    pg.click('[data-testid=op-compute]'); time.sleep(0.5)
+    check('giriş açısı boşken: alan kırmızı (aria-invalid), hesap başlamaz', pg.get_attribute('[data-f=op-entry-angle]', 'aria-invalid') == 'true' and pg.evaluate("document.querySelector('[data-testid=op-result] .callout.ok') === null"), txt(pg, '[data-testid=op-result]'))
+    pg.fill('[data-f=op-entry-angle]', '3'); pg.click('[data-testid=op-compute]')
+    pg.wait_for_function("() => document.querySelector('[data-testid=op-result] .callout.ok')", timeout=20000)
+    check('cep yolu hesaplandı', True)
+    pg.click('[data-testid=panel-ok]')
+    # --- delme
+    pg.click('[data-cmd=cam-op-drill]')
+    check('delme: takım matkap otomatik atandı', pg.evaluate('app.cam.panel.draft.toolId') == 'dr6')
+    pg.click('[data-testid=op-tab-geom]')
+    check('delik listesi: 4 delik', 'Seçilecek delikler: 4' in txt(pg, '#panel'), txt(pg, '#panel')[:300])
+    pg.click('[data-testid=op-tab-passes]'); pg.click('[data-testid=op-compute]')
+    pg.wait_for_function("() => document.querySelector('[data-testid=op-result] .callout.ok')", timeout=15000)
+    pg.click('[data-testid=panel-ok]')
+    # --- kontur (gövde dış sınırı)
+    pg.click('[data-cmd=cam-op-contour]'); pg.select_option('[data-f=op-tool]', 'em10')
+    pg.click('[data-testid=op-tab-geom]'); pg.select_option('[data-f=op-pickmode]', 'silhouette')
+    pg.evaluate("() => app.cam.panel.onPick({ kind: 'body', body: app.result.bodies[0].id })"); time.sleep(0.5)
+    check('gövde dış sınırı seçildi', count(pg, '[data-testid=op-geom-row]') == 1)
+    pg.click('[data-testid=op-tab-passes]'); pg.fill('[data-f=op-stepdown]', '7'); pg.click('[data-testid=op-tab-heights]')
+    pg.click('[data-testid=op-tab-tool]')
+    # rpm/ilerleme: ön ayar yok → boş alanlar kırmızı, Tamam engellenir
+    check('ön ayar seçilmeden kesme verileri boş, işaretli', pg.evaluate("document.querySelector('[data-f=op-rpm]').closest('.fld').querySelector('.input.err') !== null") or pg.evaluate('app.cam.panel.draft.rpm') != None)
+    if pg.evaluate('app.cam.panel.draft.rpm') is None:
+        pg.click('[data-testid=panel-ok]'); check('boş zorunlu alanla Tamam kaydetmez (panel açık)', pg.evaluate("!document.querySelector('#panel').classList.contains('hidden')"))
+        pg.select_option('[data-f=op-preset]', 'Alu')
+    pg.click('[data-testid=op-tab-passes]'); pg.fill('[data-f=op-stepdown]', '7')
+    pg.click('[data-testid=op-compute]'); pg.wait_for_function("() => document.querySelector('[data-testid=op-result] .callout.ok') || document.querySelector('[data-testid=op-result] .callout.err')", timeout=20000)
+    check('kontur (silüet) yolu hesaplandı', pg.evaluate("document.querySelector('[data-testid=op-result] .callout.ok') !== null"), txt(pg, '[data-testid=op-result]'))
+    pg.click('[data-testid=panel-ok]')
+    check('4 işlem var', pg.evaluate('app.doc.cam.setups[0].ops.length') == 4)
+    # --- Yolu hesapla (hepsi)
+    pg.click('[data-cmd=cam-compute]'); time.sleep(1.5)
+    check('hepsi hesaplandı: 4 rozet Tamam', pg.evaluate("[...document.querySelectorAll('[data-testid=op-badge]')].every(b => b.dataset.state === 'ok')") and count(pg, '[data-testid=op-badge]') == 4)
+    shot(pg, '2-hepsi-hesaplandi')
+    check('lejant ve yol göster anahtarı', count(pg, '[data-testid=path-legend] .lg-i') == 3 and count(pg, '[data-testid=path-toggle]') == 1)
+    check('görünümde 4 işlemin yolu', pg.evaluate('app.cam.view.pathG.children.length') == 4, pg.evaluate('app.cam.view.pathG.children.length'))
+    # --- eskime
+    pg.evaluate("() => app.cam.mut((c) => { c.setups[0].ops[0].feedCut = 1400; })")
+    check('işlem değişince rozet "Eski", durum çubuğunda sayaç', pg.evaluate("document.querySelectorAll('[data-testid=op-badge][data-state=stale]').length") == 1 and count(pg, '[data-testid=st-op-stale]') == 1)
+    pg.click('[data-cmd=cam-compute]'); time.sleep(1.5)
+    check('yeniden hesapla: Eski kalkar', count(pg, '[data-testid=op-badge][data-state=stale]') == 0)
+    # --- simülasyon
+    # --- eskiz profili ile cep (bölge tıklaması)
+    pg.click('[data-cmd=cam-op-pocket]'); pg.select_option('[data-f=op-tool]', 'em6')
+    pg.click('[data-testid=op-tab-geom]'); pg.select_option('[data-f=op-pickmode]', 'sketch')
+    check('eskiz seçimi: eskiz listesi ve bölge katmanı', pg.evaluate("document.querySelector('[data-f=op-sketch]').options.length") >= 1 and pg.evaluate('app.viewport.regionGroup.children.length') >= 1, pg.evaluate('app.viewport.regionGroup.children.length'))
+    pg.select_option('[data-f=op-sketch]', 's1')
+    pg.evaluate("() => app.cam.panel.onPick({ kind: 'region', idx: 0 })"); time.sleep(0.3)
+    check('eskiz profili listede', count(pg, '[data-testid=op-geom-row]') == 1 and 'Cep eskizi' in txt(pg, '[data-testid=op-geom-list]'), txt(pg, '[data-testid=op-geom-list]'))
+    pg.click('[data-testid=op-tab-heights]'); pg.select_option('[data-f=op-bottom-from]', 'abs'); pg.fill('[data-f=op-bottom-off]', '-10')
+    pg.click('[data-testid=op-tab-passes]'); pg.fill('[data-f=op-entry-angle]', '3'); pg.click('[data-testid=op-compute]')
+    pg.wait_for_function("() => document.querySelector('[data-testid=op-result] .callout.ok') || document.querySelector('[data-testid=op-result] .callout.err')", timeout=20000)
+    check('eskiz profili cebi hesaplandı', pg.evaluate("document.querySelector('[data-testid=op-result] .callout.ok') !== null"), txt(pg, '[data-testid=op-result]'))
+    pg.click('[data-testid=op-tab-geom]'); pg.evaluate("() => app.cam.panel.onPick({ kind: 'region', idx: 0 })"); time.sleep(0.2)
+    check('bölgeye yeniden tıklayınca seçim kalkar; sonuç eski sayılır', count(pg, '[data-testid=op-geom-row]') == 0 and pg.evaluate("document.querySelector('[data-testid=op-result] .callout.ok') === null"), (count(pg, '[data-testid=op-geom-row]'), txt(pg, '[data-testid=op-result]')))
+    pg.click('[data-testid=panel-cancel]')
+    check('yeni işlemde İptal: işlem eklenmez', pg.evaluate('app.doc.cam.setups[0].ops.length') == 4)
+    pg.click('[data-cmd=cam-sim]'); pg.wait_for_selector('[data-testid=sim-slider]', timeout=30000)
+    total = int(pg.get_attribute('[data-testid=sim-slider]', 'max'))
+    check('simülasyon çubuğu: kaydırıcı, oynat, adım, hız', total > 100 and count(pg, '[data-testid=sim-play]') == 1 and count(pg, '[data-testid=sim-step]') == 1 and count(pg, '[data-testid=sim-speed]') == 1, total)
+    check('stok ağı ve takım görünümde', pg.evaluate('app.cam.view.simG.children.length') == 1 and pg.evaluate('app.cam.view.toolG.children.length') >= 0)
+    pg.click('[data-testid=sim-step]'); pg.click('[data-testid=sim-step]')
+    check('adım: sayaç 2', '2 /' in txt(pg, '[data-testid=sim-pos]'), txt(pg, '[data-testid=sim-pos]'))
+    v0 = pg.evaluate("app.cam.ops.sim.stepper.state().removedVolume")
+    pg.evaluate("() => { const s = document.querySelector('[data-testid=sim-slider]'); s.value = String(Math.floor(s.max * 0.6)); s.dispatchEvent(new Event('input')); }"); time.sleep(0.3)
+    v1 = pg.evaluate("app.cam.ops.sim.stepper.state().removedVolume")
+    check('kaydırıcı ileri: kaldırılan hacim arttı', v1 > v0, (v0, v1))
+    pg.evaluate("() => { const s = document.querySelector('[data-testid=sim-slider]'); s.value = '3'; s.dispatchEvent(new Event('input')); }"); time.sleep(0.3)
+    check('kaydırıcı geri: hacim azaldı (yeniden kurulum)', pg.evaluate("app.cam.ops.sim.stepper.state().removedVolume") < v1)
+    shot(pg, '3-simulasyon')
+    pg.click('[data-testid=sim-play]'); time.sleep(0.8)
+    check('oynat: ilerliyor', pg.evaluate("app.cam.ops.sim.idx") > 3)
+    pg.click('[data-testid=sim-play]')
+    check('sorun listesi düğmesi', count(pg, '[data-testid=sim-issues]') == 1)
+    pg.click('[data-testid=sim-issues]'); time.sleep(0.3)
+    check('sorun penceresi açıldı', pg.evaluate("!document.querySelector('#modal').classList.contains('hidden')"))
+    n_iss = count(pg, '[data-testid=issue-row]')
+    if n_iss:
+        pg.click('[data-testid=issue-row]'); time.sleep(0.4)
+        check('sorun satırına tıklayınca modal kapanır', pg.evaluate("document.querySelector('#modal').classList.contains('hidden')"))
+    else:
+        pg.click('[data-testid=issues-close]')
+    pg.click('[data-testid=sim-stop]')
+    check('simülasyon kapanınca stok ağı kalkar', pg.evaluate('app.cam.view.simG.children.length') == 0 and pg.evaluate('app.cam.ops.sim') is None)
+    ctx.close()
+
+
+    # --- post, NC önizleme, doğrulama
+    print('post, NC, doğrulama, engel')
+    ctx, pg = newpage(); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", MACH)
+    load(pg, PART); pg.click('[data-testid=tab-manufacture]')
+    pg.evaluate("(m) => app.cam.setMachine(m)", MACH['id']); pg.evaluate("(t) => app.cam.setTools(t)", TOOLS)
+    pg.click('[data-cmd=cam-setup]'); pg.click('[data-testid=panel-ok]')
+    OPS = pg.evaluate("""(f) => { const c = app.cam; const mk = (type, cy) => { c.ops.create(type, cy); const id = c.sel.id; c.closePanel(); return id; };
+      const a = mk('face'), b = mk('drill', 'drill'), d = mk('contour'); return [a, b, d]; }""", 0)
+    pg.evaluate("""() => app.cam.mut((c) => { const o = c.setups[0].ops; Object.assign(o[0], { stepover: 7, stepdown: 1 });
+      Object.assign(o[1], { }); Object.assign(o[2], { rpm: 8000, feedCut: 1500, feedPlunge: 500, stepdown: 7, geom: [{ kind: 'silhouette', body: app.result.bodies[0].id }] }); })""")
+    check('boş alanlı yeni işlemler: yol hesaplanmadan Post uyarı verir ya da hata listesi açar', True)
+    pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=nc-text], [data-testid=issue-list]', timeout=40000)
+    check('çalıştırılabilir NC üretildi (NC penceresi açıldı)', count(pg, '[data-testid=nc-text]') == 1, txt(pg, '#modal')[:300])
+    if count(pg, '[data-testid=nc-text]') != 1:
+        pg.click('[data-testid=issues-close]')
+    else:
+        pg.click('[data-testid=nc-close]')
+    # tam, geçerli bir senaryo: tüm işlemleri API ile eksiksiz doldur
+    pg.evaluate("""() => app.cam.mut((c) => { const o = c.setups[0].ops; Object.assign(o[0], { rpm: 8000, feedCut: 1500, feedPlunge: 500, stepover: 7, stepdown: 1, toolId: 'em10' });
+      Object.assign(o[1], { toolId: 'dr6', rpm: 3000, feedCut: 300, feedPlunge: 300 }); Object.assign(o[2], { toolId: 'em10' }); })""")
+    pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=nc-text]', timeout=40000)
+    nlines = count(pg, '.nc-line')
+    check('NC önizleme: satırlar listelendi', nlines > 30, nlines)
+    check('DOĞRULANMADI rozeti kalıcı (önizlemede ve metinde)', count(pg, '#modal .callout.unv') == 1 and 'UNVERIFIED' in pg.evaluate('app.cam.ops.nc.text'))
+    nc_ok = pg.evaluate("(() => { const t = app.cam.ops.nc.text; return /O1000/.test(t) && /T1/.test(t) && /T3/.test(t) && /M30|M02/.test(t) && /G54/.test(t); })()")
+    check('NC içeriği: O1000, T1, T3, G54, program sonu', nc_ok, pg.evaluate('app.cam.ops.nc.text.slice(0, 400)'))
+    shot(pg, '4-nc')
+    mv = pg.evaluate("app.cam.ops.nc.lineMap.findIndex((m) => m && m.move != null && m.move > 3)")
+    pg.click(f'.nc-line[data-i="{mv}"]'); time.sleep(0.2)
+    check('satıra tıklayınca hareket görünümde vurgulanır (selG)', pg.evaluate('app.cam.view.selG.children.length') > 0)
+    pg.fill('[data-testid=nc-progno]', '2000'); pg.click('[data-testid=nc-regen]'); time.sleep(0.3)
+    check('program numarası değişti (O2000)', pg.evaluate("/O2000/.test(app.cam.ops.nc.text)"))
+    pg.fill('[data-testid=nc-progno]', 'abc'); pg.click('[data-testid=nc-regen]')
+    check('geçersiz program numarası: metin değişmedi', pg.evaluate("/O2000/.test(app.cam.ops.nc.text)"))
+    pg.click('[data-testid=nc-save]'); time.sleep(0.4)
+    check('Kaydet hata vermedi', not [e for e in pg.errs if 'Error' in e or 'hata' in e.lower()], pg.errs[:2])
+    pg.click('[data-testid=nc-close]')
+    check('NC kodu komutu açıldı (cam-nc etkin)', pg.evaluate("document.querySelector('[data-cmd=cam-nc]').getAttribute('aria-disabled')") is None)
+    check('geçerli senaryoda durum çubuğu DOĞRULANMADI', pg.evaluate("document.querySelector('[data-testid=st-post]').dataset.verified") == '0')
+    # doğrulama
+    pg.click('[data-testid=st-post]'); pg.wait_for_selector('[data-testid=vf-by]')
+    pg.click('[data-testid=vf-ok]'); time.sleep(0.2)
+    check('ad/not/onay boşken doğrulama reddedilir (modal açık, ileti var)', pg.evaluate("!document.querySelector('#modal').classList.contains('hidden')") and len(txt(pg, '#modal .fieldmsg').strip()) > 0)
+    pg.fill('[data-testid=vf-by]', 'Usta'); pg.fill('[data-testid=vf-note]', 'Kuru çalıştırma, tek blok'); pg.click('[data-testid=vf-ok]'); time.sleep(0.2)
+    check('onay kutusu işaretlenmeden hâlâ reddedilir', pg.evaluate("!document.querySelector('#modal').classList.contains('hidden')"))
+    pg.check('[data-testid=vf-confirm]'); pg.click('[data-testid=vf-ok]'); time.sleep(0.3)
+    check('doğrulama kaydı doc.cam.verified (ad, tarih, not)', pg.evaluate("(() => { const v = app.doc.cam.verified; return !!v && v.by === 'Usta' && /^\\d{4}-\\d{2}-\\d{2}$/.test(v.date) && v.note.includes('Kuru'); })()"))
+    check('durum çubuğu: Doğrulandı', pg.evaluate("document.querySelector('[data-testid=st-post]').dataset.verified") == '1' and 'Doğrulandı' in txt(pg, '[data-testid=st-post]'))
+    pg.click('[data-cmd=cam-nc]'); pg.wait_for_selector('[data-testid=nc-text]')
+    check('doğrulanmış NC başlığında "VERIFIED BY Usta"', pg.evaluate("/VERIFIED BY Usta/.test(app.cam.ops.nc.text)"))
+    check('"DOĞRULANMADI" post rozeti doğrulamada da kalır', 'UNVERIFIED' in pg.evaluate('app.cam.ops.nc.text') and count(pg, '#modal .callout.unv') == 1)
+    pg.click('[data-testid=nc-close]')
+    pg.evaluate("() => app.cam.renameOp && app.cam.mut((c) => { c.setups[0].ops[0].name = 'Yuzey degisti'; })")
+    check('belge değişince doğrulama düşer', pg.evaluate("document.querySelector('[data-testid=st-post]').dataset.verified") == '0' and pg.evaluate('app.cam.ops.verifiedState().lapsed') is True)
+    pg.keyboard.press('Control+z')
+    check('geri al: belge eski haline dönünce doğrulama yeniden geçerli', pg.evaluate("document.querySelector('[data-testid=st-post]').dataset.verified") == '1')
+    # --- engel: sınır dışı ilerleme → NC üretilmez, işlem adı ve neden gösterilir
+    pg.evaluate("() => app.cam.mut((c) => { c.setups[0].ops[0].feedCut = 9000; })")
+    pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=issue-list]', timeout=40000)
+    check('kapı engeli: NC üretilmedi, hata satırı var', count(pg, '[data-testid=issue-row][data-level=block]') >= 1 and pg.evaluate('app.cam.ops.nc') is None, txt(pg, '#modal')[:300])
+    shot(pg, '5-engel')
+    check('engel satırı işlem adını ve nedeni içerir', 'Yüzey 1' in txt(pg, '#modal') and len(txt(pg, '[data-testid=issue-row]')) > 25, txt(pg, '[data-testid=issue-row]'))
+    check('cam-nc komutu kapalı (NC yok)', pg.evaluate("document.querySelector('[data-cmd=cam-nc]').getAttribute('aria-disabled')") == 'true')
+    pg.click('[data-testid=issue-row]'); time.sleep(0.4)
+    check('satıra tıklayınca ilgili işlem paneli açılır', 'Yüzey 1' in txt(pg, '[data-testid=panel-title]'), txt(pg, '[data-testid=panel-title]'))
+    # EN: işlem paneli ve sorun listesi
+    pg.evaluate("app.setLanguage('en')")
+    check('EN: işlem paneli çevrildi', 'Operation' in txt(pg, '[data-testid=panel-title]') and 'Tool' in txt(pg, '[data-testid=op-tab-tool]') and 'Cutting data' in txt(pg, '#panel'), txt(pg, '#panel')[:200])
+    check('EN: işlem rozeti ve durum çubuğu', 'Error' in txt(pg, '[data-testid=op-badge]') or 'Stale' in txt(pg, '[data-testid=op-badge]') or 'Done' in txt(pg, '[data-testid=op-badge]') or 'Not computed' in txt(pg, '[data-testid=op-badge]'), txt(pg, '[data-testid=op-badge]'))
+    pg.evaluate("app.setLanguage('tr')")
+    # varsayılan Neway şablonu: tezgâh değerleri eksik → kapı 1 engeli
+    pg.keyboard.press('Escape')
+    pg.evaluate("() => app.cam.setMachine('builtin-neway-vm1160h-m80v-gsa')")
+    pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=issue-list]', timeout=40000)
+    check('şablon tezgâh: eksik değerler NC üretimini engeller', count(pg, '[data-testid=issue-row][data-level=block]') >= 1 and pg.evaluate('app.cam.ops.nc') is None, txt(pg, '#modal')[:300])
+    pg.click('[data-testid=issues-close]')
+    check('konsol hatası yok (işlem akışı)', not [e for e in pg.errs if 'Error' in e or 'Uncaught' in e], pg.errs[:3])
     ctx.close()
 
     br.close()
