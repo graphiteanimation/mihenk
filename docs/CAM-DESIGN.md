@@ -21,6 +21,10 @@ Tool  = { id, number(T), lengthOffset(H), diaOffset(D), type:'flat'|'ball'|'bull
 Setup = { id, name, bodies:[bodyId],
           frame:{ origin:{kind:'model'|'stockCorner'|'stockTopCenter'|'point', ...}, zAxis:{kind:'base',dir:'+X'|'-X'|'+Y'|'-Y'|'+Z'|'-Z'}|{kind:'face',ref}, xAxis:{...aynı}, },
           rotary?:{ enabled, aAngle(derece) },      // 3+1: çerçeve A=0 içindir; orijin döner eksen ÜZERİNDE, X = döner eksen. İşlemler A=aAngle'da koşar.
+          //   aAngle TANIMI (v0.3.1, CAM-FIXES V-01): NC'ye yazılan A KELİMESİDİR (kısa yol normalizasyonundan önce). Fiziksel dönüş:
+          //   parça, makine profilindeki axes.A.dir etrafında sağ el kuralıyla aAngle kadar döner → etkin çerçeve F = Rot(A.dir, aAngle)·F0.
+          //   A.dir işareti YALNIZ bu çerçevede (resolveSetup) uygulanır; post A'yı aAngle olarak yazar, okuyucu A'yı aAngle olarak okur, A sınırları aAngle'a uygulanır.
+          //   A yönü (dir) tezgâhta işaretli parçayla teyit edilmeden NC'ye güvenilmez: NC başlığında ve kapılarda (cam.gate.a_dir_unverified) uyarı kalır.
           workOffset:{kind:'G54'..'G59'|'G54.1', p?},
           stock:{kind:'boxOffset', side, top, bottom} | {kind:'box', min:[x,y,z], max:[x,y,z]} | {kind:'cyl', dia, len, axis:'X'} ,
           clearanceZ(stok üstünden; hızlı hareket düzlemi), ops:[Op] }
@@ -84,7 +88,7 @@ Koordinatlar setup WCS'sinde, mm; x/y/z her harekette TAM yazılır (modal sık�
 3. Sınırlar: rpm > maxRpm, ilerleme > max, yol zarfı (X/Y/Z açıklığı) > kurs → block; setup'ta makine konumu verilmediyse mutlak kurs denetimi "yapılamadı" uyarısı.
 4. Dalma: kesmeyen uçla (centerCutting=false) malzemeye düz dalma, kesici boydan (fluteLen) derin tek paso, bodyLen'den derin iniş → block.
 5. Simülasyon (`src/cam/sim`): stok yükseklik haritası (dexel, çözünürlük ayarlı); hızlı hareket stok içine girerse → block; takım model yüzeyinin altına toleranstan (0,01 + harita hatası) fazla inerse (oyma) → block; tutucu/şaft stok ya da modele değerse → block; kalan malzeme haritası raporlanır. 3+1: her A açısı kendi çerçevesinde, başlangıç stokuyla (tutucu yönden güvenli) sınanır.
-6. Döner eksen: A hareketinden önce Z güvenli geri çekilme sırası postta zorunlu; aAngle makine limitleri dışındaysa block.
+6. Döner eksen: A hareketinden önce Z güvenli geri çekilme sırası postta zorunlu; aAngle makine limitleri dışındaysa block. Döner eksenli makinede ilk bölümde A mutlak yazılır (tezgâh A'sı bilinmez); A yönü doğrulanmadı uyarısı.
 Sonuç nesnesi kullanıcıya gösterilir ve NC başlığına özet yazılır.
 
 ## Post motoru (`src/cam/post/`)

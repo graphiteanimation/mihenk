@@ -27,7 +27,7 @@ postProgram(program, machine, opts?) → { text, lines:[string], lineMap:[{secti
 readNC(text, { machine?, post?, props? }) → { program:{name,number,machine,units,sections}, events:[{line,ev,...}], lineMap:[{section,move}|null] }
 ```
 Hatalar `KErr` `{code, params}`; kodlar `cam.ir.*`, `cam.post.*`, `cam.sim.*` (metinler `src/i18n/cam-post-*.js`). Boş (`null`) bir post özelliği gerektiğinde `cam.post.prop_missing {prop}` ile durulur.
-`gates` verilirse NC başlığına `(GATES n BLOCK m WARN)` ve her kapı için bir `(GATE ...)` yorumu yazılır. `verified` doluysa UNVERIFIED satırı korunur, ardına `(VERIFIED BY .. ON ..)` eklenir.
+Kapılar (savunma derinliği, CAM-FIXES V-07): `opts.gates` içinde `block` varsa NC üretilmez (`cam.post.gates_blocked`); `opts.gates` verilmezse `postProgram` statik kapıları (1–4, 6; simülasyonsuz) kendisi çalıştırır, sonucu `gates` alanında döner. `gates: []` = "kapılar çağıranda çalıştı, sorun yok" beyanıdır (testler). Başlığa `(GATES n BLOCK m WARN)` ve her kapı için okunur metin yazılır: `(WARNING: <metin>)` — metin `opts.gateText(g)` (arayüz kendi dilinde verebilir) ya da İngilizce sözlükten (`describe.js`), yorum ASCII'ye çevrilir (Türkçe karakter çıkmaz). 3+1 bölüm varsa `(WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING)`. `verified` doluysa UNVERIFIED satırı korunur, ardına `(VERIFIED BY .. ON ..)` eklenir.
 
 ### Çıktı yapısı (6a, M80V)
 Başlık: `O<no>` (program.number varsa) · UNVERIFIED · PROGRAM · DATE · MACHINE (ad, rev, kontrol) · takım listesi `(T H D DIA TÜR)` · kapı özeti · `G90 G17 G21 G40 G49 G80 G94`.
@@ -45,6 +45,7 @@ Bu özellikler makine profilinde `post.props` altında saklanır (`machine.post.
 | Ad | Anlam | Fanuc varsayılanı | M80V varsayılanı | Kaynak |
 | --- | --- | --- | --- | --- |
 | `lineNumbers`, `lineNumberStart`, `lineNumberStep` | N satır numarası | false, 10, 10 | aynı | seçenek (CP3) |
+| `lineNumberMax` | N üst sınırı; aşılınca başlangıçtan sarar + `cam.post.line_number_wrapped` uyarısı | 99999 | 99999 | [Ç] genel Fanuc kuralı, M80V'de teyit edilmedi |
 | `programNumberDigits` | O numarası hane sayısı | 4 | 4 | [Ç] (CP3: biçim bekliyor) |
 | `percentLeader` | Dosya başı/sonu `%` | false | false | [Ç] |
 | `decimals` | XYZ/IJ ondalık | 3 | 3 | [Ç] (Fusion örnek postları 3 ondalık) |
@@ -68,7 +69,7 @@ Bu özellikler makine profilinde `post.props` altında saklanır (`machine.post.
 | `endCode` | Program sonu | `'M30'` | `'M30'` | sözleşme lehçesi |
 | `safeStartExtra` | Güvenli başlangıç satırına ek kelimeler | [] | [] | seçenek |
 
-Makine profilinden gelenler (post özelliği değil): `axes.A.dir` (A işareti: `dir[0] < 0` → çıkış = −aAngle; **dir yoksa** `prop_missing machine.axes.A.dir`),
+Makine profilinden gelenler (post özelliği değil): `axes.A.dir` (A'nın fiziksel dönüş yönü; YALNIZ çekirdek çerçevesinde kullanılır: `F = Rot(dir, aAngle)·F0`. **`aAngle` = A kelimesi**; post A'yı işaret çevirmeden yazar, okuyucu `aAngle = A` okur — CAM-FIXES V-01. **dir yoksa** `prop_missing machine.axes.A.dir`). Döner eksenli makinede ilk bölümde A mutlak yazılır (`G0 A0.` dahil; tezgâh A'sı bilinmez — V-02),
 `axes.A.limits` (null = sınırsız; dışına çıkan açı `cam.post.a_out_of_limits`), `axes.A.shortest` (kısa yol: açılar 0..359.999 normalize),
 `axes.A.clamp {lock, unlock, output}` (`output:false` → M10/M11 yazılmaz; M80V verisi "PLC otomatik yönetiyor"; `output:true` ve kod `null` → durur).
 
@@ -93,7 +94,7 @@ Geri okuyucu ve kapsamı dışındakiler: NC'de karşılığı olmayan alanlar (
 ## 5. IR'ye post/sim'in eklediği kurallar (A için)
 
 `validateToolpath` şunları da reddeder (hata kodu `cam.ir.*`): ilk hareket hızlı değil ya da Z≠clearanceZ; yol clearanceZ'de bitmiyor; yay başlangıç/bitiş yarıçap farkı > 0,005 mm;
-tam daire (başlangıç=bitiş; iki yarım yay yazın); `comp` hareketi `tp.comp==='wear'` dışında; comp'tan sonraki ilk hareket `feed kind:'lead'` (doğrusal) değil; comp açıkken hızlı hareket ya da çevrim;
+tam daire (başlangıç=bitiş; iki yarım yay yazın); kirişi < 0,001 mm yay (`cam.ir.arc_degenerate`; NC'de tam daireye dönüşür — işlemler böyle yayı doğruya çevirir); `comp` hareketi `tp.comp==='wear'` dışında; comp'tan sonraki ilk hareket `feed kind:'lead'` (doğrusal) değil; comp açıkken hızlı hareket ya da çevrim;
 wear'de `tool.D` ya da `compSide` yok; wear ama hiç comp açılmamış; çevrim başlangıç Z'si `clearance`'a eşit değil (G98 başlangıç düzlemi); çevrimde dip < retract <= clearance değil;
 kılavuzda `pitch` yok ya da `f ≠ rpm·pitch` (±0,1%); gagalama/talaş kırmada `peck` yok.
 `comp` hareketi bir SONRAKİ doğrusal harekete uygulanır: `comp(on)` + `feed(kind:'lead')` → `G41|G42 D<n> G1 ..`; `comp(off)` + `feed(kind:'lead')` → `G40 G1 ..`.
@@ -115,7 +116,7 @@ createSim(input, opts) → sim   // sim.step(n=1) → {done, index, newIssues}; 
   `step` (örnekleme adımı, varsayılan `res`), `contactTol` (0,001), `gougeTol` (0,01), `belowTol` (0,01), `rapidSplit` (true), `maxIssuesPerCode` (20), `frames: N` (her N harekette ızgara kopyası).
 - Heightmap: `{x0, y0, res, nx, ny, data: Float32Array}`; hücre (i,j) merkezi `(x0+(i+.5)res, y0+(j+.5)res)`, `data[j*nx+i]` = üst yükseklik (setup Z). `err` alanı (varsa) oyma toleransına eklenir (z-buffer harita hatası).
 - Sorun: `{level:'error'|'warn', code, params:{x,y,z,depth,cells,op}, moveIndex, section}` — `moveIndex` o bölümün `toolpath.moves` indeksi, `section` bölüm indeksi. Kodlar:
-  `cam.sim.rapid_in_stock`, `cam.sim.gouge`, `cam.sim.flute_exceeded`, `cam.sim.shaft_collision`, `cam.sim.holder_collision` (hepsi `error` → kapılar `block` yapar), `cam.sim.below_stock` (`warn`), `cam.sim.comp_arc_collapse` (`error`).
+  `cam.sim.rapid_in_stock`, `cam.sim.gouge`, `cam.sim.flute_exceeded`, `cam.sim.shaft_collision`, `cam.sim.holder_collision` (hepsi `error` → kapılar `block` yapar), `cam.sim.below_stock` (`error`; yalnız takım yolunun bildirdiği bilinçli pay `toolpath.meta.belowStock` mm içindeyse `warn` — boydan boya delik ya da tabanı model/stok tabanına/seçime negatif ofsetli kontur/cep), `cam.sim.comp_arc_collapse` (`error`).
   Aynı hareket + aynı kod tek kayıt (en kötü konum); kod başına `maxIssuesPerCode`'tan sonrası `suppressed` sayacına gider.
 - Hatalar (fırlatılır): `cam.sim.bad_res`, `cam.sim.no_stock`, `cam.sim.tool_geom {field,type}` (uç açısı/köşe yarıçapı/kesme boyu/boy eksik), ve geçersiz IR için `cam.ir.*`.
 - `state()` → `{index,total,section,moveIndex,position,removedVolume,issues,suppressed}`; `heightmap()` CANLI diziyi verir (kopya değil; çizim için `Float32Array` doğrudan okunur).
@@ -124,7 +125,7 @@ createSim(input, opts) → sim   // sim.step(n=1) → {done, index, newIssues}; 
 ### Modelleme ve sınırlar
 - Tek değerli yükseklik haritası: yalnız +Z'den kesim; alt kesme (undercut), yan yönden (A≠0 aynı setup içinde) kesim, ters yüz YOK. Çıkıntılı stok altı model edilmez.
 - Takım: flat/face/tap/reamer/bore düz uç; ball; bullnose (`cornerR`); drill/spot/chamfer konik (`tipAngle`). Şaft = `shaftDia` (varsayılan kesici çapı) `fluteLen`..`bodyLen`; tutucu = `holder.dia` `bodyLen` üstünde. Eksik geometri = hata (varsayılan yok).
-- Denetimler: stok tabanından aşağı (`below_stock`, yalnız uyarı: tabla/fikstür modellenmez); fikstür/mengene/punta çarpışması YOK; takım tutucu yalnız silindir.
+- Denetimler: stok tabanından aşağı (`below_stock`; bildirilmiş pay dışında ENGEL: tabla/fikstür modellenmez); tabana kadar kesilmiş hücre (h ≤ taban) boş sayılır (geri çekilme "stok içinde hızlı" sayılmaz); fikstür/mengene/punta çarpışması YOK; takım tutucu yalnız silindir.
 - Hızlı hareket denetimi hücre merkezi ve `contactTol` ile; stok yüzeyinde (Z = üst) gezinme sorun değildir.
 - Wear telafisi: programlanan yol takım yarıçapı kadar ofsetlenir (doğrusal: normal, yay: r∓R); aşınma farkı 0; teğet olmayan köşe geçişleri düz sweep ile bağlanır (kesişim/yuvarlama yok).
 - Delik çevrimi: R'ye hızlı, dibe tek kesme (gagalama aralıkları modellenmez, hacim aynı), G99 ara geçiş R düzleminde hızlı olarak sınanır.
