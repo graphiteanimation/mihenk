@@ -1,5 +1,5 @@
 // Program kurucu: cozulmus setup'lar + takim yollari -> Program IR; ve uctan uca uretici (cekirdek sorgulariyla).
-import { cerr } from './geom/err.js';
+import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
 
@@ -29,7 +29,7 @@ export async function generateProgram(cam, { rebuild, machine, query, name, numb
     let S;
     try {
       const planes = {};
-      for (const k of ['z', 'x']) { const ax = setup.frame?.[k + 'Axis']; if (ax?.kind === 'face') { const pl = await query('facePlane', { ref: ax.ref }); planes[k] = pl; } }
+      for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face') { const pl = await query('facePlane', { ref: ax.ref }); planes[k] = pl; } }
       S = resolveSetup(setup, rebuild, machine, { planes });
     } catch (e) { pre.push({ level: 'block', code: e.code || 'internal', params: e.params || {}, setupId: setup.id }); continue; }
     const tps = [];
@@ -48,13 +48,13 @@ export async function generateProgram(cam, { rebuild, machine, query, name, numb
         }
         const tp = computeOp(op, { setup: S, tool, geom, machine });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
-      } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push({ level: 'block', code: 'cam.gate.op_failed', params: { op: op.name || op.id, code: e.code || 'internal' }, opId: op.id }); }
+      } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }
     }
     if (tps.length) sections.push({ setup: S, toolpaths: tps });
   }
   let program = null;
   if (sections.length) { try { program = buildProgram({ name: name || 'PROG', number, machine, sections }); } catch (e) { pre.push({ level: 'block', code: e.code || 'internal', params: e.params || {} }); } }
-  else pre.push({ level: 'block', code: 'cam.program.empty', params: {} });
+  else pre.push(issue('cam.program.empty', {}, { level: 'block' }));
   const g = [...pre, ...(program ? runGates(program, machine, { sim }) : [])];
   return { program, ops, gates: g, blocked: blocked(g) };
 }
