@@ -117,6 +117,7 @@ Okuyucu artık `aAngle = A` (işaret yok); fiziksel tutarlılık `cam.test` 7'de
 V-07 sonrası post statik kapıları koşunca v04 `cam.post.gates_blocked (cam.gate.plunge_center, kilavuz)` ile durdu. Kapı 4 kesmeyen uçlu takımın HER çevrimini dalma sayıyordu; kılavuz/rayba/bara önceden delinmiş deliğe girer. Düzeltme: yalnız drill/spot/peck/chipbreak. Önceki: v04 durur. Sonraki: v04 `0 bulgu / 6 denetim`.
 
 ### V-28 / V-29 — Cep kapsaması ve yön (Orta/Düşük) — ERTELENDİ
+`toolpath.verify.mjs 21` (aynı tohum): önce (220'lik koşunun ilk 21 durumu) ve sonra cep FAIL satırları birebir aynı; sonraki koşu toplam 771 geçti / 27 kaldı, 27'nin tamamı V-28/V-29 (iç konturda 4 yön satırı dahil); r+pay ihlali yok.
 V-28 teyit: bağımsız denemede (60×40 cep, d2) so 1,2 ve 1,5'te köşe bölgesi tam işleniyor; so 1,87'de 62/10201 nokta işlenmemiş, cep `cam.pocket.rest_material {area:3.36}` + `cam.pocket.unreachable` uyarısı veriyor (sessiz değil). Köşe temizleme hareketi bu çalışmada yapılmadı. V-29 incelenmedi.
 
 ### V-30 (v03 `contour_fresh_plunge`) — YANLIŞ ALARM

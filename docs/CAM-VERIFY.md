@@ -37,7 +37,7 @@ Hedef: Neway VM1160H + Mitsubishi M80V. Aranan: "testler geçiyor" değil, **yan
 | V-25 | Düşük | src/cam/post/reader.js:49 | aynı betik (sabit kayıt) | Okuyucu A işaretini postla aynı kuraldan çözüyor (aAngle = sign·A): IR→NC→IR eşitliği V-01'i tanımı gereği göremez. | İşaret tek yerde; fiziksel tutarlılık bağımsız formülle sınanmalı. |
 | V-27 | Orta | src/cam/gates.js:173 (kapı 4, `m.t==='cycle'`) | `node test/verify/v04_program.verify.mjs` (V-07 düzeltmesinden sonra; post artık statik kapıları kendisi koşuyor) | Kesmeyen uçlu (centerCutting=false) kılavuz/rayba/bara çevrimi `plunge_center` ile ENGELLENİYOR: bu çevrimler önceden delinmiş deliğe girer (yanlış engel; kullanıcıyı takım verisini yanlış girmeye iter). | Kapı 4 yalnız delme çevrimlerini (drill/spot/peck/chipbreak) saysın. |
 | V-28 | Orta | src/cam/ops/pocket.js (halka aralığı, keskin halka köşeleri) | `node test/verify/toolpath.verify.mjs 21` | Yüksek stepover'da (örn. d2 so1,87 = %93) halka köşeleri arasında takım merkezinin ulaşabildiği noktalar işlenmemiş (U#3: 297/12825). Sessiz değil: cep `cam.pocket.rest_material` (alan) + `unreachable` uyarısı veriyor (bağımsız denemede 3,36 mm² ↔ köşe kalıntısı 0,8 mm²). | Köşe temizleme hareketi ya da köşe geometrisine bağlı efektif stepover sınırı. |
-| V-29 | Düşük | src/cam/ops/pocket.js (halka/bağlantı) | aynı betik | Cep duvar örneklerinin çok küçük kısmı (örn. 2/4672, 12/13294) istenen yönün (climb/conv) tersinde. Neden incelenmedi. | İncelenmeli. |
+| V-29 | Düşük | src/cam/ops/pocket.js, src/cam/ops/contour.js | aynı betik | Cep ve iç kontur duvar örneklerinin çok küçük kısmı (örn. cep 2/4672, 12/13294; iç kontur 2/4786, 4/5820; çoğu yıldız/dambıl şekli) istenen yönün (climb/conv) tersinde. Neden incelenmedi. | İncelenmeli. |
 | V-30 | — (yanlış alarm) | src/cam/ops/contour.js (giriş) | `node test/verify/v03_combos.verify.mjs` | `contour_fresh_plunge`: rampasız konturda giriş noktasında stoka dikey dalma. Sözleşme gereği (ramp `plunge` = dikey iniş, merkezden kesen takım); kesmeyen uçta kapı 4 engeller. | Değişiklik yok. |
 
 ## Sınanıp sağlam bulunanlar (betik çıktılarından)
@@ -48,7 +48,7 @@ Hedef: Neway VM1160H + Mitsubishi M80V. Aranan: "testler geçiyor" değil, **yan
 - v08_sim: taban oyması 0,02 mm yakalanıyor; stok içinden yatay hızlı yakalanıyor; kesici boyu aşımı ve tutucu çarpması yakalanıyor.
 - v09_frames: 24 eksen birleşiminde setup çerçevesi sorunsuz (V-26).
 - v10_fuzz: 12 rastgele koşuda hata kodu yok, oyma yok (en kötü min uzaklık − (r+pay) = −0,00000 mm).
-- toolpath.verify (ilk 21 durum): kontur ve cepte r+pay duvar ihlali görülmedi; başarısızlıklar yalnız V-28/V-29 türünde.
+- toolpath.verify (`node test/verify/toolpath.verify.mjs 21`: 90 cep + 63 kontur koşusu, 771 denetim geçti / 27 kaldı): r+pay duvar ihlali, yanlış taraf, son derinlik ve sınır kapsaması hatası yok; 27 başarısızlığın tamamı V-28 (cep kapsaması) ve V-29 (yön) türünde. Hata kodları açık hata (`helix_no_fit` 6, `tool_too_big` 10+6, `lead_no_fit` 1). Cep bölümündeki başarısızlıklar düzeltmelerden önce ve sonra satır satır aynı.
 
 ## Sınanamayanlar
 
