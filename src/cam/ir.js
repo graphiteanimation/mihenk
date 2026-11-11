@@ -10,6 +10,9 @@ export const COOLANTS = ['flood', 'mist', 'air', 'through', 'off'];
 export const TOOL_TYPES = ['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore'];
 export const ARC_TOL = 0.005; // mm: yayin baslangic ve bitis yaricaplari arasindaki izinli fark
 const EPS = 1e-6;
+// V-05: kirisi bundan kisa yay dejenere sayilir (3 ondalikli NC'de baslangic=bitis -> kontrolde TAM DAIRE). Islemler boyle
+// yayi dogruya cevirir (ops/common.js Builder.seg); IR dogrulamasi reddeder.
+export const ARC_MIN_CHORD = 1e-3;
 
 export const irErr = (code, params = {}) => new KErr(code, params);
 
@@ -197,7 +200,9 @@ export function toolpathErrors(tp, firstOnly = false) {
           const r0 = Math.hypot(m.i, m.j), r1 = Math.hypot(m.x - (pos.x + m.i), m.y - (pos.y + m.j));
           if (r0 < EPS) { if (bad('cam.ir.arc_zero_radius', at)) return errs; }
           else if (Math.abs(r0 - r1) > ARC_TOL) { if (bad('cam.ir.arc_radius_mismatch', { ...at, r0, r1 })) return errs; }
-          if (Math.hypot(m.x - pos.x, m.y - pos.y) < EPS) { if (bad('cam.ir.arc_full_circle', at)) return errs; }
+          const ch = Math.hypot(m.x - pos.x, m.y - pos.y);
+          if (ch < EPS) { if (bad('cam.ir.arc_full_circle', at)) return errs; }
+          else if (ch < ARC_MIN_CHORD) { if (bad('cam.ir.arc_degenerate', { ...at, chord: ch })) return errs; }
         }
       }
       if (pending !== null) {

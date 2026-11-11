@@ -46,7 +46,7 @@ export function readNC(text, opts = {}) {
   const mcodeEq = (v, code) => code != null && String(code).toUpperCase() === 'M' + v;
   const norm360 = (a) => ((a % 360) + 360) % 360;
 
-  const makeSection = () => ({ setup: { id: null, name: null, workOffset: { ...S.wcs }, aAngle: R && R.sign != null ? R.sign * S.aCur : S.aCur, aOut: S.aCur }, comp: 'computer', compSide: null, moves: [], tool: S.tool, H: S.H, D: null, lineIdx: [] });
+  const makeSection = () => ({ setup: { id: null, name: null, workOffset: { ...S.wcs }, aAngle: S.aCur, aOut: S.aCur }, comp: 'computer', compSide: null, moves: [], tool: S.tool, H: S.H, D: null, lineIdx: [] });
   const ensureSection = (ln) => { if (!cur) { cur = makeSection(); cur.opName = S.opComment; } return cur; };
   const emit = (mv, ln) => { const c = ensureSection(ln); c.moves.push(mv); const k = c.moves.length - 1; lineMap[ln - 1] = { section: sections.length, move: k }; return k; };
   const finalize = () => {
@@ -151,12 +151,13 @@ export function readNC(text, opts = {}) {
     // ---- G28 / G53 guvenli geri cekilme
     if (retractEv) {
       if (!S.inc || !Z || Z.v !== 0 || X || Y) fail('cam.post.read_bad_retract', ln);
-      finishCycle(ln); finalize(); S.z = null; S.motion = null; pending = null; S.H = S.H; events.push({ line: ln, ev: 'safeRetract', method: 'G28' });
+      // bolum siniri: F modal tasinmaz (post her bolumde F'yi yeniden yazar; yazmazsa okuyucu hata verir, V-04)
+      finishCycle(ln); finalize(); S.z = null; S.motion = null; S.f = null; pending = null; events.push({ line: ln, ev: 'safeRetract', method: 'G28' });
       return;
     }
     if (machineCoord) {
       if (!Z || X || Y || newMotion !== 0) fail('cam.post.read_bad_retract', ln);
-      finishCycle(ln); finalize(); S.z = null; S.motion = null; pending = null; events.push({ line: ln, ev: 'safeRetract', method: 'G53', z: Z.v });
+      finishCycle(ln); finalize(); S.z = null; S.motion = null; S.f = null; pending = null; events.push({ line: ln, ev: 'safeRetract', method: 'G53', z: Z.v });
       return;
     }
     if (S.inc && (hasXYZ || newMotion != null)) fail('cam.post.read_incremental', ln);
@@ -203,7 +204,11 @@ export function readNC(text, opts = {}) {
     // ---- serbest hareket
     if (newMotion != null) S.motion = newMotion;
     if (compReq !== undefined && (hasXYZ || newMotion != null)) { /* asagida */ }
+    // bitissiz G2/G3 (yalniz I/J): kontrolde TAM DAIRE yurutulur; motor bunu asla uretmez -> hata (sessiz atlama yok, V-05b)
+    const arcMode = newMotion ?? S.motion;
+    if ((arcMode === 2 || arcMode === 3) && (I || J) && !X && !Y) fail('cam.post.read_full_circle', ln);
     if (!hasXYZ) {
+      if (I || J) fail('cam.post.read_unknown_word', ln, { text: I ? 'I' : 'J' });
       if (compReq) fail('cam.post.read_comp_no_move', ln);
       return; // durum satirlari (S M3, T M6, G54 vb.)
     }

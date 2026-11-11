@@ -2,6 +2,7 @@
 // Varsayilanlar genel Fanuc kurallaridir (spesifikasyonda M80V icin dogrulanmadi); turetilen postlar (mitsubishi-m80v.js) ezer.
 // Bu dosyanin urettigi NC YALNIZ TEST CIKTISIDIR; makinede kosturulabilir diye sunulmaz.
 import { createFormat, createVariable, createModal, sanitizeComment, perr, MIHENK_VERSION } from './engine.js';
+import { describeIssue } from './describe.js';
 
 export const FANUC_DEFAULT_PROPS = {
   lineNumbers: false, lineNumberStart: 10, lineNumberStep: 10,
@@ -28,9 +29,17 @@ export const FANUC_DEFAULT_PROPS = {
   toolChangeCode: 'M6',
   endCode: 'M30',
   safeStartExtra: [],
+  lineNumberMax: 99999,          // N ust siniri (genel Fanuc kurali; makinede teyit edilmedi). Asilinca bastan sarar + uyari.
 };
 
 const ucfirst = (s) => String(s).toUpperCase();
+
+// Kapi sonucu -> NC basligi icin okunur metin (ASCII'ye writeComment cevirir). opts.gateText(g) verilirse o kullanilir
+// (arayuz kullanicinin dilinde verebilir; Turkce karakterler yorumda ASCII'ye donusur); yoksa Ingilizce sozluk.
+function gateText(g, fn) {
+  if (typeof fn === 'function') { try { const t = fn(g); if (t) return String(t); } catch (e) { /* sozluge dus */ } }
+  return describeIssue(g);
+}
 
 export function createFanucPost(over = {}) {
   const base = {
@@ -46,7 +55,8 @@ export function createFanucPost(over = {}) {
         f: createVariable({ prefix: 'F', decimals: 3 }),
       };
       this.g = { motion: createModal({}), wcs: createModal({ force: true }), cyc: createModal({}) };
-      Object.assign(this.state, { tool: null, spindle: null, coolant: 'off', aCur: 0, positioned: false, cycle: null, comp: false, highSpeed: false });
+      // aCur null = tezgah A konumu BILINMIYOR (onceki is/elle): ilk indekslemede A mutlak yazilir (V-02)
+      Object.assign(this.state, { tool: null, spindle: null, coolant: 'off', aCur: null, positioned: false, cycle: null, comp: false, highSpeed: false });
     },
     _resetPos() { this.v.x.reset(); this.v.y.reset(); this.v.z.reset(); },
     _dwellWord(addr, unit, s, inCycle = false) {
@@ -81,7 +91,11 @@ export function createFanucPost(over = {}) {
       post._init.call(this);
       const p = this.props, prog = this.program, o = this.opts;
       if (p.percentLeader) this.writeRaw('%');
-      if (prog.number != null) this.writeBlock('O' + String(prog.number).padStart(p.programNumberDigits, '0'));
+      if (prog.number != null) {
+        // O0 gecersiz; hane sayisini asan numara kesilmez/sarilmaz -> acik hata (V-21)
+        if (!(Number.isInteger(prog.number) && prog.number >= 1 && String(prog.number).length <= p.programNumberDigits)) this.fail('cam.post.program_number', { number: prog.number, digits: p.programNumberDigits });
+        this.writeBlock('O' + String(prog.number).padStart(p.programNumberDigits, '0'));
+      }
       this.writeComment(`UNVERIFIED POST - DOGRULANMADI - MIHENK ${o.appVersion || MIHENK_VERSION}`);
       this.writeComment(`PROGRAM ${prog.name}`);
       this.writeComment(`DATE ${o.date || new Date().toISOString().slice(0, 10)}`);
@@ -92,10 +106,12 @@ export function createFanucPost(over = {}) {
       for (const t of [...seen.values()].sort((a, b) => a.number - b.number)) {
         this.writeComment(`T${t.number} H${t.H}${t.D != null ? ' D' + t.D : ''} DIA ${t.dia.toFixed(3)} ${ucfirst(t.type)}`);
       }
+      // 3+1: A isareti (machine.axes.A.dir) tezgahta isaretli parcayla teyit edilmeden NC'ye guvenilmez (V-01)
+      if (this.rotary && prog.sections.some((s) => s.setup.aAngle != null)) this.writeComment('WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING');
       const gates = o.gates || [];
       const nb = gates.filter((g) => g.level === 'block').length, nw = gates.filter((g) => g.level === 'warn').length;
       this.writeComment(`GATES ${nb} BLOCK ${nw} WARN`);
-      for (const g of gates) this.writeComment(`GATE ${String(g.level).toUpperCase()} ${g.code}${g.opId ? ' ' + g.opId : ''}`);
+      for (const g of gates) this.writeComment(`${g.level === 'block' ? 'BLOCK' : 'WARNING'}: ${gateText(g, o.gateText)}`);
       this.writeBlock('G90', 'G17', 'G21', 'G40', 'G49', 'G80', 'G94', ...p.safeStartExtra);
       if (p.highSpeedOn != null || p.highSpeedOff != null) {
         this.need('highSpeedOn'); this.need('highSpeedOff');
@@ -115,6 +131,7 @@ export function createFanucPost(over = {}) {
       post._indexRotary.call(this, st.aAngle ?? 0);
       this.call('onSpindleSpeed', tp.rpm, tp.spindleDir);
       this.state.comp = false; this.state.compRequest = null; this.state.cycle = null;
+      this.v.f.reset(); // V-04: bolumun ilk kesmesinde F daima yazilir (onceki takimdan modal kalmaz)
     },
 
     // 3+1: Z guvenli (onSection'da yapildi) -> [M11] -> A -> [M10]
@@ -122,8 +139,9 @@ export function createFanucPost(over = {}) {
       const R = this.rotary, p = this.props, st = this.state;
       const eps = 1e-9;
       if (p.rotaryMode === '6b') {
-        const prev = st.aShown ?? 0;
-        if (Math.abs(angle - prev) > eps) {
+        const prev = st.aShown;
+        // ilk doner bolumde indeksleyici konumu bilinmez: talimat daima yazilir (V-02)
+        if (prev == null ? this.section?.setup?.aAngle != null : Math.abs(angle - prev) > eps) {
           this.writeComment(`INDEX A TO ${angle.toFixed(3)} DEG THEN LOCK`);
           this.call('onCommand', 'COMMAND_STOP'); st.aShown = angle;
         }
@@ -131,16 +149,18 @@ export function createFanucPost(over = {}) {
       }
       if (!R) { if (Math.abs(angle) > eps) this.fail('cam.post.no_a_axis', { angle }); return; }
       if (R.sign == null) throw perr('cam.post.prop_missing', { prop: 'machine.axes.A.dir', post: this.post.id });
-      let out = R.sign * angle;
+      // aAngle = A KELIMESI (docs/POST.md, CAM-DESIGN.md). Isaret (A.dir) YALNIZ cekirdek cercevesinde (resolveSetup) uygulanir;
+      // burada ikinci kez uygulanmaz (V-01).
+      let out = angle;
       if (R.limits && (out < R.limits[0] - eps || out > R.limits[1] + eps)) this.fail('cam.post.a_out_of_limits', { angle: out, min: R.limits[0], max: R.limits[1] });
       const norm = (a) => ((a % 360) + 360) % 360;
       if (R.shortest) out = norm(out);
       const cur = st.aCur;
-      const same = R.shortest ? Math.abs(norm(cur) - out) < 1e-6 || Math.abs(norm(cur) - out - 360) < 1e-6 : Math.abs(cur - out) < 1e-6;
+      const same = cur == null ? false : R.shortest ? Math.abs(norm(cur) - out) < 1e-6 || Math.abs(norm(cur) - out - 360) < 1e-6 : Math.abs(cur - out) < 1e-6;
       if (same) return;
       if (R.clamp.output) { if (R.clamp.unlock == null || R.clamp.lock == null) throw perr('cam.post.prop_missing', { prop: 'machine.axes.A.clamp', post: this.post.id }); this.call('onCommand', 'COMMAND_UNLOCK_MULTI_AXIS'); }
       const aOut = (v) => this.writeBlock('G0', createFormat({ prefix: 'A', decimals: 3 }).format(v));
-      if (R.shortest && p.aSplit180 && Math.abs(Math.abs(norm(cur) - out) - 180) < 1e-6) aOut(norm(norm(cur) + 90));
+      if (cur != null && R.shortest && p.aSplit180 && Math.abs(Math.abs(norm(cur) - out) - 180) < 1e-6) aOut(norm(norm(cur) + 90));
       aOut(out);
       st.aCur = out;
       if (R.clamp.output) this.call('onCommand', 'COMMAND_LOCK_MULTI_AXIS');
@@ -148,7 +168,9 @@ export function createFanucPost(over = {}) {
     },
 
     onSpindleSpeed(rpm, dir) {
-      this.writeBlock('S' + Math.round(rpm), dir === 'cw' ? 'M3' : 'M4');
+      const s = Math.round(rpm);
+      if (!(s >= 1)) this.fail('cam.post.bad_rpm', { rpm }); // V-23b: S0 ile kesme yok
+      this.writeBlock('S' + s, dir === 'cw' ? 'M3' : 'M4');
       this.state.spindle = { rpm, dir };
     },
 
@@ -206,6 +228,18 @@ export function createFanucPost(over = {}) {
     onCircular(cw, cx, cy, cz, x, y, z, f) {
       const s = this.pos; const d = this.props.decimals;
       const I = createFormat({ prefix: 'I', decimals: d }), J = createFormat({ prefix: 'J', decimals: d });
+      // V-05: yuvarlanmis bitis = yuvarlanmis baslangic ise G2/G3 kontrolde TAM DAIRE olur. Yay bu cozunurlukte dogrudan
+      // ayirt edilemiyorsa (sehim < yarim birim) dogruya cevrilir; degilse (buyuk yay acisi) acik hata.
+      if (!this.fmt.xyz.areDifferent(x, s.x) && !this.fmt.xyz.areDifferent(y, s.y)) {
+        const r = Math.hypot(cx - s.x, cy - s.y);
+        const a0 = Math.atan2(s.y - cy, s.x - cx), a1 = Math.atan2(y - cy, x - cx);
+        let sw = cw ? a0 - a1 : a1 - a0; sw = ((sw % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        const sag = sw <= Math.PI ? r * (1 - Math.cos(sw / 2)) : 2 * r;
+        if (sag > 0.5 * Math.pow(10, -d)) this.fail('cam.post.arc_degenerate', { r: Math.round(r * 1000) / 1000 });
+        this.warn('cam.post.arc_as_line');
+        if (!this.writeBlock(this.g.motion.format(1), this.v.x.format(x), this.v.y.format(y), this.v.z.format(z), this.v.f.format(f))) this.warn('cam.post.zero_move');
+        return;
+      }
       this.writeBlock(this.g.motion.format(cw ? 2 : 3), this.v.x.format(x), this.v.y.format(y), this.v.z.format(z), I.format(cx - s.x), J.format(cy - s.y), this.v.f.format(f));
     },
 
@@ -263,7 +297,7 @@ export function createFanucPost(over = {}) {
         if (code === 82 || code === 89) words.push(post._dwellWord.call(this, p.cycleDwellAddress, p.cycleDwellUnit, c.dwell ?? 0, true));
         if (code === 84 || code === 74) {
           if (p.tapMode === 'pitch') words.push('F' + createFormat({ decimals: 3 }).format(c.pitch));
-          else words.push(this.fmt.f.format(c.f));
+          else words.push(this.fmt.f.format(Math.round(this.section.toolpath.rpm) * c.pitch)); // V-23: F = (yazilan S) x adim; kesirli devirde adim bozulmaz
           if (p.tapR1) words.push(',R1');
         } else words.push(this.fmt.f.format(c.f));
         this.v.f.reset(); // cevrimde F degisti; sonraki kesme hareketi F'yi yeniden yazar

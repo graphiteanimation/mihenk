@@ -13,6 +13,7 @@ const TR_MAP = { '\u011f': 'g', '\u011e': 'G', '\u00fc': 'u', '\u00dc': 'U', '\u
 export function sanitizeComment(text) {
   let s = String(text ?? '');
   s = s.replace(/[ğĞüÜşŞıİöÖçÇ]/g, (c) => TR_MAP[c]);
+  s = s.replace(/\u00b0/g, ' DEG').replace(/\u2026/g, '...').replace(/[\u2013\u2014]/g, '-').replace(/[\u201c\u201d\u00ab\u00bb]/g, '"').replace(/[\u2018\u2019]/g, "'").replace(/\u00d7/g, 'x').replace(/\u2192/g, '->').replace(/[\u2264]/g, '<=').replace(/[\u2265]/g, '>=');
   s = s.replace(/[()]/g, (c) => (c === '(' ? '[' : ']'));
   s = s.replace(/[\r\n\t]+/g, ' ');
   s = s.replace(/[^\x20-\x7e]/g, '?');
@@ -29,6 +30,7 @@ export function createFormat(spec = {}) {
     format(v) {
       if (typeof v !== 'number' || !Number.isFinite(v)) throw perr('cam.post.bad_number', { prefix, value: String(v) });
       const fixed = (v * scale).toFixed(decimals);
+      if (/e/i.test(fixed)) throw perr('cam.post.bad_number', { prefix, value: String(v) }); // V-20: 1e21 ve ustu bilimsel gosterime kacar
       let neg = fixed.startsWith('-'); let body = neg ? fixed.slice(1) : fixed;
       if (decimals > 0 && trim && body.includes('.')) body = body.replace(/\.?0+$/, '');
       if (body === '' || /^0*\.?0*$/.test(body)) { neg = false; if (body === '') body = '0'; }
@@ -98,7 +100,17 @@ export class PostContext {
     const w = words.flat().filter((x) => x !== '' && x != null && x !== false);
     if (!w.length) return false;
     let text = w.join(' ');
-    if (this.props.lineNumbers) { text = 'N' + (this.props.lineNumberStart + this.lineNo * this.props.lineNumberStep) + ' ' + text; this.lineNo++; }
+    if (this.props.lineNumbers) {
+      const n = this.props.lineNumberStart + this.lineNo * this.props.lineNumberStep;
+      // V-22: N ust sinirini asan numara kontrolde alarm/yanlis eslesme -> acik hata (satir numarasini kapatin ya da adimi kucultun)
+      let n2 = n; const max = this.props.lineNumberMax;
+      if (max != null && n > max) { // V-22: N ust sinirinda numara bastan sarar (Fusion postlari gibi); N yalniz etikettir, uyari verilir
+        const span = Math.max(1, Math.floor((max - this.props.lineNumberStart) / this.props.lineNumberStep) + 1);
+        n2 = this.props.lineNumberStart + (this.lineNo % span) * this.props.lineNumberStep;
+        if (!this.wrapped) { this.wrapped = true; this.warnings.push({ code: 'cam.post.line_number_wrapped', params: { max } }); }
+      }
+      text = 'N' + n2 + ' ' + text; this.lineNo++;
+    }
     this.lines.push(text); this.lineMap.push({ ...this.cur });
     return true;
   }

@@ -28,7 +28,7 @@ console.log('1. bilinen hacimler');
 
   // geri okunan yol (IR') ayni hacmi verir; takim geometrisi asil IR'den
   const machine = S.testMachine();
-  const nc = postProgram(smp.program, machine, { date: 'x' });
+  const nc = postProgram(smp.program, machine, { date: 'x', gates: [] });
   const back = readNC(nc.text, { machine }).program;
   back.sections[0].toolpath.tool = { ...smp.program.sections[0].toolpath.tool };
   const r2 = simulate(back, { stockBox: smp.stockBox, res: 0.25 });
@@ -105,7 +105,16 @@ console.log('3. kasitli hatali yollar');
   ok(codes(r).includes('cam.sim.rapid_in_stock'), 'yanal hizli kenar');
   // g) stok tabani altina inis
   r = simulate(TP(flat6, [mk.rapid(0, 0, 10), mk.rapid(0, 0, 1), mk.feed(0, 0, -31, 100, 'plunge'), mk.rapid(0, 0, 10)]), { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
-  ok(r.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'warn'), 'stok tabani altina inis uyarisi: ' + codes(r));
+  // V-12: bildirilmis pay yoksa stok tabani alti ENGEL (error); islem payi bildirdiyse (boydan boya) uyari; payi asan yine engel
+  ok(r.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'error'), 'V-12: paysiz stok tabani altina inis engel: ' + codes(r));
+  { const tpA = TP(flat6, [mk.rapid(0, 0, 10), mk.rapid(0, 0, 1), mk.feed(0, 0, -31, 100, 'plunge'), mk.rapid(0, 0, 10)]); tpA.meta = { belowStock: 1 };
+    const rA = simulate(tpA, { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
+    ok(rA.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'warn') && !rA.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'error'), 'V-12: bildirilmis boydan boya pay icinde yalniz uyari');
+    tpA.meta = { belowStock: 0.5 }; const rB = simulate(tpA, { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
+    ok(rB.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'error'), 'V-12: payi asan inis engel'); }
+  // V-13: tabana kadar delinmis hucreye geri cekilme/hizli 'stok icinde' sayilmaz
+  { const rC = simulate(TP(flat6, [mk.rapid(0, 0, 10), mk.rapid(0, 0, 1), mk.feed(0, 0, -31, 100, 'plunge'), mk.rapid(0, 0, -30.5), mk.rapid(0, 0, 10)]), { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
+    ok(!codes(rC).includes('cam.sim.rapid_in_stock'), 'V-13: delinmis (h=taban) hucrede hizli temiz: ' + codes(rC)); }
   // sorun ust siniri
   const many = []; for (let k = 0; k < 40; k++) many.push(mk.rapid(0, 0, -5), mk.rapid(0, 0, 10));
   r = simulate(TP(flat6, [mk.rapid(0, 0, 10), ...many]), { stockBox: BOX, res: 0.5, maxIssuesPerCode: 5 });

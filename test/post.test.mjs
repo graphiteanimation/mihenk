@@ -14,7 +14,8 @@ const UPDATE = process.argv.includes('--update');
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL:', m); } };
 const throwsCode = (fn, code, msg) => { try { fn(); ok(false, (msg || code) + ' (hata beklenirdi)'); } catch (e) { ok(e.code === code, `${msg || code}: ${e.code} ${JSON.stringify(e.params)}`); } };
-const OPTS = { date: '2026-01-01', appVersion: '0.2.0' };
+// gates: [] = kapilar cagiranda calisti (postProgram kapisiz cagrilirsa statik kapilari kendisi calistirir, V-07)
+const OPTS = { date: '2026-01-01', appVersion: '0.2.0', gates: [] };
 fs.mkdirSync(GOLD, { recursive: true });
 
 console.log('1. bicim / yardimcilar');
@@ -74,7 +75,7 @@ for (const smp of S.ALL()) {
     const cmp = compareToolpaths(a, b.toolpath, 0.001);
     ok(cmp.equal, `${smp.name}[${i}]: IR eslesmesi: ${cmp.diffs.slice(0, 4).join(' | ')}`);
     ok(b.setup.workOffset.kind === sec.setup.workOffset.kind && (b.setup.workOffset.p ?? null) === (sec.setup.workOffset.p ?? null), `${smp.name}[${i}]: WCS`);
-    const exp = ((machine.axes.A.dir[0] < 0 ? -1 : 1) * (sec.setup.aAngle ?? 0));
+    const exp = sec.setup.aAngle ?? 0; // aAngle = A kelimesi (V-01: isaret yalniz cekirdek cercevesinde)
     const dA = ((b.setup.aOut - (((exp % 360) + 360) % 360)) % 360 + 360) % 360;
     ok(dA < 1e-6 || dA > 360 - 1e-6, `${smp.name}[${i}]: A acisi ${b.setup.aOut} ~ ${exp}`);
   });
@@ -109,10 +110,10 @@ console.log('4. icerik denetimleri (altin dosyalar)');
   ok((d.match(/\nG80\n/g) || []).length >= 6, 'G80 her cevrim sonrasi');
   const ix = t('indexed_3plus1');
   const lines = ix.split('\n');
-  const iA = lines.findIndex((l) => l === 'G0 A270.');
+  const iA = lines.findIndex((l) => l === 'G0 A90.');
   ok(iA > 3 && lines[iA - 1] === 'M11' && lines[iA + 1] === 'M10', 'A: M11 / A / M10 sirasi');
   ok(lines.slice(iA - 6, iA).join('|').includes('G91 G28 Z0.|G90|M5|M11'), 'A oncesi Z guvenli geri cekilme: ' + lines.slice(iA - 6, iA + 2).join(' | '));
-  ok(lines.filter((l) => /^G0 A/.test(l)).join(',') === 'G0 A270.,G0 A0.,G0 A90.,G0 A0.', '180 derece iki adim + son A0: ' + lines.filter((l) => /^G0 A/.test(l)).join(','));
+  ok(lines.filter((l) => /^G0 A/.test(l)).join(',') === 'G0 A0.,G0 A90.,G0 A180.,G0 A270.,G0 A0.', 'V-02 ilk A mutlak + 180 derece iki adim + son A0: ' + lines.filter((l) => /^G0 A/.test(l)).join(','));
 }
 
 console.log('5. kapilar / hatalar');
@@ -204,6 +205,52 @@ console.log('7. geri okuyucu: tanimadigi kelime hata verir');
   inj('G1 X1. $', null, 'bilinmeyen karakter');
   inj('G91 G1 X1.', 'cam.post.read_incremental', 'G91 hareket');
   throwsCode(() => readNC(base.replace(/ F\d+\./g, ''), { machine }), 'cam.post.read_missing_word', 'F yok');
+}
+
+
+console.log('8. CAM-VERIFY regresyonlari (docs/CAM-FIXES.md)');
+{
+  const T6 = { number: 5, H: 5, D: null, type: 'flat', dia: 6, cornerR: 0, tipAngle: null, fluteLen: 20, bodyLen: 40, centerCutting: true, pitch: null };
+  const one = (moves, over = {}, sec = {}) => ({ name: 'R', number: 1, machine: null, units: 'mm', sections: [{ setup: { id: 's', name: 'S', workOffset: { kind: 'G55' }, aAngle: null, ...sec }, toolpath: mk.toolpath({ tool: T6, rpm: 5000, coolant: 'off', clearanceZ: 10, moves, ...over }) }] });
+  const simple = () => [mk.rapid(0, 0, 10), mk.feed(0, 0, -1, 100, 'plunge'), mk.feed(20, 0, -1, 100), mk.rapid(20, 0, 10)];
+  // V-01: aAngle = A kelimesi; isaret yalniz cercevede (post A'yi oldugu gibi yazar), dir +1 ve -1 icin ayni
+  for (const dx of [-1, 1]) { const m = S.testMachine(); m.axes.A.dir = [dx, 0, 0]; const t = postProgram(one(simple(), {}, { aAngle: 30 }), m, OPTS).text; ok(/\nG0 A30\.\n/.test(t) && /A AXIS DIRECTION NOT VERIFIED/.test(t), `V-01: dir=${dx}: A30 yazilir + teyit uyarisi`); const b = readNC(t, { machine: m }); ok(b.program.sections[0].setup.aAngle === 30, `V-01: geri okunan aAngle = A kelimesi (dir ${dx})`); }
+  // V-02: doner eksenli makinede ilk bolum aAngle yokken bile A mutlak yazilir (G43'ten once)
+  { const t = postProgram(one(simple()), S.testMachine(), OPTS).lines; const ia = t.indexOf('G0 A0.'), ig = t.findIndex((l) => l.startsWith('G43')); ok(ia > 0 && ia < ig, 'V-02: ilk konumlanmadan once G0 A0.'); }
+  // V-04: ikinci bolumun ilk kesmesi F icerir (ayni F olsa bile)
+  { const p = one(simple()); p.sections.push({ setup: p.sections[0].setup, toolpath: mk.toolpath({ tool: { ...T6, number: 4, H: 4 }, rpm: 5000, coolant: 'off', clearanceZ: 10, moves: simple() }) });
+    const L = postProgram(p, S.testMachine(), OPTS).lines; const k = L.indexOf('T4 M6'); const g1 = L.slice(k).find((l) => /^G1/.test(l)); ok(/F100\./.test(g1), 'V-04: 2. bolum ilk G1 F yazar: ' + g1);
+    const t = postProgram(p, S.testMachine(), OPTS).text; const bad = t.split('\n'); const j = bad.findIndex((l, i) => i > k && /^G1/.test(l)); bad[j] = bad[j].replace(/ F[\d.]+/, '');
+    throwsCode(() => readNC(bad.join('\n'), { machine: S.testMachine() }), 'cam.post.read_missing_word', 'V-04: okuyucu F bolumler arasi tasimaz'); }
+  // V-05: dejenere yay IR'de reddedilir; postta yuvarlanmis baslangic=bitis -> kucuk yay dogru, buyuk aci hata
+  { const arcTp = one([mk.rapid(10, 10, 10), mk.feed(10, 10, -1, 100, 'plunge'), mk.arc(10.0004, 10, -1, 0.0002, -5, 'cw', 500), mk.feed(20, 10, -1, 500), mk.rapid(20, 10, 10)]);
+    throwsCode(() => validateProgram(arcTp), 'cam.ir.arc_degenerate', 'V-05: kirisi < 0,001 mm yay IR hatasi');
+    const m2 = S.testMachine({ props: { decimals: 2 } });
+    const small = one([mk.rapid(10, 10, 10), mk.feed(10, 10, -1, 100, 'plunge'), mk.arc(10.002, 10, -1, 0.001, -5, 'cw', 500), mk.feed(20, 10, -1, 500), mk.rapid(20, 10, 10)]);
+    const r = postProgram(small, m2, OPTS); ok(!r.lines.some((l) => /^G[23]/.test(l)) && r.warnings.some((w) => w.code === 'cam.post.arc_as_line'), 'V-05: kisa yay 2 ondalikta dogru + uyari');
+    const big = one([mk.rapid(10, 10, 10), mk.feed(10, 10, -1, 100, 'plunge'), mk.arc(10.002, 10, -1, 0.001, -5, 'ccw', 500), mk.feed(20, 10, -1, 500), mk.rapid(20, 10, 10)]);
+    throwsCode(() => postProgram(big, m2, OPTS), 'cam.post.arc_degenerate', 'V-05: ~360 derecelik yay tam daireye donusmez, hata'); }
+  // V-05b: okuyucu bitissiz G2/G3'te hata
+  { const base = postProgram(S.surfaceSample().program, machine, OPTS).text.split('\n'); const k = base.findIndex((l) => /^G1/.test(l)); base.splice(k + 1, 0, 'G2 I0. J-5. F500.'); throwsCode(() => readNC(base.join('\n'), { machine }), 'cam.post.read_full_circle', 'V-05b: bitissiz G2'); }
+  // V-07: kapi listesinde block -> NC yok; liste yoksa post statik kapilari calistirir
+  throwsCode(() => postProgram(one(simple()), S.testMachine(), { ...OPTS, gates: [{ level: 'block', code: 'cam.gate.protected', params: { kind: 'T', value: 1 } }] }), 'cam.post.gates_blocked', 'V-07: block varken NC yok');
+  throwsCode(() => postProgram(one(simple()), S.testMachine(), { date: 'x' }), 'cam.post.gates_blocked', 'V-07: kapisiz cagrida statik kapilar (maxRpm null) engeller');
+  { const m = S.testMachine(); m.spindle.maxRpm = 12000; m.feed.maxCut = 5000; const r = postProgram(one(simple()), m, { date: 'x' }); ok(r.gates.some((g) => g.code === 'cam.gate.sim_not_run') && /\(WARNING: Simulation was not run/.test(r.text), 'V-07: kapisiz cagrida statik kapilar basliga yazilir'); }
+  // kapi uyarilari basliga okunur ASCII metin olarak (ham kod degil)
+  { const r = postProgram(one(simple()), S.testMachine(), { ...OPTS, gates: [{ level: 'warn', code: 'cam.gate.travel_abs_unchecked', params: { setup: 'Bağlama 1' } }, { level: 'warn', code: 'cam.gate.a_limit', params: { a: 1, min: 0, max: 0.5 } }] });
+    ok(r.lines.includes('(WARNING: No machine position for "Baglama 1": absolute travel could not be checked. Only the toolpath span was checked.)') && !/GATE WARN cam\./.test(r.text) && /^[\x20-\x7e\n]*$/.test(r.text), 'kapi uyarisi okunur ASCII metin');
+    const tr = postProgram(one(simple()), S.testMachine(), { ...OPTS, gates: [{ level: 'warn', code: 'x', params: {} }], gateText: () => 'Çözünürlük ölçüsü ığdır' }); ok(tr.lines.includes('(WARNING: Cozunurluk olcusu igdir)'), 'gateText (kullanici dili) ASCII yorumda'); }
+  // V-20: bilimsel gosterim yok
+  throwsCode(() => createFormat({ prefix: 'X', decimals: 3 }).format(1e21), 'cam.post.bad_number', 'V-20: 1e21 bilimsel gosterime kacmaz');
+  // V-21: program numarasi
+  for (const n of [0, 12345]) { const p = one(simple()); p.number = n; throwsCode(() => postProgram(p, S.testMachine(), OPTS), 'cam.post.program_number', 'V-21: O' + n); }
+  // V-22: N siniri asilinca sarar + uyari
+  { const r = postProgram(one(simple()), S.testMachine({ props: { lineNumbers: true, lineNumberMax: 100 } }), OPTS); const ns = r.lines.map((l) => (/^N(\d+)/.exec(l) || [0, 0])[1] * 1); ok(Math.max(...ns) <= 100 && r.warnings.some((w) => w.code === 'cam.post.line_number_wrapped'), 'V-22: N <= max, sarma uyarisi'); }
+  // V-23: fanuc F=devir*adim kipinde F yazilan S'den
+  { const d = S.drillSample().program; const tap = d.sections.find((x) => x.toolpath.moves.some((m) => m.t === 'cycle' && m.cycle === 'tap')); const tp = JSON.parse(JSON.stringify(tap.toolpath)); tp.rpm = 333.4; for (const m of tp.moves) if (m.t === 'cycle') m.f = tp.rpm * m.pitch;
+    const txt = postProgram({ ...d, sections: [{ ...tap, toolpath: tp }] }, S.fanucMachine(), OPTS).text; const sw = Number(/^S(\d+) M3/m.exec(txt)[1]), fw = Number(/G84.*F([\d.]+)/.exec(txt)[1]); const pitch = tp.moves.find((m) => m.t === 'cycle').pitch; ok(sw === 333 && Math.abs(fw / sw - pitch) < 1e-9, `V-23: F/S = adim (S${sw} F${fw})`); }
+  // V-23b: S0 yazilmaz
+  throwsCode(() => postProgram(one(simple(), { rpm: 0.4 }), S.testMachine(), OPTS), 'cam.post.bad_rpm', 'V-23b: rpm 0.4 -> S0 yok');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

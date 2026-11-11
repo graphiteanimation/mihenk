@@ -11,7 +11,8 @@ export { createHeightmap, cloneHeightmap, heightmapFromFn, sampleHeightmap, volu
 export { toolGeom } from './tool.js';
 
 const err = (code, params = {}) => new KErr(code, params);
-const LEVEL = { comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'warn' };
+// below_stock: islemin bildirdigi bilincli pay (toolpath.meta.belowStock, mm; boydan boya delik/kontur) icindeyse 'warn', disindaysa 'error' (V-12)
+const LEVEL = { comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
 const CODE = (k) => 'cam.sim.' + k;
 
 export function createSim(input, opts = {}) {
@@ -46,7 +47,8 @@ export function createSim(input, opts = {}) {
     const sec = sections[si], tp = sec.toolpath;
     const id = sec.setup?.id ?? 'default';
     const tool = { ...tp.tool, ...(opts.tools?.[tp.tool.number] || {}), ...(opts.tool || {}) };
-    cur = { si, tp, setup: setupFor(id), geom: toolGeom(tool), pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null };
+    const allow = Number.isFinite(tp.meta?.belowStock) && tp.meta.belowStock > 0 ? tp.meta.belowStock : 0;
+    cur = { si, tp, allow, setup: setupFor(id), geom: toolGeom(tool), pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null };
   }
 
   function note(code, depth, px, py, pz) {
@@ -69,6 +71,7 @@ export function createSim(input, opts = {}) {
       for (let i = i0; i <= i1; i++) {
         const idx2 = j * nx + i, h = d[idx2];
         if (h <= pz + tol) continue;
+        if (h <= S.zFloor + 1e-9) continue; // V-13: tabana kadar kesilmis hucre BOS (hizli/carpma sayilmaz)
         const cx = hm.x0 + (i + 0.5) * rs, dx = cx - px, r2 = dx * dx + dy * dy;
         if (r2 > Rmax2) continue;
         const r = Math.sqrt(r2);
@@ -171,7 +174,8 @@ export function createSim(input, opts = {}) {
       const a = acc[key], code = CODE(key);
       counts[key] = (counts[key] || 0) + 1;
       if (counts[key] > capPerCode) { suppressed++; continue; }
-      const it = { level: LEVEL[key], code, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
+      const lvl = key === 'below_stock' && a.depth <= cur.allow + belowTol ? 'warn' : LEVEL[key];
+      const it = { level: lvl, code, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
       issues.push(it); fresh.push(it);
     }
     return fresh;
