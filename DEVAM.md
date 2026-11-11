@@ -71,3 +71,10 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - SIRADAKİ: CAM (DEVAM.md "Sıradaki işler" 6. madde; UI-SPEC'teki İmalat çalışma alanı iskeleti ve design/mockups/05-imalat-cam.html hedef görünüm;
   delik verisi `holes[]` desenlerde tüm örnekleri taşıyor) → bağımsız son doğrulama → kılavuz (TR/EN) → Docs'a K-016…K-023 + Aşama 9.
 - Kod kopyası: Mihenk-repo-2026-11-11b.zip (git geçmişiyle).
+
+## Durum — 2026-11-11 CAM (oturum limiti %99; ara kayıt)
+- Kod kopyası: Mihenk-repo-2026-11-11c.zip (çalışma ağacı dahil; A ajanının commit edilmemiş dosyaları olabilir → `git status`).
+- Sözleşme: docs/CAM-DESIGN.md (bağlayıcı). Kararlar: post betiği yükleme yok (yerleşik ES modül postlar); VM1160H profilinde dokunulmaz liste ön dolu; bilinmeyen makine değeri null → post durur.
+- B (post+sim) BİTTİ, commit'li: src/cam/ir.js, post/**, sim/**, docs/POST.md. post 148, sim 58, i18n 27, security 70 geçti. M80V'de null özellikler (safeRetract, dwellAddress/Unit, g541Range…) docs/POST.md'de; yerleşik makine şablonu bu alanları içermeli.
+- A (çekirdek, Opus) kesildiğinde SÜRÜYORDU: src/cam/{index,ops,geom,tools,machines,gates}, kernel cam* komutları, test/cam.test.mjs, docs/CAM.md. Durumu git log + git status + docs/CAM.md'den oku; yarımsa aynı görevle sürdür (CAM-DESIGN "Dosya sahipliği → A").
+- SIRADAKİ: A'yı bitir → kapı 5 (sim) bağla, sim 'error'→'block' → C (İmalat arayüzü, src/ui/cam/**, i18n cam-*.js sözlüğe bağlama, Electron saveFile kind 'nc', test:all'a cam/post/sim testleri) → bağımsız doğrulama → kılavuz → 0.3.0 kurulum → Docs'a K-016…K-023 + Aşama 9/10.
