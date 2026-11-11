@@ -115,4 +115,11 @@ export default {
   "cam.machine.neway": "Neway VM1160H · M80V · GSA A axis",
   "cam.machine.generic3": "Generic 3-axis (Fanuc style)",
   "cam.machine.protected_confirm": "The protected list is pre-filled; confirm it against the machine project.",
+  "err.cam.geom.sketch_missing": "Sketch not found or not computed: {sketch}. Rebuild the model.",
+  "err.cam.geom.sketch_not_perpendicular": "The sketch plane is not perpendicular to the tool axis. Choose a sketch perpendicular to the tool axis.",
+  "err.cam.geom.sketch_profile_lost": "{n} selected sketch profiles can no longer be found. Select the profiles again.",
+  "err.cam.geom.sketch_no_profile": "The sketch has no closed profile.",
+  "err.cam.silhouette.not_prismatic": "The body does not have straight walls along the tool axis ({n} slanted or curved faces); the outline cannot be derived safely. Select a face or a sketch.",
+  "err.cam.silhouette.multiple": "The body section at Z {z} has {n} separate outer boundaries; there is no single outline. Make separate selections.",
+  "err.cam.silhouette.not_nested": "The body sections are not nested; the outline cannot be taken from one section. Select a face or a sketch.",
 };

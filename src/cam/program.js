@@ -2,6 +2,7 @@
 import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
+import { sketchFaces, silhouetteFace, midLevels } from './geom/select.js';
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
 export function buildProgram({ name, number = null, machine, sections }) {
@@ -17,11 +18,33 @@ export function buildProgram({ name, number = null, machine, sections }) {
   return p;
 }
 
-// generateProgram(cam, {rebuild, machine, query, name, number?, sim?, onlyOps?})
+// Secimleri (face | sketch | silhouette) yuz nesnelerine cozer. Bir sketch secimi birden cok bolge verebilir: secim
+// listesi buna gore genisletilir. Donus { sels, faces } (ayni sira).
+export async function resolveGeom(op, S, { rebuild, doc, query }) {
+  const sels = [], faces = [];
+  for (const sel of op.geom || []) {
+    if (sel.kind === 'face') { sels.push(sel); faces.push(await query('camFaceLoops', { ref: sel.ref, frame: S.frame })); }
+    else if (sel.kind === 'sketch') {
+      const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
+      const plane = rebuild?.sketches?.[sel.sketch]?.plane;
+      for (const f of sketchFaces(sel, sk, plane, S.frame)) { sels.push({ ...sel, kind: 'face' }); faces.push(f); }
+    } else if (sel.kind === 'silhouette') {
+      if (!S.bodies.includes(sel.body)) throw cerr('cam.setup.body_missing', { body: String(sel.body) });
+      const zl = await query('camZLevels', { body: sel.body, frame: S.frame });
+      if (!zl.prismatic) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
+      const secs = []; for (const z of midLevels(zl.levels)) secs.push(await query('camSection', { body: sel.body, frame: S.frame, z }));
+      sels.push({ ...sel, kind: 'face', loops: sel.loops ?? 'outer' }); faces.push(silhouetteFace(zl, secs));
+    } else throw cerr('cam.geom.sel_unsupported', { kind: String(sel.kind) });
+  }
+  return { sels, faces };
+}
+
+// generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
+//   doc: sketch secimleri icin belge (sketch ozellikleri); query komutlari: camFaceLoops, camSection, camZLevels, facePlane
 //   query(cmd, args) -> Promise: cekirdek worker komutu ('camFaceLoops', 'facePlane')
 //   sim: gates(...) opts.sim (yoksa kapi 5 'sim_not_run' uyarisi)
 // -> { program|null, ops:[{opId, setupId, ok, error?, toolpath?}], gates:[...], blocked }
-export async function generateProgram(cam, { rebuild, machine, query, name, number = null, sim = null, onlyOps = null }) {
+export async function generateProgram(cam, { rebuild, machine, query, doc = null, name, number = null, sim = null, onlyOps = null }) {
   const { resolveSetup, computeOp } = await import('./index.js');
   const ops = []; const sections = []; const pre = [];
   const tools = cam?.tools || [];
@@ -39,14 +62,9 @@ export async function generateProgram(cam, { rebuild, machine, query, name, numb
         const tool = tools.find((t) => t.id === op.toolId); if (!tool) throw cerr('cam.op.no_tool', { op: op.name || op.id });
         const geom = {};
         if (op.type === 'drill') { geom.holes = rebuild?.holes || []; }
-        if (op.type === 'contour' || op.type === 'pocket') {
-          geom.faces = [];
-          for (const sel of op.geom || []) {
-            if (sel.kind !== 'face') throw cerr('cam.geom.sel_unsupported', { kind: String(sel.kind) });
-            geom.faces.push(await query('camFaceLoops', { ref: sel.ref, frame: S.frame }));
-          }
-        }
-        const tp = computeOp(op, { setup: S, tool, geom, machine });
+        let opx = op;
+        if (op.type === 'contour' || op.type === 'pocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
+        const tp = computeOp(opx, { setup: S, tool, geom, machine });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
       } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }
     }

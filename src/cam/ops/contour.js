@@ -14,7 +14,7 @@ export function contourInputs(op, geom) {
   const items = [];
   sels.forEach((sel, i) => {
     const g = geom?.faces?.[i] ?? geom?.items?.[i];
-    if (sel.kind === 'face') {
+    if (sel.kind === 'face' || sel.kind === 'sketch' || sel.kind === 'silhouette') { // sketch/silhouette: resolveGeom ile yuz nesnesine cozulmus
       if (!g || !Array.isArray(g.outer)) throw cerr('cam.geom.missing', { index: i });
       const which = sel.loops ?? 'outer';
       if (which === 'outer' || which === 'all') items.push({ loop: loopFromKernel(g.outer), defSide: 'outside', z: g.z });

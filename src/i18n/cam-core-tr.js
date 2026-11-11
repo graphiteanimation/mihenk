@@ -116,4 +116,11 @@ export default {
   "cam.machine.neway": "Neway VM1160H · M80V · GSA A ekseni",
   "cam.machine.generic3": "Genel 3 eksen (Fanuc tarzı)",
   "cam.machine.protected_confirm": "Dokunulmaz liste ön doludur; makine projesinden teyit edin.",
+  "err.cam.geom.sketch_missing": "Sketch bulunamadı ya da hesaplanmadı: {sketch}. Modeli yeniden hesaplayın.",
+  "err.cam.geom.sketch_not_perpendicular": "Sketch düzlemi takım eksenine dik değil. Takım eksenine dik bir sketch seçin.",
+  "err.cam.geom.sketch_profile_lost": "Seçilen {n} sketch profili artık bulunamıyor. Profilleri yeniden seçin.",
+  "err.cam.geom.sketch_no_profile": "Sketch'te kapalı profil yok.",
+  "err.cam.silhouette.not_prismatic": "Gövde takım ekseni boyunca düz duvarlı değil ({n} eğik ya da eğri yüz); dış kontur güvenle çıkarılamıyor. Bir yüz ya da sketch seçin.",
+  "err.cam.silhouette.multiple": "Gövdenin Z {z} kesitinde {n} ayrı dış sınır var; tek dış kontur yok. Ayrı seçimler yapın.",
+  "err.cam.silhouette.not_nested": "Gövdenin kesitleri iç içe değil; dış kontur tek bir kesitten alınamıyor. Bir yüz ya da sketch seçin.",
 };
