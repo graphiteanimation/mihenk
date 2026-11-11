@@ -11,6 +11,7 @@ import * as R from 'replicad';
 
 export const CHORD_TOL = 0.005;  // mm
 export const OPEN_TOL = 1e-4;    // mm: komsu yuz bu kadar yukselmiyorsa kenar acik
+export const ABOVE_DZ = 0.01;    // mm: acik kenar denetimi icin taban ustu kesit yuksekligi
 const HM_MAX_CELLS = 4_000_000;
 const E = (code, params = {}) => new KErr(code, params);
 const oc = () => R.getOC();
@@ -135,7 +136,10 @@ export function camFaceLoops(K, { ref, frame }) {
   loops.sort((a, b) => b.area - a.area);
   const outerL = loops[0]; if (outerL.depth !== 0) throw E('cam.loop_open');
   const inners = loops.slice(1).map((l) => l.loop.map(cleanItem));
-  return { z, normalOk: k > 0, outer: outerL.loop.map(cleanItem), inners, open: items.some((it) => it.open), body: ref.body };
+  const open = items.some((it) => it.open);
+  // acik kenar varsa: tabanin hemen ustundeki malzeme kesiti (acik kenar uzatmasinin modele carpmadigini denetlemek icin)
+  const above = open ? camSection(K, { body: ref.body, frame, z: z + ABOVE_DZ }).loops : null;
+  return { z, normalOk: k > 0, outer: outerL.loop.map(cleanItem), inners, open, above, aboveDz: open ? ABOVE_DZ : null, body: ref.body };
 }
 
 // camSection {body, frame, z} -> { z, loops:[[seg]] } (malzeme gidis yonunun solunda; dis donguler CCW)
@@ -160,14 +164,15 @@ export function camSection(K, { body: bodyId, frame, z }) {
   return { z, loops: loops.map((l) => l.loop.map(cleanItem)) };
 }
 
-// camHeightmap {bodies, frame, res, bbox:[x0,y0,x1,y1]} -> { x0, y0, res, nx, ny, z: Float32Array (satir: y), meshTol }
-// Hucre (i,j) = (x0 + i*res, y0 + j*res) noktasinda takim ekseni boyunca en ust model yuzeyi; malzeme yoksa -Infinity.
+// camHeightmap {bodies, frame, res, bbox:[x0,y0,x1,y1]} -> { x0, y0, res, nx, ny, data: Float32Array (data[j*nx+i]), err }
+// B'nin (src/cam/sim/heightmap.js) bicimi: hucre (i,j) MERKEZI (x0+(i+0.5)res, y0+(j+0.5)res) noktasinda takim ekseni
+// boyunca en ust model yuzeyi; malzeme yoksa -Infinity. err = ucgen agi sapmasi (mm; hucre ici ornekleme hatasi DAHIL DEGIL).
 export function camHeightmap(K, { bodies, frame, res, bbox }) {
   checkFrame(frame);
   if (!Array.isArray(bodies) || !bodies.length) throw E('cam.body_missing', { body: '' });
   if (!(Number.isFinite(res) && res > 0)) throw E('cam.heightmap_bad');
   if (!Array.isArray(bbox) || bbox.length !== 4 || !bbox.every(Number.isFinite) || !(bbox[2] > bbox[0] && bbox[3] > bbox[1])) throw E('cam.heightmap_bad');
-  const nx = Math.floor((bbox[2] - bbox[0]) / res) + 1, ny = Math.floor((bbox[3] - bbox[1]) / res) + 1;
+  const nx = Math.max(1, Math.round((bbox[2] - bbox[0]) / res)), ny = Math.max(1, Math.round((bbox[3] - bbox[1]) / res));
   if (nx * ny > HM_MAX_CELLS) throw E('cam.heightmap_too_big', { cells: nx * ny, max: HM_MAX_CELLS });
   const Z = new Float32Array(nx * ny).fill(-Infinity);
   const meshTol = Math.min(0.01, res / 4);
@@ -178,19 +183,19 @@ export function camHeightmap(K, { bodies, frame, res, bbox }) {
     for (let v = 0; v < nv; v++) { const q = toF(frame, [Vt[3 * v], Vt[3 * v + 1], Vt[3 * v + 2]]); P[3 * v] = q[0]; P[3 * v + 1] = q[1]; P[3 * v + 2] = q[2]; }
     for (let t = 0; t < Tr.length; t += 3) rasterTri(P, Tr[t], Tr[t + 1], Tr[t + 2], Z, nx, ny, bbox[0], bbox[1], res);
   }
-  return { x0: bbox[0], y0: bbox[1], res, nx, ny, z: Z, meshTol };
+  return { x0: bbox[0], y0: bbox[1], res, nx, ny, data: Z, err: meshTol };
 }
 function rasterTri(P, a, b, c, Z, nx, ny, x0, y0, res) {
   const ax = P[3 * a], ay = P[3 * a + 1], az = P[3 * a + 2], bx = P[3 * b], by = P[3 * b + 1], bz = P[3 * b + 2], cx = P[3 * c], cy = P[3 * c + 1], cz = P[3 * c + 2];
   const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
   if (Math.abs(den) < 1e-14) return; // dik ucgen (izdusumu cizgi): yukseklik komsu ucgenlerden gelir
-  const i0 = Math.max(0, Math.ceil((Math.min(ax, bx, cx) - x0) / res - 1e-9)), i1 = Math.min(nx - 1, Math.floor((Math.max(ax, bx, cx) - x0) / res + 1e-9));
-  const j0 = Math.max(0, Math.ceil((Math.min(ay, by, cy) - y0) / res - 1e-9)), j1 = Math.min(ny - 1, Math.floor((Math.max(ay, by, cy) - y0) / res + 1e-9));
+  const i0 = Math.max(0, Math.ceil((Math.min(ax, bx, cx) - x0) / res - 0.5 - 1e-9)), i1 = Math.min(nx - 1, Math.floor((Math.max(ax, bx, cx) - x0) / res - 0.5 + 1e-9));
+  const j0 = Math.max(0, Math.ceil((Math.min(ay, by, cy) - y0) / res - 0.5 - 1e-9)), j1 = Math.min(ny - 1, Math.floor((Math.max(ay, by, cy) - y0) / res - 0.5 + 1e-9));
   const e = -1e-9;
   for (let j = j0; j <= j1; j++) {
-    const y = y0 + j * res;
+    const y = y0 + (j + 0.5) * res;
     for (let i = i0; i <= i1; i++) {
-      const x = x0 + i * res;
+      const x = x0 + (i + 0.5) * res;
       const l1 = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / den, l2 = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / den, l3 = 1 - l1 - l2;
       if (l1 < e || l2 < e || l3 < e) continue;
       const z = l1 * az + l2 * bz + l3 * cz; const k = j * nx + i; if (z > Z[k]) Z[k] = z;
