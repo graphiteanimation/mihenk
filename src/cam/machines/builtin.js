@@ -36,7 +36,7 @@ const NEWAY = {
 };
 // Genel 3 eksen (Fanuc tarzi): yalniz yapi; tum sayisal degerler kullanici tarafindan girilmeli.
 const GENERIC = {
-  id: 'builtin-generic-3axis-fanuc', name: 'Generic 3-axis (Fanuc style)', nameKey: 'cam.machine.generic3', rev: 1, builtin: true,
+  id: 'builtin-generic-3axis-fanuc', name: 'Fanuc-style generic 3-axis', nameKey: 'cam.machine.generic3', rev: 1, builtin: true,
   control: 'fanuc-generic',
   axes: { X: { travel: null, min: null, max: null }, Y: { travel: null, min: null, max: null }, Z: { travel: null, min: null, max: null } },
   spindle: { maxRpm: null, minRpm: null }, feed: { maxCut: null, rapid: null },

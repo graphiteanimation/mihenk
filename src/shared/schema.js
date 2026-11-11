@@ -107,16 +107,17 @@ const camSetup = obj({
   stock: obj({ kind: oneOf(['boxOffset', 'box', 'cyl']), side: camNum(0), top: camNum(0), bottom: camNum(0), min: arrOf(camNum(), 3), max: arrOf(camNum(), 3), dia: camNum(0), len: camNum(0), axis: oneOf(['X']) }),
   clearanceZ: camNum(0), ops: arrOf(camOp, CAM_LIMITS.ops),
 });
+const CP = 'cam'; // belge yolu oneki (sozluk anahtari degil)
 export function validateCam(cam) {
   if (!isObj(cam)) fail('schema.bad_field', { path: 'cam', expect: 'object' });
-  if (cam.machineId !== undefined && cam.machineId !== null) str(LIMITS.shortStr)(cam.machineId, 'cam.machineId');
-  if (cam.tools !== undefined) arrOf(camTool, CAM_LIMITS.tools)(cam.tools, 'cam.tools');
-  if (cam.setups !== undefined) arrOf(camSetup, CAM_LIMITS.setups)(cam.setups, 'cam.setups');
-  if (cam.verified !== undefined && cam.verified !== null) obj({ by: str(LIMITS.shortStr), date: str(40), note: str(), hash: str(LIMITS.shortStr) })(cam.verified, 'cam.verified');
+  if (cam.machineId !== undefined && cam.machineId !== null) str(LIMITS.shortStr)(cam.machineId, CP + '.machineId');
+  if (cam.tools !== undefined) arrOf(camTool, CAM_LIMITS.tools)(cam.tools, CP + '.tools');
+  if (cam.setups !== undefined) arrOf(camSetup, CAM_LIMITS.setups)(cam.setups, CP + '.setups');
+  if (cam.verified !== undefined && cam.verified !== null) obj({ by: str(LIMITS.shortStr), date: str(40), note: str(), hash: str(LIMITS.shortStr) })(cam.verified, CP + '.verified');
   const ids = new Set();
-  for (const [i, t] of (cam.tools || []).entries()) { if (!t.id) fail('schema.bad_field', { path: `cam.tools[${i}].id`, expect: 'text' }); if (ids.has(t.id)) fail('schema.dup_id', { id: t.id }); ids.add(t.id); }
+  for (const [i, t] of (cam.tools || []).entries()) { if (!t.id) fail('schema.bad_field', { path: `${CP}.tools[${i}].id`, expect: 'text' }); if (ids.has(t.id)) fail('schema.dup_id', { id: t.id }); ids.add(t.id); }
   const oids = new Set();
-  for (const s of cam.setups || []) for (const o of s.ops || []) { if (!o.id) fail('schema.bad_field', { path: 'cam.setups.ops.id', expect: 'text' }); if (oids.has(o.id)) fail('schema.dup_id', { id: o.id }); oids.add(o.id); }
+  for (const s of cam.setups || []) for (const o of s.ops || []) { if (!o.id) fail('schema.bad_field', { path: CP + '.setups.ops.id', expect: 'text' }); if (oids.has(o.id)) fail('schema.dup_id', { id: o.id }); oids.add(o.id); }
   return true;
 }
 
