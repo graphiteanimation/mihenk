@@ -102,6 +102,22 @@ function orientNested(loops) {
 }
 function itemMid(loop) { const it = loop[0]; return G.ptAt(it.seg, G.endU(it.seg) / 2); }
 
+// Komsu yuz bu kenarda yukari mi cikiyor: kenara oturan ucgenlerin (iki kosesi kenarda) ucuncu kosesinin z farki.
+// Kenara oturan ucgen bulunamazsa null (cagiran yuzun tamaminin en yuksek noktasina duser: muhafazakar).
+function edgeRise(mesh, faceIdx, frame, z, segs, tol) {
+  const V3 = mesh.vertices, T = mesh.triangles; let best = null;
+  const zf = (vi) => (V3[vi] - frame.o[0]) * frame.z[0] + (V3[vi + 1] - frame.o[1]) * frame.z[1] + (V3[vi + 2] - frame.o[2]) * frame.z[2];
+  const onEdge = (vi) => { if (Math.abs(zf(vi) - z) > tol) return false; const q = toF(frame, [V3[vi], V3[vi + 1], V3[vi + 2]]); for (const s of segs) if (G.closestPoint(s.seg, [q[0], q[1]]).d <= tol) return true; return false; };
+  for (const g of mesh.faceGroups) {
+    if (g.idx !== faceIdx) continue;
+    for (let k = g.start; k + 2 < g.start + g.count + 1 && k + 2 <= g.start + g.count - 1; k += 3) {
+      const vs = [T[k] * 3, T[k + 1] * 3, T[k + 2] * 3]; const on = vs.map(onEdge);
+      if (on.filter(Boolean).length < 2) continue;
+      for (let i = 0; i < 3; i++) if (!on[i]) { const dz = zf(vs[i]) - z; if (best === null || dz > best) best = dz; }
+    }
+  }
+  return best;
+}
 // Komsu yuzun setup z'sindeki en yuksek noktasi (goruntu agi kose noktalarindan)
 function faceMaxZ(mesh, faceIdx, frame) {
   let m = -Infinity; const V3 = mesh.vertices, T = mesh.triangles;
@@ -128,7 +144,7 @@ export function camFaceLoops(K, { ref, frame }) {
   for (const j of T.faceEdges[i]) {
     const segs = edgeSegs(T.edges.list[j], frame, z, 1e-6 * scale);
     const nb = T.edgeFaces[j].filter((f) => f !== i);
-    const open = !nb.length || nb.every((f) => faceMaxZ(mesh, f, frame) <= z + OPEN_TOL);
+    const open = !nb.length || nb.every((f) => { const r = edgeRise(mesh, f, frame, z, segs, 1e-5 * scale); return (r === null ? faceMaxZ(mesh, f, frame) - z : r) <= OPEN_TOL; });
     for (const s of segs) items.push({ ...s, open, edge: j });
   }
   if (!items.length) throw E('cam.loop_open');

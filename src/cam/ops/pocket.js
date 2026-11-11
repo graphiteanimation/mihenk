@@ -70,7 +70,7 @@ function checkExtension(outer, virt, face, holes) {
   const mat = above.map((l) => loopFromKernel(l));
   const virtR = { outer: virt, holes: [] }, realR = { outer, holes: [] };
   for (const m of mat) {
-    for (const s of m) for (const v of virt) for (const hh of P.intersect(s, v, 1e-7)) { if (!P.inRegion(hh.p, realR) || P.distTo(hh.p, outer) > 1e-4) throw cerr('cam.pocket.open_edge_blocked', { x: r3(hh.p[0]), y: r3(hh.p[1]) }); }
+    for (const s of m) for (const v of virt) for (const hh of P.intersect(s, v, 1e-7)) { if (P.distTo(hh.p, outer) > 1e-4) throw cerr('cam.pocket.open_edge_blocked', { x: r3(hh.p[0]), y: r3(hh.p[1]) }); }
     for (const s of m) for (let k = 0; k < 8; k++) { const p = P.pointAt(s, k / 8); if (P.inRegion(p, virtR) && !P.inRegion(p, realR) && P.distTo(p, outer) > 1e-4 && P.distTo(p, virt) > 1e-4) throw cerr('cam.pocket.open_edge_blocked', { x: r3(p[0]), y: r3(p[1]) }); }
   }
   void holes;

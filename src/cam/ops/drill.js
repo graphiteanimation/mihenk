@@ -97,14 +97,23 @@ export function computeDrill(op, ctx) {
   if (pmism) warnings.push(warn('cam.drill.pitch_mismatch', { n: pmism, pitch: tool.pitch }));
   if (nothread) warnings.push(warn('cam.drill.no_thread', { n: nothread }));
   const order = op.order ?? 'asis'; if (!['asis', 'shortest'].includes(order)) throw cerr('cam.op.bad_field', { field: 'order', expect: 'asis/shortest', op: op.name || op.id });
-  const seq = order === 'shortest' ? orderPoints(pts) : pts;
-  // gruplama: ayni ust z, ayni dip ve R stok ustunde -> tek cevrim; aksi halde her nokta ayri cevrim
-  const groups = [];
-  for (const p of seq) {
-    const g = groups[groups.length - 1];
-    if (g && p.R >= stockTop - 1e-9 && g.R >= stockTop - 1e-9 && Math.abs(g.top - p.top) < 1e-6 && Math.abs(g.bottom - p.bottom) < 1e-6) g.points.push([p.x, p.y]);
-    else groups.push({ top: p.top, bottom: p.bottom, R: p.R, points: [[p.x, p.y]] });
+  // gruplama: ayni ust z ve dip, R stok ustunde -> tek cevrim (noktalar arasi gecis R'de stok ustunde); aksi halde her nokta ayri
+  const groups = []; const byKey = new Map();
+  for (const p of pts) {
+    const shared = p.R >= stockTop - 1e-9; const key = shared ? `${Math.round(p.top * 1e6)}|${Math.round(p.bottom * 1e6)}` : null;
+    if (key && byKey.has(key)) { byKey.get(key).pts.push(p); continue; }
+    const g = { top: p.top, bottom: p.bottom, R: p.R, pts: [p] }; groups.push(g); if (key) byKey.set(key, g);
   }
+  let cur = null;
+  if (order === 'shortest') { // gruplar en yakin komsu sirasiyla, grup ici en kisa yol
+    const rest = groups.slice(); groups.length = 0;
+    while (rest.length) {
+      let bi = 0, bd = Infinity; rest.forEach((g, i) => { const d = cur ? Math.min(...g.pts.map((p) => Math.hypot(p.x - cur[0], p.y - cur[1]))) : 0; if (d < bd) { bd = d; bi = i; } });
+      const g = rest.splice(bi, 1)[0]; const start = cur ? g.pts.reduce((a, p) => (Math.hypot(p.x - cur[0], p.y - cur[1]) < Math.hypot(a.x - cur[0], a.y - cur[1]) ? p : a)) : g.pts[0];
+      g.pts = orderPoints(g.pts, [start.x, start.y]); groups.push(g); const l = g.pts[g.pts.length - 1]; cur = [l.x, l.y];
+    }
+  }
+  for (const g of groups) g.points = g.pts.map((p) => [p.x, p.y]);
   const zCyc = Math.max(zSafe, ...groups.map((g) => g.R)); // cevrim baslangic (ilk) duzlemi: stok ustu ve tum R'lerin ustu
   if (zCyc > zClr + 1e-9) throw cerr('cam.heights.retract_above_clearance', { retract: r3(zCyc - stockTop), clearance: clr });
   const b = new Builder({ zClr, zRet: zCyc, feed: f, tool });
