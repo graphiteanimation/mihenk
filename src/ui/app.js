@@ -16,6 +16,7 @@ import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
 import { defaults, newId, autoName, featLabel, dependents } from './features.js';
 import { initChrome } from './chrome.js';
+import { initCam } from './cam/index.js';
 import { onPrefsChange, getStr, setStr } from './prefs.js';
 import { showSettings, renderWelcome } from './screens.js';
 import { FeaturePanel, SketchPanel, SectionPanel, paramsModal, showBox, hideBox, measureRows, showProps } from './panels.js';
@@ -45,7 +46,7 @@ class App {
     this.edit = null; this.tool = null; this.measureSel = []; this.sketchSession = null; this.sketcher = null; this.sectionPanel = null;
     this._seq = 0; this._chain = Promise.resolve(); this._timer = 0; this._pending = new Map(); this._wid = 0; this.needFit = true; this.regionCount = null;
     this.busy = false; this.stale = false; this.lastAutosave = null; this.welcome = false; this._cancelled = false;
-    this.problems = {}; this._rev = 0; this._recRev = -1; this._resetP = Promise.resolve(); this.recoveryMs = RECOVERY_MS; this._recTimer = 0;
+    this.mode = 'design'; this.problems = {}; this._rev = 0; this._recRev = -1; this._resetP = Promise.resolve(); this.recoveryMs = RECOVERY_MS; this._recTimer = 0;
     this.ready = new Promise((res, rej) => { this._readyRes = res; this._readyRej = rej; });
     this.ready.catch(() => {});
   }
@@ -53,6 +54,7 @@ class App {
   // ------------------------------------------------------------ başlatma
   async init() {
     document.documentElement.lang = getLang(); applyI18n();
+    this.cam = initCam(this);
     this.C = initChrome(this);
     onLangChange(() => this.relang());
     onPrefsChange(() => this.retheme());
@@ -96,7 +98,7 @@ class App {
   setLanguage(l) { setLang(l); }
   // Tema/yoğunluk değişince 3B görünüm ve eskiz katmanı renkleri CSS değişkenlerinden yeniden okunur.
   retheme() {
-    try { this.viewport?.applyTheme(); this.refreshSketches(); this.sketcher?.retheme?.(); } catch (e) { console.error(e); }
+    try { this.viewport?.applyTheme(); this.refreshSketches(); this.sketcher?.retheme?.(); this.cam?.view?.retheme(); } catch (e) { console.error(e); }
     this.C?.renderAll?.();
   }
   showSettings(tab) { return showSettings(this, tab); }
@@ -115,7 +117,7 @@ class App {
   // Electron ana süreci kapatma onayı gibi diyalog metinlerini buradan alır (tek sözlük).
   pushNativeStrings() {
     window.native?.setStrings?.({ closeMsg: t('native.close_msg'), closeDetail: t('native.close_detail'), closeCancel: t('native.close_cancel'), closeDiscard: t('native.close_discard'),
-      filterDoc: t('file.filter_doc'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), filterDxf: t('file.filter_dxf'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
+      filterDoc: t('file.filter_doc'), filterStep: t('file.filter_step'), filterStl: t('file.filter_stl'), filterDxf: t('file.filter_dxf'), filterNc: t('file.filter_nc'), filterJson: t('file.filter_json'), tSave: t('dlg.t_save'), tOpen: t('dlg.t_open'), tImport: t('dlg.t_import'), tExport: t('dlg.t_export') });
   }
   // Dil değişince her yer yeniden çizilir; açık panel, sketch, kesit, ölçü kutusu ve durum satırı dahil.
   relang() {
@@ -186,6 +188,17 @@ class App {
     this.markDirty(); this.C.renderAll();
     return this.requestRebuild();
   }
+  // Yalnız doc.cam gibi geometriyi etkilemeyen belge değişikliği (geri alınabilir; yeniden hesaplama yok)
+  commitMeta(fn) { if (this.tool) this.endTool(true); this.pushUndo(); fn(this.doc); this.markDirty(); this.C.renderAll(); }
+  // Çalışma alanı: 'design' | 'cam'. Belge, görünüm ve kamera korunur; şerit, tarayıcı, panel ve alt çubuk değişir.
+  setMode(m) {
+    if (m === this.mode || !['design', 'cam'].includes(m)) return;
+    if (this.welcome) return;
+    if (this.guard()) return; this.endTool(true); if (this.sectionPanel) { this.sectionPanel.close(); }
+    if (m === 'cam') { this.mode = 'cam'; this.setHint(''); this.cam.enter(); }
+    else { this.cam.leave(); this.mode = 'design'; this.idleView(); this.refreshSketches(); }
+    this.C.renderAll(); this.refreshLeft();
+  }
   guard() {
     if (this.edit || this.sketchSession) { toast(t('msg.finish_first')); return true; }
     return false;
@@ -207,7 +220,7 @@ class App {
     try { upgradeDocProfiles(doc); } catch (e) { console.error('profile upgrade failed', e); }
     if (this.welcome) this.showWelcome(false);
     this.doc = this.normalize(doc); this.undoStack = []; this.redoStack = []; this.fileName = name; this.filePath = path; this.selection = []; this.selFeature = null;
-    this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.needFit = true; this.markDirty(false); this.C.renderAll();
+    this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.needFit = true; this.markDirty(false); this.cam.onDocLoaded(); this.C.renderAll();
     await this.requestRebuild();
   }
 
@@ -262,7 +275,7 @@ class App {
     if (this.needFit && res.bodies.length) { this.viewport.fit(); this.needFit = false; }
     else if (!had && res.bodies.length && !this.sketchSession) this.viewport.fit();
     if (!this.edit && !this.tool && !this.sketchSession) this.viewport.setSelection(this.selection);
-    this.C.renderAll();
+    this.cam.onResult(); this.C.renderAll();
     if (this.edit && !this.edit.closed) this.edit.afterResult();
     if (!this.sketchSession) {
       const bad = this.doc.features.find((f) => res.status[f.id] && res.status[f.id].ok === false);
@@ -272,7 +285,7 @@ class App {
   refreshSketches() {
     const res = this.result; if (!res) return;
     const list = this.doc.features.filter((f) => f.type === 'sketch').map((f) => ({ id: f.id, sk: f, plane: res.sketches?.[f.id]?.plane, visible: !this.hiddenSketches.has(f.id) && !(this.sketchSession && this.sketchSession.draft.id === f.id) }));
-    this.viewport.setSketches(list);
+    this.viewport.setSketches(this.mode === 'cam' ? [] : list);
   }
   setHint(text) { $('#hint-text').textContent = text || ''; $('#hint').classList.toggle('hidden', !text); }
   // Durum satırı: metin ya da dil değişince yeniden çağrılacak işlev
@@ -316,6 +329,7 @@ class App {
   }
   onPick(hit, ev) {
     if (this.sketchSession) return;
+    if (this.mode === 'cam') { this.cam.ops.onPick(hit, ev); return; }
     if (this.edit) { this.edit.onPick(hit, ev); return; }
     if (this.tool) { this.toolPick(hit, ev); return; }
     if (hit && hit.kind === 'body') {

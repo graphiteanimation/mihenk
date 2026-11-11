@@ -1,5 +1,9 @@
 // Türkçe sözlük: düz anahtar → metin. {ad} yer tutucuları İngilizce sözlükle birebir aynı olmalı (test/i18n.test.mjs).
-export default {
+import camCore from './cam-core-tr.js';
+import camPost from './cam-post-tr.js';
+import camUi from './cam-ui-tr.js';
+
+const base = {
   // Ortak
   "common.ok": "Tamam",
   "common.cancel": "İptal",
@@ -1019,3 +1023,6 @@ export default {
   "w.open_sub": "Mihenk, eski AtolyeCAD ve STEP dosyaları",
   "w.legacy": "eski biçim",
 };
+
+// CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
+export default { ...base, ...camCore, ...camPost, ...camUi };

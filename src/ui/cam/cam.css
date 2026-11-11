@@ -1,0 +1,38 @@
+/* İmalat çalışma alanı: yalnız belirteçler (tokens.css) kullanılır; ham renk yok. */
+.mc-modal .seg { margin-bottom: var(--sp-3); }
+.mc-ed, .tl-ed { max-height: 56vh; overflow: auto; padding-right: var(--sp-2); }
+.mc-err { margin-top: var(--sp-3); }
+.mc-err .callout { margin: var(--sp-2) 0; }
+.mc-list .table td.r, .tl-list .table td.r { white-space: nowrap; text-align: right; }
+.mc-list .table td.r .btn, .tl-list .table td.r .btn { height: 28px; min-width: 28px; padding: 0 var(--sp-2); }
+.mc-list .table, .tl-list .table { table-layout: fixed; }
+.mc-list .table th:nth-child(1) { width: 46%; } .mc-list .table th:nth-child(2) { width: 22%; } .mc-list .table th:nth-child(3) { width: 18%; } .mc-list .table th:nth-child(4) { width: 14%; }
+.mc-list .table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-pick { display: inline-flex; align-items: center; gap: var(--sp-3); cursor: pointer; max-width: 100%; }
+.mc-pick input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); margin: 0; }
+.mc-pick > span:not(.badge) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tl-list { max-height: 52vh; overflow: auto; }
+.tl-list .table td .badge { margin-left: var(--sp-2); padding: 0 4px; min-height: 18px; }
+.wcs-grid { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); min-height: var(--ctl-h); align-items: center; }
+.wcs-i { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); cursor: pointer; }
+.wcs-i input { width: 16px; height: 16px; accent-color: var(--accent); }
+.fld.need > label { color: var(--warn-fg); font-weight: var(--fw-semibold); }
+.fld.need .input { border-color: var(--warn-fg); background: var(--warn-bg); }
+.need-msg { display: flex; gap: 6px; align-items: flex-start; margin-top: 4px; font-size: var(--fs-xs); color: var(--warn-fg); }
+.need-msg[hidden] { display: none; }
+.fieldmsg.warn { color: var(--warn-fg); }
+.tl-preset { border: var(--bw) solid var(--line); border-radius: var(--r-sm); padding: var(--sp-3) var(--sp-4); margin: var(--sp-3) 0; background: var(--bg-surface); }
+.tl-preset-h { display: flex; gap: var(--sp-3); align-items: flex-start; }
+.tl-preset-h .fld { flex: 1; margin: 0; }
+.trow .subtle { display: block; font-size: var(--fs-xs); line-height: 1.1; color: var(--text-muted); }
+.trow.two .nm > span:first-child { display: block; overflow: hidden; text-overflow: ellipsis; }
+.su-sum { margin-top: var(--sp-5); }
+.tl-label + .note { white-space: nowrap; }
+/* simülasyon çubuğu */
+.timeline.sim { gap: var(--sp-4); }
+.simbar { display: flex; align-items: center; gap: var(--sp-3); flex: 1; min-width: 0; }
+.simbar .btn.icon { width: 36px; height: 36px; flex: none; }
+.simbar input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--accent); min-height: 24px; }
+.simbar .num { color: var(--text-muted); font-size: var(--fs-sm); white-space: nowrap; }
+.simbar .seg { width: auto; flex: none; } .simbar .seg button { padding: 0 var(--sp-3); flex: none; }
+.simbar .chk { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); white-space: nowrap; }

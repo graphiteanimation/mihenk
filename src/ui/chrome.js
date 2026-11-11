@@ -151,7 +151,10 @@ export function initChrome(app) {
       h('span', { class: 'dirty', id: 'dirty', 'data-testid': 'dirty', hidden: !unsaved }, h('span', { text: t('ui.unsaved') })));
     const search = h('button', { class: 'cmdsearch', 'data-cmd': 'palette', 'data-testid': 'cmd-search', onclick: () => C.run('palette') }, h('span', { html: icon('search') }), h('span', { text: t('ui.palette') }), h('span', { class: 'kbd', text: 'Ctrl+K' }));
     tip(search, { name: t('ui.palette'), kbd: 'Ctrl+K / S', body: t('tip.palette') });
-    const machine = h('div', { class: 'machine-chip', 'data-testid': 'machine', role: 'group', 'aria-label': t('ui.machine_label') }, h('span', { html: icon('axes-3') }), h('span', { text: 'Neway VM1160H' }), h('small', { text: t('ui.axes3') }));
+    const camM = app.mode === 'cam' ? app.cam.machine() : null;
+    const machine = app.mode === 'cam'
+      ? h('button', { class: 'machine-chip', type: 'button', 'data-testid': 'machine', 'aria-label': t('ui.machine_label'), onclick: () => C.run('cam-machine') }, h('span', { html: icon(camM?.axes?.A ? 'axes-4' : 'axes-3') }), h('span', { text: camM ? app.cam.machineLabel(camM) : t('cam.br.machine_missing') }), h('small', { text: camM?.axes?.A ? t('cam.mc.axes4') : t('ui.axes3') }), h('span', { html: icon('chevron-down', 'sm') }))
+      : h('div', { class: 'machine-chip', 'data-testid': 'machine', role: 'group', 'aria-label': t('ui.machine_label') }, h('span', { html: icon('axes-3') }), h('span', { text: 'Neway VM1160H' }), h('small', { text: t('ui.axes3') }));
     const helpMenu = dropdown('help', 'menu.help', 'help', helpItems(), 'menu-help', true); helpMenu.classList.add('right');
     bar.replaceChildren(
       h('div', { class: 'brand' }, h('img', { src: logoReverse, height: 22, alt: 'Mihenk', 'data-testid': 'brand' })),
@@ -176,9 +179,10 @@ export function initChrome(app) {
 
   // ---------------------------------------------------------------- çalışma alanı sekmeleri
   C.renderTabs = () => {
-    const tab = (id, ic, nm, on, soon) => h('button', { class: 'tab', role: 'tab', 'data-testid': 'tab-' + id, 'aria-selected': on ? 'true' : 'false', 'aria-disabled': on ? null : 'true', tabindex: on ? null : '0' },
+    const tab = (id, ic, nm, on, soon, mode) => h('button', { class: 'tab', role: 'tab', 'data-testid': 'tab-' + id, 'aria-selected': on ? 'true' : 'false', 'aria-disabled': soon ? 'true' : null, tabindex: soon ? '0' : null, onclick: mode ? () => app.setMode(mode) : null },
       h('span', { html: icon(ic) }), h('span', { text: t(nm) }), soon ? h('span', { class: 'soon', text: t('ui.soon') }) : null);
-    $('#tabs').replaceChildren(tab('design', 'workspace-design', 'ui.tab_design', true), tab('manufacture', 'workspace-manufacture', 'ui.tab_manufacture', false, true), tab('drawing', 'workspace-drawing', 'ui.tab_drawing', false, true),
+    const cam = app.mode === 'cam';
+    $('#tabs').replaceChildren(tab('design', 'workspace-design', 'ui.tab_design', !cam, false, 'design'), tab('manufacture', 'workspace-manufacture', 'ui.tab_manufacture', cam, false, 'cam'), tab('drawing', 'workspace-drawing', 'ui.tab_drawing', false, true),
       h('div', { class: 'right' }, h('span', { class: 'badge', 'data-testid': 'offline' }, h('span', { html: icon('lock', 'sm') }), h('span', { text: t('ui.offline') }))));
   };
 
@@ -253,6 +257,8 @@ export function initChrome(app) {
 
   C.renderToolbar = () => {
     const bar = $('#toolbar'); const sk = app.sketcher; bar.classList.toggle('sk', !!app.sketchSession);
+    if (app.mode === 'cam') { C.ddOpen = null; C.renderDD(); bar.classList.remove('sk'); bar.classList.add('cam'); bar.replaceChildren(...app.cam.ribbon({ group, toolBtn })); bar.querySelector('.rgroup.end').dataset.pin = '1'; C.fitRibbon(); return; }
+    bar.classList.remove('cam');
     if (app.sketchSession) {
       const cur = sk?.tool;
       const tools = (list) => list.map((x) => toolBtn(cid(x[0]), { on: cur === x[0] }));
@@ -305,6 +311,7 @@ export function initChrome(app) {
   C.featureMenu = featureMenu;
   C.renderBrowser = () => {
     const br = $('#browser'); const doc = app.doc, res = app.result;
+    if (app.mode === 'cam') { app.cam.renderBrowser(br); return; }
     const sec = (title, action) => h('div', { class: 'bsec' }, h('span', { text: title }), action || null);
     const note = (txt) => h('div', { class: 'trow empty', text: txt });
     const params = (doc.params || []).map((p) => {
@@ -326,6 +333,8 @@ export function initChrome(app) {
   // ---------------------------------------------------------------- zaman çizelgesi
   C.renderTimeline = () => {
     const tl = $('#timeline'); const doc = app.doc, st = app.result?.status || {};
+    tl.classList.toggle('sim', app.mode === 'cam');
+    if (app.mode === 'cam') { app.cam.renderBottom(tl); return; }
     const rb = doc.rollback; const kids = [h('div', { class: 'tl-label' }, h('span', { html: icon('clock', 'sm') }), h('span', { text: t('tl.label') }))];
     doc.features.forEach((f, i) => {
       if (i > 0) kids.push(h('span', { class: 'tl-sep' }));
@@ -365,16 +374,17 @@ export function initChrome(app) {
     C.renderQuick();
     const r = app.result; const n = r ? r.bodies.length : 0;
     const bad = app.badFeatures();
-    const sk = !!app.sketchSession;
-    const toolName = sk ? (() => { const c = cmds[app.sketcher?.tool]; return c ? label(c) : '—'; })() : app.edit && !app.edit.closed ? app.edit.titleText() : app.tool === 'measure' ? t('tb.measure') : app.tool === 'props' ? t('tb.props') : app.tool === 'newsketch' ? t('tb.sketch') : '—';
+    const sk = !!app.sketchSession; const camMode = app.mode === 'cam';
+    const toolName = camMode ? (app.cam.sel ? app.cam.selLabel() : '—') : sk ? (() => { const c = cmds[app.sketcher?.tool]; return c ? label(c) : '—'; })() : app.edit && !app.edit.closed ? app.edit.titleText() : app.tool === 'measure' ? t('tb.measure') : app.tool === 'props' ? t('tb.props') : app.tool === 'newsketch' ? t('tb.sketch') : '—';
     const left = $('#st-left'); const keep = left ? left.textContent : '';
     $('#statusbar-main').replaceChildren(
-      h('span', { class: 'seg-i', 'data-testid': 'st-mode', 'data-mode': sk ? 'sketch' : 'model' }, h('span', { html: icon(sk ? 'sketch' : 'workspace-design', 'sm') }), h('b', { text: t(sk ? 'ui.mode_sketch' : 'ui.mode_model') })), div(),
+      h('span', { class: 'seg-i', 'data-testid': 'st-mode', 'data-mode': camMode ? 'cam' : sk ? 'sketch' : 'model' }, h('span', { html: icon(camMode ? 'workspace-manufacture' : sk ? 'sketch' : 'workspace-design', 'sm') }), h('b', { text: camMode ? t('ui.mode_cam') : t(sk ? 'ui.mode_sketch' : 'ui.mode_model') })), div(),
       h('span', { class: 'seg-i', 'data-testid': 'st-tool' }, h('span', { class: 'muted-od', text: t('ui.tool') }), h('b', { text: toolName })), div(),
       h('span', { class: 'seg-i', id: 'st-left', 'data-testid': 'st-left', text: keep }), h('span', { class: 'grow' }),
       ...(app.busy ? [h('span', { class: 'seg-i', 'data-testid': 'st-busy' }, h('span', { class: 'progress indet', role: 'progressbar', 'aria-label': t('ui.busy') }, h('i')), h('span', { text: t('ui.busy') }),
         h('button', { class: 'sbtn', 'data-testid': 'cancel-compute', 'data-cmd': 'cancel-compute', onclick: () => app.cancelCompute() }, h('span', { html: icon('cancel', 'sm') }), h('span', { text: t('ui.cancel_compute') })), div())] : []),
       ...(app.stale ? [h('span', { class: 'seg-i warnc', 'data-testid': 'st-stale' }, h('span', { html: icon('warning', 'sm') }), h('span', { text: t('ui.stale') })), div()] : []),
+      ...(camMode ? app.cam.statusExtras(div) : []),
       ...(bad.length ? [h('button', { class: 'sbtn err', 'data-testid': 'st-errors', 'data-cmd': 'goto-error', onclick: () => app.gotoFirstError() }, h('span', { html: icon('error', 'sm') }), h('span', { text: t(bad.length === 1 ? 'ui.errors_one' : 'ui.errors_many', { n: bad.length }) })), div()] : []),
       h('span', { class: 'seg-i', 'data-testid': 'st-bodies', text: t('ui.bodies', { n }) }), div(),
       h('span', { class: 'seg-i', 'data-testid': 'st-sel', text: t('ui.sel', { n: app.selectionCount() }) }), div(),
@@ -389,7 +399,7 @@ export function initChrome(app) {
   C.openPalette = () => {
     if (document.getElementById('palette')) return;
     const other = getLang() === 'tr' ? 'en' : 'tr';
-    const all = () => Object.values(cmds).filter((c) => (app.sketchSession ? c.sk || !c.feature : !c.sk));
+    const all = () => Object.values(cmds).filter((c) => (app.sketchSession ? c.sk || !c.feature : app.mode === 'cam' ? c.cam || (!c.feature && !c.sk) : !c.sk && !c.cam));
     const hay = (c) => (label(c) + ' ' + tLang(other, c.name) + ' ' + c.id).toLocaleLowerCase(getLang());
     const norm = (s) => s.toLocaleLowerCase(getLang());
     let list = [], sel = 0;
@@ -425,11 +435,13 @@ export function initChrome(app) {
   // boş durum: simge + bir cümle + tek eylem
   C.renderEmpty = () => {
     const el = $('#empty'); if (!el) return;
-    const show = !app.doc.features.length && !app.sketchSession && !app.edit && !app.tool && !app.welcome;
+    const show = app.mode !== 'cam' && !app.doc.features.length && !app.sketchSession && !app.edit && !app.tool && !app.welcome;
     el.classList.toggle('hidden', !show);
     if (show) el.replaceChildren(h('div', { class: 'empty' }, h('span', { html: icon('sketch', 'lg') }), h('div', { class: 'et', text: t('ui.empty_title') }), h('div', { text: t('ui.empty_body') }), h('button', { class: 'btn primary', 'data-cmd': 'sketch', 'data-testid': 'empty-sketch', onclick: () => C.run('sketch') }, t('tb.sketch'))));
   };
-  C.relang = () => { C.renderViewBtns(); C.renderAll(); };
+  C.reg = reg;
+  app.cam.registerCommands(C);
+  C.relang = () => { C.renderViewBtns(); C.renderAll(); app.cam.relang(); };
   void LANGS; void LANG_KEY; void modal;
   return C;
 }

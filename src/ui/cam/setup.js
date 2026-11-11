@@ -1,0 +1,112 @@
+// Setup paneli: çerçeve (Z/X yönü, orijin), iş sıfırı, stok, döner eksen (A açısı), güvenli yükseklik. Çözüm (resolveSetup) canlı denetlenir.
+import { h } from '../dom.js';
+import { t, errText, fmtNum } from '../../shared/i18n.js';
+import { resolveSetup } from '../../cam/index.js';
+import { clone, numField, textField, selField, checkField, sec, callout, fld, unitBox, panelShell, okCancel, panelKeys, parseNum } from './util.js';
+
+const DIRS = ['+Z', '-Z', '+X', '-X', '+Y', '-Y'];
+const VEC = { '+X': [1, 0, 0], '-X': [-1, 0, 0], '+Y': [0, 1, 0], '-Y': [0, -1, 0], '+Z': [0, 0, 1], '-Z': [0, 0, -1] };
+const perp = (a, b) => VEC[a][0] * VEC[b][0] + VEC[a][1] * VEC[b][1] + VEC[a][2] * VEC[b][2] === 0;
+export const WCS = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1'];
+
+export function defaultSetup(id, name, bodyIds, machine) {
+  const prot = machine?.protected?.wcs || [];
+  const wcs = WCS.slice(0, 6).find((w) => !prot.includes(w)) || 'G54';
+  return { id, name, bodies: bodyIds, frame: { origin: { kind: 'stockCorner', corner: 'x-y-z+' }, zAxis: { kind: 'base', dir: '+Z' }, xAxis: { kind: 'base', dir: '+X' } },
+    rotary: { enabled: false, aAngle: 0 }, workOffset: { kind: wcs }, stock: { kind: 'boxOffset', side: 2, top: 2, bottom: 0 }, clearanceZ: 10, ops: [] };
+}
+
+export class SetupPanel {
+  constructor(cam, setupId, { isNew = false, focus = null } = {}) {
+    this.cam = cam; this.app = cam.app; this.id = setupId; this.isNew = isNew; this.focus = focus;
+    const cur = cam.data().setups.find((s) => s.id === setupId); this.draft = clone(cur); this.closed = false;
+    const d = this.draft; d.frame = d.frame || {}; d.frame.origin = d.frame.origin || { kind: 'stockCorner', corner: 'x-y-z+' }; d.frame.zAxis = d.frame.zAxis || { kind: 'base', dir: '+Z' }; d.frame.xAxis = d.frame.xAxis || { kind: 'base', dir: '+X' };
+    d.rotary = d.rotary || { enabled: false, aAngle: 0 }; d.workOffset = d.workOffset || { kind: 'G54' }; d.stock = d.stock || { kind: 'boxOffset', side: 2, top: 2, bottom: 0 };
+  }
+  open() { this.render(); this.unkeys = panelKeys(document.getElementById('panel'), () => this.ok(), () => this.cancel()); this.check(); }
+  relang() { this.render(); this.check(); }
+  close() { this.closed = true; this.unkeys?.(); this.cam.panelClosed(this); }
+  cancel() { this.close(); this.cam.view?.showSetup(null); }
+  ok() {
+    const bad = this.problems(); if (bad) { this.cam.app.toastInfo(bad); return; }
+    const d = clone(this.draft); this.close();
+    this.cam.mut((c) => { const i = c.setups.findIndex((s) => s.id === d.id); if (i >= 0) c.setups[i] = { ...c.setups[i], ...d, ops: c.setups[i].ops }; });
+  }
+  problems() {
+    if (!this.draft.bodies.length) return t('cam.su.no_bodies');
+    if (!String(this.draft.name || '').trim()) return t('cam.fld.required');
+    if (this.numErr()) return t('cam.su.fix_fields');
+    return null;
+  }
+  numErr() { return !!this.bodyEl?.closest('.panel')?.querySelector('.input.err'); }
+  resolve() { try { return { S: resolveSetup(this.draft, this.app.result, this.cam.machine()) }; } catch (e) { return { err: e }; } }
+  check() {
+    if (this.closed || !this.sumEl) return;
+    const body = this.sumEl; body.replaceChildren();
+    if (!this.app.result?.bodies?.length) { body.append(callout('warn', null, t('cam.su.need_model'))); return; }
+    const { S, err } = this.resolve();
+    if (err) { body.append(callout('err', t('cam.su.unresolved'), errText(err))); this.cam.view?.showSetup(null); return; }
+    const sz = S.stockBox.max.map((v, i) => v - S.stockBox.min[i]);
+    body.append(callout('info', t('cam.su.resolved'), t('cam.su.summary', { stock: sz.map((v) => fmtNum(v, 3)).join(' × '), top: fmtNum(S.stockTop, 3) })));
+    this.cam.view?.showSetup(S);
+  }
+  render() {
+    const d = this.draft, cam = this.cam, app = this.app, m = cam.machine();
+    const prot = m?.protected || {}; const upd = () => this.check();
+    this.sumEl = h('div', { class: 'su-sum', 'data-testid': 'setup-summary' });
+    const bodies = (app.result?.bodies || []).map((b) => { const c = h('input', { type: 'checkbox', 'data-f': 'su-body', 'data-body': b.id, checked: d.bodies.includes(b.id) }); c.addEventListener('change', () => { d.bodies = c.checked ? [...new Set([...d.bodies, b.id])] : d.bodies.filter((x) => x !== b.id); upd(); }); return h('label', { class: 'wcs-i' }, c, h('span', { text: app.bodyName(b.id) })); });
+    this.bodyEl = h('div', { class: 'wcs-grid' }, bodies.length ? bodies : [h('span', { class: 'note', text: t('cam.su.need_model') })]);
+    const dirOpts = (list) => list.map((x) => [x, t('cam.dir.' + x)]);
+    const zKind = d.frame.zAxis.kind, xKind = d.frame.xAxis.kind;
+    const zSel = selField({ label: t('cam.su.z_axis'), value: zKind === 'base' ? d.frame.zAxis.dir : 'face', f: 'su-z', hint: t('cam.su.z_hint'), opts: [...dirOpts(DIRS), ...(zKind === 'face' ? [['face', t('cam.su.from_face')]] : [])], set: (v) => {
+      if (v === 'face') return; d.frame.zAxis = { kind: 'base', dir: v };
+      if (d.frame.xAxis.kind === 'base' && !perp(v, d.frame.xAxis.dir)) d.frame.xAxis = { kind: 'base', dir: DIRS.find((q) => perp(v, q) && q[1] === 'X') || DIRS.find((q) => perp(v, q)) };
+      this.render(); upd(); } });
+    const xList = DIRS.filter((q) => d.frame.zAxis.kind !== 'base' || perp(d.frame.zAxis.dir, q));
+    const xSel = selField({ label: t('cam.su.x_axis'), value: xKind === 'base' ? d.frame.xAxis.dir : 'face', f: 'su-x', opts: [...dirOpts(xList), ...(xKind === 'face' ? [['face', t('cam.su.from_face')]] : [])], set: (v) => { if (v === 'face') return; d.frame.xAxis = { kind: 'base', dir: v }; upd(); } });
+    const org = d.frame.origin;
+    const oSel = selField({ label: t('cam.su.origin'), value: org.kind, f: 'su-origin', opts: [['stockCorner', t('cam.su.o_corner')], ['stockTopCenter', t('cam.su.o_topcenter')], ['model', t('cam.su.o_model')], ['point', t('cam.su.o_point')]], set: (v) => {
+      d.frame.origin = v === 'stockCorner' ? { kind: v, corner: 'x-y-z+' } : v === 'point' ? { kind: v, p: [0, 0, 0] } : { kind: v }; this.render(); upd(); } });
+    const rows = [fld(t('cam.su.name'), unitBox(h('input', { type: 'text', 'data-f': 'su-name', value: d.name || '', maxlength: 120, oninput: (e) => { d.name = e.target.value; } }))),
+      sec(t('cam.su.bodies')), fld(t('cam.su.bodies_l'), this.bodyEl),
+      sec(t('cam.su.frame')), zSel, xSel, oSel];
+    if (org.kind === 'stockCorner') {
+      const cm = /^x([+-])y([+-])z([+-])$/.exec(org.corner || 'x-y-z+') || ['', '-', '-', '+']; const cur = [cm[1], cm[2], cm[3]];
+      for (const [i, ax, neg, pos] of [[0, 'X', 'cam.su.c_left', 'cam.su.c_right'], [1, 'Y', 'cam.su.c_front', 'cam.su.c_back'], [2, 'Z', 'cam.su.c_bottom', 'cam.su.c_top']]) {
+        rows.push(selField({ label: t('cam.su.corner_axis', { axis: ax }), value: cur[i], f: 'su-corner-' + ax, opts: [['-', t(neg)], ['+', t(pos)]], set: (v) => { cur[i] = v; org.corner = `x${cur[0]}y${cur[1]}z${cur[2]}`; upd(); } }));
+      }
+    }
+    if (org.kind === 'point') ['X', 'Y', 'Z'].forEach((ax, i) => rows.push(numField({ label: t('cam.su.point_axis', { axis: ax }), value: org.p[i], unit: 'mm', nullable: false, f: 'su-p' + ax, min: -1e6, set: (v) => { org.p[i] = v; upd(); } })));
+    // iş sıfırı
+    const wk = d.workOffset;
+    const wsel = selField({ label: t('cam.su.wcs'), value: wk.kind, f: 'su-wcs', opts: WCS.map((w) => [w, w]), set: (v) => { d.workOffset = v === 'G54.1' ? { kind: v, p: 1 } : { kind: v }; this.render(); upd(); } });
+    const wmsg = h('div', { class: 'fieldmsg warn', role: 'alert', hidden: true, 'data-testid': 'wcs-warn' });
+    const wcsWarn = () => { const hit = (prot.wcs || []).includes(wk.kind === 'G54.1' ? `G54.1 P${wk.p}` : wk.kind); wmsg.hidden = !hit; wmsg.textContent = hit ? t('cam.su.wcs_protected', { wcs: wk.kind === 'G54.1' ? `G54.1 P${wk.p}` : wk.kind }) : ''; };
+    wsel.querySelector('.ctl').append(wmsg); wsel.input.addEventListener('change', wcsWarn);
+    rows.push(sec(t('cam.su.workoffset')), wsel);
+    if (wk.kind === 'G54.1') rows.push(numField({ label: t('cam.su.wcs_p'), value: wk.p, unit: 'P', int: true, min: 1, nullable: false, f: 'su-wcs-p', set: (v) => { wk.p = v; wcsWarn(); upd(); } }));
+    wcsWarn();
+    // stok
+    const st = d.stock;
+    rows.push(sec(t('cam.su.stock')), selField({ label: t('cam.su.stock_kind'), value: st.kind, f: 'su-stock-kind', opts: [['boxOffset', t('cam.su.s_offset')], ['box', t('cam.su.s_box')], ['cyl', t('cam.su.s_cyl')]], set: (v) => {
+      d.stock = v === 'boxOffset' ? { kind: v, side: 2, top: 2, bottom: 0 } : v === 'box' ? { kind: v, min: [0, 0, 0], max: [100, 100, 20] } : { kind: v, dia: 50, len: 100, axis: 'X' };
+      if (v === 'cyl' && !['point', 'model'].includes(d.frame.origin.kind)) d.frame.origin = { kind: 'model' };
+      this.render(); upd(); } }));
+    const sn = (label, key, o = {}) => numField({ label, value: st[key], unit: 'mm', nullable: false, min: o.min ?? 0, f: 'su-st-' + key, set: (v) => { st[key] = v; upd(); } });
+    if (st.kind === 'boxOffset') rows.push(sn(t('cam.su.s_side'), 'side'), sn(t('cam.su.s_top'), 'top'), sn(t('cam.su.s_bottom'), 'bottom'));
+    else if (st.kind === 'box') for (const [k, nm] of [['min', 'cam.su.s_min'], ['max', 'cam.su.s_max']]) ['X', 'Y', 'Z'].forEach((ax, i) => rows.push(numField({ label: t(nm, { axis: ax }), value: st[k][i], unit: 'mm', nullable: false, min: -1e6, f: `su-st-${k}${ax}`, set: (v) => { st[k][i] = v; upd(); } })));
+    else rows.push(sn(t('cam.su.s_dia'), 'dia', { min: 0.001 }), sn(t('cam.su.s_len'), 'len', { min: 0.001 }), h('div', { class: 'help', text: t('cam.su.s_cyl_hint') }));
+    // döner eksen
+    const A = m?.axes?.A;
+    rows.push(sec(t('cam.su.rotary')));
+    if (!A) rows.push(h('div', { class: 'note', text: t('cam.su.no_a_axis') }));
+    else {
+      rows.push(checkField({ label: t('cam.su.a_on'), value: !!d.rotary.enabled, f: 'su-a-on', hint: t('cam.su.a_hint'), set: (v) => { d.rotary.enabled = v; this.render(); upd(); } }));
+      if (d.rotary.enabled) rows.push(numField({ label: t('cam.su.a_angle'), value: d.rotary.aAngle, unit: '°', nullable: false, min: -1e5, f: 'su-a-angle', warn: (v) => (v !== null && A.limits && (v < A.limits[0] || v > A.limits[1]) ? t('cam.su.a_limits', { min: A.limits[0], max: A.limits[1] }) : null), set: (v) => { d.rotary.aAngle = v; upd(); } }));
+    }
+    rows.push(sec(t('cam.su.heights')), numField({ label: t('cam.su.clearance'), value: d.clearanceZ ?? 10, unit: 'mm', nullable: false, min: 0, f: 'su-clearance', hint: t('cam.su.clearance_hint'), set: (v) => { d.clearanceZ = v; upd(); } }));
+    panelShell(this.isNew ? t('cam.su.title_new') : t('cam.su.title', { name: d.name }), [...rows, this.sumEl], okCancel(() => this.ok(), () => this.cancel()), () => this.cancel(), 'cam-setup');
+    if (this.focus) { const el = document.querySelector(`#panel [data-f="${this.focus}"]`); el?.scrollIntoView?.({ block: 'center' }); el?.focus?.(); this.focus = null; }
+  }
+}
+void textField; void parseNum;

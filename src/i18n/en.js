@@ -1,5 +1,9 @@
 // English dictionary: flat key → text. Keys and {name} placeholders must match the Turkish dictionary exactly (test/i18n.test.mjs).
-export default {
+import camCore from './cam-core-en.js';
+import camPost from './cam-post-en.js';
+import camUi from './cam-ui-en.js';
+
+const base = {
   // Ortak
   "common.ok": "OK",
   "common.cancel": "Cancel",
@@ -1019,3 +1023,6 @@ export default {
   "w.open_sub": "Mihenk and legacy AtolyeCAD files",
   "w.legacy": "legacy format",
 };
+
+// CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
+export default { ...base, ...camCore, ...camPost, ...camUi };

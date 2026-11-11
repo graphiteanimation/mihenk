@@ -20,7 +20,8 @@ const MIME = {
 };
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
 // 'doc' = Mihenk belgesi: okuma .mhnk ve eski .acad; yazma her zaman .mhnk (eski dosyaya dokunulmaz).
-const KINDS = { doc: ['.mhnk', '.acad'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'] };
+const KINDS = { doc: ['.mhnk', '.acad'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'] };
+const SAVE_ONLY = new Set(['nc']);   // NC çıktısı yalnız yazılır; arayüz bu türde dosya açtıramaz
 const DOC_EXT = '.mhnk';
 
 protocol.registerSchemesAsPrivileged([
@@ -52,11 +53,13 @@ let pendingPath = null;              // açılmış ama arayüz yüklemeyi henü
 const settings = {};
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 const validKey = (k) => typeof k === 'string' && /^[A-Za-z][A-Za-z0-9_.]{0,39}$/.test(k);
-const validVal = (v) => v === null || typeof v === 'boolean' || typeof v === 'number' || (typeof v === 'string' && v.length <= 200);
+// CAM tezgâh profilleri ve takım kütüphanesi JSON metni olarak saklanır: bu iki anahtar için üst sınır daha büyüktür.
+const BIG_KEYS = { machines: 1 << 20, toolLibrary: 4 << 20 };
+const validVal = (v, k) => v === null || typeof v === 'boolean' || typeof v === 'number' || (typeof v === 'string' && v.length <= (BIG_KEYS[k] || 200));
 function loadSettings() {
   try {
     const j = JSON.parse(fs.readFileSync(settingsFile(), 'utf8'));
-    if (j && typeof j === 'object' && !Array.isArray(j)) for (const [k, v] of Object.entries(j)) if (validKey(k) && validVal(v)) settings[k] = v;
+    if (j && typeof j === 'object' && !Array.isArray(j)) for (const [k, v] of Object.entries(j)) if (validKey(k) && validVal(v, k)) settings[k] = v;
   } catch (e) { /* dosya yok ya da bozuk: varsayılanlarla başla */ }
 }
 function saveSettings() {
@@ -93,7 +96,7 @@ function applyInstallLang() {
 
 // Arayüzün gönderdiği diyalog metinleri (tek sözlük arayüz tarafında; dil değişince yenilenir)
 const strings = {};
-const STRING_KEYS = ['closeMsg', 'closeDetail', 'closeCancel', 'closeDiscard', 'filterDoc', 'filterStep', 'filterStl', 'filterDxf', 'tSave', 'tOpen', 'tImport', 'tExport'];
+const STRING_KEYS = ['closeMsg', 'closeDetail', 'closeCancel', 'closeDiscard', 'filterDoc', 'filterStep', 'filterStl', 'filterDxf', 'filterNc', 'filterJson', 'tSave', 'tOpen', 'tImport', 'tExport'];
 
 // ---- son kullanılan belgeler: userData/recent.json (yol + zaman); arayüze yalnız ad/klasör/zaman gider, açma dizinle yapılır
 const recentFile = () => path.join(app.getPath('userData'), 'recent.json');
@@ -135,7 +138,7 @@ function readLimited(p) {
 
 function safeFilters(filters, kind, save) {
   const exts = (kind === 'doc' && !save ? KINDS.doc : kind === 'doc' ? [DOC_EXT] : KINDS[kind]).map((e) => e.slice(1));
-  const names = { doc: strings.filterDoc, step: strings.filterStep, stl: strings.filterStl, dxf: strings.filterDxf };
+  const names = { doc: strings.filterDoc, step: strings.filterStep, stl: strings.filterStl, dxf: strings.filterDxf, nc: strings.filterNc, json: strings.filterJson };
   return [{ name: String(names[kind] || kind.toUpperCase()).slice(0, 60), extensions: exts }];
 }
 function safeName(n, kind) {
@@ -190,7 +193,7 @@ function lockdownContents(wc) {
 
 function registerIpc() {
   ipcMain.handle('native:open', guarded(async (ev, kind) => {
-    if (!Object.hasOwn(KINDS, kind)) throw new Error('bad kind');
+    if (!Object.hasOwn(KINDS, kind) || SAVE_ONLY.has(kind)) throw new Error('bad kind');
     const r = await dialog.showOpenDialog(win, { title: titleFor(kind, true), properties: ['openFile'], filters: safeFilters(null, kind, false) });
     if (r.canceled || !r.filePaths.length) return null;
     const p = r.filePaths[0];
@@ -230,7 +233,7 @@ function registerIpc() {
   ipcMain.on('native:dirty', (ev, d) => { if (okSender(ev)) dirty = !!d; });
   // ayarlar: okuma eşzamanlı (arayüz ilk çizimden önce dili bilmeli)
   ipcMain.on('native:getSetting', (ev, k) => { ev.returnValue = okSender(ev) && validKey(k) && Object.hasOwn(settings, k) ? settings[k] : null; });
-  ipcMain.on('native:setSetting', (ev, k, v) => { if (okSender(ev) && validKey(k) && validVal(v)) { settings[k] = v; saveSettings(); } });
+  ipcMain.on('native:setSetting', (ev, k, v) => { if (okSender(ev) && validKey(k) && validVal(v, k)) { settings[k] = v; saveSettings(); } });
   ipcMain.on('native:strings', (ev, o) => { if (okSender(ev) && o && typeof o === 'object') for (const k of STRING_KEYS) if (typeof o[k] === 'string') strings[k] = o[k].slice(0, 400); });
   ipcMain.handle('native:recentList', guarded(async () => liveRecent().map((x) => ({ name: path.basename(x.path), dir: path.dirname(x.path), ms: x.ms }))));
   ipcMain.handle('native:openRecent', guarded(async (ev, i) => {

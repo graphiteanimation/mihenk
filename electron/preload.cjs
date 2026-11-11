@@ -7,7 +7,7 @@ if (location.protocol === 'app:' && location.host === 'atolye') {
   contextBridge.exposeInMainWorld('native', {
     // kind: 'doc' | 'step' | 'stl' → {name, data:Uint8Array} | null (ana süreç diyalog açar)
     openFile: (kind) => ipcRenderer.invoke('native:open', String(kind)),
-    // {saveAs:boolean, data:Uint8Array, defaultName:string, kind:'doc'|'step'|'stl'} → kaydedilen yol | null
+    // {saveAs:boolean, data:Uint8Array, defaultName:string, kind:'doc'|'step'|'stl'|'dxf'|'nc'} → kaydedilen yol | null
     saveFile: (opts) => ipcRenderer.invoke('native:save', opts),
     // belge durumu: 'opened' (az önce açılan dosya yüklendi) | 'new' (yeni belge): geçerli belge yolunu ana süreç günceller
     docState: (s) => ipcRenderer.send('native:docState', String(s)),
