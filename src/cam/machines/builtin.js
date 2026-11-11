@@ -23,12 +23,15 @@ const NEWAY = {
   // Korunan: G54, G56, T1/T3/T12, H1/H3/H12; 4. eksen isi G58; D1/D3/D12 on dolu. Makine projesinden teyit edilmeli.
   protected: { T: [1, 3, 12], H: [1, 3, 12], D: [1, 3, 12], wcs: ['G54', 'G56', 'G58'], noteKey: 'cam.machine.protected_confirm' },
   table: { x: 1200, y: 600 },
+  // post ozellikleri: adlar docs/POST.md bolum 3; bilinmeyen (makine projesinden teyit edilmemis) degerler null.
   post: { props: {
-    tapMode: 'g84-sync-f-pitch',  // G84 senkron (#8159=1), F = adim, M29 gerekmez
-    highSpeedOn: 'G05 P10000', highSpeedOff: 'G05 P0', highSpeed: false,
-    compType: 'II',               // geometri ve asinma ayri
-    aClampOutput: false,          // M10/M11 PLC otomatik
-    dwellAddress: null, dwellUnit: null,
+    safeRetract: null, safeRetractZ: null,
+    dwellAddress: null, dwellUnit: null, cycleDwellAddress: null, cycleDwellUnit: null,
+    coolantCodes: { flood: 'M8', mist: null, air: null, through: null, off: 'M9' },
+    g541Range: null,
+    tapMode: 'pitch', rigidTapM: null, tapR1: true,   // G84 senkron (#8159=1), F = adim, M29 gerekmez
+    rotaryMode: '6a', aSplit180: true,                 // NC A ekseni, kisa yol (#8213=1)
+    highSpeedOn: null, highSpeedOff: null,             // G05 P10000 / G05 P0 mevcut iste kullaniliyor; secenek
   } },
 };
 // Genel 3 eksen (Fanuc tarzi): yalniz yapi; tum sayisal degerler kullanici tarafindan girilmeli.
@@ -39,7 +42,7 @@ const GENERIC = {
   spindle: { maxRpm: null, minRpm: null }, feed: { maxCut: null, rapid: null },
   toolChange: { maxTools: null, kind: 'fixed', pos: null },
   protected: { T: [], H: [], D: [], wcs: [] },
-  post: { props: { dwellAddress: null, dwellUnit: null } },
+  post: { props: {} }, // post varsayilanlari (docs/POST.md)
 };
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
