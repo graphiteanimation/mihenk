@@ -55,3 +55,8 @@ Bu dosya yeni oturumda kaldığı yerden devam etmek için yazıldı. Tek kaynak
 ## Çalıştırma
 `npm install` · `npm run dev` · `npm run test:all` · `npm run dist` (kurulum dosyası; DESIGN.md Electron bölümü).
 Tasarım sözleşmesi: DESIGN.md (v0.2 eki bağlayıcı).
+
+## Yeni oturumda kodu geri yükleme (2026-11-11)
+Kod bu sohbetin çalışma alanındaydı; yeni sohbette o alan YOKTUR. Güncel kopya (git geçmişiyle):
+`Documents\Fusion-Klon-Spec\AtolyeCAD\Mihenk-repo-2026-11-11.zip` → çalışma alanına aç, `npm install`, `npm run test:all`.
+Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("yapıldı / kaldı"). Sonra: CAM → son doğrulama → kılavuz → kurulum 0.2.0 → Docs'a K-016…K-023.
