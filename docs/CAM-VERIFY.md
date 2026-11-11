@@ -4,7 +4,7 @@ Tarih: 2026-11-11 · Kapsam: `src/cam/**` (çekirdek, işlemler, kapılar, IR, p
 arayüzün post akışı (`src/ui/cam/ops.js`, yalnız okundu). Doğrulayıcı kodu yazmadı; `src/**`, `electron/**`, mevcut testler değiştirilmedi.
 Hedef: Neway VM1160H + Mitsubishi M80V. Aranan: "testler geçiyor" değil, **yanlış ama geçerli görünen çıktı**.
 
-> DURUM: YARIDA KESİLDİ (2026-11-11, kullanıcı durdurdu). Tablodaki bulgular doğrulayıcının betikleriyle üretildi; ana model tarafından kodda ayrıca TEYİT EDİLMEDİ. v07_edges, v08_sim, v09_frames, v10_fuzz betiklerinin sonuçları rapora işlenmedi; "sağlam bulunanlar" ve "sınanamayanlar" bölümleri yazılmadı.
+> DURUM: TAMAMLANDI (2026-11-11). Bulgular ana model tarafından kodda teyit edildi ve düzeltildi/ertelendi; ayrıntı, önceki/sonraki betik çıktıları: `docs/CAM-FIXES.md`. v07_edges, v08_sim, v09_frames, v10_fuzz sonuçları ve yeniden koşuda bulunan V-27 aşağıya işlendi. `toolpath.verify.mjs` varsayılan 220 durumla bu oturumda bitirilemedi (~1 durum/dk); ilk 21 durum (aynı tohum) koşuldu.
 
 ## Bulgular
 
@@ -26,3 +26,34 @@ Hedef: Neway VM1160H + Mitsubishi M80V. Aranan: "testler geçiyor" değil, **yan
 | V-12 | Orta | src/cam/sim/index.js:14 (below_stock: warn) | aynı betik | Stok tabanının 15 mm altına (tabla/mengene) inen kontur: `below_stock` yalnız uyarı. (Bu örnekte başka nedenle — V-13 — engellendi; tek başına geçerdi.) | Delme `breakThrough` dışında stok tabanı altı kesmeyi engelleyin ya da açık onay isteyin. |
 | V-13 | Orta | src/cam/sim/index.js:77,84 | aynı betik | Boydan boya G81 (stok tabanı = model tabanı, breakThrough 1): `cam.sim.rapid_in_stock` BLOCK — sim tabana kırptığı hücreyi (h=zFloor) geri çekilmede "stok" sayıyor. Meşru delik/kontur yanlış engelleniyor ve mesaj yanıltıcı; kullanıcıyı simi kapatmaya iter. | Hızlı/çarpışma denetiminde `h <= zFloor` hücreyi boş say. |
 | V-15 | Düşük | src/cam/geom/path2d.js:286 (chainLoops) | `node test/verify/v05_arc.verify.mjs` | 50 mm kenarda 0,001 mm kırık (DXF/kiriş tipik) → dış kontur `cam.geom.offset_failed`. Açık hata (sessiz değil), sağlamlık sorunu. | Ofset öncesi yakın-doğrusal parçaları birleştirin (mergeLoop toleransı ölçekli). |
+| V-17 | Orta | src/cam/ops/common.js (loopFromKernel), src/cam/ops/pocket.js | `node test/verify/v07_edges.verify.mjs` | Kendini kesen (papyon) dış sınır: cep YOL üretiyor (yalnız sol üçgen kesiliyor, sağ üçgen hiç; yalnız rest/unreachable uyarısı), kontur `offset_failed`. Beklenen: belirsiz bölge → açık hata. | Sınırda kendi kendini kesme denetimi → açık hata. |
+| V-19 | Yüksek | src/cam/ops/contour.js:136 (zSel ilk yüzden) | aynı betik | İki yüz (z=−20 ve z=−5) seçilen kontur: ikinci profil kendi tabanının 15 mm altına iniyor; ters sırada z=−20 profili yalnız −5'e iniyor. Hata/uyarı yok (cep aynı durumu `faces_differ_z` ile reddediyor). | Cepteki gibi reddet (ya da profil başına taban). |
+| V-20 | Düşük | src/cam/post/engine.js (createFormat) | aynı betik | 1e21 → `X1e+21.` (bilimsel gösterim NC'ye). Kurs kapısı kurs biliniyorsa yakalar. | Biçimde 'e' çıkarsa hata. |
+| V-21 | Düşük | src/cam/post/fanuc-base.js (onOpen) | aynı betik | Program no 0 → `O0000` (geçersiz), 12345 → `O12345` (4 hane ayarını aşıyor); 8000/9000 korumalı aralık denetlenmiyor. | Geçersiz/haneyi aşan no → hata; korumalı aralık makine verisi. |
+| V-22 | Düşük | src/cam/post/engine.js (writeBlock) | aynı betik | Satır numaralı 11000 hareket: son N=110180 (> 99999, genel Fanuc sınırı, teyit edilmedi); uyarı yok. | Sınırda sar + uyarı ya da hata. |
+| V-23 | Orta | src/cam/post/fanuc-base.js (onCyclePoint, tapMode 'feed') | aynı betik | Fanuc genel, devir 333,4: `S333` ama `G84 … F416.75` → F/S = 1,2515 ≠ adım 1,25 (senkron kılavuzda adım hatası). M80V (F=adım) etkilenmez. | F'yi yazılan (yuvarlanmış) S'den hesapla. |
+| V-23b | Orta | src/cam/post/fanuc-base.js (onSpindleSpeed), src/cam/gates.js | aynı betik | Devir 0,4 geçerli sayılıyor, NC `S0 M3`. | S0'a yuvarlanan devir → block/hata. |
+| V-24 | Orta | src/cam/sim/index.js (touch: hücre merkezi) | `node test/verify/v08_sim.verify.mjs` | res 0,5'te 0,05/0,1/0,2 mm, res 1,3'te 1 mm'ye kadar yanal oyma kaçırılıyor (duvar hücre sınırına hizalı). Kapı 5 "oyma → block" iddiası çözünürlükle sınırlı. | Sınır kullanıcıya açık yazılmalı; tam çözüm alt-hücre/analitik denetim. |
+| V-25 | Düşük | src/cam/post/reader.js:49 | aynı betik (sabit kayıt) | Okuyucu A işaretini postla aynı kuraldan çözüyor (aAngle = sign·A): IR→NC→IR eşitliği V-01'i tanımı gereği göremez. | İşaret tek yerde; fiziksel tutarlılık bağımsız formülle sınanmalı. |
+| V-27 | Orta | src/cam/gates.js:173 (kapı 4, `m.t==='cycle'`) | `node test/verify/v04_program.verify.mjs` (V-07 düzeltmesinden sonra; post artık statik kapıları kendisi koşuyor) | Kesmeyen uçlu (centerCutting=false) kılavuz/rayba/bara çevrimi `plunge_center` ile ENGELLENİYOR: bu çevrimler önceden delinmiş deliğe girer (yanlış engel; kullanıcıyı takım verisini yanlış girmeye iter). | Kapı 4 yalnız delme çevrimlerini (drill/spot/peck/chipbreak) saysın. |
+| V-28 | Orta | src/cam/ops/pocket.js (halka aralığı, keskin halka köşeleri) | `node test/verify/toolpath.verify.mjs 21` | Yüksek stepover'da (örn. d2 so1,87 = %93) halka köşeleri arasında takım merkezinin ulaşabildiği noktalar işlenmemiş (U#3: 297/12825). Sessiz değil: cep `cam.pocket.rest_material` (alan) + `unreachable` uyarısı veriyor (bağımsız denemede 3,36 mm² ↔ köşe kalıntısı 0,8 mm²). | Köşe temizleme hareketi ya da köşe geometrisine bağlı efektif stepover sınırı. |
+| V-29 | Düşük | src/cam/ops/pocket.js (halka/bağlantı) | aynı betik | Cep duvar örneklerinin çok küçük kısmı (örn. 2/4672, 12/13294) istenen yönün (climb/conv) tersinde. Neden incelenmedi. | İncelenmeli. |
+| V-30 | — (yanlış alarm) | src/cam/ops/contour.js (giriş) | `node test/verify/v03_combos.verify.mjs` | `contour_fresh_plunge`: rampasız konturda giriş noktasında stoka dikey dalma. Sözleşme gereği (ramp `plunge` = dikey iniş, merkezden kesen takım); kesmeyen uçta kapı 4 engeller. | Değişiklik yok. |
+
+## Sınanıp sağlam bulunanlar (betik çıktılarından)
+
+- v03_combos: 16 cep/kontur birleşiminde NC yolunda r+pay ihlali yok (en kötü 5,9995 ↔ 6,000 P6, 2,9997 ↔ 3,000 P7, 3,2992 ↔ 3,300 C2 — örnekleme/kiriş düzeyinde), son derinlik hedefte, kademe stepdown'u aşmıyor, rampa/helis açısı istenen açıyı aşmıyor, tırmanma/konvansiyonel yön ters değil; helis/rampa istenen cepte dikey taze dalma yok; wear konturda telafili örneklerin %94,2'si parça konturunda, malzemede 0.
+- v04_program: cep tabanındaki delikte R düzlemi doğru (R −8), kılavuz satırları M80V biçiminde (`G84 … F1.25 ,R1`), geri okunan 5/5 bölüm, diğer lint sorunu yok.
+- v07_edges: 13 geçersiz girdi (stepdown 0/−1, stepover = çap, takım > cep, derinlik 0, pay > derinlik, retract > clearance, retract 0, NaN/metin devir-ilerleme, helis çap/açı 0) açık hata veriyor; CW verilen dış döngü konturu parçaya girmiyor (V-18 temiz).
+- v08_sim: taban oyması 0,02 mm yakalanıyor; stok içinden yatay hızlı yakalanıyor; kesici boyu aşımı ve tutucu çarpması yakalanıyor.
+- v09_frames: 24 eksen birleşiminde setup çerçevesi sorunsuz (V-26).
+- v10_fuzz: 12 rastgele koşuda hata kodu yok, oyma yok (en kötü min uzaklık − (r+pay) = −0,00000 mm).
+- toolpath.verify (ilk 21 durum): kontur ve cepte r+pay duvar ihlali görülmedi; başarısızlıklar yalnız V-28/V-29 türünde.
+
+## Sınanamayanlar
+
+- Gerçek tezgâh davranışı: A yönü (axes.A.dir) ve A kelimesinin fiziksel anlamı, güvenli Z yöntemi (G28/G53), G04 adres/birimi, N ve O numarası sınırları/korumalı aralıklar (8000/9000), G05 P10000 çıktısı — makine projesinde, işaretli parçayla.
+- Fikstür/mengene/tabla çarpışması (V-14: stok kutusu dışında bilgi yok), alt kesme, yan yönden kesim, aynı setup içinde A≠0 kesim.
+- Simülasyonun res/2 altı yanal oyması (V-24; tasarım sınırı).
+- Arayüz akışı ve Electron NC kaydı (başka ajan ayrı kopyada sınıyor); tarayıcı testleri ve test/models/run-all bu çalışmada koşulmadı.
+- `toolpath.verify.mjs` tam 220 durum (süre).
