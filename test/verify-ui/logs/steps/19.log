@@ -1,0 +1,76 @@
+1: güvenlik duruşu (sandbox, CSP, ağ, izinler, gezinti, IPC)
+  ok    webPreferences: sandbox:true, contextIsolation, nodeIntegration kapalı
+  ok    sayfa app://atolye/ kökeninde
+  ok    Node globalleri renderer'da yok
+  ok    köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler
+  ok    CSP yanıt başlığı = electron/csp.cjs
+  ok    CSP meta etiketi = başlık
+  ok    ana betik de aynı sıkı CSP'yi alır (unsafe-eval yok)
+  ok    yalnız çekirdek işçisi betiği unsafe-eval alır
+  ok    satır içi betik / olay işleyicisi ÇALIŞMADI
+  ok    dış fetch (127.0.0.1 ve https) engellendi
+  ok    WebSocket engellendi
+  ok    webRequest: CSP'den bağımsız (ana süreç oturumu) dış istek iptal
+  ok    webRequest: file:// isteği iptal
+  ok    sunucuya hiçbir istek ulaşmadı
+  ok    izinler reddedildi (bildirim, konum, kamera)
+  ok    window.open reddedildi, yeni pencere yok
+  ok    drop olayı varsayılan eylemi iptal edildi
+  ok    gezinti engellendi: http://127.0.0.1:45569/evil
+  ok    gezinti engellendi: file:///etc/hostname
+  ok    gezinti engellendi: https://example.com/
+  ok    gezinti sonrası sunucuya istek yok
+  ok    <webview> işlevsiz
+  ok    IPC: yol anahtarlı / geçersiz tür / geçersiz veri çağrıları REDDEDİLDİ
+  ok    IPC: yol gönderilerek dosya YAZILAMADI
+  ok    IPC gönderen doğrulaması: app:// dışı çerçeve tüm invoke çağrılarında reddedildi
+  ok    IPC gönderen doğrulaması: yetkisiz setSetting / setTitle etkisiz
+  ok    IPC gönderen doğrulaması: başlık değişmedi
+  ok    preload köprüsü app:// dışında kurulmaz (data: sayfada window.native yok)
+  ok    app:// yol kaçışı: dist-secret kardeş dizini ve üst dizin okunamaz
+  ok    F12 geliştirmede çalışır (paketlenmemiş); paketliyken devTools:false + F12 işleyicisi yok (kaynak denetimi)
+2: dosya akışı (diyalog yolu, geçerli belge yolu, .bak, hata)
+  ok    ilk Kaydet: diyalog açıldı, dosya yazıldı
+  ok    ikinci Kaydet: diyalog YOK (ana süreçteki geçerli belge yolu), dosya güncellendi
+  ok    .bak = bir önceki sürüm
+  ok    kayıt sonrası geçici dosya kalmadı
+  ok    Farklı Kaydet: diyalog açıldı, yeni yola yazıldı
+  ok    Farklı Kaydet sonrası Kaydet yeni yola yazar (diyaloğ yok)
+  ok    Yeni belgeden sonra Kaydet diyalog açar (önceki dosyanın üzerine yazmaz)
+  ok    Aç: dosya yüklendi
+  ok    Aç sonrası Kaydet açılan dosyaya yazar (diyalog yok)
+  ok    şema geçersiz dosya: anlaşılır uyarı, mevcut belge DEĞİŞMEDİ
+  ok    şema geçersiz dosya açılamayınca Kaydet o dosyanın üstüne yazmaz
+  ok    yazma hatası: toast gösterildi, dizin/dosya oluşmadı
+  ok    STEP dışa aktar: diyalog + uzantı zorlandı + geçerli STEP
+2b: eski .acad açılır, .mhnk olarak kaydedilir
+  ok    .acad (app: AtolyeCAD) açıldı
+  ok    .acad açıkken Kaydet: diyalog açıldı, .mhnk yazıldı (app=Mihenk), eski dosya aynı
+  ok    uzantısız kayıt adına .mhnk eklenir (.acad eklenmez)
+  ok    son kullanılanlar: kaydedilen .mhnk listede, açma dizinle
+  ok    DXF dosya türü: kayıt diyaloğu .dxf yazar
+  ok    DXF dosya türü: açma diyaloğu .dxf kabul eder
+2c: eski ayar klasörü kopyalanır
+  ok    eski settings.json yeni klasöre kopyalandı, dil uygulandı
+  ok    eski klasör SİLİNMEDİ
+3: otomatik kurtarma (temiz kapanış, çökme, sor)
+  ok    temiz belgede kurtarma yazılmaz
+  ok    60 sn zamanlayıcı kurulu
+  ok    değişiklik varken kurtarma dosyası yazıldı
+  ok    temiz kapanışta kurtarma dosyası SİLİNDİ
+  ok    temiz kapanıştan sonra açılışta soru çıkmaz
+  ok    kurtarma yeniden yazıldı
+  ok    çökme (SIGKILL) sonrası kurtarma dosyası kaldı
+  ok    açılışta kullanıcıya soruldu (iki dilli metin)
+  ok    Kurtar: belge geri geldi, değişmiş (dirty) durumda, geometri hesaplandı
+  ok    kurtarma dosyası kaydedilene kadar saklanır
+  ok    kaydedince kurtarma dosyası silindi
+  ok    Sil: kurtarma dosyası silindi, boş belgeyle açıldı
+4: kurulum dili aktarımı
+  ok    kurulum dili en: ilk açılış dili en
+  ok    kurulum dili tr: ilk açılış dili tr
+  ok    kayıtlı kullanıcı tercihi kurulum dilini ezer
+5: öz-test
+  ok    Electron öz-testi (sandbox:true) GEÇTI
+
+67 geçti, 0 kaldı

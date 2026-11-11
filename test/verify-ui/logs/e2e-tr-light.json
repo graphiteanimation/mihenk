@@ -1,0 +1,97 @@
+{
+ "lang": "tr",
+ "theme": "light",
+ "steps": [
+  {
+   "step": "t01-eskiz-duzlem-sec",
+   "ok": true,
+   "err": "",
+   "sec": 2.0,
+   "shot": "test/verify-ui/shots/tr-light-01-t01-eskiz-duzlem-sec.png"
+  },
+  {
+   "step": "t02-dikdortgen-daire-ciz",
+   "ok": true,
+   "err": "",
+   "sec": 5.2,
+   "shot": "test/verify-ui/shots/tr-light-02-t02-dikdortgen-daire-ciz.png"
+  },
+  {
+   "step": "t03-eskiz-bitir",
+   "ok": true,
+   "err": "",
+   "sec": 1.2,
+   "shot": "test/verify-ui/shots/tr-light-03-t03-eskiz-bitir.png"
+  },
+  {
+   "step": "t04-extrude-paneli",
+   "ok": true,
+   "err": "",
+   "sec": 1.4,
+   "shot": "test/verify-ui/shots/tr-light-04-t04-extrude-paneli.png"
+  },
+  {
+   "step": "t05-extrude-tamam",
+   "ok": true,
+   "err": "",
+   "sec": 1.1,
+   "shot": "test/verify-ui/shots/tr-light-05-t05-extrude-tamam.png"
+  }
+ ],
+ "cand": [
+  {
+   "tag": "t03-eskiz-bitir",
+   "kind": "kırpılma",
+   "detail": [
+    [
+     "l",
+     "Taşı/Kopyala",
+     72,
+     64,
+     ""
+    ]
+   ]
+  },
+  {
+   "tag": "t04-extrude-paneli",
+   "kind": "kırpılma",
+   "detail": [
+    [
+     "l",
+     "Taşı/Kopyala",
+     72,
+     64,
+     ""
+    ]
+   ]
+  },
+  {
+   "tag": "t05-extrude-tamam",
+   "kind": "kırpılma",
+   "detail": [
+    [
+     "l",
+     "Taşı/Kopyala",
+     72,
+     64,
+     ""
+    ]
+   ]
+  }
+ ],
+ "notes": [
+  "eskiz1: {\"points\": 5, \"ents\": 5, \"cons\": 4, \"seq\": 13}",
+  "eskiz1 noktalar: [[0, 0], [100, 60], [100, 0], [0, 60], [80, 30]]",
+  "t05 sonrası: sketch:sk1,extrude:ext1 gövde=1 durum={\"sk1\":{\"ok\":true,\"bodies\":[]},\"ext1\":{\"ok\":true,\"bodies\":[\"ext1\"]}}"
+ ],
+ "console": [
+  "warning: THREE.Color: Invalid hex color #1f6fd157",
+  "warning: THREE.Color: Invalid hex color #1f6fd157",
+  "warning: THREE.Color: Invalid hex color #1f6fd157",
+  "warning: THREE.Color: Invalid hex color #1f6fd157",
+  "warning: [.WebGL-0x1afc0016ca00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+  "warning: [.WebGL-0x1afc0016ca00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+  "warning: [.WebGL-0x1afc0016ca00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+  "warning: [.WebGL-0x1afc0016ca00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+ ]
+}

@@ -1,0 +1,138 @@
+sekme geçişi
+  ok    İmalat sekmesi etkin (devre dışı değil)
+  ok    Çizim sekmesi hâlâ "yakında"
+  ok    sekme: mod cam, sekme seçili
+  ok    şerit değişti (Yeni setup, Yüzey, Cep, Post işle var)
+  ok    tarayıcı: Tezgâhlar / Setup ve işlemler / Takımlar bölümleri
+  ok    alt çubuk simülasyon çubuğu
+  ok    durum çubuğu: İmalat kipi + DOĞRULANMADI düğmesi
+  ok    belge ve görünüm korundu (gövde, kamera)
+  ok    Tasarım sekmesine dönüş: şerit eski haline
+  ok    konsol hatası yok
+tezgâh yönetimi
+  ok    yönetici: 2 yerleşik şablon, eksik değer sayısı görünür
+  ok    yerleşik şablonda sil/düzenle yok, kopyala var
+  ok    kopyalama: düzenleyici açıldı
+  ok    düzenleyici: ad alanı kopya adı
+  ok    boş değerler "doldurulmalı" ile vurgulu (maxRpm, ilerleme sınırı)
+  ok    değer girilince vurgu kalkar
+  ok    dokunulmaz liste ön dolu (T 1,3,12; H 1,3,12; D 1,3,12) ve teyit notu var
+  ok    post: boş alanlar vurgulu ve nedeni yazıyor
+  ok    kullanıcı profili kaydedildi (localStorage)
+  ok    post özelliği kaydedildi
+  ok    yönetici yeniden açıldı, 3 satır
+  ok    tezgâh seçimi doc.cam.machineId olur
+  ok    tarayıcıda seçili tezgâh radyosu
+  ok    silme onayı danger penceresi
+  ok    silindi; seçili tezgâh varsayılana döndü
+takım kütüphanesi ve dokunulmaz numara
+  ok    takım yöneticisi boş belge listesi
+  ok    yeni takım numarası dokunulmazları atlar (T2: 1,3,12 dışında ilk boş)
+  ok    T3 dokunulmaz: alanın altında anında uyarı
+  ok    uyarı kutusu (callout) görünür
+  ok    H12 için de uyarı
+  ok    uyarılar numara değişince kalkar
+  ok    geçersiz sayı: kırmızı alan + ne yapılacağı
+  ok    takım doc.cam.tools içine yazıldı (preset dahil)
+  ok    yönetici yeniden açıldı, satır T5
+  ok    kopya: numara çakışmaz (T6), düzenleyici açık
+  ok    iki belge takımı
+  ok    aynı numara iki takımda: kaydedilemez (belge kapsamı)
+  ok    pencere hâlâ açık (kayıt engellendi)
+  ok    kütüphaneye kaydet (localStorage)
+  ok    kütüphane kapsamı 1 satır
+  ok    dışa aktarma: biçim ve takım sayısı
+  ok    içe aktarma: geçerli alındı, geçersiz atlandı + bildirim
+  ok    tarayıcıda Takımlar bölümü satırları
+  ok    geri al doc.cam.tools değişikliğini geri alır
+  ok    konsol hatası yok
+setup, geri al, kayıt, dil
+  ok    model yokken değil: Yeni setup açık
+  ok    setup oluştu: varsayılan iş sıfırı dokunulmaz G54/G56/G58 dışında (G55)
+  ok    setup panelinde çözüm özeti (stok 84 × 64 × 22)
+  ok    G54 dokunulmaz: anında uyarı
+  ok    panel Tamam: stok üst payı ve orijin yazıldı
+  ok    stok satırı ölçüyü gösterir (84×64×25)
+  ok    setup satırına tıklayınca panel açılır
+  ok    Esc paneli kapatır
+  ok    geri al: stok üst payı eski değere döner
+  ok    yinele: yeniden 5
+  ok    kayıt/açma: doc.cam korunur (şema doğrulamasından geçer)
+  ok    açılıştan sonra mod cam kalır, tarayıcı setup gösterir
+  ok    EN: sekme, şerit, tarayıcı, durum çubuğu çevrildi
+  ok    EN: takım yöneticisi
+  ok    EN: setup paneli
+  ok    TR'ye dönünce panel de TR
+  ok    konsol hatası/eksik anahtar yok
+işlem paneli, hesap, simülasyon, post
+  ok    örnek parça kuruldu (cep + 4 delik)
+  ok    Yüzey/Kontur/Cep/Delme komutları setup sonrası açık
+  ok    yüzey paneli: 4 sekme (Takım/Geometri/Yükseklikler/Pasolar)
+  ok    takım atanmış, ön ayar devir/ilerlemeyi doldurdu (T1, 8000, 1500)
+  ok    devir alanı birimiyle (dev/dk) gösterilir
+  ok    yanal adım ön ayardan 7
+  ok    yanal adım ≥ takım çapı: anında uyarı
+  ok    geçersiz adım: hesap hatası net bir cümle (op-result err)
+  ok    yüzey yolu hesaplandı: hareket sayısı gösterilir
+  ok    yol görünümde: hızlı/kesme çizgileri
+  ok    işlem belgeye yazıldı, rozet Tamam (kaydedilen = hesaplanan)
+  ok    cep tabanı yüzü bulundu
+  ok    seçilen yüz listede
+  ok    giriş açısı boşken: alan kırmızı (aria-invalid), hesap başlamaz
+  ok    cep yolu hesaplandı
+  ok    delme: takım matkap otomatik atandı
+  ok    delik listesi: 4 delik
+  ok    gövde dış sınırı seçildi
+  ok    ön ayar seçilmeden kesme verileri boş, işaretli
+  ok    kontur (silüet) yolu hesaplandı
+  ok    4 işlem var
+  ok    hepsi hesaplandı: 4 rozet Tamam
+  ok    lejant ve yol göster anahtarı
+  ok    görünümde 4 işlemin yolu
+  ok    işlem değişince rozet "Eski", durum çubuğunda sayaç
+  ok    yeniden hesapla: Eski kalkar
+  ok    eskiz seçimi: eskiz listesi ve bölge katmanı
+  ok    eskiz profili listede
+  ok    eskiz profili cebi hesaplandı
+  ok    bölgeye yeniden tıklayınca seçim kalkar; sonuç eski sayılır
+  ok    yeni işlemde İptal: işlem eklenmez
+  ok    simülasyon çubuğu: kaydırıcı, oynat, adım, hız
+  ok    stok ağı ve takım görünümde
+  ok    adım: sayaç 2
+  ok    kaydırıcı ileri: kaldırılan hacim arttı
+  ok    kaydırıcı geri: hacim azaldı (yeniden kurulum)
+  ok    oynat: ilerliyor
+  ok    sorun listesi düğmesi
+  ok    sorun penceresi açıldı
+  ok    sorun satırına tıklayınca modal kapanır
+  ok    simülasyon kapanınca stok ağı kalkar
+post, NC, doğrulama, engel
+  ok    boş alanlı yeni işlemler: yol hesaplanmadan Post uyarı verir ya da hata listesi açar
+  ok    çalıştırılabilir NC üretildi (NC penceresi açıldı)
+  ok    NC önizleme: satırlar listelendi
+  ok    DOĞRULANMADI rozeti kalıcı (önizlemede ve metinde)
+  ok    NC içeriği: O1000, T1, T3, G54, program sonu
+  ok    satıra tıklayınca hareket görünümde vurgulanır (selG)
+  ok    program numarası değişti (O2000)
+  ok    geçersiz program numarası: metin değişmedi
+  ok    Kaydet hata vermedi
+  ok    NC kodu komutu açıldı (cam-nc etkin)
+  ok    geçerli senaryoda durum çubuğu DOĞRULANMADI
+  ok    ad/not/onay boşken doğrulama reddedilir (modal açık, ileti var)
+  ok    onay kutusu işaretlenmeden hâlâ reddedilir
+  ok    doğrulama kaydı doc.cam.verified (ad, tarih, not)
+  ok    durum çubuğu: Doğrulandı
+  ok    doğrulanmış NC başlığında "VERIFIED BY Usta"
+  ok    "DOĞRULANMADI" post rozeti doğrulamada da kalır
+  ok    belge değişince doğrulama düşer
+  ok    geri al: belge eski haline dönünce doğrulama yeniden geçerli
+  ok    kapı engeli: NC üretilmedi, hata satırı var
+  ok    engel satırı işlem adını ve nedeni içerir
+  ok    cam-nc komutu kapalı (NC yok)
+  ok    satıra tıklayınca ilgili işlem paneli açılır
+  ok    EN: işlem paneli çevrildi
+  ok    EN: işlem rozeti ve durum çubuğu
+  ok    şablon tezgâh: eksik değerler NC üretimini engeller
+  ok    konsol hatası yok (işlem akışı)
+
+130 geçti, 0 kaldı

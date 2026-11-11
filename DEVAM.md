@@ -93,3 +93,13 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
   İkisi de kod düzeltmez; bulgular sonra yazan ajanlara düzelttirilir.
 - Sonra: kılavuz TR/EN + OKUBENI → sürüm 0.3.0 + `npm run dist` + SHA-256 → Docs'a K-016…K-023 + aşama kayıtları → klasöre aktarım.
 - Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-11f.zip'ten geri yükle, bağımsız CAM doğrulamasından devam et."
+
+## Durum — 2026-11-11 akşam (bağımsız doğrulama YARIM; kod kopyası Mihenk-repo-2026-11-11g.zip)
+- İki doğrulayıcı kullanıcı tarafından durduruldu. Kod DEĞİŞMEDİ (yalnız docs/ ve test/verify*/ eklendi).
+- test:all zincirinin 19 adımı tek tek koşuldu, hepsi geçti (docs/CAM-UI-VERIFY.md). Uçtan uca arayüz senaryosu YAPILMADI.
+- docs/CAM-VERIFY.md: 13 bulgu (1 Kritik V-01 A ekseni işareti Neway dir=[-1,0,0]; Yüksek V-02 ilk bölümde A yazılmıyor, V-05 mikro yay → tam daire,
+  V-06 model haritası yokken sim oymayı denetlemiyor, V-09 kesmeyen uçla köprü sonrası düz dalma; Orta V-04/07/08/10/11/12/13; Düşük V-05b/15).
+  Ana model bulguları kodda TEYİT ETMEDİ. test/verify/v07…v10 betiklerinin sonuçları rapora işlenmedi.
+- SIRADAKİ: (1) V-01…V-15'i betiklerle teyit et, v07–v10'u koşup rapora ekle; (2) uçtan uca arayüz doğrulaması (TR/EN); (3) düzeltmeleri yazan ajanlara yaptır;
+  (4) kılavuz TR/EN + OKUBENI → 0.3.0 + dist + SHA-256 → Docs'a K-016…K-023 + aşama kayıtları.
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-11g.zip'ten geri yükle, CAM-VERIFY bulgularını teyit edip düzeltmelere geç."

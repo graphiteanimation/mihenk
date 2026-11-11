@@ -1,0 +1,20 @@
+part-a.mjs               20 geçti    0 kaldı  2s
+part-b.mjs               26 geçti    0 kaldı  1.9s
+part-c.mjs               24 geçti    0 kaldı  2.2s
+part-d.mjs               22 geçti    0 kaldı  2.6s
+part-e.mjs               20 geçti    0 kaldı  2.3s
+part-f.mjs               27 geçti    0 kaldı  2.9s
+part-g.mjs               41 geçti    0 kaldı  3.8s
+part-h.mjs              144 geçti    0 kaldı  132.3s
+param-sweep.mjs         180 geçti    0 kaldı  56.3s
+param-random.mjs        250 geçti    0 kaldı  90.1s
+ref-adversarial.mjs      24 geçti    0 kaldı  3.5s
+naming.mjs               52 geçti    0 kaldı  4.5s
+edge-cases.mjs          219 geçti    0 kaldı  7.2s
+measure.mjs              61 geçti    0 kaldı  1.2s
+profiles.mjs             88 geçti    0 kaldı  0.5s
+feature-geo.mjs          56 geçti    0 kaldı  1.7s
+state-bugs.mjs           12 geçti    0 kaldı  2.4s
+perf.mjs                 16 geçti    0 kaldı  68.8s
+
+TOPLAM: 1282 denetim, 1282 geçti, 0 kaldı, 0 dosya sonuç üretmedi

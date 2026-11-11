@@ -1,0 +1,36 @@
+# Gerçek arayüz akışı: 100x60x20 blok, üstte 40x30x8 cep, 4 adet M6 diş deliği, 1 düz delik.
+from lib import *
+def build_part(pg, prefix, log=print):
+    pg.click('[data-testid=dd-prim]'); pg.click('[data-cmd=box]')
+    pg.fill('#panel [data-k=w]', '100'); pg.fill('#panel [data-k=d]', '60'); pg.fill('#panel [data-k=h]', '20')
+    pg.click('[data-testid=panel-ok]'); time.sleep(1.0); shot(pg, prefix + '-01-blok')
+    # --- cep eskizi (üst yüz)
+    pg.click('#toolbar [data-cmd=sketch]'); time.sleep(.3); pg.mouse.click(850, 470); time.sleep(1.5)
+    pg.click('#toolbar [data-cmd=rect]'); pg.mouse.click(602, 564); pg.mouse.move(700, 500); pg.mouse.click(778, 432); time.sleep(.4)
+    shot(pg, prefix + '-02-cep-eskizi')
+    pg.click('[data-testid=sk-finish], #toolbar [data-cmd=sk-finish]'); time.sleep(1.0)
+    # --- cep (extrude, kes)
+    pg.click('#toolbar [data-cmd=extrude]'); time.sleep(.6); shot(pg, prefix + '-03-extrude-paneli')
+    pg.fill('#panel [data-k=dist]', '8'); pg.click('[data-testid=panel-ok]'); time.sleep(1.2); shot(pg, prefix + '-04-cep-acildi')
+    # --- delik eskizi (üst yüzün cep dışındaki halkası): 4 köşe + 1 orta nokta
+    pg.click('#toolbar [data-cmd=sketch]'); time.sleep(.3); pg.mouse.click(700, 425); time.sleep(1.5)
+    pg.click('#toolbar [data-cmd=dd-draw]'); time.sleep(.2); pg.click('[data-cmd=point]')
+    for (x, y) in [(10, 10), (90, 10), (10, 50), (90, 50)]:
+        pg.mouse.click(470 + x * 4.4, 630 - y * 4.4); time.sleep(.15)
+    time.sleep(.3); shot(pg, prefix + '-05-delik-eskizi')
+    pg.click('[data-testid=sk-finish], #toolbar [data-cmd=sk-finish]'); time.sleep(1.0)
+    pg.click('#toolbar [data-cmd=hole]'); time.sleep(.6)
+    pg.select_option('#panel [data-k=thread]', 'M6'); time.sleep(.4)
+    log('M6 secilince cap alani:', pg.input_value('#panel [data-k=dia]'), '| ek alanlar:', pg.evaluate("[...document.querySelectorAll('#panel [data-k]')].map(e=>e.dataset.k+'='+(e.value||'')).join(' ')"))
+    pg.fill('#panel [data-k=depth]', '12'); time.sleep(.3); shot(pg, prefix + '-06-delik-paneli-M6')
+    pg.click('[data-testid=panel-ok]'); time.sleep(1.5); shot(pg, prefix + '-07-disli-delikler')
+    # --- düz delik: ayrı eskiz, tek nokta (50,50)
+    pg.click('#toolbar [data-cmd=sketch]'); time.sleep(.3); pg.mouse.click(700, 425); time.sleep(1.5)
+    pg.click('#toolbar [data-cmd=dd-draw]'); time.sleep(.2); pg.click('[data-cmd=point]')
+    pg.mouse.click(470 + 50 * 4.4, 630 - 52.5 * 4.4); time.sleep(.3)
+    pg.click('#toolbar [data-cmd=sk-finish]'); time.sleep(1.0)
+    pg.click('#toolbar [data-cmd=hole]'); time.sleep(.6)
+    pg.fill('#panel [data-k=dia]', '8'); pg.fill('#panel [data-k=depth]', '10')
+    pg.click('[data-testid=panel-ok]'); time.sleep(1.5); pg.click('[data-cmd=iso]') if pg.locator('[data-cmd=view-iso]').count() == 0 else pg.click('[data-cmd=view-iso]'); time.sleep(.8)
+    shot(pg, prefix + '-08-parca-tamam'); log('delik z:', pg.evaluate('JSON.stringify(app.result.holes.map(h=>h.positions[0]))'))
+    return pg
