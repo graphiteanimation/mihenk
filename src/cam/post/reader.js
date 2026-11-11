@@ -86,7 +86,7 @@ export function readNC(text, opts = {}) {
     const cm = rawLine.match(/\(([^)]*)\)/g) || [];
     let body = rawLine.replace(/\([^)]*\)/g, ' ');
     if (/[()]/.test(body)) fail('cam.post.read_unknown_word', ln, { text: 'paren' });
-    for (const c of cm) { const t = c.slice(1, -1); if (/^OP \d+:/.test(t)) S.opComment = t.replace(/^OP \d+:\s*/, '').replace(/\s*\[.*$/, ''); }
+    for (const c of cm) { const t = c.slice(1, -1); if (/^PROGRAM /.test(t)) S.program.name = t.slice(8); if (/^OP \d+:/.test(t)) S.opComment = t.replace(/^OP \d+:\s*/, '').replace(/\s*\[.*$/, ''); }
     body = body.trim();
     if (!body || body === '%') return;
     const words = tokenize(body, ln).filter((w) => w.l !== 'N');
@@ -249,5 +249,5 @@ export function readNC(text, opts = {}) {
   // M30 satirinda hareket yoksa
   finishCycle(rawLines.length);
   finalize();
-  return { program: { name: S.program.name, number: S.program.number, machine: opts.machine?.id ?? null, units: 'mm', sections }, events, lineMap };
+  return { program: { name: S.program.name || 'READ', number: S.program.number, machine: opts.machine?.id ?? null, units: 'mm', sections }, events, lineMap };
 }

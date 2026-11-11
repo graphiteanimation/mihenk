@@ -11,7 +11,7 @@ export { createHeightmap, cloneHeightmap, heightmapFromFn, sampleHeightmap, volu
 export { toolGeom } from './tool.js';
 
 const err = (code, params = {}) => new KErr(code, params);
-const LEVEL = { rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'warn' };
+const LEVEL = { comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'warn' };
 const CODE = (k) => 'cam.sim.' + k;
 
 export function createSim(input, opts = {}) {
@@ -46,7 +46,7 @@ export function createSim(input, opts = {}) {
     const sec = sections[si], tp = sec.toolpath;
     const id = sec.setup?.id ?? 'default';
     const tool = { ...tp.tool, ...(opts.tools?.[tp.tool.number] || {}), ...(opts.tool || {}) };
-    cur = { si, tp, setup: setupFor(id), geom: toolGeom(tool), pos: null, acc: null, move: 0 };
+    cur = { si, tp, setup: setupFor(id), geom: toolGeom(tool), pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null };
   }
 
   function note(code, depth, px, py, pz) {
@@ -103,12 +103,56 @@ export function createSim(input, opts = {}) {
     for (const p of parts) { sweep(cur.pos, p, 0); cur.pos = { x: p.x, y: p.y, z: p.z }; }
   }
 
+  // Wear telafisi (G41/G42): programlanan yol = parca konturu; kontrol takimi yaricap kadar ofsetler.
+  // Dogru parca: dogrusal bolum -> normal yonunde R; yay -> yaricap r -/+ R (merkez ayni). Kose gecisleri (teget olmayan) duz sweep ile baglanir.
+  // Sinir: telafi yaricapi = takim yaricapi (aşinma farki 0); teget olmayan kose yuvarlama/kesisim modellenmez.
+  function offsetFor(p0, m) {
+    const g = cur.geom, side = cur.tp.compSide === 'left' ? 1 : -1;
+    if (m.t === 'feed') {
+      const dx = m.x - p0.x, dy = m.y - p0.y, L = Math.hypot(dx, dy);
+      if (L < 1e-9) return { s: { x: p0.x, y: p0.y }, e: { x: m.x, y: m.y } };
+      const nx = -dy / L * side * g.R, ny = dx / L * side * g.R;
+      return { s: { x: p0.x + nx, y: p0.y + ny }, e: { x: m.x + nx, y: m.y + ny } };
+    }
+    return null;
+  }
+  function arcComp(p0, m) {
+    const g = cur.geom, side = cur.tp.compSide === 'left' ? 1 : -1;
+    const cx = p0.x + m.i, cy = p0.y + m.j, r = Math.hypot(m.i, m.j);
+    const rt = m.dir === 'cw' ? r + side * g.R : r - side * g.R;
+    if (!(rt > 1e-6)) return null;
+    const k = rt / r;
+    const s = { x: cx + (p0.x - cx) * k, y: cy + (p0.y - cy) * k }, e = { x: cx + (m.x - cx) * k, y: cy + (m.y - cy) * k };
+    return { s, e, m: { ...m, x: e.x, y: e.y, i: cx - s.x, j: cy - s.y } };
+  }
+  function toolArc(startPos, m) {
+    for (const p of sampleArc(startPos, m, 0.002)) { const q = { x: p[0], y: p[1], z: p[2] }; sweep(cur.pos, q, 1); cur.pos = q; }
+  }
+
   function doMove(m) {
-    if (m.t === 'rapid') rapidTo(m);
-    else if (m.t === 'feed') { sweep(cur.pos, m, 1); cur.pos = { x: m.x, y: m.y, z: m.z }; }
-    else if (m.t === 'arc') {
-      const start = cur.pos;
-      for (const p of sampleArc(start, m, 0.002)) { const q = { x: p[0], y: p[1], z: p[2] }; sweep(cur.pos, q, 1); cur.pos = q; }
+    if (m.t === 'comp') { cur.compPend = m.on; return; }
+    if (m.t === 'rapid') { rapidTo(m); cur.prog = { x: m.x, y: m.y, z: m.z }; }
+    else if (m.t === 'feed') {
+      const wantOn = cur.compPend; cur.compPend = null;
+      if (cur.compOn || wantOn) {
+        const o = offsetFor(cur.prog, m);
+        let to;
+        if (wantOn === false) to = { x: m.x, y: m.y, z: m.z };              // G40: son blokta ofset kalkar
+        else to = { x: o.e.x, y: o.e.y, z: m.z };
+        if (cur.compOn && wantOn !== false) { sweep(cur.pos, { x: o.s.x, y: o.s.y, z: cur.pos.z }, 1); cur.pos = { x: o.s.x, y: o.s.y, z: cur.pos.z }; }
+        sweep(cur.pos, to, 1); cur.pos = to;
+        if (wantOn === true) cur.compOn = true; else if (wantOn === false) cur.compOn = false;
+      } else { sweep(cur.pos, m, 1); cur.pos = { x: m.x, y: m.y, z: m.z }; }
+      cur.prog = { x: m.x, y: m.y, z: m.z };
+    } else if (m.t === 'arc') {
+      if (cur.compOn) {
+        const c = arcComp(cur.prog, m);
+        if (!c) { note('comp_arc_collapse', 0, m.x, m.y, m.z); cur.prog = { x: m.x, y: m.y, z: m.z }; return; }
+        const s0 = { x: c.s.x, y: c.s.y, z: cur.pos.z };
+        sweep(cur.pos, s0, 1); cur.pos = s0;
+        toolArc(s0, c.m);
+      } else toolArc(cur.pos, m);
+      cur.prog = { x: m.x, y: m.y, z: m.z };
     } else if (m.t === 'cycle') {
       m.points.forEach((p, n) => {
         const last = n === m.points.length - 1;
@@ -117,6 +161,7 @@ export function createSim(input, opts = {}) {
         const b = { x: p[0], y: p[1], z: m.bottom }; sweep(cur.pos, b, 1); cur.pos = b;
         rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance ? m.clearance : m.retract });
       });
+      const lp = m.points[m.points.length - 1]; cur.prog = { x: lp[0], y: lp[1], z: m.clearance };
     }
   }
 
