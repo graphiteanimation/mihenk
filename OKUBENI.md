@@ -1,26 +1,30 @@
-# Mihenk CAD/CAM 0.2.0
+# Mihenk CAD/CAM 0.3.0
 
-Parametrik CAD programı (önceki adı AtolyeCAD). Bu sürümde yalnız CAD vardır: CAM, post, montaj ve teknik resim yok. Dosya uzantısı `.mhnk`; eski `.acad` dosyaları açılır, kaydedince `.mhnk` yazılır (özgün dosyaya dokunulmaz).
+Parametrik CAD/CAM programı (önceki adı AtolyeCAD). Hedef makine: Neway VM1160H + Mitsubishi M80V + GSA bölme başlığı (A ekseni). Dosya uzantısı `.mhnk`; eski `.acad` dosyaları yalnız açılır.
+
+**NC çıktısı makinede DOĞRULANMAMIŞTIR.** Her programı önce simülasyonda ve makinede havada, tek blok ile deneyin. A ekseni yönü makinede teyit edilmedi. Ayrıntı: kılavuzun GÜVENLİK bölümü.
 
 ## Kurulum
-`Mihenk-Kurulum-0.2.0.exe` dosyasını çalıştırın. Yönetici izni istemez; `%LOCALAPPDATA%\Programs\Mihenk` altına kurulur, masaüstüne kısayol koyar. Dosya imzasız olduğu için Windows SmartScreen "Windows kişisel bilgisayarınızı korudu" diyebilir: "Ek bilgi" → "Yine de çalıştır".
+1. `Mihenk-Kurulum-0.3.0.exe` dosyasını çalıştırın. Yönetici izni istemez; `%LOCALAPPDATA%\Programs\Mihenk` altına kurulur.
+2. Dosya imzasızdır. SmartScreen uyarırsa: "Ek bilgi" → "Yine de çalıştır".
+3. Çalıştırmadan önce dosyanın SHA-256 değerini `SHA256SUMS.txt` içindeki satırla karşılaştırın (PowerShell: `Get-FileHash .\Mihenk-Kurulum-0.3.0.exe`). Değerler aynı değilse dosyayı kullanmayın.
 
-## İlk parça
-1. **Sketch** → XY düzlemine tıklayın → **Dikdörtgen** ile çizin → **Ölçü** ile kenarlara değer verin → **Sketch'i Bitir**.
-2. **Extrude** → mesafe girin → Tamam.
-3. Üst yüze yeni **Sketch** → **Daire** → Bitir → **Extrude**, işlem **Kes**.
-4. **Yuvarlat**: kenarlara tıklayın, yarıçap girin.
-5. Dosya → Kaydet (`.mhnk`), Dosya → STEP Dışa Aktar.
+## İlk çalıştırma
+1. Dil ve tema seçin (Türkçe / English).
+2. İmalat çalışma alanında makine profilini seçin. Neway şablonundaki boş alanları doldurmadan post çalışmaz; bu bilerek böyledir.
+3. Kayıt otomatik alınır (60 sn); önceki sürüm `.mhnk.bak` olarak saklanır.
 
-Fare: sağ tuş döndürür, orta tuş kaydırır, tekerlek yakınlaştırır. Düzen → Parametreler ile `L = 80` gibi değerler tanımlayıp ölçülerde `L/2` yazabilirsiniz.
+## Kılavuz
+Adım adım kullanım, örnek parça, güvenlik kapıları ve sorun giderme:
+- Türkçe: `docs/KILAVUZ.md`
+- English: `docs/MANUAL.md`
 
 ## Bilinen sınırlar
-- Eski AtolyeCAD ayarları ilk açılışta yeni klasöre kopyalanır (eski klasör silinmez).
-- Kurulum dosyası Linux'ta üretildi; Windows'ta kurulumu ve açılışı ilk siz deneyeceksiniz.
-- Sketch'te budama (trim), ofset, sketch içi desen/ayna, spline ve elips yok.
-- Sweep, loft, draft, modellenmiş diş, montaj, teknik resim, CAM ve post yok.
-- Yuvarlatılmış kenarlı gövdede Kabuk başarısız olabilir; kabuğu yuvarlatmadan önce uygulayın.
-- Model değişince bir kenar/yüz seçimi kaybolursa özellik kırmızı olur; düzenleyip yeniden seçin.
+- Uyarlamalı (adaptive) yol ve 3B yüzey işleme yok; 4/5 eksen makine ve eşzamanlı 4 eksen yok.
+- Benzetim, yan yüzeydeki küçük oyulmaları görmez; mengene/tabla/aparat modeli yok.
+- Takım düzenleyicide eğim açısı alanı yok: merkez kesmeyen takımla rampa/helis yolu engellenir.
+- Windows kurulumu Linux'ta üretildi; ilk denemeyi siz yapacaksınız.
+- Sweep, loft, montaj, teknik resim yok.
 
-## Kaynak kod
-Kaynak kod: `npm install`, `npm run dev` (geliştirme), `npm run build`. Tasarım sözleşmesi `DESIGN.md`. Kullanılan açık kaynak: OpenCascade (LGPL-2.1 + istisna), replicad (MIT), PlaneGCS/FreeCAD (LGPL-2.1+), three.js (MIT), Electron (MIT).
+## Kaynak kod ve lisanslar
+`npm install`, `npm run dev`, `npm run build`. Tasarım sözleşmesi `DESIGN.md`. Açık kaynak: OpenCascade (LGPL-2.1 + istisna), replicad (MIT), PlaneGCS/FreeCAD (LGPL-2.1+), three.js (MIT), Electron (MIT).
