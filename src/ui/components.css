@@ -64,7 +64,7 @@ svg.ic.sm { width: 16px; height: 16px; stroke-width: 2; }
 .rgroup .glabel { height: 20px; line-height: 20px; text-align: center; font-size: var(--fs-xs); color: var(--text-subtle); white-space: nowrap; }
 .rgroup.end { margin-left: auto; border-right: 0; border-left: var(--bw) solid var(--line); padding-left: var(--sp-4); }
 .tool { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; width: var(--tool-w); min-width: var(--tool-w); height: calc(var(--tool-h) - 4px); padding: 7px 2px 3px; border: var(--bw) solid transparent; border-radius: var(--r-sm); background: transparent; color: var(--text); font-size: var(--fs-xs); line-height: 1.15; text-align: center; }
-.tool span.l { max-width: calc(var(--tool-w) - 4px); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: keep-all; }
+.tool span.l { max-width: calc(var(--tool-w) - 4px); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: keep-all; overflow-wrap: anywhere; hyphens: auto; /* U-13: tek sözcük 64 px'ten uzunsa kırpılmaz, ikinci satıra sarar */ }
 .tool:hover { background: var(--bg-hover); }
 .tool:active { background: var(--bg-pressed); }
 .tool.on { background: var(--accent-tint); border-color: var(--accent); color: var(--accent); }
