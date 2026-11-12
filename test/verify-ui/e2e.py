@@ -168,7 +168,7 @@ def build_part():
     vol = js('app.result.bodies[0] && app.result.bodies[0].volume'); NOTES.append('hacim cepten sonra: ' + str(vol) + ' (beklenen ' + str(120000 - 40*30*8 - 3.14159265*64*8) + ')')
     # 3) 4 delik: üst yüzde nokta eskizi -> Delik özelliği (Ø6, derinlik 10)
     def sk3():
-        new_sketch_on_face([50, 30, 20])
+        new_sketch_on_face([50, 5, 20])   # cep dışında, üst yüzde (50,30,20) cep tabanına denk gelir
         zoom_fit_sketch([loc(8, 8), loc(92, 52)])
         click('#toolbar [data-cmd=dd-draw]'); wait(200); click('[data-cmd=point]')
         for (x, y) in [(8, 8), (92, 8), (8, 52), (92, 52)]: wclick(x, y)
@@ -185,7 +185,20 @@ def build_part():
     step('t14-parca-izometrik', iso)
 
 def run():
-    build_part()
+    if os.environ.get('FAST') and os.path.exists('/tmp/part.mhnk'):
+        import base64
+        b = base64.b64encode(open('/tmp/part.mhnk','rb').read()).decode()
+        js("async (b) => { const a = Uint8Array.from(atob(b), c => c.charCodeAt(0)); await app.openBytes(a, 'x.mhnk', null); }", b); wait(1000)
+        NOTES.append('FAST: parça önbellekten yüklendi (test kancası; yalnız geliştirme)')
+    else:
+        build_part()
+        if os.environ.get('SAVEPART'):
+            import base64
+            open('/tmp/part.mhnk','wb').write(base64.b64decode(js("() => { const b = app.fileBytes(); let s=''; for (const x of b) s+=String.fromCharCode(x); return btoa(s); }")))
+    try:
+        import cam_phase; cam_phase.run(sys.modules[__name__])
+    except ImportError as e:
+        if 'cam_phase' not in str(e): raise
 
 def main():
     with sync_playwright() as p:

@@ -3,3 +3,4 @@ dist/
 release/
 test/shots/
 test/tmp/
+test/verify-ui/shots/
