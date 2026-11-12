@@ -103,3 +103,18 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - SIRADAKİ: (1) V-01…V-15'i betiklerle teyit et, v07–v10'u koşup rapora ekle; (2) uçtan uca arayüz doğrulaması (TR/EN); (3) düzeltmeleri yazan ajanlara yaptır;
   (4) kılavuz TR/EN + OKUBENI → 0.3.0 + dist + SHA-256 → Docs'a K-016…K-023 + aşama kayıtları.
 - Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-11g.zip'ten geri yükle, CAM-VERIFY bulgularını teyit edip düzeltmelere geç."
+
+## Durum — 2026-11-12 (SÜRÜM 0.3.0 ÇIKTI; kod kopyası Mihenk-repo-2026-11-12.zip)
+- Bağımsız doğrulama bitti: docs/CAM-VERIFY.md (çekirdek, V-01…V-30) ve docs/CAM-UI-VERIFY.md (arayüz, U-01…U-20).
+- Düzeltmeler: docs/CAM-FIXES.md, docs/CAM-UI-FIXES.md. V-01 (A işareti) düzeltildi: setup A açısı = NC'deki A kelimesi.
+- `npm run test:all` baştan sona tek seferde geçti (19 adım; cam 166, post 170, sim 61).
+- Kılavuz: docs/KILAVUZ.md (TR), docs/MANUAL.md (EN); OKUBENI.md 0.3.0.
+- Kurulum: Mihenk-Kurulum-0.3.0.exe, SHA-256 80eb47be81113e824cee6849bd30acf60769ee90077ae5f20fac1df5645d3fb1. Windows'ta DENENMEDİ.
+- Spesifikasyona (Claude Docs) K-016…K-023 ve Aşama 9–10 işlendi.
+- Açık / ertelenen: V-21 (O 8000/9000 aralığı, makine projesi), V-24 (sim, çözünürlüğün yarısından küçük yan oymayı görmez; kapı uyarısı var), V-28 (yüksek yana kaymada cep köşesi artığı; uyarı var),
+  V-29 (duvar örneklerinin binde birkaçında ters kesme yönü; incelenmedi), U-10'un "Bu yol eski" iletisi; toolpath.verify 220 durumun 21'iyle koşuldu;
+  gerçek Electron penceresinde NC kaydı, A ekseni işlemlerinin arayüzü, Fanuc şablonu sınanmadı; setup ekseni yüzden seçilemiyor; delme 'points' ve açık zincir kontur arayüzde yok; kontur helis rampası/predrill yok.
+- Tezgâhta teyit edilecek (makine projesi, K-004/K-021): A yönü (işaretli parçayla), N/O sınırları, G28/G53, Neway şablonundaki boş alanların gerçek değerleri.
+- SIRADAKİ (kullanıcı): 0.3.0'ı Windows'ta kur, dene, geri bildirim. Sonraki olası aşama: 3+1 arayüzü, teknik resim (O-018 sırası), V-29 incelemesi.
+- Derleme notu: `npm run dist` Linux'ta makensis ister: electron-builder-binaries nsis-3.0.4.1.7z → ~/.cache/electron-builder/nsis-3.0.4.1/nsis-3.0.4.1/ (7za ile aç; py7zr BCJ2 açamaz).
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-12.zip'ten geri yükle, <istek>."
