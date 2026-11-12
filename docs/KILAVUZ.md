@@ -421,7 +421,7 @@ Kurallar:
 - **Kapalıysa** takım düz dalamaz. Programa böyle bir takımı vermek NC'yi engeller (Kapı 4).
 - Yeni oluşturulan parmak freze, küresel ve köşe yarıçaplı takımlarda bu kutu **kapalı** gelir. Takımınız merkezden kesiyorsa işaretlemeniz gerekir; kesmiyorsa işaretlemeyin. Doğruyu katalogdan okuyun.
 
-**Rampa açısı**: Merkezden kesmeyen takımla rampa ya da helis girişi yapmak için takımda "en büyük rampa açısı" değeri tanımlı olmalıdır. Bu sürümde takım düzenleyicide bu alan **yoktur**. Sonuç: merkezden kesmeyen takımla rampa/helis girişi her zaman engellenir (Kapı 4, Bölüm 5.9). Bu bilinen bir eksiktir.
+**Rampa açısı**: Merkezden kesmeyen takımla rampa ya da helis girişi yapmak için takımda "en büyük rampa açısı" değeri tanımlı olmalıdır. Takım düzenleyicide **Geometri** sekmesinde **En büyük rampa açısı** (0–90°, °) alanı vardır; yalnız **Merkezden keser** işaretli değilse görünür. Üretici verisini girin; boş bırakırsanız merkezden kesmeyen takımla rampa/helis girişi engellenir (Kapı 4, Bölüm 5.9) ve değer uydurulmaz. Değer takımla birlikte kaydedilir, yeniden açınca korunur.
 
 **Kesme verisi sekmesi (Preset)**: Ad, **Devir**, **Kesme ilerlemesi**, **Dalma ilerlemesi**, Rampa ilerlemesi, Pasa derinliği, Yanal pasa, Soğutma. İşleme takım seçince ön ayar devir ve ilerlemeleri otomatik doldurur.
 
@@ -606,7 +606,7 @@ Kılavuz çevrimi: **Diş** komutu Delik delme ile aynı paneli "Kılavuz" çevr
 | **2. Dokunulmaz numara** | T, H, D ve iş sıfırı korunan listede mi (yazım farkı: boşluk/harf boyutu önemsiz). "… dokunulmaz listede" | **Engel** | Başka numara seçin. Listeyi 5.3'e göre gözden geçirin. |
 | **3. Sınırlar** | Devir > en yüksek devir; devir < en düşük devir (en az 1 dev/dk); ilerleme > en yüksek ilerleme; takım no > magazin kapasitesi; yol açıklığı > eksen kursu | **Engel** | Değeri düşürün ya da profili düzeltin. |
 | 3b. Mutlak kurs | Setup'ın tezgâh üzerindeki konumu verilmediği için mutlak kurs denetlenemedi; yalnız yol açıklığı denetlendi ("… mutlak kurs denetimi yapılamadı") | Uyarı | Parçanın tezgâh üzerindeki konumunu ve kursu **siz** kontrol edin. |
-| **4. Dalma ve boy** | Merkezden kesmeyen takımın malzemeye düz dalması ya da delme çevrimi; rampa/helis açısı takımın en büyük rampa açısını aşıyor ya da bu değer tanımsız (bu sürümde alan yok, bu yüzden hep engel); bir pasonun derinliği kesici boyunu aşıyor; iniş derinliği "tutucudan çıkıntı"yı aşıyor (tutucu stoka çarpar). Kılavuz, rayba, bore bu denetimden muaftır (önceden delinmiş deliğe girer). | **Engel** | Merkezden kesen takım, helis/rampa, daha küçük derinlik adımı ya da daha uzun takım çıkıntısı. |
+| **4. Dalma ve boy** | Merkezden kesmeyen takımın malzemeye düz dalması ya da delme çevrimi; rampa/helis açısı takımın en büyük rampa açısını aşıyor ya da bu değer tanımsız (alan takım düzenleyicide **En büyük rampa açısı**; boşsa engel); bir pasonun derinliği kesici boyunu aşıyor; iniş derinliği "tutucudan çıkıntı"yı aşıyor (tutucu stoka çarpar). Kılavuz, rayba, bore bu denetimden muaftır (önceden delinmiş deliğe girer). | **Engel** | Merkezden kesen takım, helis/rampa, daha küçük derinlik adımı ya da daha uzun takım çıkıntısı. |
 | **5. Simülasyon** | Hızlı hareket stoka giriyor; **oyma** (takım model yüzeyinin altına iniyor); kesici boyundan derin kesme; şaft ya da tutucu stoka çarpıyor; stok tabanının altına iniş (bildirilmiş boydan boya kesim ve delik hariç); telafili yay yarıçapı takımdan küçük; model yükseklik haritası alınamadı; çözünürlük en küçük takım yarıçapından kaba; simülasyon çalışmadı | **Engel** | Satıra tıklayıp hareketi görün. İşlemi (yükseklikler, giriş, takım) düzeltin. |
 | 5b. Yanal çözünürlük | Simülasyon, hücre aralığının yarısından küçük yanal oymaları göremez ("… mm'den küçük yanal oymaları göremez"). Her simülasyonda yazılır. | Uyarı | Bölüm 7.4'ü okuyun; duvar doğruluğu takım yolu hesabından gelir. |
 | **6. Döner eksen** | A istenen setup'ta makinede A ekseni yok; A açısı makine sınırları dışında | **Engel** | Profil ya da açıyı düzeltin. |
@@ -614,7 +614,7 @@ Kılavuz çevrimi: **Diş** komutu Delik delme ile aynı paneli "Kılavuz" çevr
 | İşlem uyarıları | Cepte kalan malzeme, boydan delik taban payı, delik çapı uyuşmazlığı, iç köşede kalan malzeme, vb. | Uyarı | Mesajı okuyun; gerekirse ikinci işlem ekleyin. |
 | Hesaplanamayan işlem | "… işlemi hesaplanamadı" | **Engel** | İşlemdeki hatayı giderin. |
 
-Ek olarak post'un kendisi de durur: kullanılan bir post özelliği (G04 adresi gibi) boşsa "Post özelliği boş", bir kapı engelliyorsa "Güvenlik kapıları bu programı engelliyor", devir S0'a yuvarlanıyorsa "S0 olarak yazılırdı".
+Ek olarak, tezgâh profilinde boş post özellikleri (G04 adresi, Z çekilme yöntemi gibi) varsa Post işle **hepsini tek listede** gösterir ve NC üretmez; satıra tıklayınca tezgâh yöneticisi açılır ("Eksik değer" sütunu bu özellikleri de sayar). Post'un kendisi de durabilir: kullanılan bir özellik boşsa "Post özelliği boş", bir kapı engelliyorsa "Güvenlik kapıları bu programı engelliyor", devir S0'a yuvarlanıyorsa "S0 olarak yazılırdı".
 
 **Kapılar sizin yerinize karar vermez.** Hiç engel çıkmaması NC'nin güvenli olduğu anlamına gelmez (Bölüm 7).
 
@@ -782,7 +782,6 @@ Dürüst liste. Bu sürümde **yok ya da eksik** olanlar:
 - 4. / 5. eksen tezgâhlar yok ("yakında"). Yalnız **3+1** vardır; **eşzamanlı 4 eksen yok**, TCP/G68.2/G07.1 yok.
 - Setup panelinde eksen yönü için "yüzden seçim" yok (yalnız ana eksenler ±X, ±Y, ±Z); çekirdek destekler.
 - Delik noktalarını eskizden vermek (`points`) ve açık zincir kontur seçimi arayüzde yok. (Delikler yalnız Delik özelliğinden gelir.)
-- Takım düzenleyicide **en büyük rampa açısı** alanı yok: merkezden kesmeyen takımla rampa/helis her zaman engellenir.
 - Kontur için helis dalma yok; cepte "önceden delme" girişi yok.
 - Açık zincir kontur yalnız "Üzerinde"; giriş/çıkış, köprü, aşınma yok. Aşınma telafisinde kaba yanal paso, rampa, bölünen kontur yok.
 - Gövde dış sınırı yalnız prizmatik gövdede çalışır.
@@ -860,7 +859,7 @@ Mesaj metinleri programdaki Türkçe metinlerdir. `{...}` yerine sayı/ad görü
 | Devir ({}) makinenin en yüksek devrini ({}) aşıyor. | Kapı 3. | Devri düşürün. |
 | İlerleme (… mm/dk) makine sınırını aşıyor. | Kapı 3. | İlerlemeyi düşürün. |
 | T{n} merkezden kesmiyor ama malzemeye düz dalıyor. Helis ya da rampa girişi kullanın. | Kapı 4. | Merkezden kesen takım ya da rampa. |
-| T{n} merkezden kesmiyor ve malzemeye rampa/helisle iniyor, ama takımda en büyük rampa açısı tanımlı değil. | Kapı 4; bu sürümde alan yok. | Merkezden kesen takım kullanın. |
+| T{n} merkezden kesmiyor ve malzemeye rampa/helisle iniyor, ama takımda en büyük rampa açısı tanımlı değil. | Kapı 4; takımda **En büyük rampa açısı** boş. | Üretici değerini takım düzenleyicide girin ya da merkezden kesen takım kullanın. |
 | T{n} merkezden kesmiyor ve {a}° ile rampa yapıyor; en büyük rampa açısı {b}°. | Kapı 4. | Açıyı küçültün. |
 | Bir pasonun derinliği (…) kesici boyunu (…) aşıyor. Paso derinliğini azaltın. | Kapı 4. | Derinlik adımını küçültün ya da Kesici boyu'nu doğrulayın. |
 | Takım tutucudan çıkan boy (…) bu derinliğe (…) yetmiyor: tutucu stoka çarpar. | Kapı 4. | Daha uzun çıkıntı. |

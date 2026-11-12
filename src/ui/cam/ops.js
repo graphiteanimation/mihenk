@@ -11,9 +11,10 @@ import { uid, hashStr } from './util.js';
 import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
 import { SimRun } from './simbar.js';
 import { showIssueList, showNc as showNcModal, openVerify as openVerifyDlg } from './postui.js';
+import pkg from '../../../package.json';
 
 const errObj = (e) => ({ code: e?.code || 'internal', params: e?.params || { message: String(e?.message ?? e) } });
-const APP_VERSION = '0.2.0';
+const APP_VERSION = pkg.version;
 
 export class CamOps {
   constructor(cam) { this.cam = cam; this.cache = new Map(); this.nc = null; this.sim = null; this.progNo = 1000; this.showPath = true; this.busy = false; this.selOp = null; this.draftPath = null; this._mh = new WeakMap(); this._envFor = undefined; this._pathSig = ''; }

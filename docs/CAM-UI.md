@@ -6,7 +6,7 @@ Kapsam: `src/ui/cam/*`, `src/i18n/cam-ui-*.js`, `src/i18n/cam-ui2-*.js`, `test/c
 | Dosya | Görev |
 |---|---|
 | `index.js` | `CamCtl`: sekme kipi, şerit, tarayıcı ağacı, durum çubuğu, `doc.cam` değişiklikleri (`mut`), setup/işlem eylemleri |
-| `store.js`, `machines.js`, `toolui.js`, `setup.js` | Aşama 1: tezgâh yönetimi, takım kütüphanesi, setup paneli |
+| `store.js`, `machines.js`, `toolui.js`, `setup.js` | Aşama 1: tezgâh yönetimi, takım kütüphanesi (alan: `maxRampAngle` = en büyük rampa açısı), setup paneli |
 | `ops.js` | `CamOps`: hesap önbelleği, durum rozetleri, hesap hattı, program kurma, kapılar, simülasyon/post akışı, doğrulama durumu |
 | `oppanel.js` | İşlem paneli (Yüzey, Kontur, Cep, Delme/Diş): sekmeler Takım / Geometri / Yükseklikler / Pasolar |
 | `simbar.js` | Simülasyon çubuğu (`createSim` adımlayıcısı), stok ağı ve takım gösterimi |
@@ -31,10 +31,13 @@ Aşama 2: dört işlem paneli (takım, ön ayar, kesme verisi, geometri seçimi 
 - Simülasyon ana iş parçacığında çalışır; büyük programda arayüz kısa süre donabilir (ölçülmedi). Çözünürlük otomatik (≥ 0,5 mm, en çok ~400 bin hücre). Silindir stok kutu olarak yaklaşıklanır (B'nin sınırı). Stok ağı yalnız üst yüzeyi gösterir (yan duvar yok).
 - Gerçek Electron penceresinde NC kaydı elle denenmedi; `test/electron.test.mjs` ana süreç sözleşmesini (kind, boyut sınırı) kapsar.
 - Şablon tezgâhların eksik değerleri (kurslar, `spindle.maxRpm`, `feed.maxCut`) bilerek boş: NC üretimi kapı 1 ile engellenir. Dolu bir kullanıcı profili gerekir; Neway değerlerini makine projesinden teyit edin.
-- Post özelliği (`post.props`) boş kalırsa post hatası olarak gösterilir; arayüz değer uydurmaz.
+- Post özelliği (`post.props`) boş kalırsa Post işle tüm boşları listeler; arayüz değer uydurmaz.
 - Gövde dış sınırı yalnız prizmatik gövdede çalışır (A'nın sınırı); aksi `cam.silhouette.not_prismatic` hatası işlem panelinde gösterilir.
 
 ## Sözleşmeden sapma / eklemeler
 - Çekirdek API'si değiştirilmedi. `generateProgram` tek işlemlik alt belgeyle (taslak hesabı) çağrılır; `gates` simülasyon seçenekleriyle ana iş parçacığında çalışır.
 - `err.cam.no_machine` ve `err.cam.ui.sim_no_model` arayüze özgü hata kodlarıdır (`cam-ui2-*`).
-- Gözlem (B): NC başlık yorumunda kapı uyarıları ham kodla yazılıyor (`(GATE WARN cam.gate.travel_abs_unchecked)`); okunur metin değil.
+- NC başlığındaki kapı satırları artık okunur ASCII metindir (çekirdek `src/cam/post/describe.js`, CAM-FIXES). Eski gözlem kapandı.
+- Simülasyon hız seçeneği ×1/5/25/100/500'dür (kare başına işlenen hareket sayısı); UI-SPEC'teki "0,5/1/4/16×" gerçek zaman çarpanı olarak uygulanmadı, bilinçli sapma (U-15).
+- Modal pencerelerde (takım/tezgâh düzenleyici) kırmızı alan varken Tamam kaydetmez, ilk hatalı alana odaklanır. İşlem panelinde de hatalı alan başka sekmedeyse o sekmeye geçilir (U-02, U-03, U-10).
+- Post işle: boş post özellikleri `postMissing` (machines.js) ile tek listede gösterilir; şu özellikler koşullu/isteğe bağlı sayılıp eksik sayılmaz: safeRetractZ (yalnız G53), g541Range (yalnız A ekseni), rigidTapM, highSpeedOn/Off, soğutma kodları.

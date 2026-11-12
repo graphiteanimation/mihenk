@@ -274,7 +274,6 @@ export default {
   "cam.field.tabs.height": "Köprü yüksekliği",
   "cam.tl.max_ramp": "En büyük rampa açısı",
   "cam.tl.max_ramp_hint": "Merkezden kesmeyen takımın malzemeye rampa/helisle inebileceği en büyük açı (üretici verisi). Boş bırakılırsa bu takımla rampa ve helis girişi engellenir; değer uydurulmaz.",
-  "cam.post.prop_missing_title": "Post özellikleri boş",
   "cam.post.prop_missing_intro": "Tezgâh profilinde {n} post özelliği boş; NC üretilmez. Satıra tıklayınca tezgâh yöneticisi açılır; şablonu kopyalayıp makine belgesinden doldurun.",
   "cam.post.prop_row": "{name} boş ({key})",
 };

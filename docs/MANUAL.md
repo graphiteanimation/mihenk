@@ -421,7 +421,7 @@ The **Tools** command shows two scopes: **This document** and **Library**. A too
 - **If off**, the tool cannot plunge straight. Giving the program such a tool for a plunge blocks the NC (Gate 4).
 - On a newly created end mill, ball mill and bull-nose mill this box comes **off**. If your tool cuts at the center, tick it; if it does not, leave it off. Read the right answer from the catalog.
 
-**Ramp angle**: To ramp or helix into material with a non-center-cutting tool, the tool must have a "maximum ramp angle" value. In this version the tool editor has **no field** for it. Result: ramp/helix entry with a non-center-cutting tool is always blocked (Gate 4, Section 5.9). This is a known gap.
+**Ramp angle**: To ramp or helix into material with a non-center-cutting tool, the tool must have a "maximum ramp angle" value. The tool editor's **Geometry** tab has a **Maximum ramp angle** field (0–90, in degrees), shown only when **Center cutting** is off. Enter the manufacturer's value; if left empty, ramp/helix entry with a non-center-cutting tool is blocked (Gate 4, Section 5.9) and no value is assumed. The value is saved with the tool and kept when you reopen it.
 
 **Cutting data tab (Preset)**: Name, **Spindle speed**, **Cutting feed**, **Plunge feed**, Ramp feed, Step-down, Step-over, Coolant. Choosing a tool in an operation fills the speed and feeds from the preset.
 
@@ -606,7 +606,7 @@ The **Post process** button first runs all the gates. If there is a **block** (r
 | **2. Protected number** | Whether T, H, D and work offset are on the protected list (spacing/letter case differences do not matter). "… is on the protected list" | **Block** | Choose another number. Review the list as in 5.3. |
 | **3. Limits** | Speed > max speed; speed < min speed (at least 1 rpm); feed > max feed; tool number > magazine capacity; toolpath span > axis travel | **Block** | Lower the value or fix the profile. |
 | 3b. Absolute travel | The setup's position on the machine was not given, so absolute travel could not be checked; only the toolpath span was checked ("… absolute travel could not be checked") | Warning | Check the part position on the machine and the travel **yourself**. |
-| **4. Plunge and length** | A non-center-cutting tool plunging straight into material, or a drilling cycle; ramp/helix angle above the tool's maximum ramp angle or that value undefined (there is no field for it in this version, so it always blocks); one pass depth exceeding the flute length; reach depth exceeding the "Stick-out from holder" (the holder would hit the stock). Tap, reamer and boring bar are exempt (they enter a pre-drilled hole). | **Block** | Use a center-cutting tool, helix/ramp, a smaller stepdown or a longer stick-out. |
+| **4. Plunge and length** | A non-center-cutting tool plunging straight into material, or a drilling cycle; ramp/helix angle above the tool's maximum ramp angle or that value undefined (the field is **Maximum ramp angle** in the tool editor; empty blocks); one pass depth exceeding the flute length; reach depth exceeding the "Stick-out from holder" (the holder would hit the stock). Tap, reamer and boring bar are exempt (they enter a pre-drilled hole). | **Block** | Use a center-cutting tool, helix/ramp, a smaller stepdown or a longer stick-out. |
 | **5. Simulation** | Rapid move enters the stock; **gouge** (the tool goes below the model surface); cutting deeper than the flute length; shaft or holder hits the stock; going below the stock bottom (except declared through cuts and holes); compensated arc radius smaller than the tool; model height map could not be obtained; resolution coarser than the smallest tool radius; simulation did not run | **Block** | Click the row to see the move. Fix the operation (heights, entry, tool). |
 | 5b. Lateral resolution | The simulation cannot see side gouges smaller than half the cell spacing ("… cannot see side gouges smaller than … mm"). Written on every simulation. | Warning | Read Section 7.4; wall accuracy comes from the toolpath calculation. |
 | **6. Rotary axis** | The setup asks for A but the machine has no A axis; A angle outside the machine limits | **Block** | Fix the profile or the angle. |
@@ -614,7 +614,7 @@ The **Post process** button first runs all the gates. If there is a **block** (r
 | Operation warnings | Remaining pocket material, break-through floor allowance, hole diameter mismatch, material left in inside corners, etc. | Warning | Read the message; add a second operation if needed. |
 | Operation not computed | "Operation … could not be computed" | **Block** | Fix the error in the operation. |
 
-The post itself also stops: if a post property that is needed (such as the G04 address) is empty, "Post property is empty"; if a gate blocks, "Safety gates block this program"; if the speed rounds to S0, "would be written as S0".
+In addition, if the machine profile has empty post properties (such as the G04 address or the Z retract method), Post lists **all of them in one list** and generates no NC; clicking a row opens the machine manager (the "Missing values" column counts them too). The post itself can also stop: if a property that is needed is empty, "Post property is empty"; if a gate blocks, "Safety gates block this program"; if the speed rounds to S0, "would be written as S0".
 
 **The gates do not decide for you.** No block does not mean the NC is safe (Section 7).
 
@@ -782,7 +782,6 @@ An honest list. What is **missing or incomplete** in this version:
 - No 4th / 5th axis machines ("coming soon"). Only **3+1** exists; there is **no simultaneous 4-axis**, no TCP/G68.2/G07.1.
 - No "select from face" for the axis direction in the setup panel (only the main axes ±X, ±Y, ±Z); the core supports it.
 - Giving drill points from a sketch (`points`) and selecting an open-chain contour are not in the interface. (Holes come only from the Hole feature.)
-- The tool editor has no **maximum ramp angle** field: ramp/helix with a non-center-cutting tool is always blocked.
 - No helix plunge for contours; no "pre-drill" entry for pockets.
 - An open-chain contour works only "On the line"; no lead-in/out, tabs or wear. Under wear compensation there are no radial roughing passes, ramps or split contours.
 - Body outline works only on prismatic bodies.
@@ -860,7 +859,7 @@ Message texts are the English texts in the program. In place of `{...}` you see 
 | Spindle speed ({}) exceeds the machine maximum ({}). | Gate 3. | Lower the speed. |
 | Feed (… mm/min) exceeds the machine limit. | Gate 3. | Lower the feed. |
 | T{n} is not center cutting but plunges straight into material. Use helix or ramp entry. | Gate 4. | A center-cutting tool or a ramp. |
-| T{n} is not center cutting and ramps/helixes into material, but the tool has no maximum ramp angle. | Gate 4; there is no field in this version. | Use a center-cutting tool. |
+| T{n} is not center cutting and ramps/helixes into material, but the tool has no maximum ramp angle. | Gate 4; the tool's **Maximum ramp angle** is empty. | Enter the manufacturer's value in the tool editor, or use a center-cutting tool. |
 | T{n} is not center cutting and ramps at {a}°, above its maximum ramp angle ({b}°). | Gate 4. | Reduce the angle. |
 | A pass depth (…) exceeds the flute length (…). Reduce the stepdown. | Gate 4. | Reduce the stepdown or check the Flute length. |
 | The tool stick-out (…) is too short for this depth (…): the holder would hit the stock. | Gate 4. | A longer stick-out. |

@@ -5,7 +5,7 @@
 import { KErr } from '../../shared/errors.js';
 import { validateProgram, splitRapid, arcCenter } from '../ir.js';
 
-export const MIHENK_VERSION = '0.2.0'; // yalniz baslik yorumu icin; opts.appVersion ile ezilir
+export const MIHENK_VERSION = '0.3.0'; // yalniz baslik yorumu icin; opts.appVersion ile ezilir
 export const perr = (code, params = {}) => new KErr(code, params);
 
 // ---------------------------------------------------------------- yorum ASCII'ye cevirme
