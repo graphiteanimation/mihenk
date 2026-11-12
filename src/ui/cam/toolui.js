@@ -4,7 +4,7 @@ import { icon } from '../icons.js';
 import { t, errText, fmtNum } from '../../shared/i18n.js';
 import { TOOL_TYPES, COOLANTS, normalizeTool, toolListIssues, exportLibrary, importLibrary, LIB_FORMAT } from '../../cam/tools.js';
 import { toolLibrary, saveToolLibrary } from './store.js';
-import { clone, uid, numField, textField, selField, checkField, sec, callout, fld, unitBox } from './util.js';
+import { clone, uid, numField, textField, selField, checkField, sec, callout, fld, unitBox, blockedByBadField } from './util.js';
 
 const TIP = new Set(['drill', 'spot', 'chamfer']);
 export const toolLabel = (tool) => `T${tool.number} · Ø${fmtNum(tool.dia, 3)} · ${t('cam.tt.' + tool.type)}`;
@@ -44,6 +44,8 @@ export async function editTool(tool, { isNew = false, prot = null, others = [], 
     if (hits.length) errBox.append(callout('warn', t('cam.tl.prot_title'), t('cam.tl.prot_body', { list: hits.map((x) => x.kind + x.n).join(', ') }), 'warning'));
     return ok;
   };
+  // Tamam: taslak geçerli olsa bile kırmızı alan varsa (alan eski değeri koruyor) kaydetme
+  const okCheck = () => { const ok = check(); if (blockedByBadField()) { errBox.append(callout('err', t('cam.tl.invalid'), t('cam.su.fix_fields'))); return false; } return ok; };
   const num = (label, key, o = {}) => numField({ label, value: d[key] ?? null, unit: o.unit ?? 'mm', min: o.min, max: o.max, int: o.int, nullable: o.nullable, f: 'tl-' + key, hint: o.hint, warn: o.warn, set: (v) => { if (v === null) delete d[key]; else d[key] = v; check(); } });
   const drawGeneral = () => [
     textField({ label: t('cam.tl.name'), value: d.name ?? '', f: 'tl-name', max: 120, set: (v) => { d.name = v; check(); } }),
@@ -61,7 +63,8 @@ export async function editTool(tool, { isNew = false, prot = null, others = [], 
     if (TIP.has(d.type)) r.push(num(t('cam.tl.tip_angle'), 'tipAngle', { unit: '°', min: 1, max: 179 }));
     if (d.type === 'tap') r.push(num(t('cam.tl.pitch'), 'pitch', { min: 0.01, max: 19.99 }));
     r.push(num(t('cam.tl.flute_len'), 'fluteLen', { min: 0.001 }), num(t('cam.tl.body_len'), 'bodyLen', { min: 0.001, hint: t('cam.tl.body_len_hint') }), num(t('cam.tl.shaft_dia'), 'shaftDia', { min: 0.001, nullable: true, hint: t('cam.tl.shaft_hint') }), num(t('cam.tl.flutes'), 'flutes', { unit: '', int: true, min: 1, max: 100 }));
-    if (d.type !== 'drill' && d.type !== 'spot') r.push(checkField({ label: t('cam.tl.center_cutting'), value: !!d.centerCutting, f: 'tl-cc', hint: t('cam.tl.cc_hint'), set: (v) => { d.centerCutting = v; check(); } }));
+    if (d.type !== 'drill' && d.type !== 'spot') r.push(checkField({ label: t('cam.tl.center_cutting'), value: !!d.centerCutting, f: 'tl-cc', hint: t('cam.tl.cc_hint'), set: (v) => { d.centerCutting = v; draw(); } }));
+    if (!d.centerCutting) r.push(num(t('cam.tl.max_ramp'), 'maxRampAngle', { unit: '°', min: 0.001, max: 90, nullable: true, hint: t('cam.tl.max_ramp_hint') }));
     r.push(sec(t('cam.tl.holder')));
     const hd = () => d.holder || null;
     r.push(numField({ label: t('cam.tl.holder_dia'), value: hd()?.dia ?? null, unit: 'mm', nullable: true, min: 0.001, f: 'tl-holder-dia', set: (v) => { d.holder = { dia: v ?? 0, len: hd()?.len ?? 0 }; if (v === null && !(hd()?.len)) delete d.holder; check(); } }));
@@ -89,7 +92,7 @@ export async function editTool(tool, { isNew = false, prot = null, others = [], 
     body.replaceChildren(...DRAW[tab]()); check();
   }
   draw();
-  const r = await modal({ title: isNew ? t('cam.tl.title_new') : t('cam.tl.title_edit', { name: d.name || 'T' + d.number }), width: 620, cls: 'mc-modal', content: h('div', {}, segEl, body, errBox), buttons: [{ label: t('common.cancel'), value: null }, { label: t('common.ok'), cls: 'pri primary', value: true, testid: 'tl-ok', check }] });
+  const r = await modal({ title: isNew ? t('cam.tl.title_new') : t('cam.tl.title_edit', { name: d.name || 'T' + d.number }), width: 620, cls: 'mc-modal', content: h('div', {}, segEl, body, errBox), buttons: [{ label: t('common.cancel'), value: null }, { label: t('common.ok'), cls: 'pri primary', value: true, testid: 'tl-ok', check: okCheck }] });
   if (!r) return null;
   return normalizeTool(d);
 }

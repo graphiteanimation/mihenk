@@ -155,7 +155,7 @@ export class CamCtl {
       return r;
     };
     const twist = (open, fn) => h('button', { class: 'tw', type: 'button', 'aria-expanded': String(open), 'aria-label': t(open ? 'cam.br.collapse' : 'cam.br.expand'), onclick: (e) => { e.stopPropagation(); fn(); }, html: icon(open ? 'chevron-down' : 'chevron-right', 'sm') });
-    const nm = (title, sub) => h('span', { class: 'nm' }, h('span', { text: title }), sub ? h('span', { class: 'subtle', text: sub }) : null);
+    const nm = (title, sub) => h('span', { class: 'nm', title: sub ? title + ' · ' + sub : title }, h('span', { text: title }), sub ? h('span', { class: 'subtle', text: sub }) : null);
     const kids = [];
     // tezgâhlar
     kids.push(sec(t('cam.br.machines'), h('button', { class: 'btn sm', type: 'button', 'data-testid': 'cam-machines-manage', onclick: () => openMachineManager(this) }, t('cam.br.manage'))));

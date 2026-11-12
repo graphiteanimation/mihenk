@@ -1,6 +1,6 @@
 # İmalat (CAM) arayüz testleri: sekme geçişi, tezgâh/takım CRUD, dokunulmaz numara uyarısı, setup, TR/EN.
 # Önce `npm run build`; çalıştır: python3 test/cam-ui.test.py
-import os, socket, subprocess, sys, time, json
+import os, re, socket, subprocess, sys, time, json
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -69,7 +69,7 @@ try:
     print('tezgâh yönetimi')
     ctx, pg = newpage(); load(pg, BLOCK); pg.click('[data-testid=tab-manufacture]')
     pg.click('[data-cmd=cam-machine]')
-    check('yönetici: 2 yerleşik şablon, eksik değer sayısı görünür', count(pg, '#modal [data-testid=mc-row]') == 2 and '2 alan boş' in txt(pg, '#modal'))
+    check('yönetici: 2 yerleşik şablon, eksik değer sayısı görünür', count(pg, '#modal [data-testid=mc-row]') == 2 and re.search(r'\d+ alan boş', txt(pg, '#modal')) is not None)
     check('yerleşik şablonda sil/düzenle yok, kopyala var', count(pg, '#modal [data-testid=mc-del]') == 0 and count(pg, '#modal [data-testid=mc-edit]') == 0 and count(pg, '#modal [data-testid=mc-copy]') == 2)
     pg.click('#modal [data-testid=mc-copy] >> nth=0')            # Neway kopyası: ad sorusu
     pg.fill('[data-testid=prompt-input]', 'Atölye VMC'); pg.click('#modal .btn.pri')
@@ -411,6 +411,70 @@ try:
     check('şablon tezgâh: eksik değerler NC üretimini engeller', count(pg, '[data-testid=issue-row][data-level=block]') >= 1 and pg.evaluate('app.cam.ops.nc') is None, txt(pg, '#modal')[:300])
     pg.click('[data-testid=issues-close]')
     check('konsol hatası yok (işlem akışı)', not [e for e in pg.errs if 'Error' in e or 'Uncaught' in e], pg.errs[:3])
+    ctx.close()
+
+
+    # ------------------------------------------------------------------ CAM-UI-VERIFY düzeltmeleri (U-xx)
+    print('arayüz doğrulama düzeltmeleri (U-01..U-20)')
+    ctx, pg = newpage(); load(pg, BLOCK); pg.click('[data-testid=tab-manufacture]')
+    # U-01: görünür boyut (metin DOM'da var ama 0 px genişlikte olabilir)
+    pg.click('[data-cmd=cam-machine]')
+    bx = pg.evaluate("""() => { const r = document.querySelector('#modal [data-testid=mc-row]'); const q = (s) => { const b = r.querySelector(s).getBoundingClientRect(); return [b.width, b.height]; };
+      return { rad: q('input[type=radio]'), nm: q('.mc-pick > span:not(.badge)'), badge: q('.mc-pick .badge') }; }""")
+    check('U-01: tezgâh radyosu 18 px (şişmez)', bx['rad'][0] <= 24 and bx['rad'][1] <= 24, bx)
+    check('U-01: tezgâh adı görünür genişlikte (> 60 px, > 8 px yükseklik)', bx['nm'][0] > 60 and bx['nm'][1] > 8, bx)
+    check('U-01: "Yerleşik" rozeti ezik değil (≥ 40 px)', bx['badge'][0] >= 40, bx)
+    # U-04: şablonun eksik sayısı post özelliklerini de içerir
+    miss_txt = txt(pg, '#modal [data-testid=mc-row]:nth-child(1) td:nth-child(3)')
+    nmiss = int(''.join(c for c in miss_txt if c.isdigit()) or 0)
+    check('U-04: şablon eksik sayısı post özelliklerini de sayar (> 2)', nmiss > 2, miss_txt)
+    # U-03: tezgâh düzenleyicide geçersiz sayı varken Tamam kapatmaz
+    pg.click('#modal [data-testid=mc-copy] >> nth=0'); pg.fill('[data-testid=prompt-input]', 'Hatali'); pg.click('#modal .btn.pri')
+    pg.click('[data-testid=mc-tab-spindle]'); pg.fill('[data-f=sp-max]', 'abc'); pg.fill('[data-f=fd-max]', '-5')
+    pg.click('[data-testid=mc-ok]')
+    check('U-03: geçersiz sayıyla Tamam penceresi kapanmaz, hata görünür', count(pg, '[data-testid=machine-editor]') == 1 and 'düzeltin' in txt(pg, '.mc-err').lower(), txt(pg, '.mc-err'))
+    check('U-03: ilk hatalı alana odaklanıldı', pg.evaluate("document.activeElement && document.activeElement.dataset.f") in ('sp-max', 'fd-max'))
+    saved = pg.evaluate("JSON.parse(localStorage.getItem('mihenk.machines')||'[]')")
+    check('U-03: profil hatalı değerle kaydedilmedi', all(m.get('spindle', {}).get('maxRpm') in (None, 0) or isinstance(m['spindle']['maxRpm'], (int, float)) for m in saved))
+    pg.fill('[data-f=sp-max]', '8000'); pg.fill('[data-f=fd-max]', '5000')
+    # U-17: aralık alanı dolunca "gerekli" vurgusu kalkar (post sekmesi, g541Range)
+    pg.click('[data-testid=mc-tab-post]')
+    if count(pg, '[data-f=pp-g541Range-min]'):
+        pg.fill('[data-f=pp-g541Range-min]', '1'); pg.fill('[data-f=pp-g541Range-max]', '6')
+        check('U-17: g541Range dolunca gerekli vurgusu kalkar', pg.evaluate("[...document.querySelectorAll('.mc-ed .fld.need')].filter((e) => e.textContent.includes('G54.1')).length") == 0, txt(pg, '.mc-ed')[:200])
+    else:
+        check('U-17: g541Range alanı bu posta yok (geçerli)', True)
+    pg.click('[data-testid=mc-cancel]') if count(pg, '[data-testid=mc-cancel]') else pg.keyboard.press('Escape')
+    ctx.close()
+
+    print('takım düzenleyici: geçersiz giriş, rampa açısı')
+    ctx, pg = newpage(); load(pg, BLOCK); pg.click('[data-testid=tab-manufacture]')
+    pg.click('[data-cmd=cam-tools]'); pg.click('[data-testid=tl-new]')
+    pg.click('[data-testid=tl-tab-geom]'); pg.fill('[data-f=tl-dia]', '-5'); pg.click('[data-testid=tl-ok]')
+    check('U-02: Çap -5 ile Tamam penceresi kapanmaz', count(pg, '[data-testid=tool-editor]') == 1)
+    check('U-02: hata iletisi görünür, takım kaydedilmedi', 'düzeltin' in txt(pg, '.mc-err').lower() and pg.evaluate('(app.doc.cam && app.doc.cam.tools || []).length') == 0, txt(pg, '.mc-err'))
+    check('U-02: hatalı alana odak', pg.evaluate("document.activeElement && document.activeElement.dataset.f") == 'tl-dia')
+    # rampa açısı alanı: yalnız merkezden kesmeyen takımda
+    pg.fill('[data-f=tl-dia]', '10'); pg.fill('[data-f=tl-name]', 'Ramp') if count(pg, '[data-f=tl-name]') else None
+    cc_on = pg.evaluate("document.querySelector('[data-f=tl-cc]').checked")
+    if cc_on: pg.evaluate("document.querySelector('[data-f=tl-cc]').click()")
+    check('rampa: merkezden kesmeyen takımda "En büyük rampa açısı" alanı var', count(pg, '[data-f=tl-maxRampAngle]') == 1 and 'En büyük rampa açısı' in txt(pg, '.tl-ed'), txt(pg, '.tl-ed')[:200])
+    pg.fill('[data-f=tl-maxRampAngle]', '120'); pg.click('[data-testid=tl-ok]')
+    check('rampa: 120° geçersiz (en çok 90), pencere açık', count(pg, '[data-testid=tool-editor]') == 1 and 'En çok' in txt(pg, '[data-row=tl-maxRampAngle]'), txt(pg, '[data-row=tl-maxRampAngle]'))
+    pg.fill('[data-f=tl-maxRampAngle]', '2,5'); pg.click('[data-testid=tl-ok]')
+    tl0 = pg.evaluate('app.doc.cam.tools[0]')
+    check('rampa: 2,5° kaydedildi (maxRampAngle=2.5)', tl0 and tl0.get('maxRampAngle') == 2.5 and tl0['centerCutting'] is False, json.dumps(tl0)[:200])
+    pg.click('[data-testid=tl-edit]'); pg.click('[data-testid=tl-tab-geom]')
+    check('rampa: yeniden açınca değer 2,5', pg.input_value('[data-f=tl-maxRampAngle]') in ('2,5', '2.5'), pg.input_value('[data-f=tl-maxRampAngle]'))
+    pg.fill('[data-f=tl-maxRampAngle]', ''); pg.click('[data-testid=tl-ok]')
+    check('rampa: boşaltınca alan silinir (değer uydurulmaz)', 'maxRampAngle' not in pg.evaluate('app.doc.cam.tools[0]'))
+    pg.click('[data-testid=tl-edit]'); pg.click('[data-testid=tl-tab-geom]'); pg.evaluate("document.querySelector('[data-f=tl-cc]').click()")
+    check('rampa: "Merkezden keser" işaretlenince alan gizlenir', count(pg, '[data-f=tl-maxRampAngle]') == 0)
+    pg.keyboard.press('Escape')
+    pg.evaluate("app.setLanguage('en')"); pg.click('[data-testid=tl-edit]') if count(pg, '[data-testid=tl-edit]') else None
+    pg.click('[data-testid=tl-tab-geom]'); pg.evaluate("document.querySelector('[data-f=tl-cc]').checked && document.querySelector('[data-f=tl-cc]').click()")
+    check('EN: "Maximum ramp angle" etiketi', 'Maximum ramp angle' in txt(pg, '.tl-ed'), txt(pg, '.tl-ed')[:200])
+    pg.evaluate("app.setLanguage('tr')")
     ctx.close()
 
     br.close()

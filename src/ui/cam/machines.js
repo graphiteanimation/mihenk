@@ -5,8 +5,9 @@ import { icon } from '../icons.js';
 import { t, errText, fmtNum } from '../../shared/i18n.js';
 import { checkMachine, copyMachine, builtinMachines } from '../../cam/machines/builtin.js';
 import { listPosts, getPost } from '../../cam/post/index.js';
+import { resolveProps } from '../../cam/post/engine.js';
 import { allMachines, saveUserMachines, userMachines, machineName } from './store.js';
-import { clone, uid, parseIntList, numField, textField, selField, checkField, sec, callout, fld, unitBox, msgBox, setMsg } from './util.js';
+import { clone, uid, parseIntList, numField, textField, selField, checkField, sec, callout, fld, unitBox, msgBox, setMsg, blockedByBadField } from './util.js';
 
 const WCS_LIST = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59'];
 // post özelliği tanımları: tür, seçenekler, birim. Etiket 'cam.pp.<ad>', neden gerekli 'cam.ppw.<ad>'.
@@ -29,6 +30,18 @@ function needMark(row, whyText, empty) {
   row.querySelector('.ctl').append(tag);
   const upd = () => { const e = empty(); row.classList.toggle('need', e); tag.hidden = !e; };
   upd(); row.needUpdate = upd; return row;
+}
+
+// Koşulsuz gerekli ama boş post özellikleri (U-04/U-05). Koşullu olanlar yalnız koşul doğruysa: safeRetractZ (G53), g541Range (A ekseni).
+// İsteğe bağlı (boş = yazma): rigidTapM, highSpeedOn/Off, soğutma M kodları (kullanılan soğutma türü için çekirdek ayrıca bildirir).
+const POST_OPTIONAL = new Set(['rigidTapM', 'highSpeedOn', 'highSpeedOff', 'safeRetractZ', 'g541Range', 'coolantCodes']);
+export function postMissing(machine) {
+  if (!machine) return [];
+  let props; try { props = resolveProps(getPost(machine.control), machine); } catch (e) { return []; }
+  const out = PP_ORDER.filter((k) => k in props && PP[k] && ['sel', 'text', 'num'].includes(PP[k].kind) && !POST_OPTIONAL.has(k) && isNull(props[k]));
+  if (props.safeRetract === 'G53' && isNull(props.safeRetractZ)) out.push('safeRetractZ');
+  if (machine.axes?.A && !(Array.isArray(props.g541Range) && props.g541Range.length === 2 && props.g541Range.every((x) => !isNull(x)))) out.push('g541Range');
+  return out;
 }
 
 export function newMachineTemplate() {
@@ -123,7 +136,7 @@ export async function editMachine(machine, { isNew = false } = {}) {
         const cur = () => (Array.isArray(eff(k)) ? eff(k) : [null, null]);
         const a = numField({ label: t('cam.mc.min'), value: cur()[0], nullable: true, int: true, f: 'pp-' + k + '-min', set: (v) => { const c = cur().slice(); c[0] = v; setP(c[0] === null && c[1] === null ? null : c); row.needUpdate?.(); } });
         const b = numField({ label: t('cam.mc.max'), value: cur()[1], nullable: true, int: true, f: 'pp-' + k + '-max', set: (v) => { const c = cur().slice(); c[1] = v; setP(c[0] === null && c[1] === null ? null : c); row.needUpdate?.(); } });
-        row = h('div', {}, fld(label, h('span', {})), a, b); row.needUpdate = () => {}; const lab = row.firstChild; needMark(lab, why, () => !Array.isArray(eff(k)) || cur().some(isNull));
+        row = h('div', {}, fld(label, h('span', {})), a, b); const lab = row.firstChild; needMark(lab, why, () => !Array.isArray(eff(k)) || cur().some(isNull)); row.needUpdate = lab.needUpdate; // U-17: aralık dolunca vurgu kalksın
       } else if (desc.kind === 'codes') {
         row = h('div', {}, sec(label));
         for (const ck of desc.keys) {
@@ -144,7 +157,7 @@ export async function editMachine(machine, { isNew = false } = {}) {
   }
   draw();
   const title = isNew ? t('cam.mc.title_new') : t('cam.mc.title_edit', { name: d.name });
-  const r = await modal({ title, width: 640, cls: 'mc-modal', content: h('div', {}, segEl, body, errBox), buttons: [{ label: t('common.cancel'), value: null }, { label: t('common.ok'), cls: 'pri primary', value: true, testid: 'mc-ok', check: () => !checkMachine(d).errors.length }] });
+  const r = await modal({ title, width: 640, cls: 'mc-modal', content: h('div', {}, segEl, body, errBox), buttons: [{ label: t('common.cancel'), value: null }, { label: t('common.ok'), cls: 'pri primary', value: true, testid: 'mc-ok', check: () => { if (blockedByBadField()) { errBox.append(callout('err', t('cam.mc.invalid'), t('cam.su.fix_fields'))); return false; } return !checkMachine(d).errors.length; } }] });
   if (!r) return null;
   d.rev = (d.rev || 1) + (isNew ? 0 : 1);
   return d;
@@ -162,7 +175,7 @@ export async function openMachineManager(cam) {
       const cur = cam.machineId; const list = allMachines();
       wrap.replaceChildren(h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', { text: t('cam.mc.col_name') }), h('th', { text: t('cam.mc.col_control') }), h('th', { text: t('cam.mc.col_missing') }), h('th', { text: '' }))),
         h('tbody', {}, list.map((m) => {
-          const miss = checkMachine(m).missing.length; const act = (label, ic, fn, tid) => h('button', { class: 'btn sm ghost', type: 'button', 'data-testid': tid, 'aria-label': label, title: label, onclick: fn, html: icon(ic, 'sm') });
+          const miss = checkMachine(m).missing.length + postMissing(m).length; const act = (label, ic, fn, tid) => h('button', { class: 'btn sm ghost', type: 'button', 'data-testid': tid, 'aria-label': label, title: label, onclick: fn, html: icon(ic, 'sm') });
           return h('tr', { class: m.id === cur ? 'sel' : '', 'data-id': m.id, 'data-testid': 'mc-row' },
             h('td', {}, h('label', { class: 'mc-pick' }, h('input', { type: 'radio', name: 'mc', checked: m.id === cur, 'data-testid': 'mc-use', onchange: () => { cam.setMachine(m.id); draw(); } }), h('span', { text: machineName(m) }), m.builtin ? h('span', { class: 'badge info', text: t('cam.mc.builtin') }) : null)),
             h('td', { class: 'mono', text: m.control }), h('td', { class: miss ? 'err' : '', text: miss ? t('cam.mc.n_missing', { n: miss }) : '—' }),

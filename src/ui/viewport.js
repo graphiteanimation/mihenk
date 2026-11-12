@@ -9,7 +9,8 @@ import * as V from '../shared/vec.js';
 const COL = {};
 const _c = new THREE.Color();
 const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const colorOf = (n) => { try { _c.set(cssVar(n)); return _c.getHex(); } catch (e) { return 0x808080; } };
+// #rrggbbaa (alfa'lı belirteç) three.js'te geçersiz: alfa atılır, opaklık malzemede ayrıca verilir (U-14)
+const colorOf = (n) => { try { let v = cssVar(n); if (/^#[0-9a-f]{8}$/i.test(v)) v = v.slice(0, 7); else if (/^#[0-9a-f]{4}$/i.test(v)) v = v.slice(0, 4); _c.set(v); return _c.getHex(); } catch (e) { return 0x808080; } };
 export function readTheme() {
   Object.assign(COL, {
     body: colorOf('--vp-body'), edge: colorOf('--vp-edge'), hover: colorOf('--vp-hover'), sel: colorOf('--vp-sel'),

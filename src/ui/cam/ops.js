@@ -6,6 +6,7 @@ import { t, errText } from '../../shared/i18n.js';
 import { resolveSetup, buildProgram, generateProgram, gates as runGates } from '../../cam/index.js';
 import { blocked } from '../../cam/gates.js';
 import { postProgram } from '../../cam/post/index.js';
+import { openMachineManager, postMissing } from './machines.js';
 import { uid, hashStr } from './util.js';
 import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
 import { SimRun } from './simbar.js';
@@ -171,8 +172,19 @@ export class CamOps {
       return { program, items, gates: g, simOpts: so.opts, docSig: this.docSig() };
     } catch (e) { toast(errText(e), { kind: 'err' }); return null; } finally { this.busy = false; }
   }
+  // Aynı neden (kod + işlem dışı parametreler) birden çok işlemde tekrarlanırsa tek satır: işlem adları birleşir (U-08).
   gateRows(list) {
-    return list.map((g) => ({ level: g.level, op: g.opId ? this.opName(g.opId) : '', text: errText({ code: g.code, params: g.params }), g }));
+    const rows = new Map();
+    for (const g of list) {
+      const { op: _op, ...rest } = g.params || {};
+      const params = g.code === 'cam.gate.protected' && rest.kind === 'WCS' ? { ...rest, kind: 'WCS ' } : rest; // "WCS G56" (boşluklu)
+      const key = g.level + '|' + g.code + '|' + JSON.stringify(rest);
+      const nm = g.opId ? this.opName(g.opId) : '';
+      const hit = rows.get(key);
+      if (hit) { if (nm && !hit.names.includes(nm)) hit.names.push(nm); continue; }
+      rows.set(key, { level: g.level, names: nm ? [nm] : [], text: errText({ code: g.code, params: { ...(g.params || {}), ...params } }), g });
+    }
+    return [...rows.values()].map((r) => ({ level: r.level, op: r.names.join(', '), text: r.text, g: r.g }));
   }
   async simulate() {
     const r = await this.prepare(); if (!r) return;
@@ -213,9 +225,11 @@ export class CamOps {
     const r = await this.prepare(); if (!r) return;
     this.stopSim(true);
     const bl = r.gates.filter((g) => g.level === 'block');
-    if (bl.length) {
+    const miss = postMissing(this.cam.machine()); // U-05: boş post özelliklerinin tümü tek listede
+    if (bl.length || miss.length) {
       this.nc = null; this.app.C.renderAll();
-      await showIssueList(this, { title: t('cam.post.blocked_title'), intro: t('cam.post.blocked_intro', { n: bl.length }), rows: this.gateRows(bl), warns: this.gateRows(r.gates.filter((g) => g.level !== 'block')), kind: 'err', onPick: (row) => { if (row.g?.opId) this.edit(row.g.opId); } });
+      const rows = [...this.gateRows(bl), ...miss.map((k) => ({ level: 'block', op: '', text: t('cam.post.prop_row', { name: t('cam.pp.' + k), key: k }), prop: k }))];
+      await showIssueList(this, { title: t('cam.post.blocked_title'), intro: bl.length ? t('cam.post.blocked_intro', { n: rows.length }) : t('cam.post.prop_missing_intro', { n: miss.length }), rows, warns: this.gateRows(r.gates.filter((g) => g.level !== 'block')), kind: 'err', onPick: (row) => { if (row.g?.opId) this.edit(row.g.opId); else if (row.prop || row.g?.code === 'cam.gate.missing') openMachineManager(this.cam); } });
       return;
     }
     let res; try { res = this.runPost(r.program, r.gates); } catch (e) { this.nc = null; this.app.C.renderAll(); await showIssueList(this, { title: t('cam.post.fail_title'), intro: t('cam.post.fail_intro'), rows: [{ level: 'block', op: '', text: errText(e) }], kind: 'err' }); return; }

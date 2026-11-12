@@ -70,7 +70,7 @@ export function errText(err) {
   const e = toErr(err);
   const p = {};
   for (const [k, v] of Object.entries(e.params || {})) {
-    if (k === 'field' && typeof v === 'string') p[k] = t(v);
+    if (k === 'field' && typeof v === 'string') p[k] = DICTS.tr['cam.field.' + v] ? t('cam.field.' + v) : t(v); // CAM alan yolları okunur ad alır
     else if (isErr(v)) p[k] = errText(v);
     else p[k] = v;
   }

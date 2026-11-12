@@ -72,3 +72,6 @@ button.is-row:hover { background: var(--bg-hover); }
 .row-inline { display: flex; gap: var(--sp-3); align-items: center; }
 .row-inline .input { flex: 1; }
 .op-compute { width: 100%; margin-top: var(--sp-5); justify-content: center; }
+/* U-01: ".modal td input{width:100%}" tezgâh yöneticisi radyosunu şişiriyordu (özgüllük) */
+.modal td .mc-pick input { width: 18px; height: 18px; padding: 0; border: 0; background: transparent; flex: none; margin: 0; }
+.modal td .mc-pick > span:not(.badge) { flex: 1 1 auto; min-width: 0; }

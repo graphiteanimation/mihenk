@@ -44,7 +44,19 @@ export class OpPanel {
   dispose() { const vp = this.app.viewport; vp.setRegions(null, null); vp.setSelection([]); vp.setFilter({}); this.app.setHint(''); this.cam.ops.refreshPaths(null, true); }
   cancel() { const wasNew = this.isNew; this.close(); if (wasNew) this.cam.mut((c) => { for (const x of c.setups) x.ops = (x.ops || []).filter((o) => o.id !== this.id); }); }
   numErr() { return !!this.bodyEl?.querySelector('.input.err'); }
-  problems() { if (!String(this.draft.name || '').trim()) return t('cam.fld.required'); if (this.numErr()) return t('cam.su.fix_fields'); if (!this.draft.toolId) return t('cam.op.pick_tool'); return null; }
+  // U-10: kırmızı alan görünmeyen sekmede olabilir. Diğer sekmeleri ekran dışında kurup denetler; ilk hatalı sekmenin kimliğini döndürür.
+  hiddenBadTab() {
+    const keep = this.draft.preset; const fns = { tool: () => this.tabTool(), geom: () => this.tabGeom(), heights: () => this.tabHeights(), passes: () => this.tabPasses() };
+    let found = null;
+    for (const [id] of TABS) {
+      if (id === this.tab) continue;
+      try { const box = h('div', {}, ...fns[id]().filter(Boolean)); if (box.querySelector('.input.err')) { found = id; break; } } catch (e) { /* sekme kurulamadı: çekirdek denetler */ }
+    }
+    if (keep !== undefined) this.draft.preset = keep; // sekme kurulumu ön ayar etiketini silmesin
+    return found;
+  }
+  problems() { if (!String(this.draft.name || '').trim()) return t('cam.fld.required'); if (this.numErr()) return t('cam.su.fix_fields');
+    const bt = this.hiddenBadTab(); if (bt) { this.tab = bt; this.render(); this.showResult(); this.pickView(); return t('cam.su.fix_fields'); } if (!this.draft.toolId) return t('cam.op.pick_tool'); return null; }
   ok() {
     const bad = this.problems(); if (bad) { this.app.toastInfo(bad); return; }
     const d = clone(this.draft); this.close();
@@ -115,7 +127,7 @@ export class OpPanel {
       this.num(t('cam.op.feed_plunge'), 'feedPlunge', { unit: t('cam.u.mm_min'), min: 0.001, f: 'feedPlunge' }));
     if (d.type === 'contour' || d.type === 'pocket') rows.push(this.num(t('cam.op.feed_ramp'), 'feedRamp', { unit: t('cam.u.mm_min'), min: 0.001, nullable: true, f: 'feedRamp', hint: t('cam.op.feed_ramp_hint') }));
     if (d.cycle === 'tap') rows.push(h('div', { class: 'note', text: t('cam.op.tap_feed') }));
-    rows.push(this.sel(t('cam.op.coolant'), 'coolant', COOLANT.map((c) => [c, t('cam.ppw.coolant.' + c)]), { f: 'coolant' }));
+    rows.push(this.sel(t('cam.op.coolant'), 'coolant', COOLANT.map((c) => [c, t('cam.cool.' + c)]), { f: 'coolant' }));
     return rows;
   }
   // ---- geometri
