@@ -144,3 +144,14 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - P2'de de: T-01 (S1 NC 3813–3814), T-04, T-05, T-07, T-09. Yeni: T-13 3D yüzey izleme yok; T-14 HATA through delme modelBBox.min'e iner (drill.js:82, teyitli); T-15 serbest parça denetimi yok (Fusion'ın gördüğü anahtar/kare parçaları Mihenk görmüyor); T-16 olumlu: sim R1,52/R0,76 ve flute_exceeded yakaladı; T-17 gouge derinliği düşey fark (yanıltıcı, sim/index.js:86); T-18 NC yorumunda ²/Ø → ? (engine.js:19). Not: P1 raporunda T-01…T-12 var.
 - SIRADAKİ: P3 Mihenk tarafı (P3-PLAN.md; aynı yöntem, test/compare/P3). Düzeltmeler test bitince toplu.
 - Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19d.zip'ten geri yükle, karşılaştırma testinde Mihenk tarafında P3'ü koş."
+
+## Durum — 2026-11-19 gece (P3 Mihenk tarafı BİTTİ; kod kopyası Mihenk-repo-2026-11-19e.zip)
+- Betik test/compare/P3/run-p3.mjs (src/** değişmedi, commit 3572e18; ≈167 s). Rapor + NC: test-fusion-karsilastirma\sonuclar\P3\P3-MIHENK-RAPOR.md.
+- Kapsama (18 işlem): Tam 6 (1, 5, 12, 13, 17, 18) / Kısmen 12 / Yapılamadı 0. Alt kalem yapılamayan: kuyu tabanı o11 (tool_too_big), küre alt yarısı + boyun, R3,175 fileler / V yarık köşeleri, NIST yazısı.
+- Kapılar: S1 BLOCK ×9 (4× body_short = T-08, gates.js:84; 5× sim.flute_exceeded o3a, 0,3 radyal kabuk) → *_BLOKLU_*. S2, S3, S4 OK (uyarı: a_dir_unverified, rest_material).
+- Süre Mihenk / Fusion (s): S1 30 934 / 24 658, S2 2 557 / 2 985, S3 527 / 424, S4 171 / 173 → 9 sa 30 dk / 7 sa 51 dk.
+- A açısı: Mihenk S2 `G0 A270.`, S3 `G0 A90.` yazıyor (Fusion yalnız A0). Makine yönü / kısa yol teyitsiz.
+- Tekrar edenler: T-01 (S1 NC 14531–14533), T-04, T-05, T-07 (S1'de 93 M5/M8, Fusion'da 8), T-08, T-09/T-13, T-14 (stok altı 0,911), T-15, T-16 (olumlu), T-18.
+- Yeni: T-19 siluet seçici çok bölgeli yüzde çöküyor (select.js:75); T-20 tek Y kesiti çatılı oyuğu yarık gibi görüyor, takım çatıya dalıyor (E6 gouge ×8); T-21 A−90 → A270 (fanuc-base.js:156–157, düşük önem, teyitsiz). Artık: S1'de en çok 65 mm (kaburga–arka duvar iç köşesi).
+- SIRADAKİ: P4 Mihenk tarafı (P4-PLAN.md; aynı yöntem, test/compare/P4). Düzeltmeler test bitince toplu.
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19e.zip'ten geri yükle, karşılaştırma testinde Mihenk tarafında P4'ü koş."
