@@ -1,0 +1,2609 @@
+{
+ "baslangic": "2026-11-19T17:29:59.440Z",
+ "varsayim": [
+  {
+   "alan": "geometri/eskizler",
+   "deger": "kernel camSection kesitlerinden (z=5 flans, z=20 duvarlar, z=44,828 tavan duz bolgesi, z=48 pencere/delik/kanal) otomatik sinif",
+   "neden": "Mihenk'te STEP'ten yuz/dongu secimi yuz adi (ref) ister; STEP iceri aktarmada ad yok -> kesit eskizi"
+  },
+  {
+   "alan": "tavan duz sinir (sCeil)",
+   "deger": "z=44,828 kesiti (tavan 44,83'un 0,002 alti): boslugun R3,05 tavan yuvarlatmasi basladigi yerde duz bolge siniri; hata yatay ~0,1 mm, yukseklik ~0,002 mm",
+   "neden": "camFaceLoops yuz ref gerektirir; kesitle yaklasik"
+  },
+  {
+   "alan": "rebuild.holes (S1 flans delikleri)",
+   "deger": "4x Ø6,045 (X +-142,875, Y +-98,425), giris Z=0, yon +Z (S1 takim ekseni -Z), derinlik 11,16 = flans 10,16 + 1 mm kirilma (blind kaydi; breakThrough yalniz through deliklerde isler, drill.js:82-83)",
+   "neden": "STEP ice aktarmada delik ozelligi tanimaz; through:true olsaydi Mihenk model tabanina kadar (Z48,26) deler (deney asagida)"
+  },
+  {
+   "alan": "machine.spindle.maxRpm",
+   "deger": 8000,
+   "neden": "Plan: devir <= 8000"
+  },
+  {
+   "alan": "machine.feed.maxCut",
+   "deger": 5000,
+   "neden": "Plan: kesme ilerlemesi <= 5000"
+  },
+  {
+   "alan": "machine.feed.rapid",
+   "deger": 24000,
+   "neden": "Plan'da yok; yalniz sure tahmini icin test degeri (P1 ile ayni)"
+  },
+  {
+   "alan": "machine.post.props.safeRetract",
+   "deger": "G28",
+   "neden": "Fusion post: safePositionMethod = G28"
+  },
+  {
+   "alan": "tool.holder",
+   "deger": "O40 x 50 (P1 ile ayni)",
+   "neden": "Plan: BT40 O40 silindir; tutucu boyu planda yok"
+  },
+  {
+   "alan": "T20 / T22 / T24",
+   "deger": "P1 ile ayni (T20 agiz boyu 10/gövde 40; T22 16/25; T24 2 agiz 35/35)",
+   "neden": "Plan: \"ortak listeden\"; P1 degerleri"
+  },
+  {
+   "alan": "T28 (D3 parmak)",
+   "deger": "2 agiz, agiz boyu 9, gövde 15",
+   "neden": "Plan'da yalniz D3; boy/agiz sayisi yok (tasma >= 5,93 derinlik icin yeterli secildi)"
+  },
+  {
+   "alan": "T31/T32/T33",
+   "deger": "Plan tablosu: agiz 30, tasma 55 (T31/T32); T33 agiz 40 = tasma 40, 2 agiz; T32 cornerR 3 (bullnose)",
+   "neden": "T33 agiz boyu planda yok (tasma 40 alindi)"
+  },
+  {
+   "alan": "shaftDia",
+   "deger": "verilmedi (= kesici capi)",
+   "neden": "Plan'da sap capi yok"
+  },
+  {
+   "alan": "heights.clearance/retract",
+   "deger": "15 / 5 (stok ustunden)",
+   "neden": "Plan'da yok (P1 ile ayni)"
+  },
+  {
+   "alan": "contour leadIn/leadOut",
+   "deger": "yay r=3 (T28 islerinde r=1)",
+   "neden": "Plan'da yok"
+  },
+  {
+   "alan": "S1/S2 clearanceZ",
+   "deger": 5,
+   "neden": "setup.clearanceZ planda yok"
+  },
+  {
+   "alan": "S2 stok",
+   "deger": "S1 ile ayni kutu (315,6 x 226,7 x 52,26); Fusion \"onceki setup'tan stok\" kullandi",
+   "neden": "Mihenk'te \"onceki setup'tan stok\" yok (alt kesme/tek degerli harita); S1 kesimleri S2 simulasyonunda yoktur"
+  },
+  {
+   "alan": "S2 yonu",
+   "deger": "zAxis +Z, xAxis +X, orijin stok ust merkezi; G57",
+   "neden": "Plan: G57, takim ekseni +Z"
+  },
+  {
+   "alan": "S1 yonu",
+   "deger": "zAxis -Z, xAxis +X, orijin stok ust merkezi; G55",
+   "neden": "Plan: G55, takim ekseni model -Z"
+  },
+  {
+   "alan": "o2 ring (S1)",
+   "deger": "pocket: dis duvar = stok+11 mm dikdortgen, ada = flans silueti; taban Z45 (setup z -47); radyal pay 0,3, eksenel 0; stepdown 12, stepover 1,2; rampa 3 derece",
+   "neden": "Fusion adaptive alt Z45 / optimal yuk 1,2 / paso 12 / pay 0,3-0,2; Mihenk'te adaptive yok; flans cevresi icin eksenel pay anlamsiz (model yok) -> 0"
+  },
+  {
+   "alan": "o3 / o3b (S1 bosluk kaba)",
+   "deger": "iki kademeli 2,5D: duvar bolgesi Z41,78e (tavan R3,05 yuvarlatmasi baslangici), tavan duz bolgesi (sCeil) Z44,83e; pay 0,3 radyal / 0,2 eksenel; helis dia 10 (merkez), aci 3",
+   "neden": "Mihenk 3D yuzey izlemez; R3,05 tavan yuvarlatmasi tek-z cep ile oyulmasin diye iki kademe"
+  },
+  {
+   "alan": "o4 (yatay temizleme)",
+   "deger": "T32 cep, sCeil, Z44,83, stepover 5 (duz yaricap 3 -> cap 6 icinde), stepdown 1, pay 0",
+   "neden": "Fusion yatay temizleme parametresi planda yok"
+  },
+  {
+   "alan": "o5a/o5b (3D kontur karsiligi)",
+   "deger": "kontur ic (bosluk, Z41,78e) / dis (flans, Z10,16ya), paso 1 mm, yay lead r3, pay 0",
+   "neden": "Plan: 3D kontur paso 1; tavan R3,05 yuvarlatmasi Mihenk'te yapilamaz"
+  },
+  {
+   "alan": "o6 punta",
+   "deger": "cycle spot, abs z (tipComp false) = setup z -3,5 (stok ustunden 3,5; flans yuzu -2'den 1,5 derin)",
+   "neden": "Fusion: bottom -3,5 stok ustunden"
+  },
+  {
+   "alan": "o7 delme",
+   "deger": "cycle peck 3; depth from hole tipComp true breakThrough 1; delik kaydi blind (depth 11,16 = 10,16 + 1; breakThrough alani blind delikte etkisiz)",
+   "neden": "Fusion: deep-drilling, peck 3, drillTipThroughBottom, breakThrough 1; through:true olsa model tabanina (Z48,26) iner (deney asagida)"
+  },
+  {
+   "alan": "o9 ring (S2)",
+   "deger": "pocket: dis duvar stok+11, ada = ust duvar silueti (z=20 kesiti), taban flans ustu Z10,16; pay 0,3/0,2; rampa 3 derece",
+   "neden": "Fusion adaptive alt Z9,5 (flans ustu 10,16'nin 0,66 alti, flans disinda); Mihenk tek-z cep -> flans ustu + pay"
+  },
+  {
+   "alan": "o9b pencere kaba",
+   "deger": "pocket T31, pencere + Ø30,56/kama bolgeleri, Z44,33e kadar, pay 0,3 radyal; helis dia 10",
+   "neden": "Plan: \"pencereler kaba\" (Fusion adaptive pencere bosluklarini da boşaltır varsayimi); kare + anahtar delikleri yalniz T28 konturuna birakildi (Fusion op 13 ile ayni)"
+  },
+  {
+   "alan": "o10",
+   "deger": "T32 cep, flans ustu, stepover 5, radyal pay 0,3 (duvar o11 konturuna birakildi), dalma",
+   "neden": "Fusion yatay temizleme parametresi planda yok. Ilk denemede radyal pay 0 idi: o9'un biraktigi 0,3 mm duvar payi 38 mm boyunca kesildi -> cam.sim.flute_exceeded x7 (block); pay 0,3 yapildi"
+  },
+  {
+   "alan": "o11 (3D kontur karsiligi)",
+   "deger": "kontur dis, sWall, Z10,16ya (Plan alt Z7 flans icine inerdi), paso 1, pay 0",
+   "neden": "Mihenk 2,5D: Z7 flansa oyar; 3D yuzey izleme yok -> flans ustunde durdu. Plan notu: Z7"
+  },
+  {
+   "alan": "o12/o13/o14",
+   "deger": "kontur ic (side inside), tek derinlikte pas (stepdown 4 / 2 / 2 -> o14 paso 2), pay 0, bilgisayar telafisi (Fusion compensation=left, onizleme \"in computer\" varsayildi)",
+   "neden": "Fusion log: compensation=left; Mihenk comp varsayilani computer"
+  },
+  {
+   "alan": "o15 bore",
+   "deger": "pocket + helis giris (merkez dia 2,2, aci 4 derece ~ 0,5 mm adim), stepover 1, stepdown 4 (tek paso), pay 0",
+   "neden": "Fusion bore threadPitch 0,5; Mihenk'te bore islemi yok, kontur helis desteklemez (cam.op.unsupported)"
+  },
+  {
+   "alan": "sim.res",
+   "deger": 1,
+   "neden": "en kucuk takim yaricapi 1,5 (T28 D3) -> res <= 1,5 kapi sarti (cam.gate.sim_res_coarse); sure/hassasiyet dengesi icin 1"
+  }
+ ],
+ "import": {
+  "sure_s": 2.454,
+  "durum": {
+   "imp": {
+    "ok": true,
+    "bodies": [
+     "imp"
+    ]
+   }
+  },
+  "govde": [
+   {
+    "id": "imp",
+    "yuz": 270,
+    "bbox": [
+     [
+      -155.797250000508,
+      -111.347250000508,
+      0
+     ],
+     [
+      155.797250000508,
+      111.347250000508,
+      48.260000000254
+     ]
+    ],
+    "hacim": 503592.175
+   }
+  ],
+  "docErrors": [],
+  "bbox_plan": {
+   "beklenen": [
+    [
+     -155.8,
+     -111.35,
+     0
+    ],
+    [
+     155.8,
+     111.35,
+     48.26
+    ]
+   ],
+   "bulunan": [
+    [
+     -155.797,
+     -111.347,
+     0
+    ],
+    [
+     155.797,
+     111.347,
+     48.26
+    ]
+   ],
+   "hacim_plan": 503592
+  },
+  "rebuild_holes_sayisi": 0,
+  "rebuild_eskizlerle_s": 0.002,
+  "docErrors2": []
+ },
+ "makine": {
+  "kopya_id": "test-p2-neway-kopya",
+  "yerlesik_degismedi": true,
+  "checkMachine": {
+   "errors": [],
+   "missing": []
+  }
+ },
+ "setups": [
+  {
+   "id": "S1",
+   "ad": "P2-S1 Ic",
+   "wcs": "G55",
+   "islemler": [
+    {
+     "id": "o1",
+     "ad": "1 Yuzey T20",
+     "tur": "face",
+     "takim": "T20",
+     "denemeler": [],
+     "hesap_s": 0.002,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 5650.712,
+     "hizli_mm": 456.579,
+     "sure_s": 153.054,
+     "zMin": -2,
+     "hareket": 33,
+     "passDepth": 1
+    },
+    {
+     "id": "o2",
+     "ad": "2a Adaptive karsiligi: flans cevresi + stok kabugu T31 (cep, Z45e)",
+     "tur": "pocket",
+     "takim": "T31",
+     "denemeler": [],
+     "hesap_s": 0.107,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.pocket.rest_material",
+       "params": {
+        "area": 36.383
+       }
+      }
+     ],
+     "kesme_mm": 12949.327,
+     "hizli_mm": 4969.487,
+     "sure_s": 561.757,
+     "zMin": -47,
+     "hareket": 1491,
+     "passDepth": 11.25
+    },
+    {
+     "id": "o3",
+     "ad": "2b Adaptive karsiligi: bosluk kaba (duvar, Z41,78e) T31",
+     "tur": "pocket",
+     "takim": "T31",
+     "denemeler": [],
+     "hesap_s": 0.458,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.pocket.rest_material",
+       "params": {
+        "area": 6.178
+       }
+      }
+     ],
+     "kesme_mm": 160986.565,
+     "hizli_mm": 411.789,
+     "sure_s": 6448.522,
+     "zMin": -43.58,
+     "hareket": 2229,
+     "passDepth": 10.395000000000003
+    },
+    {
+     "id": "o3b",
+     "ad": "2c Adaptive karsiligi: bosluk kaba (tavan duz bolge, Z44,83e) T31",
+     "tur": "pocket",
+     "takim": "T31",
+     "denemeler": [],
+     "hesap_s": 0.466,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.pocket.rest_material",
+       "params": {
+        "area": 7.556
+       }
+      }
+     ],
+     "kesme_mm": 38146.426,
+     "hizli_mm": 61.63,
+     "sure_s": 1530.698,
+     "zMin": -46.629999999999995,
+     "hareket": 529,
+     "passDepth": 3.049999999999997
+    },
+    {
+     "id": "o4",
+     "ad": "3 Yatay temizleme karsiligi: tavan duz bolge T32 (cep)",
+     "tur": "pocket",
+     "takim": "T32",
+     "denemeler": [],
+     "hesap_s": 0.248,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.pocket.rest_material",
+       "params": {
+        "area": 5.037
+       }
+      }
+     ],
+     "kesme_mm": 9667.01,
+     "hizli_mm": 61.83,
+     "sure_s": 391.765,
+     "zMin": -46.83,
+     "hareket": 136,
+     "passDepth": 0.19999999999999574
+    },
+    {
+     "id": "o5a",
+     "ad": "4a 3D kontur karsiligi: bosluk duvarlari T32 (2,5D kontur ic, Z41,78e)",
+     "tur": "contour",
+     "takim": "T32",
+     "denemeler": [],
+     "hesap_s": 0.03,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.contour.rest_corner",
+       "params": {
+        "n": 8,
+        "r": 6
+       }
+      }
+     ],
+     "kesme_mm": 37654.652,
+     "hizli_mm": 1448.27,
+     "sure_s": 1605.988,
+     "zMin": -43.78,
+     "hareket": 589,
+     "passDepth": 0.9947619047619085
+    },
+    {
+     "id": "o5b",
+     "ad": "4b 3D kontur karsiligi: flans yani T32 (2,5D kontur dis, Z10,16ya)",
+     "tur": "contour",
+     "takim": "T32",
+     "denemeler": [],
+     "hesap_s": 0.008,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 12363.119,
+     "hizli_mm": 207.96,
+     "sure_s": 506.881,
+     "zMin": -12.16,
+     "hareket": 155,
+     "passDepth": 0.9236363636363656
+    },
+    {
+     "id": "o6",
+     "ad": "5 Punta T24 (4x flans deligi, 1,5 derin)",
+     "tur": "drill",
+     "takim": "T24",
+     "denemeler": [],
+     "hesap_s": 0.001,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 26,
+     "hizli_mm": 20,
+     "sure_s": 5.25,
+     "zMin": -3.5,
+     "hareket": 4,
+     "passDepth": 1.5,
+     "delme": {
+      "cycles": [
+       {
+        "cycle": "spot",
+        "n": 4,
+        "top": -2,
+        "bottom": -3.5,
+        "retract": 3,
+        "clearance": 5
+       }
+      ]
+     }
+    },
+    {
+     "id": "o7",
+     "ad": "6 Delme T33 G83 Q3 (4x, boydan boya +1)",
+     "tur": "drill",
+     "takim": "T33",
+     "denemeler": [],
+     "hesap_s": 0,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.drill.dia_mismatch",
+       "params": {
+        "n": 4,
+        "dia": 6.1
+       }
+      }
+     ],
+     "kesme_mm": 69.08,
+     "hizli_mm": 20,
+     "sure_s": 9.919,
+     "zMin": -14.270109214511917,
+     "hareket": 4,
+     "passDepth": 12.270109214511917,
+     "delme": {
+      "cycles": [
+       {
+        "cycle": "peck",
+        "n": 4,
+        "top": -2,
+        "bottom": -14.270109214511917,
+        "retract": 3,
+        "clearance": 5
+       }
+      ]
+     }
+    }
+   ],
+   "gates": [
+    {
+     "level": "warn",
+     "code": "cam.gate.travel_abs_unchecked",
+     "params": {
+      "setup": "P2-S1 Ic"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.pocket.rest_material",
+     "params": {
+      "area": 36.383,
+      "op": "2a Adaptive karsiligi: flans cevresi + stok kabugu T31 (cep, Z45e)"
+     },
+     "opId": "o2",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.pocket.rest_material",
+     "params": {
+      "area": 6.178,
+      "op": "2b Adaptive karsiligi: bosluk kaba (duvar, Z41,78e) T31"
+     },
+     "opId": "o3",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.pocket.rest_material",
+     "params": {
+      "area": 7.556,
+      "op": "2c Adaptive karsiligi: bosluk kaba (tavan duz bolge, Z44,83e) T31"
+     },
+     "opId": "o3b",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.pocket.rest_material",
+     "params": {
+      "area": 5.037,
+      "op": "3 Yatay temizleme karsiligi: tavan duz bolge T32 (cep)"
+     },
+     "opId": "o4",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.contour.rest_corner",
+     "params": {
+      "n": 8,
+      "r": 6,
+      "op": "4a 3D kontur karsiligi: bosluk duvarlari T32 (2,5D kontur ic, Z41,78e)"
+     },
+     "opId": "o5a",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.drill.dia_mismatch",
+     "params": {
+      "n": 4,
+      "dia": 6.1,
+      "op": "6 Delme T33 G83 Q3 (4x, boydan boya +1)"
+     },
+     "opId": "o7",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.sim_lateral_tol",
+     "params": {
+      "tol": 0.5
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -142.875,
+      "y": -98.425,
+      "z": -14.270109214511919,
+      "depth": 11.170096817773485,
+      "cells": 36,
+      "op": "o7"
+     },
+     "opId": "o7",
+     "moveIndex": 2
+    }
+   ],
+   "cozulmus": {
+    "frame": {
+     "o": [
+      0,
+      0,
+      -2
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      -1,
+      0
+     ],
+     "z": [
+      0,
+      0,
+      -1
+     ]
+    },
+    "stockBox": {
+     "min": [
+      -157.797,
+      -113.347,
+      -52.26
+     ],
+     "max": [
+      157.797,
+      113.347,
+      0
+     ]
+    },
+    "modelBBox": {
+     "min": [
+      -155.797,
+      -111.347,
+      -50.26
+     ],
+     "max": [
+      155.797,
+      111.347,
+      -2
+     ]
+    },
+    "stockBoyut": [
+     315.595,
+     226.695,
+     52.26
+    ]
+   },
+   "hm_s": 0.854,
+   "gates_s": 2.822,
+   "blocked": true,
+   "sim_s": 3.086,
+   "sim_issue_say": 1,
+   "sim_issue_kod": {
+    "cam.sim.gouge": 1
+   },
+   "sim_suppressed": 0,
+   "kalan": {
+    "res": 1,
+    "model_ustu_artik": {
+     "esik_mm": [
+      0.05,
+      0.3,
+      1,
+      3,
+      10
+     ],
+     "alan_mm2": [
+      4836,
+      2706,
+      2706,
+      1186,
+      5
+     ],
+     "hacim_mm3": 7869.158,
+     "max_mm": 42.68,
+     "en_buyuk": [
+      [
+       -139.297,
+       -76.847,
+       42.68
+      ],
+      [
+       -121.297,
+       95.153,
+       42.661
+      ],
+      [
+       -120.297,
+       -95.847,
+       42.449
+      ],
+      [
+       138.703,
+       -77.847,
+       42.384
+      ],
+      [
+       -139.297,
+       77.153,
+       41.9
+      ],
+      [
+       119.703,
+       -95.847,
+       3.768
+      ],
+      [
+       -139.297,
+       76.153,
+       3.521
+      ],
+      [
+       120.703,
+       95.153,
+       3.385
+      ]
+     ]
+    },
+    "kaldirilan_hacim_mm3": 2602615.299
+   },
+   "sim_issues": [
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o7",
+     "x": -142.875,
+     "y": -98.425,
+     "z": -14.27,
+     "depth": 11.17,
+     "cells": 36,
+     "moveIndex": 2,
+     "model_z": null,
+     "kalan_z": -14.053
+    }
+   ],
+   "post": {
+    "ok": false,
+    "s": 0.001,
+    "hata": {
+     "code": "cam.post.gates_blocked",
+     "params": {
+      "n": 1,
+      "code": "cam.sim.gouge",
+      "op": "o7"
+     }
+    }
+   },
+   "nc_bloklu": {
+    "dosya": "out/P2_S1_Ic_mihenk_BLOKLU_KARSILASTIRMA_TEZGAHA_GITMEZ.nc",
+    "satir": 5291,
+    "bayt": 84262,
+    "G81": 1,
+    "G83": 1,
+    "G84": 0,
+    "G41": 0,
+    "G42": 0,
+    "A": 1,
+    "M6": 5,
+    "M8": 9,
+    "G2G3": 624,
+    "G1": 636
+   },
+   "tahmini_sure_s": 11213.834
+  },
+  {
+   "id": "S2",
+   "ad": "P2-S2 Ust",
+   "wcs": "G57",
+   "islemler": [
+    {
+     "id": "o8",
+     "ad": "7 Yuzey T20 (ust)",
+     "tur": "face",
+     "takim": "T20",
+     "denemeler": [],
+     "hesap_s": 0,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 5650.712,
+     "hizli_mm": 456.579,
+     "sure_s": 153.054,
+     "zMin": -2,
+     "hareket": 33,
+     "passDepth": 1
+    },
+    {
+     "id": "o9",
+     "ad": "8a Adaptive karsiligi: duvar disi T31 (cep, flans ustune Z10,16)",
+     "tur": "pocket",
+     "takim": "T31",
+     "denemeler": [],
+     "hesap_s": 0.188,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.pocket.rest_material",
+       "params": {
+        "area": 36.383
+       }
+      }
+     ],
+     "kesme_mm": 46689.577,
+     "hizli_mm": 5075.307,
+     "sure_s": 1908.223,
+     "zMin": -39.9,
+     "hareket": 3827,
+     "passDepth": 9.475000000000001
+    },
+    {
+     "id": "o9b",
+     "ad": "8b Adaptive karsiligi: pencere + O30,56 kaba T31 (cep, Z44,33e)",
+     "tur": "pocket",
+     "takim": "T31",
+     "denemeler": [],
+     "hesap_s": 0.818,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.pocket.rest_material",
+       "params": {
+        "area": 107.438
+       }
+      }
+     ],
+     "kesme_mm": 10157.991,
+     "hizli_mm": 236.676,
+     "sure_s": 408.831,
+     "zMin": -5.93,
+     "hareket": 640,
+     "passDepth": 3.9299999999999997
+    },
+    {
+     "id": "o10",
+     "ad": "9 Yatay temizleme karsiligi: flans ustu T32 (cep, Z10,16)",
+     "tur": "pocket",
+     "takim": "T32",
+     "denemeler": [],
+     "hesap_s": 0.119,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [
+      {
+       "code": "cam.pocket.rest_material",
+       "params": {
+        "area": 36.383
+       }
+      }
+     ],
+     "kesme_mm": 3726.401,
+     "hizli_mm": 751.219,
+     "sure_s": 162.558,
+     "zMin": -40.1,
+     "hareket": 73,
+     "passDepth": 0.20000000000000284
+    },
+    {
+     "id": "o11",
+     "ad": "10 3D kontur karsiligi: dis duvarlar T32 (2,5D kontur dis, Z10,16ya)",
+     "tur": "contour",
+     "takim": "T32",
+     "denemeler": [],
+     "hesap_s": 0.028,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 39515.082,
+     "hizli_mm": 1273,
+     "sure_s": 1667.386,
+     "zMin": -40.1,
+     "hareket": 859,
+     "passDepth": 0.9769230769230859
+    },
+    {
+     "id": "o12",
+     "ad": "11 2D kontur pencere + yuvarlak T22 (ic, Z44,33)",
+     "tur": "contour",
+     "takim": "T22",
+     "denemeler": [],
+     "hesap_s": 0.02,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 706.556,
+     "hizli_mm": 269.058,
+     "sure_s": 48.815,
+     "zMin": -5.93,
+     "hareket": 69,
+     "passDepth": 3.9299999999999997
+    },
+    {
+     "id": "o13",
+     "ad": "12 2D kontur kanal T22 (ic, Z46,99)",
+     "tur": "contour",
+     "takim": "T22",
+     "denemeler": [],
+     "hesap_s": 0.002,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 346.294,
+     "hizli_mm": 18.27,
+     "sure_s": 23.973,
+     "zMin": -3.27,
+     "hareket": 15,
+     "passDepth": 1.27
+    },
+    {
+     "id": "o14",
+     "ad": "13 2D kontur kare + anahtar T28 (ic, Z44,33, paso 2)",
+     "tur": "contour",
+     "takim": "T28",
+     "denemeler": [],
+     "hesap_s": 0.009,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 614.438,
+     "hizli_mm": 344.626,
+     "sure_s": 144.814,
+     "zMin": -5.93,
+     "hareket": 105,
+     "passDepth": 1.9649999999999999
+    },
+    {
+     "id": "o15",
+     "ad": "14 Bore (helis) 16 delik T28 (cep + helis giris, Z44,33)",
+     "tur": "pocket",
+     "takim": "T28",
+     "denemeler": [],
+     "hesap_s": 0.084,
+     "ok": true,
+     "varyant": 0,
+     "varyant_deger": "birincil",
+     "uyarilar": [],
+     "kesme_mm": 1340.568,
+     "hizli_mm": 1770.443,
+     "sure_s": 306.108,
+     "zMin": -5.93,
+     "hareket": 495,
+     "passDepth": 3.9299999999999997
+    }
+   ],
+   "gates": [
+    {
+     "level": "warn",
+     "code": "cam.gate.travel_abs_unchecked",
+     "params": {
+      "setup": "P2-S2 Ust"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.pocket.rest_material",
+     "params": {
+      "area": 36.383,
+      "op": "8a Adaptive karsiligi: duvar disi T31 (cep, flans ustune Z10,16)"
+     },
+     "opId": "o9",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.pocket.rest_material",
+     "params": {
+      "area": 107.438,
+      "op": "8b Adaptive karsiligi: pencere + O30,56 kaba T31 (cep, Z44,33e)"
+     },
+     "opId": "o9b",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.pocket.rest_material",
+     "params": {
+      "area": 36.383,
+      "op": "9 Yatay temizleme karsiligi: flans ustu T32 (cep, Z10,16)"
+     },
+     "opId": "o10",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.sim_lateral_tol",
+     "params": {
+      "tol": 0.5
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": 151.87083946084977,
+      "y": 81.19210545135456,
+      "z": -39.9,
+      "depth": 0.05229034423827983,
+      "cells": 2,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3802
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": 152.31825000050748,
+      "y": 77.33683245000387,
+      "z": -39.9,
+      "depth": 0.05229034423827983,
+      "cells": 156,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3803
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": 150.10355987029433,
+      "y": -84.37633233735642,
+      "z": -39.9,
+      "depth": 0.06847991943359233,
+      "cells": 2,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3804
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": 148.8778000934209,
+      "y": -85.64724535029565,
+      "z": -39.9,
+      "depth": 0.06847991943359233,
+      "cells": 20,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3805
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": 123.05200577941312,
+      "y": -108.6854627801028,
+      "z": -39.9,
+      "depth": 0.3061012268066392,
+      "cells": 2,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3806
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": 120.89658175847369,
+      "y": -108.75725000050764,
+      "z": -39.9,
+      "depth": 0.3061012268066392,
+      "cells": 244,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3807
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -127.32763313305286,
+      "y": -107.01710780941585,
+      "z": -39.9,
+      "depth": 0.32383956909179545,
+      "cells": 2,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3808
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -129.20824535105714,
+      "y": -105.31680009265939,
+      "z": -39.9,
+      "depth": 0.32457199096679545,
+      "cells": 21,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3809
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -152.1192950704242,
+      "y": -80.2530800810417,
+      "z": -39.9,
+      "depth": 0.3921302795410142,
+      "cells": 2,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3810
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -152.28632184113437,
+      "y": 79.10667878373737,
+      "z": -39.9,
+      "depth": 0.3195098876953111,
+      "cells": 3,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3812
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -148.17531599516525,
+      "y": 86.34972944866846,
+      "z": -39.9,
+      "depth": 0.12026062011718608,
+      "cells": 20,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3813
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -123.81408008117546,
+      "y": 108.55829507082117,
+      "z": -39.9,
+      "depth": 0.04532470703124858,
+      "cells": 3,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3814
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -120.89658175847372,
+      "y": 108.75725000050838,
+      "z": -39.9,
+      "depth": 0.04532470703124858,
+      "cells": 242,
+      "op": "o9"
+     },
+     "opId": "o9",
+     "moveIndex": 3815
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -127.44303696922223,
+      "y": 1.4377469601596116,
+      "z": -3.27,
+      "depth": 0.042083759307861346,
+      "cells": 4,
+      "op": "o13"
+     },
+     "opId": "o13",
+     "moveIndex": 2
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -127.81000000053339,
+      "y": -76.20000000025449,
+      "z": -3.27,
+      "depth": 0.5082462024688721,
+      "cells": 79,
+      "op": "o13"
+     },
+     "opId": "o13",
+     "moveIndex": 3
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -127.80403702013311,
+      "y": -76.24529333315401,
+      "z": -3.27,
+      "depth": 0.4957778644561768,
+      "cells": 2,
+      "op": "o13"
+     },
+     "opId": "o13",
+     "moveIndex": 4
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -121.285000000496,
+      "y": -76.3750000002794,
+      "z": -3.27,
+      "depth": 0.12199952125549318,
+      "cells": 6,
+      "op": "o13"
+     },
+     "opId": "o13",
+     "moveIndex": 5
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -121.23970666759648,
+      "y": -76.36903701987912,
+      "z": -3.27,
+      "depth": 0.35650422096252443,
+      "cells": 2,
+      "op": "o13"
+     },
+     "opId": "o13",
+     "moveIndex": 6
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -121.1100000004826,
+      "y": 76.2000000002545,
+      "z": -3.27,
+      "depth": 0.5243432712554932,
+      "cells": 155,
+      "op": "o13"
+     },
+     "opId": "o13",
+     "moveIndex": 7
+    },
+    {
+     "level": "block",
+     "code": "cam.sim.gouge",
+     "params": {
+      "x": -121.13344555482372,
+      "y": 76.28750000026719,
+      "z": -3.27,
+      "depth": 0.46475054740905763,
+      "cells": 2,
+      "op": "o13"
+     },
+     "opId": "o13",
+     "moveIndex": 8
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.sim_suppressed",
+     "params": {
+      "n": 2
+     },
+     "opId": null,
+     "moveIndex": null
+    }
+   ],
+   "cozulmus": {
+    "frame": {
+     "o": [
+      0,
+      0,
+      50.26
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ],
+     "z": [
+      0,
+      0,
+      1
+     ]
+    },
+    "stockBox": {
+     "min": [
+      -157.797,
+      -113.347,
+      -52.26
+     ],
+     "max": [
+      157.797,
+      113.347,
+      0
+     ]
+    },
+    "modelBBox": {
+     "min": [
+      -155.797,
+      -111.347,
+      -50.26
+     ],
+     "max": [
+      155.797,
+      111.347,
+      -2
+     ]
+    },
+    "stockBoyut": [
+     315.595,
+     226.695,
+     52.26
+    ]
+   },
+   "hm_s": 0.792,
+   "gates_s": 1.056,
+   "blocked": true,
+   "sim_s": 1.076,
+   "sim_issue_say": 20,
+   "sim_issue_kod": {
+    "cam.sim.gouge": 20
+   },
+   "sim_suppressed": 2,
+   "kalan": {
+    "res": 1,
+    "model_ustu_artik": {
+     "esik_mm": [
+      0.05,
+      0.3,
+      1,
+      3,
+      10
+     ],
+     "alan_mm2": [
+      7263,
+      4268,
+      2296,
+      0,
+      0
+     ],
+     "hacim_mm3": 4959.179,
+     "max_mm": 2.787,
+     "en_buyuk": [
+      [
+       123.703,
+       -101.847,
+       2.787
+      ],
+      [
+       153.703,
+       111.153,
+       2.574
+      ],
+      [
+       155.703,
+       -108.847,
+       2.546
+      ],
+      [
+       124.703,
+       -100.847,
+       2.524
+      ],
+      [
+       125.703,
+       -99.847,
+       2.524
+      ],
+      [
+       126.703,
+       -98.847,
+       2.524
+      ],
+      [
+       127.703,
+       -97.847,
+       2.524
+      ],
+      [
+       128.703,
+       -96.847,
+       2.524
+      ]
+     ]
+    },
+    "kaldirilan_hacim_mm3": 702646.846,
+    "serbest_parca": {
+     "bilesen_say": 4,
+     "serbest_say": 3,
+     "bilesenler": [
+      {
+       "hucre": 480,
+       "alan_mm2": 480,
+       "merkez": [
+        109.115,
+        -49.347
+       ],
+       "bbox": [
+        98.703,
+        -59.847,
+        119.703,
+        -38.847
+       ],
+       "ust_z": -2,
+       "modele_degen_komsu_hucre": 0,
+       "serbest": true
+      },
+      {
+       "hucre": 275,
+       "alan_mm2": 275,
+       "merkez": [
+        59.288,
+        46.2
+       ],
+       "bbox": [
+        50.703,
+        34.153,
+        68.703,
+        58.153
+       ],
+       "ust_z": -2,
+       "modele_degen_komsu_hucre": 0,
+       "serbest": true
+      },
+      {
+       "hucre": 240,
+       "alan_mm2": 240,
+       "merkez": [
+        60.486,
+        -46.347
+       ],
+       "bbox": [
+        55.703,
+        -58.847,
+        68.703,
+        -33.847
+       ],
+       "ust_z": -2,
+       "modele_degen_komsu_hucre": 0,
+       "serbest": true
+      },
+      {
+       "hucre": 1,
+       "alan_mm2": 1,
+       "merkez": [
+        24.703,
+        20.153
+       ],
+       "bbox": [
+        24.703,
+        20.153,
+        24.703,
+        20.153
+       ],
+       "ust_z": -2,
+       "modele_degen_komsu_hucre": 2,
+       "serbest": false
+      }
+     ]
+    }
+   },
+   "sim_issues": [
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": 151.871,
+     "y": 81.192,
+     "z": -39.9,
+     "depth": 0.052,
+     "cells": 2,
+     "moveIndex": 3802,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": 152.318,
+     "y": 77.337,
+     "z": -39.9,
+     "depth": 0.052,
+     "cells": 156,
+     "moveIndex": 3803,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": 150.104,
+     "y": -84.376,
+     "z": -39.9,
+     "depth": 0.068,
+     "cells": 2,
+     "moveIndex": 3804,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": 148.878,
+     "y": -85.647,
+     "z": -39.9,
+     "depth": 0.068,
+     "cells": 20,
+     "moveIndex": 3805,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": 123.052,
+     "y": -108.685,
+     "z": -39.9,
+     "depth": 0.306,
+     "cells": 2,
+     "moveIndex": 3806,
+     "model_z": -40.15,
+     "kalan_z": -40.099
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": 120.897,
+     "y": -108.757,
+     "z": -39.9,
+     "depth": 0.306,
+     "cells": 244,
+     "moveIndex": 3807,
+     "model_z": -40.15,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": -127.328,
+     "y": -107.017,
+     "z": -39.9,
+     "depth": 0.324,
+     "cells": 2,
+     "moveIndex": 3808,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": -129.208,
+     "y": -105.317,
+     "z": -39.9,
+     "depth": 0.325,
+     "cells": 21,
+     "moveIndex": 3809,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": -152.119,
+     "y": -80.253,
+     "z": -39.9,
+     "depth": 0.392,
+     "cells": 2,
+     "moveIndex": 3810,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": -152.286,
+     "y": 79.107,
+     "z": -39.9,
+     "depth": 0.32,
+     "cells": 3,
+     "moveIndex": 3812,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": -148.175,
+     "y": 86.35,
+     "z": -39.9,
+     "depth": 0.12,
+     "cells": 20,
+     "moveIndex": 3813,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": -123.814,
+     "y": 108.558,
+     "z": -39.9,
+     "depth": 0.045,
+     "cells": 3,
+     "moveIndex": 3814,
+     "model_z": -40.1,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o9",
+     "x": -120.897,
+     "y": 108.757,
+     "z": -39.9,
+     "depth": 0.045,
+     "cells": 242,
+     "moveIndex": 3815,
+     "model_z": -40.223,
+     "kalan_z": -40.1
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o13",
+     "x": -127.443,
+     "y": 1.438,
+     "z": -3.27,
+     "depth": 0.042,
+     "cells": 4,
+     "moveIndex": 2,
+     "model_z": -3.27,
+     "kalan_z": -3.27
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o13",
+     "x": -127.81,
+     "y": -76.2,
+     "z": -3.27,
+     "depth": 0.508,
+     "cells": 79,
+     "moveIndex": 3,
+     "model_z": -3.27,
+     "kalan_z": -3.27
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o13",
+     "x": -127.804,
+     "y": -76.245,
+     "z": -3.27,
+     "depth": 0.496,
+     "cells": 2,
+     "moveIndex": 4,
+     "model_z": -3.27,
+     "kalan_z": -3.27
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o13",
+     "x": -121.285,
+     "y": -76.375,
+     "z": -3.27,
+     "depth": 0.122,
+     "cells": 6,
+     "moveIndex": 5,
+     "model_z": -3.27,
+     "kalan_z": -3.27
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o13",
+     "x": -121.24,
+     "y": -76.369,
+     "z": -3.27,
+     "depth": 0.357,
+     "cells": 2,
+     "moveIndex": 6,
+     "model_z": -3.27,
+     "kalan_z": -3.27
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o13",
+     "x": -121.11,
+     "y": 76.2,
+     "z": -3.27,
+     "depth": 0.524,
+     "cells": 155,
+     "moveIndex": 7,
+     "model_z": -3.27,
+     "kalan_z": -3.27
+    },
+    {
+     "level": "error",
+     "code": "cam.sim.gouge",
+     "op": "o13",
+     "x": -121.133,
+     "y": 76.288,
+     "z": -3.27,
+     "depth": 0.465,
+     "cells": 2,
+     "moveIndex": 8,
+     "model_z": -3.27,
+     "kalan_z": -3.27
+    }
+   ],
+   "post": {
+    "ok": false,
+    "s": 0.001,
+    "hata": {
+     "code": "cam.post.gates_blocked",
+     "params": {
+      "n": 20,
+      "code": "cam.sim.gouge",
+      "op": "o9"
+     }
+    }
+   },
+   "nc_bloklu": {
+    "dosya": "out/P2_S2_Ust_mihenk_BLOKLU_KARSILASTIRMA_TEZGAHA_GITMEZ.nc",
+    "satir": 6227,
+    "bayt": 128467,
+    "G81": 0,
+    "G83": 0,
+    "G84": 0,
+    "G41": 0,
+    "G42": 0,
+    "A": 1,
+    "M6": 5,
+    "M8": 9,
+    "G2G3": 953,
+    "G1": 925
+   },
+   "tahmini_sure_s": 4823.762
+  }
+ ],
+ "notlar": [
+  "sRing1 bolge sayisi 2, halka idx 1; sRing2 bolge sayisi 2, halka idx 1"
+ ],
+ "esleme": [],
+ "geometri": {
+  "flans": {
+   "mn": [
+    -155.797250000508,
+    -111.347250000508
+   ],
+   "mx": [
+    155.797250000508,
+    111.347250000508
+   ],
+   "w": 311.594500001016,
+   "h": 222.694500001016
+  },
+  "bosluk_duvar": {
+   "mn": [
+    -139.668250000508,
+    -96.10725000050799
+   ],
+   "mx": [
+    139.668250000508,
+    96.10725000050799
+   ],
+   "w": 279.336500001016,
+   "h": 192.21450000101598
+  },
+  "dis_duvar": {
+   "mn": [
+    -146.018250000508,
+    -102.457250000508
+   ],
+   "mx": [
+    146.018250000508,
+    102.457250000508
+   ],
+   "w": 292.036500001016,
+   "h": 204.914500001016
+  },
+  "tavan_duz_sinir": {
+   "w": 273.511,
+   "h": 186.389
+  },
+  "pencere": {
+   "mn": [
+    -114.0460000005334,
+    -63.246000000279395
+   ],
+   "mx": [
+    37.8460000000254,
+    63.246000000279395
+   ],
+   "w": 151.8920000005588,
+   "h": 126.49200000055879
+  },
+  "yuvarlak_kama": {
+   "mn": [
+    94.29750000048259,
+    48.2206300002032
+   ],
+   "mx": [
+    127.0393700005588,
+    78.7793700003048
+   ],
+   "w": 32.74187000007622,
+   "h": 30.558740000101594
+  },
+  "kare": {
+   "mn": [
+    95.25000000050038,
+    -63.50000000026162
+   ],
+   "mx": [
+    123.19000000051561,
+    -35.560000000246376
+   ],
+   "w": 27.94000000001523,
+   "h": 27.940000000015246
+  },
+  "anahtar1": {
+   "mn": [
+    46.990000000246376,
+    30.4800000002286
+   ],
+   "mx": [
+    72.39000000027939,
+    62.2300000002794
+   ],
+   "w": 25.40000000003301,
+   "h": 31.750000000050797
+  },
+  "anahtar2": {
+   "mn": [
+    52.070000000228596,
+    -62.2300000002794
+   ],
+   "mx": [
+    72.39000000027939,
+    -30.4800000002286
+   ],
+   "w": 20.32000000005079,
+   "h": 31.750000000050797
+  },
+  "kanal": {
+   "mn": [
+    -130.8100000005334,
+    -79.3750000002794
+   ],
+   "mx": [
+    -118.1100000004826,
+    79.3750000002794
+   ],
+   "w": 12.700000000050792,
+   "h": 158.7500000005588
+  },
+  "delik16": 16,
+  "delik_capi": [
+   5.41,
+   5.791,
+   6.147,
+   6.35
+  ]
+ },
+ "sema": "gecerli",
+ "deney_through": {
+  "bottom": -52.37010753604512,
+  "model_tabani_z": -50.26,
+  "stok_tabani_z": -52.26,
+  "uyarilar": [
+   {
+    "code": "cam.drill.through_to_model_bottom",
+    "params": {
+     "n": 4,
+     "z": -50.26
+    }
+   },
+   {
+    "code": "cam.drill.dia_mismatch",
+    "params": {
+     "n": 4,
+     "dia": 6.1
+    }
+   }
+  ],
+  "belowStock": 0.11010921451191535
+ },
+ "deneyler": {
+  "E1_S2_o9_radyal_pay_1.6": {
+   "aciklama": "yalniz o9 radyal pay 0,3 -> 1,6 (duvar dibi R1,52 yuvarlatmasi icin)",
+   "block": {
+    "cam.sim.flute_exceeded o10": 17,
+    "cam.sim.gouge o13": 9
+   },
+   "block_say": 26,
+   "warn_say": 5,
+   "s": 1.2
+  },
+  "E1b_S2_o9_ve_o10_radyal_pay_1.6": {
+   "aciklama": "o9 ve o10 radyal pay 1,6 (o11 duvar konturu 1,6 mm temizler)",
+   "block": {
+    "cam.sim.gouge o13": 9
+   },
+   "block_say": 9,
+   "warn_say": 5,
+   "s": 1.28
+  },
+  "E2_S2_o10_radyal_pay_0": {
+   "aciklama": "o10 radyal pay 0,3 -> 0 (ilk deneme)",
+   "block": {
+    "cam.sim.gouge o9": 13,
+    "cam.sim.flute_exceeded o10": 7,
+    "cam.sim.gouge o13": 7
+   },
+   "block_say": 27,
+   "warn_say": 6,
+   "s": 1.171
+  },
+  "E3_S2_res_0.5": {
+   "aciklama": "ayni program, sim res 0,5 (T28 yaricapi 1,5 >= 0,5)",
+   "block": {
+    "cam.sim.gouge o9": 17,
+    "cam.sim.gouge o13": 3
+   },
+   "block_say": 20,
+   "warn_say": 6,
+   "s": 7.51
+  },
+  "E4_S2_o9b_olmadan_serbest_parca": {
+   "aciklama": "pencere + O30,56 kaba boşaltma (o9b) kaldirilirsa serbest parcalar",
+   "sim_issue_kod": {
+    "cam.sim.gouge": 20
+   },
+   "serbest_parca": {
+    "bilesen_say": 6,
+    "serbest_say": 5,
+    "bilesenler": [
+     {
+      "hucre": 11350,
+      "alan_mm2": 11350,
+      "merkez": [
+       -37.787,
+       0
+      ],
+      "bbox": [
+       -101.297,
+       -50.847,
+       25.703,
+       51.153
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 0,
+      "serbest": true
+     },
+     {
+      "hucre": 480,
+      "alan_mm2": 480,
+      "merkez": [
+       109.115,
+       -49.347
+      ],
+      "bbox": [
+       98.703,
+       -59.847,
+       119.703,
+       -38.847
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 0,
+      "serbest": true
+     },
+     {
+      "hucre": 275,
+      "alan_mm2": 275,
+      "merkez": [
+       59.288,
+       46.2
+      ],
+      "bbox": [
+       50.703,
+       34.153,
+       68.703,
+       58.153
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 0,
+      "serbest": true
+     },
+     {
+      "hucre": 251,
+      "alan_mm2": 251,
+      "merkez": [
+       111.874,
+       64.205
+      ],
+      "bbox": [
+       102.703,
+       56.153,
+       120.703,
+       72.153
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 0,
+      "serbest": true
+     },
+     {
+      "hucre": 240,
+      "alan_mm2": 240,
+      "merkez": [
+       60.486,
+       -46.347
+      ],
+      "bbox": [
+       55.703,
+       -58.847,
+       68.703,
+       -33.847
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 0,
+      "serbest": true
+     },
+     {
+      "hucre": 1,
+      "alan_mm2": 1,
+      "merkez": [
+       24.703,
+       20.153
+      ],
+      "bbox": [
+       24.703,
+       20.153,
+       24.703,
+       20.153
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 2,
+      "serbest": false
+     }
+    ]
+   },
+   "s": 0.919
+  },
+  "E5_S2_res_0.5_serbest_parca": {
+   "aciklama": "birincil program, res 0,5 ile serbest parca",
+   "serbest_parca": {
+    "bilesen_say": 7,
+    "serbest_say": 3,
+    "bilesenler": [
+     {
+      "hucre": 1921,
+      "alan_mm2": 480.25,
+      "merkez": [
+       109.12,
+       -49.345
+      ],
+      "bbox": [
+       98.453,
+       -60.097,
+       119.953,
+       -38.597
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 0,
+      "serbest": true
+     },
+     {
+      "hucre": 1098,
+      "alan_mm2": 274.5,
+      "merkez": [
+       59.348,
+       46.199
+      ],
+      "bbox": [
+       50.453,
+       33.903,
+       68.953,
+       58.403
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 0,
+      "serbest": true
+     },
+     {
+      "hucre": 944,
+      "alan_mm2": 236,
+      "merkez": [
+       60.398,
+       -46.347
+      ],
+      "bbox": [
+       55.453,
+       -59.097,
+       68.953,
+       -33.597
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 0,
+      "serbest": true
+     },
+     {
+      "hucre": 1,
+      "alan_mm2": 0.25,
+      "merkez": [
+       -41.047,
+       -48.597
+      ],
+      "bbox": [
+       -41.047,
+       -48.597,
+       -41.047,
+       -48.597
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 2,
+      "serbest": false
+     },
+     {
+      "hucre": 1,
+      "alan_mm2": 0.25,
+      "merkez": [
+       66.453,
+       -34.597
+      ],
+      "bbox": [
+       66.453,
+       -34.597,
+       66.453,
+       -34.597
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 2,
+      "serbest": false
+     },
+     {
+      "hucre": 1,
+      "alan_mm2": 0.25,
+      "merkez": [
+       23.453,
+       21.903
+      ],
+      "bbox": [
+       23.453,
+       21.903,
+       23.453,
+       21.903
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 2,
+      "serbest": false
+     },
+     {
+      "hucre": 1,
+      "alan_mm2": 0.25,
+      "merkez": [
+       1.953,
+       49.403
+      ],
+      "bbox": [
+       1.953,
+       49.403,
+       1.953,
+       49.403
+      ],
+      "ust_z": -2,
+      "modele_degen_komsu_hucre": 2,
+      "serbest": false
+     }
+    ]
+   },
+   "s": 7.586
+  },
+  "E6_S1_res_0.5": {
+   "aciklama": "ayni program, sim res 0,5",
+   "block": {
+    "cam.sim.gouge o7": 1
+   },
+   "block_say": 1,
+   "warn_say": 8,
+   "s": 21.84
+  },
+  "E7_S1_T33_dia_6.0": {
+   "aciklama": "T33 Ø6,1 -> Ø6,0 (model deligi Ø6,045)",
+   "block": {},
+   "block_say": 0,
+   "warn_say": 8,
+   "s": 2.883
+  }
+ },
+ "generateProgram_dogrudan": {
+  "S1": {
+   "s": 1.241,
+   "ops": [
+    {
+     "id": "o1",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o2",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o3",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o3b",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o4",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o5a",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o5b",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o6",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o7",
+     "ok": true,
+     "hata": null
+    }
+   ],
+   "bloklu": false
+  },
+  "S2": {
+   "s": 1.201,
+   "ops": [
+    {
+     "id": "o8",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o9",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o9b",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o10",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o11",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o12",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o13",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o14",
+     "ok": true,
+     "hata": null
+    },
+    {
+     "id": "o15",
+     "ok": true,
+     "hata": null
+    }
+   ],
+   "bloklu": false
+  }
+ },
+ "sure_s": 63.055,
+ "fusion": {
+  "parca": "P2",
+  "tarih": "2026-11-19T16:15:31",
+  "not": "NC TEZGAHA GITMEZ",
+  "eksen_eslemesi_plan_to_fusion": [
+   [
+    1,
+    0,
+    0
+   ],
+   [
+    0,
+    1,
+    0
+   ],
+   [
+    0,
+    0,
+    1
+   ]
+  ],
+  "takimlar": [
+   "T20",
+   "T22",
+   "T24",
+   "T28",
+   "T31",
+   "T32",
+   "T33"
+  ],
+  "setups": [
+   {
+    "kod": "S1",
+    "ad": "P2-S1 Ic",
+    "workOffset": 2,
+    "program": "2001",
+    "islemler": [
+     {
+      "ad": "1 Yuzey T20",
+      "strateji": "face",
+      "takim": "#20 - Ø50mm face (T20 D50 yuz frezesi 5 agiz)",
+      "hesap_s": 1.17,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 154.5,
+      "kesme_yolu_mm": 5769.9,
+      "hizli_yolu_mm": 217.8
+     },
+     {
+      "ad": "2 3D Adaptive T31",
+      "strateji": "adaptive",
+      "takim": "#31 - Ø12mm flat (T31 D12 parmak 3 agiz UZUN (P2 icin))",
+      "hesap_s": 109.58,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 8392.2,
+      "kesme_yolu_mm": 199299.7,
+      "hizli_yolu_mm": 88758
+     },
+     {
+      "ad": "3 Yatay temizleme T32",
+      "strateji": "horizontal",
+      "takim": "#32 - Ø12R3mm bullnose (T32 D12 R3 kose radyuslu 3 agiz UZUN (P2 icin))",
+      "hesap_s": 13.29,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 763.1,
+      "kesme_yolu_mm": 18861.9,
+      "hizli_yolu_mm": 1767
+     },
+     {
+      "ad": "4 3D Kontur T32",
+      "strateji": "contour3d",
+      "takim": "#32 - Ø12R3mm bullnose (T32 D12 R3 kose radyuslu 3 agiz UZUN (P2 icin))",
+      "hesap_s": 10.96,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 1754.3,
+      "kesme_yolu_mm": 42035.3,
+      "hizli_yolu_mm": 76.2
+     },
+     {
+      "ad": "5 Punta T24",
+      "strateji": "drill",
+      "takim": "#24 - Ø10mm 90° spot drill (T24 D10 punta 90)",
+      "hesap_s": 14.4,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 6.7,
+      "kesme_yolu_mm": 26,
+      "hizli_yolu_mm": 741.5
+     },
+     {
+      "ad": "6 Delme D6.1 T33",
+      "strateji": "drill",
+      "takim": "#33 - Ø6.1mm 140° drill (T33 D6.1 matkap 140 (P2 icin))",
+      "hesap_s": 10.12,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 13.6,
+      "kesme_yolu_mm": 78.7,
+      "hizli_yolu_mm": 1174.9
+     }
+    ],
+    "isleme_s": 11144.3,
+    "takim_degisim": 4
+   },
+   {
+    "kod": "S2",
+    "ad": "P2-S2 Ust",
+    "workOffset": 4,
+    "program": "2002",
+    "islemler": [
+     {
+      "ad": "7 Yuzey T20",
+      "strateji": "face",
+      "takim": "#20 - Ø50mm face (T20 D50 yuz frezesi 5 agiz)",
+      "hesap_s": 2.57,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 154.5,
+      "kesme_yolu_mm": 5769.9,
+      "hizli_yolu_mm": 217.8
+     },
+     {
+      "ad": "8 3D Adaptive T31",
+      "strateji": "adaptive",
+      "takim": "#31 - Ø12mm flat (T31 D12 parmak 3 agiz UZUN (P2 icin))",
+      "hesap_s": 197.84,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 5096.1,
+      "kesme_yolu_mm": 116055.6,
+      "hizli_yolu_mm": 36335.1
+     },
+     {
+      "ad": "9 Yatay temizleme T32",
+      "strateji": "horizontal",
+      "takim": "#32 - Ø12R3mm bullnose (T32 D12 R3 kose radyuslu 3 agiz UZUN (P2 icin))",
+      "hesap_s": 21.16,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 748,
+      "kesme_yolu_mm": 18570,
+      "hizli_yolu_mm": 1337.2
+     },
+     {
+      "ad": "10 3D Kontur T32",
+      "strateji": "contour3d",
+      "takim": "#32 - Ø12R3mm bullnose (T32 D12 R3 kose radyuslu 3 agiz UZUN (P2 icin))",
+      "hesap_s": 14.44,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 1641.9,
+      "kesme_yolu_mm": 41033.6,
+      "hizli_yolu_mm": 288.7
+     },
+     {
+      "ad": "11 2D Kontur pencere+yuvarlak T22",
+      "strateji": "contour2d",
+      "takim": "#22 - Ø6mm flat (T22 D6 parmak 3 agiz)",
+      "hesap_s": 2.64,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 45,
+      "kesme_yolu_mm": 682.4,
+      "hizli_yolu_mm": 156.4
+     },
+     {
+      "ad": "12 2D Kontur kanal T22",
+      "strateji": "contour2d",
+      "takim": "#22 - Ø6mm flat (T22 D6 parmak 3 agiz)",
+      "hesap_s": 6.42,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 21.3,
+      "kesme_yolu_mm": 329.2,
+      "hizli_yolu_mm": 29.7
+     },
+     {
+      "ad": "13 2D Kontur kare+anahtar T28",
+      "strateji": "contour2d",
+      "takim": "#28 - Ø3mm flat (T28 D3 parmak 2 agiz)",
+      "hesap_s": 3.89,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 129.5,
+      "kesme_yolu_mm": 586.8,
+      "hizli_yolu_mm": 230.8
+     },
+     {
+      "ad": "14 Bore 16 delik T28",
+      "strateji": "bore",
+      "takim": "#28 - Ø3mm flat (T28 D3 parmak 2 agiz)",
+      "hesap_s": 0.02,
+      "tamamlandi": true,
+      "hasToolpath": true,
+      "isToolpathValid": true,
+      "hasWarning": false,
+      "warning": "",
+      "hasError": false,
+      "error": "",
+      "basarili": true,
+      "isleme_s": 535.8,
+      "kesme_yolu_mm": 2847.9,
+      "hizli_yolu_mm": 912.7
+     }
+    ],
+    "isleme_s": 8432.2,
+    "takim_degisim": 4
+   }
+  ],
+  "kapsam_disi": [
+   "+X duvarindaki 2,54 mm derin kabartma/oyma desen (X normalli): divizor ekseni X boyunca -> 3+1 ile erisilemez, yapilmadi (baglama yok)",
+   "Ic bosluk dikey kose R3,05: D12 takim 135 derece koselerde ~0,24 mm artik birakir -> Kismen",
+   "Duvar dibi R1,52 yuvarlatma (flans ustu): T32 R3 sigmaz -> artik, Kismen",
+   "Kanal tabani R0,76: 2D kontur duz uc (T22) keskin kose isler -> yuvarlatma kesilir (~0,2 mm), Kismen/sapma",
+   "S2 baglamasi: flans deliklerinden fikstur plakasina civata (varsayim; fikstur modellenmedi)"
+  ],
+  "simulasyon": "API'de yok - GUI'de bakilir",
+  "bulut_kaydi": "proje yok",
+  "param_hatalari": [],
+  "sure_s": 469.7
+ }
+}
