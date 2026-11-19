@@ -44,7 +44,8 @@ Function EnsureSubdir
   ${If} $0 == "\"
     StrCpy $INSTDIR $INSTDIR -1
   ${EndIf}
-  StrCpy $0 $INSTDIR 10 -10
+  ; "\Mihenk" 7 karakter (eski kod 10 karakter karşılaştırıyordu → her kurulumda bir "\Mihenk" daha ekleniyordu)
+  StrCpy $0 $INSTDIR 7 -7
   ${If} $0 != "\${APP}"
     StrCpy $INSTDIR "$INSTDIR\${APP}"
   ${EndIf}

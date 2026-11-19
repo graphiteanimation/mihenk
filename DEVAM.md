@@ -118,3 +118,14 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - SIRADAKİ (kullanıcı): 0.3.0'ı Windows'ta kur, dene, geri bildirim. Sonraki olası aşama: 3+1 arayüzü, teknik resim (O-018 sırası), V-29 incelemesi.
 - Derleme notu: `npm run dist` Linux'ta makensis ister: electron-builder-binaries nsis-3.0.4.1.7z → ~/.cache/electron-builder/nsis-3.0.4.1/nsis-3.0.4.1/ (7za ile aç; py7zr BCJ2 açamaz).
 - Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-12.zip'ten geri yükle, <istek>."
+
+## Durum — 2026-11-12 öğleden sonra (eksik analizi; kod DEĞİŞMEDİ)
+- Kurulum: SHA-256 teyitli; bilgisayarda kurulumu kullanıcı başlatacak (Dosya Gezgini yalnız tıklama izni, pencere görünmedi).
+- Eksik analizi (NX/Fusion kıyası): https://claude.ai/artifact/L4C72y7G1BHEPQBf3Se3Ru — ara dosyalar AtolyeCAD\analiz\ (envanter, referans, dogrulama, PROMPT).
+- Onay bekleyen: O-019 (0.3.x tezgâh kabulü önce) … O-028. Yol haritası: 0.4 prizmatik eksiksiz → 0.5 verim/çarpışma → 0.6 3D + teknik resim → 1.0.
+- SIRADAKİ: kullanıcı O-019…O-028 onayı + Windows kurulumu; onaydan sonra O'lar spesifikasyona işlenir.
+
+## Durum — 2026-11-19 (Windows kurulumu yapıldı)
+- 0.3.0 bilgisayara kuruldu: C:\Users\sand\AppData\Local\Programs\Mihenk\Mihenk.exe. Açılıyor; Tasarım, İmalat, Neway profili görünüyor (Neway'de eksik veri uyarısı beklenen).
+- KURULUM HATASI bulundu: build/installer.nsi EnsureSubdir "\Mihenk" (7 karakter) yerine son 10 karakteri karşılaştırıyordu → her kurulumda yola bir "\Mihenk" daha ekleniyordu. Ayrıca klasör sayfasında yol elle değiştirilince DirLeave ekleme yapmadı ve dosyalar Programs köküne açıldı (kendi kaldırıcısıyla temizlendi). Düzeltme: StrCpy $0 $INSTDIR 7 -7 (commit'li). DirLeave'in çalışmaması 0.3.1'de Windows'ta sınanmalı; 0.3.1 kurulum dosyası yeniden üretilmeli.
+- Eski kurulumlar duruyor: Programs\Mihenk\Mihenk\ altında iç içe 3 kopya (11 Kasım, ~1,2 GB). Kullanıcı onayıyla silinecek.
