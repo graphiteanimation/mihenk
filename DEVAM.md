@@ -155,3 +155,15 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - Yeni: T-19 siluet seçici çok bölgeli yüzde çöküyor (select.js:75); T-20 tek Y kesiti çatılı oyuğu yarık gibi görüyor, takım çatıya dalıyor (E6 gouge ×8); T-21 A−90 → A270 (fanuc-base.js:156–157, düşük önem, teyitsiz). Artık: S1'de en çok 65 mm (kaburga–arka duvar iç köşesi).
 - SIRADAKİ: P4 Mihenk tarafı (P4-PLAN.md; aynı yöntem, test/compare/P4). Düzeltmeler test bitince toplu.
 - Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19e.zip'ten geri yükle, karşılaştırma testinde Mihenk tarafında P4'ü koş."
+
+## Durum — 2026-11-19 gece (P4 Mihenk tarafı BİTTİ; kod kopyası Mihenk-repo-2026-11-19f.zip)
+- Betik test/compare/P4/run-p4.mjs (src/** değişmedi, commit 16fd408; ≈80 s deneysiz, ≈126 s deneyli; sim çözünürlüğü 0,5). Rapor + NC: test-fusion-karsilastirma\sonuclar\P4\P4-MIHENK-RAPOR.md.
+- Kapsama (25 işlem): Tam 4 (1, 5, 6, 25) / Kısmen 21 / Yapılamadı 0. X yönlü 2× Ø5,5 delik iki tarafta da yok (plan kapsam dışı). Kılavuz döngüsü G84 Mihenk'te var.
+- Kapılar: S1 BLOCK ×17 → *_BLOKLU_*: 1× body_short (o7 T22 derinlik 27 > gövde 25, T-08), 4× sim.gouge o9 (Ø6,1 matkap > Ø6 delik), 6× sim.gouge o11 0,24 mm (140° matkap ucu vs modelde 118°), 6× sim.gouge o12 (kılavuz, T-22). S2/S3/S4 OK. Çözünürlük 0,25'te de aynı 17 blok.
+- Süre Mihenk / Fusion (s): S1 2610 / 2026, S2 242 / 155, S3 464 / 952, S4 1670 / 1838 → ikisi de ≈1 sa 23 dk. NC satır: 8393 / 56 761, 762 / 392, 924 / 10 398, 853 / 22 244.
+- A açısı: S2 `G0 A270.` (satır 21), S3 `G0 A90.` (satır 24), sonda A0. Plan S2 A+90 / S3 A−90 diyor; Mihenk işareti ters (src/cam/index.js:78-83, A.dir=[−1,0,0]); makinede hangisi doğru teyitsiz. Fusion yalnız A0.
+- Tekrar: T-01 (S1 NC 8043 havada G1 ≈21,5 s), T-04, T-05, T-07, T-08, T-09/T-13, T-12 (olumlu), T-14, T-15, T-16, T-17, T-18, T-19, T-20, T-21. T22 gövde 25'te tutucu boşluğu tam 0 mm, Mihenk uyarı vermiyor.
+- Yeni: T-22 sim kılavuzu majör çap Ø3 dolu silindir sayıyor (STEP deliği Ø2,459) → her kılavuz deliği gouge BLOCK (sim/tool.js:5, sim/index.js:159-165, :86); T-23 delme çevrimi her deliğe ayrı G98 G8x…G80 (drill.js:68, :103; S1 G81/G83/G84 4/14/6, Fusion 1/4/1); T-24 teyitsiz: camSection döngülerinde ≈6e-4 mm açıklık, eskiz toleransı 1e-6 birleştirmiyor → ada kaybı (kernel/cam.js:179, shared/profiles.js:9).
+- Yöntem notu: S1 adaları "dolgu" yardımcı gövdesinden alındı → köprü alanlarında S1'de 4–7,5 mm artık (kasıtlı, raporda ölçüldü).
+- Karşılaştırma testi Mihenk tarafı 4 parçada BİTTİ. SIRADAKİ: karşılaştırma testi artifact'ine P2 Mihenk, P2 sim, P3, P4 satırlarını işle + genel sonuç → T-01…T-24 toplu düzeltme planı (öncelik: T-01, T-14, T-22, T-04, T-15, A işareti teyidi).
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19f.zip'ten geri yükle, karşılaştırma testi artifact'ine P2–P4 satırlarını işle ve genel sonucu yaz."
