@@ -135,3 +135,12 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - Kod (b6cbba6): .acad desteği ve %APPDATA%\AtolyeCAD ayar taşıma kaldırıldı; köken app://mihenk/, anahtarlar mihenk.*, IndexedDB mihenk-recovery, ortam değişkenleri MIHENK_*. Testler: tüm adımlar geçti (app.test.py zincirde bir kez kararsız sayfa hatası verdi, tek başına iki kez 194/194 geçti). Not: köken değiştiği için tema/yoğunluk tercihi bir kez sıfırlanır.
 - Bilgisayar: klasör Documents\Fusion-Klon-Spec\Mihenk (eski AtolyeCAD); AtolyeCAD-Kurulum-0.1.0.exe, AtolyeCAD-kaynak-*.zip, Roaming\AtolyeCAD içeriği ve iç içe 3 eski Mihenk kurulumu silindi; Belge.acad → Belge.mhnk. Boş Roaming\AtolyeCAD klasörü duruyor (erişim kökü olduğu için silinemedi).
 - Bilgisayardaki kurulu 0.3.0 hâlâ eski adları kullanır; temizlik 0.3.1 kurulumuyla gelir.
+
+## Durum — 2026-11-19 gece (P2 Mihenk tarafı BİTTİ; kod kopyası Mihenk-repo-2026-11-19d.zip)
+- Betik test/compare/P2/run-p2.mjs (src/** değişmedi, commit d8ea40c; ≈21 s). Rapor + NC: test-fusion-karsilastirma\sonuclar\P2\P2-MIHENK-RAPOR.md.
+- STEP içe aktarma: 270 yüz, 503 592 mm³. Kapsama: Tam 5 / Kısmen 9 / Yapılamadı 0 (3D adaptive/yatay/3D kontur yok → 2,5D cep/kontur kademeleri); alt kalem Yapılamadı: S1 tavan R3,05, S2 üst kenar R3,05.
+- NC: S1 BLOCK (sim.gouge o7: T33 Ø6,1 > model deliği Ø6,045), S2 BLOCK ×20 (o9 duvar dibi R1,52, o13 kanal tabanı R0,76) → ikisi de *_BLOKLU_*.
+- Süre: Mihenk S1 11 214 / S2 4 824 s (4 sa 27 dk) — Fusion 11 144 / 8 432 s (5 sa 26 dk); S2 farkının nedeni bilinmiyor.
+- P2'de de: T-01 (S1 NC 3813–3814), T-04, T-05, T-07, T-09. Yeni: T-13 3D yüzey izleme yok; T-14 HATA through delme modelBBox.min'e iner (drill.js:82, teyitli); T-15 serbest parça denetimi yok (Fusion'ın gördüğü anahtar/kare parçaları Mihenk görmüyor); T-16 olumlu: sim R1,52/R0,76 ve flute_exceeded yakaladı; T-17 gouge derinliği düşey fark (yanıltıcı, sim/index.js:86); T-18 NC yorumunda ²/Ø → ? (engine.js:19). Not: P1 raporunda T-01…T-12 var.
+- SIRADAKİ: P3 Mihenk tarafı (P3-PLAN.md; aynı yöntem, test/compare/P3). Düzeltmeler test bitince toplu.
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19d.zip'ten geri yükle, karşılaştırma testinde Mihenk tarafında P3'ü koş."
