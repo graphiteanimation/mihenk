@@ -1,0 +1,852 @@
+O2010
+(UNVERIFIED POST - DOGRULANMADI - MIHENK 0.3.0)
+(PROGRAM O2010)
+(DATE 2026-11-19)
+(MACHINE P4 TEST Neway kopyasi [varsayimli] REV 1 CONTROL mitsubishi-m80v)
+(T20 H20 D20 DIA 50.000 FACE)
+(T21 H21 D21 DIA 12.000 FLAT)
+(T38 H38 D38 DIA 4.000 BALL)
+(T39 H39 D39 DIA 2.500 DRILL)
+(GATES 0 BLOCK 8 WARN)
+(WARNING: No machine position for "P4-S4 Alt": absolute travel could not be checked. Only the toolpath span was checked.)
+(WARNING: 21 2D Adaptive karsiligi T21: cep agzi Y-2 -> 14,8: About 32.625 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 22 Yatay temizleme karsiligi T21: cep tabani Y17 [tek paso 14,8 -> 17]: About 30.375 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 23 3D kontur karsiligi T38 Y15-15.5 [kesit 15.49] paso 0.5: 4 inside corners or small arcs are tighter than the tool radius [2 mm]: material will remain there. Finish with a smaller tool.)
+(WARNING: 23 3D kontur karsiligi T38 Y15.5-16 [kesit 15.99] paso 0.5: 4 inside corners or small arcs are tighter than the tool radius [2 mm]: material will remain there. Finish with a smaller tool.)
+(WARNING: 23 3D kontur karsiligi T38 Y16-16.5 [kesit 16.49] paso 0.5: 4 inside corners or small arcs are tighter than the tool radius [2 mm]: material will remain there. Finish with a smaller tool.)
+(WARNING: 23 3D kontur karsiligi T38 Y16.5-17 [kesit 16.99] paso 0.5: 4 inside corners or small arcs are tighter than the tool radius [2 mm]: material will remain there. Finish with a smaller tool.)
+(WARNING: The simulation cannot see side gouges smaller than 0.25 mm [half the grid size]. Wall accuracy comes from the toolpath calculation.)
+G90 G17 G21 G40 G49 G80 G94
+(OP 1: 21 2D Adaptive karsiligi T21: cep agzi Y-2 -> 14,8 [pocket] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+T21 M6
+G0 A0.
+S8000 M3
+G0 G90 G59 X-27.958 Y0.
+G43 H21 Z15.
+M8
+G1 Z0. F600.
+G3 X-37.958 Z-0.823 I-5. J0. F1800.
+X-27.958 Z-1.646 I5. J0.
+X-37.958 Z-2.47 I-5. J0.
+X-27.958 Z-3.293 I5. J0.
+X-37.958 Z-4.116 I-5. J0.
+X-27.958 Z-4.939 I5. J0.
+X-37.026 Y2.906 Z-5.6 I-5. J0.
+X-28.889 Y-2.906 I4.069 J-2.906
+X-37.026 Y2.906 I-4.069 J2.906
+G1 X-32.958 Y0.
+Y-0.7
+X-4.3
+Y0.7
+X-33.7
+Y-0.7
+X-32.958
+Y-1.9
+X-3.1
+Y1.9
+X-34.9
+Y-1.9
+X-32.958
+Y-3.1
+X-1.9
+Y3.1
+X-36.1
+Y-3.1
+X-32.958
+Y-4.3
+X-0.7
+Y4.3
+X-37.3
+Y-4.3
+X-32.958
+Y-5.5
+X0.5
+Y5.5
+X-38.5
+Y-5.5
+X-32.958
+Y-6.7
+X1.7
+Y6.7
+X-39.7
+Y-6.7
+X-32.958
+Y-7.9
+X2.9
+Y7.9
+X-40.9
+Y-7.9
+X-32.958
+Y-9.1
+X4.1
+Y9.1
+X-42.1
+Y-9.1
+X-32.958
+Y-10.3
+X5.3
+Y10.3
+X-43.3
+Y-10.3
+X-32.958
+Y-11.5
+X6.5
+Y11.5
+X-44.5
+Y-11.5
+X-32.958
+Y-12.7
+X7.7
+Y12.7
+X-45.7
+Y-12.7
+X-32.958
+Y-13.9
+X8.9
+Y13.9
+X-46.9
+Y-13.9
+X-32.958
+Y-15.1
+X10.1
+Y15.1
+X-48.1
+Y-15.1
+X-32.958
+Y-16.3
+X11.3
+Y16.3
+X-49.3
+Y-16.3
+X-32.958
+Y-17.5
+X12.5
+Y17.5
+X-50.5
+Y-17.5
+X-32.958
+Y-18.7
+X13.7
+Y18.7
+X-51.7
+Y-18.7
+X-32.958
+G0 Z5.
+X-27.958 Y0.
+G1 Z-5.6 F600.
+G3 X-37.958 Z-6.423 I-5. J0. F1800.
+X-27.958 Z-7.246 I5. J0.
+X-37.958 Z-8.07 I-5. J0.
+X-27.958 Z-8.893 I5. J0.
+X-37.958 Z-9.716 I-5. J0.
+X-27.958 Z-10.539 I5. J0.
+X-37.026 Y2.906 Z-11.2 I-5. J0.
+X-28.889 Y-2.906 I4.069 J-2.906
+X-37.026 Y2.906 I-4.069 J2.906
+G1 X-32.958 Y0.
+Y-0.7
+X-4.3
+Y0.7
+X-33.7
+Y-0.7
+X-32.958
+Y-1.9
+X-3.1
+Y1.9
+X-34.9
+Y-1.9
+X-32.958
+Y-3.1
+X-1.9
+Y3.1
+X-36.1
+Y-3.1
+X-32.958
+Y-4.3
+X-0.7
+Y4.3
+X-37.3
+Y-4.3
+X-32.958
+Y-5.5
+X0.5
+Y5.5
+X-38.5
+Y-5.5
+X-32.958
+Y-6.7
+X1.7
+Y6.7
+X-39.7
+Y-6.7
+X-32.958
+Y-7.9
+X2.9
+Y7.9
+X-40.9
+Y-7.9
+X-32.958
+Y-9.1
+X4.1
+Y9.1
+X-42.1
+Y-9.1
+X-32.958
+Y-10.3
+X5.3
+Y10.3
+X-43.3
+Y-10.3
+X-32.958
+Y-11.5
+X6.5
+Y11.5
+X-44.5
+Y-11.5
+X-32.958
+Y-12.7
+X7.7
+Y12.7
+X-45.7
+Y-12.7
+X-32.958
+Y-13.9
+X8.9
+Y13.9
+X-46.9
+Y-13.9
+X-32.958
+Y-15.1
+X10.1
+Y15.1
+X-48.1
+Y-15.1
+X-32.958
+Y-16.3
+X11.3
+Y16.3
+X-49.3
+Y-16.3
+X-32.958
+Y-17.5
+X12.5
+Y17.5
+X-50.5
+Y-17.5
+X-32.958
+Y-18.7
+X13.7
+Y18.7
+X-51.7
+Y-18.7
+X-32.958
+G0 Z5.
+X-27.958 Y0.
+G1 Z-11.2 F600.
+G3 X-37.958 Z-12.023 I-5. J0. F1800.
+X-27.958 Z-12.846 I5. J0.
+X-37.958 Z-13.67 I-5. J0.
+X-27.958 Z-14.493 I5. J0.
+X-37.958 Z-15.316 I-5. J0.
+X-27.958 Z-16.139 I5. J0.
+X-37.026 Y2.906 Z-16.8 I-5. J0.
+X-28.889 Y-2.906 I4.069 J-2.906
+X-37.026 Y2.906 I-4.069 J2.906
+G1 X-32.958 Y0.
+Y-0.7
+X-4.3
+Y0.7
+X-33.7
+Y-0.7
+X-32.958
+Y-1.9
+X-3.1
+Y1.9
+X-34.9
+Y-1.9
+X-32.958
+Y-3.1
+X-1.9
+Y3.1
+X-36.1
+Y-3.1
+X-32.958
+Y-4.3
+X-0.7
+Y4.3
+X-37.3
+Y-4.3
+X-32.958
+Y-5.5
+X0.5
+Y5.5
+X-38.5
+Y-5.5
+X-32.958
+Y-6.7
+X1.7
+Y6.7
+X-39.7
+Y-6.7
+X-32.958
+Y-7.9
+X2.9
+Y7.9
+X-40.9
+Y-7.9
+X-32.958
+Y-9.1
+X4.1
+Y9.1
+X-42.1
+Y-9.1
+X-32.958
+Y-10.3
+X5.3
+Y10.3
+X-43.3
+Y-10.3
+X-32.958
+Y-11.5
+X6.5
+Y11.5
+X-44.5
+Y-11.5
+X-32.958
+Y-12.7
+X7.7
+Y12.7
+X-45.7
+Y-12.7
+X-32.958
+Y-13.9
+X8.9
+Y13.9
+X-46.9
+Y-13.9
+X-32.958
+Y-15.1
+X10.1
+Y15.1
+X-48.1
+Y-15.1
+X-32.958
+Y-16.3
+X11.3
+Y16.3
+X-49.3
+Y-16.3
+X-32.958
+Y-17.5
+X12.5
+Y17.5
+X-50.5
+Y-17.5
+X-32.958
+Y-18.7
+X13.7
+Y18.7
+X-51.7
+Y-18.7
+X-32.958
+G0 Z5.
+Z15.
+(OP 2: 22 Yatay temizleme karsiligi T21: cep tabani Y17 [tek paso 14,8 -> 17] [pocket] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+S8000 M3
+G0 G90 G59 X-3. Y2.
+G43 H21 Z15.
+M8
+G1 Z-19. F600.
+X-35. F1800.
+Y-2.
+X-3.
+Y2.
+Y7.
+X-40.
+Y-7.
+X2.
+Y7.
+X-3.
+Y12.
+X-45.
+Y-12.
+X7.
+Y12.
+X-3.
+Y17.
+X-50.
+Y-17.
+X12.
+Y17.
+X-3.
+G0 Z5.
+Z15.
+(OP 3: 23 3D kontur karsiligi T38 duvar Y0-15 [kesit 10] paso 0.5 [contour] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+T38 M6
+S8000 M3
+G0 G90 G59 X-20. Y-22.
+G43 H38 Z15.
+M8
+G1 Z-2.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-3. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-3.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-4. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-4.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-5. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-5.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-6. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-6.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-7. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-7.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-8. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-8.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-9. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-9.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-10. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-10.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-11. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-11.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-12. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-12.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-13. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-13.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-14. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-14.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-15. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-15.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-16. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-16.5 F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+X-20.
+G1 Z-17. F150.
+G3 X-19. Y-23. I1. J0. F440.
+G1 X18.
+Y23.
+X-56.
+Y-23.
+X-19.
+G3 X-18. Y-22. I0. J1.
+G0 Z5.
+Z15.
+(OP 4: 23 3D kontur karsiligi T38 Y15-15.5 [kesit 15.49] paso 0.5 [contour] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+S8000 M3
+G0 G90 G59 X-18. Y21.939
+G43 H38 Z15.
+M8
+G1 Z-17.5 F150.
+G3 X-19. Y22.939 I-1. J0. F440.
+G1 X-55.939
+Y-22.939
+X17.939
+Y22.939
+X-19.
+G3 X-20. Y21.939 I0. J-1.
+G0 Z5.
+Z15.
+(OP 5: 23 3D kontur karsiligi T38 Y15.5-16 [kesit 15.99] paso 0.5 [contour] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+S8000 M3
+G0 G90 G59 X-18. Y21.738
+G43 H38 Z15.
+M8
+G1 Z-18. F150.
+G3 X-19. Y22.738 I-1. J0. F440.
+G1 X-55.738
+Y-22.738
+X17.738
+Y22.738
+X-19.
+G3 X-20. Y21.738 I0. J-1.
+G0 Z5.
+Z15.
+(OP 6: 23 3D kontur karsiligi T38 Y16-16.5 [kesit 16.49] paso 0.5 [contour] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+S8000 M3
+G0 G90 G59 X-18. Y21.334
+G43 H38 Z15.
+M8
+G1 Z-18.5 F150.
+G3 X-19. Y22.334 I-1. J0. F440.
+G1 X-55.334
+Y-22.334
+X17.334
+Y22.334
+X-19.
+G3 X-20. Y21.334 I0. J-1.
+G0 Z5.
+Z15.
+(OP 7: 23 3D kontur karsiligi T38 Y16.5-17 [kesit 16.99] paso 0.5 [contour] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+S8000 M3
+G0 G90 G59 X-18. Y20.2
+G43 H38 Z15.
+M8
+G1 Z-19. F150.
+G3 X-19. Y21.2 I-1. J0. F440.
+G1 X-54.2
+Y-21.2
+X16.2
+Y21.2
+X-19.
+G3 X-20. Y20.2 I0. J-1.
+G0 Z5.
+Z15.
+(OP 8: 24 Delme T39 8x O2,5 cep tabani G83 Q1,5 [+1] [drill] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+T39 M6
+S6000 M3
+G0 G90 G59 X-52. Y15.5
+G43 H39 Z15.
+M8
+Z5.
+G98 G83 X-52. Y15.5 Z-23.185 R-14. Q1.5 F360.
+G80
+G0 X-52. Y-15.5 Z5.
+G98 G83 X-52. Y-15.5 Z-23.185 R-14. Q1.5 F360.
+G80
+G0 X-30. Y15.5 Z5.
+G98 G83 X-30. Y15.5 Z-23.185 R-14. Q1.5 F360.
+G80
+G0 X-30. Y-15.5 Z5.
+G98 G83 X-30. Y-15.5 Z-23.185 R-14. Q1.5 F360.
+G80
+G0 X-8. Y15.5 Z5.
+G98 G83 X-8. Y15.5 Z-23.185 R-14. Q1.5 F360.
+G80
+G0 X-8. Y-15.5 Z5.
+G98 G83 X-8. Y-15.5 Z-23.185 R-14. Q1.5 F360.
+G80
+G0 X14. Y15.5 Z5.
+G98 G83 X14. Y15.5 Z-23.185 R-14. Q1.5 F360.
+G80
+G0 X14. Y-15.5 Z5.
+G98 G83 X14. Y-15.5 Z-23.185 R-14. Q1.5 F360.
+G80
+G0 X14. Y-15.5 Z15.
+(OP 9: 25 Yuzey alt T20 [Y-2 -> 0] [face] SETUP P4-S4 Alt)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+T20 M6
+S4500 M3
+G0 G90 G59 X-107.999 Y-39.5
+G43 H20 Z15.
+M8
+G1 Z-1. F750.
+X107.999 F2250.
+Y0.
+X-107.999
+Y39.5
+X107.999
+G0 Z5.
+X-107.999 Y-39.5
+G1 Z-2. F750.
+X107.999 F2250.
+Y0.
+X-107.999
+Y39.5
+X107.999
+G0 Z5.
+Z15.
+(END OF PROGRAM)
+G90 G40 G49
+G91 G28 Z0.
+G90
+M5
+M9
+M30
