@@ -63,14 +63,12 @@ Program ağ bağlantısı kurmaz. Çevrimdışı çalışır; dosyalarınız bu 
    - **Yoğunluk**: Normal / Büyük (eldivenle ya da dokunmatik için geniş düğmeler)
    - **Karşılama ekranı**: Açılışta göster
 4. Karşılama ekranının altında da hızlı dil/tema/yoğunluk seçicileri vardır.
-5. Eski AtolyeCAD ayarları ilk açılışta yeni klasöre kopyalanır; eski klasör silinmez.
 
 ### 1.4 Dosya türleri, kayıt, yedek
 
 | Tür | Uzantı | Not |
 |---|---|---|
 | Mihenk belgesi | `.mhnk` | Kayıt her zaman bu türde yazılır. |
-| Eski AtolyeCAD belgesi | `.acad` | Açılır. Kaydedince yeni `.mhnk` için dosya adı sorulur; özgün `.acad` değişmez. |
 | STEP, STL | `.step` `.stp` `.stl` | Dosya menüsünden içe/dışa aktarılır. |
 | Eskiz | `.dxf` | Yalnız Sketch içindeyken (Bölüm 3.7). |
 | NC kodu | `.nc` | İmalat sekmesinden kaydedilir (Bölüm 5.10). |

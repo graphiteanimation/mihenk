@@ -15,7 +15,7 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'acad-el-'));
 const BOX = { params: [], features: [{ id: 'b1', type: 'primitive', name: 'Kutu 1', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '30', h: '20', op: 'new' }] };
 
 async function launch(userData, env = {}) {
-  const app = await electron.launch({ args: [ROOT, ...SANDBOX_ARGS], env: { ...process.env, ATOLYE_USERDATA: userData, ...env } });
+  const app = await electron.launch({ args: [ROOT, ...SANDBOX_ARGS], env: { ...process.env, MIHENK_USERDATA: userData, ...env } });
   const page = await app.firstWindow();
   await page.waitForFunction(() => window.app && window.app.ready, null, { timeout: 90000 });
   await page.evaluate(() => window.app.ready);
@@ -41,7 +41,7 @@ const ud1 = path.join(TMP, 'ud1');
 let { app, page } = await launch(ud1);
 const wp = await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences(); return { sandbox: w.sandbox, ci: w.contextIsolation, ni: w.nodeIntegration, ws: w.webSecurity, wv: w.webviewTag }; });
 check('webPreferences: sandbox:true, contextIsolation, nodeIntegration kapalı', wp.sandbox === true && wp.ci === true && wp.ni === false && wp.ws === true && wp.wv === false, JSON.stringify(wp));
-check('sayfa app://atolye/ kökeninde', page.url().startsWith('app://atolye/'));
+check('sayfa app://mihenk/ kökeninde', page.url().startsWith('app://mihenk/'));
 const ASSETS = (() => { const l = fs.readdirSync(path.join(ROOT, 'dist/assets')); return { worker: l.find((n) => /^worker-.*\.js$/.test(n)), main: l.find((n) => /^index-.*\.js$/.test(n)) }; })();
 const R = await page.evaluate(async ([PORT, ASSETS]) => {
   const o = {};
@@ -49,8 +49,8 @@ const R = await page.evaluate(async ([PORT, ASSETS]) => {
   o.nativeKeys = Object.keys(window.native).sort().join(',');
   const r = await fetch(location.href); o.csp = r.headers.get('content-security-policy');
   o.cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content;
-  o.workerCsp = (await fetch('app://atolye/assets/' + ASSETS.worker)).headers.get('content-security-policy');
-  o.mainJsCsp = (await fetch('app://atolye/assets/' + ASSETS.main)).headers.get('content-security-policy');
+  o.workerCsp = (await fetch('app://mihenk/assets/' + ASSETS.worker)).headers.get('content-security-policy');
+  o.mainJsCsp = (await fetch('app://mihenk/assets/' + ASSETS.main)).headers.get('content-security-policy');
   window.__x = 0; const s = document.createElement('script'); s.textContent = 'window.__x = 1'; document.body.append(s);
   const d = document.createElement('div'); d.innerHTML = '<img src=x onerror="window.__x=2">'; document.body.append(d);
   await new Promise((r) => setTimeout(r, 400)); o.inlineRan = window.__x;
@@ -91,7 +91,7 @@ check('drop olayı varsayılan eylemi iptal edildi', R.dropPrevented === true);
 for (const u of ['http://127.0.0.1:' + PORT + '/evil', 'file:///etc/hostname', 'https://example.com/']) {
   await page.evaluate((u) => { location.href = u; }, u).catch(() => {});
   await sleep(1200);
-  check('gezinti engellendi: ' + u.slice(0, 30), page.url().startsWith('app://atolye/'), page.url());
+  check('gezinti engellendi: ' + u.slice(0, 30), page.url().startsWith('app://mihenk/'), page.url());
 }
 check('gezinti sonrası sunucuya istek yok', hits.length === 0, hits.join(','));
 // webview etiketi
@@ -145,7 +145,7 @@ const bridge = await app.evaluate(async ({ BrowserWindow }, preload) => {
 check('preload köprüsü app:// dışında kurulmaz (data: sayfada window.native yok)', bridge === 'undefined', bridge);
 // yol kaçışı (S-13): dist ile başlayan kardeş dizin
 fs.mkdirSync(path.join(ROOT, 'dist-secret'), { recursive: true }); fs.writeFileSync(path.join(ROOT, 'dist-secret', 'x.txt'), 'SIR-DIST-KARDES');
-const trav = await page.evaluate(async () => { const o = {}; for (const u of ['app://atolye/%2e%2e%2fdist-secret/x.txt', 'app://atolye/..%2fdist-secret%2fx.txt', 'app://atolye/%252e%252e/package.json', 'app://atolye/%2e%2e/package.json', 'app://atolye/index.html%00.txt']) { try { const r = await fetch(u); o[u] = r.status + ':' + (await r.text()).slice(0, 15); } catch (e) { o[u] = 'ERR'; } } return o; });
+const trav = await page.evaluate(async () => { const o = {}; for (const u of ['app://mihenk/%2e%2e%2fdist-secret/x.txt', 'app://mihenk/..%2fdist-secret%2fx.txt', 'app://mihenk/%252e%252e/package.json', 'app://mihenk/%2e%2e/package.json', 'app://mihenk/index.html%00.txt']) { try { const r = await fetch(u); o[u] = r.status + ':' + (await r.text()).slice(0, 15); } catch (e) { o[u] = 'ERR'; } } return o; });
 fs.rmSync(path.join(ROOT, 'dist-secret'), { recursive: true, force: true });
 check('app:// yol kaçışı: dist-secret kardeş dizini ve üst dizin okunamaz', Object.values(trav).every((v) => !/SIR|"name"/.test(v) && !v.startsWith('200:')), JSON.stringify(trav));
 check('F12 geliştirmede çalışır (paketlenmemiş); paketliyken devTools:false + F12 işleyicisi yok (kaynak denetimi)', await (async () => {
@@ -207,22 +207,20 @@ check('STEP dışa aktar: diyalog + uzantı zorlandı + geçerli STEP', fs.exist
 await app.close();
 
 
-// ---- eski .acad dosyası: aç → Kaydet .mhnk için diyalog açar, özgün .acad'a dokunulmaz; app alanı her iki değer
-console.log('2b: eski .acad açılır, .mhnk olarak kaydedilir');
+// ---- .mhnk belgesi: aç → Kaydet aynı dosyaya yazar (diyalog yok), app alanı Mihenk
+console.log('2b: .mhnk açılır, Kaydet aynı dosyaya yazar');
 const udA = path.join(TMP, 'udA'); ({ app, page } = await launch(udA));
-const legacy = path.join(TMP, 'eski.acad'); fs.writeFileSync(legacy, JSON.stringify({ app: 'AtolyeCAD', version: 1, doc: BOX }));
-const legacyBytes = fs.readFileSync(legacy, 'utf8');
-await stubDialogs(app, { open: legacy });
+const docF = path.join(TMP, 'acik.mhnk'); fs.writeFileSync(docF, JSON.stringify({ app: 'Mihenk', version: 1, doc: BOX }));
+await stubDialogs(app, { open: docF });
 await page.evaluate(() => window.app.openFile());
 await page.evaluate(() => window.app.whenIdle());
-check('.acad (app: AtolyeCAD) açıldı', (await page.evaluate(() => Math.abs(window.app.result.bodies[0].volume - 24000) < 1)));
-const newF = path.join(TMP, 'yeni-ad.mhnk'); await stubDialogs(app, { save: newF });
+check('.mhnk (app: Mihenk) açıldı', (await page.evaluate(() => Math.abs(window.app.result.bodies[0].volume - 24000) < 1)));
 await page.evaluate(() => { window.app.markDirty(true); return window.app.save(); });
-const jn = fs.existsSync(newF) ? JSON.parse(fs.readFileSync(newF, 'utf8')) : null;
-check('.acad açıkken Kaydet: diyalog açıldı, .mhnk yazıldı (app=Mihenk), eski dosya aynı', (await dlgCounts(app)).save === 1 && jn && jn.app === 'Mihenk' && fs.readFileSync(legacy, 'utf8') === legacyBytes);
+const jn = JSON.parse(fs.readFileSync(docF, 'utf8'));
+check('.mhnk açıkken Kaydet: diyalog açılmadan aynı dosyaya yazıldı (app=Mihenk)', (await dlgCounts(app)).save === 0 && jn.app === 'Mihenk');
 const noExt = path.join(TMP, 'uzantisiz'); await stubDialogs(app, { save: noExt });
 await page.evaluate(() => window.app.save(true));
-check('uzantısız kayıt adına .mhnk eklenir (.acad eklenmez)', fs.existsSync(noExt + '.mhnk') && !fs.existsSync(noExt + '.acad'));
+check('uzantısız kayıt adına .mhnk eklenir', fs.existsSync(noExt + '.mhnk') && !fs.existsSync(noExt));
 const recent = await page.evaluate(() => window.native.recentList());
 check('son kullanılanlar: kaydedilen .mhnk listede, açma dizinle', Array.isArray(recent) && recent.length >= 1 && recent[0].name === 'uzantisiz.mhnk' && (await page.evaluate(async () => { const r = await window.native.openRecent(0); return r && r.name; })) === 'uzantisiz.mhnk' && (await page.evaluate(() => window.native.openRecent(99))) === null);
 const dxfOut = path.join(TMP, 'cizim.dxf'); await stubDialogs(app, { save: dxfOut });
@@ -232,16 +230,6 @@ await stubDialogs(app, { open: dxfOut });
 const dxfIn = await page.evaluate(async () => { const r = await window.native.openFile('dxf'); return r && r.name; });
 check('DXF dosya türü: açma diyaloğu .dxf kabul eder', dxfIn === 'cizim.dxf');
 await app.close();
-// ---- eski AtolyeCAD kullanıcı verisi ilk açılışta KOPYALANIR (silinmez)
-console.log('2c: eski ayar klasörü kopyalanır');
-const oldUD = path.join(TMP, 'AtolyeCAD-eski'); fs.mkdirSync(path.join(oldUD, 'recovery'), { recursive: true });
-fs.writeFileSync(path.join(oldUD, 'settings.json'), '{"lang":"en"}'); fs.writeFileSync(path.join(oldUD, 'recovery', 'autosave.acad'), 'x');
-const newUD = path.join(TMP, 'Mihenk-yeni');
-({ app, page } = await launch(newUD, { ATOLYE_LEGACY_USERDATA: oldUD }));
-check('eski settings.json yeni klasöre kopyalandı, dil uygulandı', JSON.parse(fs.readFileSync(path.join(newUD, 'settings.json'), 'utf8')).lang === 'en' && (await page.evaluate(() => window.native.getSetting('lang'))) === 'en');
-check('eski klasör SİLİNMEDİ', fs.existsSync(path.join(oldUD, 'settings.json')) && fs.existsSync(path.join(oldUD, 'recovery', 'autosave.acad')));
-await app.close();
-
 // ================================================================ 3. otomatik kurtarma
 console.log('3: otomatik kurtarma (temiz kapanış, çökme, sor)');
 const ud3 = path.join(TMP, 'ud3'); const recF = path.join(ud3, 'recovery', 'autosave.mhnk');
@@ -285,19 +273,19 @@ await app.close();
 console.log('4: kurulum dili aktarımı');
 for (const [lang, menu] of [['en', 'File'], ['tr', 'Dosya']]) {
   const lf = path.join(TMP, 'lang-' + lang); fs.writeFileSync(lf, lang + '\n');
-  ({ app, page } = await launch(path.join(TMP, 'udl-' + lang), { ATOLYE_LANGFILE: lf }));
+  ({ app, page } = await launch(path.join(TMP, 'udl-' + lang), { MIHENK_LANGFILE: lf }));
   const got = await page.evaluate(() => ({ s: window.native.getSetting('lang'), m: document.querySelector('#menubar button[data-menu=file]').textContent, l: document.documentElement.lang }));
   check(`kurulum dili ${lang}: ilk açılış dili ${lang}`, got.s === lang && got.m === menu && got.l === lang, JSON.stringify(got));
   await app.close();
 }
 fs.mkdirSync(path.join(TMP, 'udl-pref'), { recursive: true }); fs.writeFileSync(path.join(TMP, 'udl-pref', 'settings.json'), '{"lang":"tr"}');
-({ app, page } = await launch(path.join(TMP, 'udl-pref'), { ATOLYE_LANGFILE: path.join(TMP, 'lang-en') }));
+({ app, page } = await launch(path.join(TMP, 'udl-pref'), { MIHENK_LANGFILE: path.join(TMP, 'lang-en') }));
 check('kayıtlı kullanıcı tercihi kurulum dilini ezer', (await page.evaluate(() => window.native.getSetting('lang'))) === 'tr');
 await app.close();
 
 // ================================================================ 5. öz-test (sandbox:true) alt süreç olarak
 console.log('5: öz-test');
-const st = spawnSync('npx', ['electron', ...SANDBOX_ARGS, '.'], { cwd: ROOT, env: { ...process.env, ATOLYE_SELFTEST: '1' }, encoding: 'utf8', timeout: 150000 });
+const st = spawnSync('npx', ['electron', ...SANDBOX_ARGS, '.'], { cwd: ROOT, env: { ...process.env, MIHENK_SELFTEST: '1' }, encoding: 'utf8', timeout: 150000 });
 const line = (st.stdout || '').split('\n').find((l) => l.startsWith('SELFTEST')) || '(çıktı yok)';
 check('Electron öz-testi (sandbox:true) GEÇTI', /^SELFTEST GEÇTI/.test(line) && /sandbox=true/.test(line) && /serverHits=0/.test(line), line.slice(0, 300));
 

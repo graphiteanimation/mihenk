@@ -1,7 +1,7 @@
 """Mockup üretici yardımcıları: simge gömme, çift dilli metin, kabuk bileşenleri."""
 import json, re, os, html
-D='/home/claude/atolyecad/design/'
-ICONS=json.load(open('/home/claude/atolyecad/brand/icons/icons.json'))['icons']
+D='/home/claude/repo/design/'
+ICONS=json.load(open('/home/claude/repo/brand/icons/icons.json'))['icons']
 TX={}   # anahtar -> [tr, en]
 def T(tr,en=None,cls=''):
     en=en if en is not None else tr
@@ -23,7 +23,7 @@ def tool(icon,tr,en,cls='',caret=False,dis=False,tid=''):
 def tsm(icon,tr,en,cls='',caret=False):   # simge + etiket, tek satır
     return f'<button class="tool {cls}">{ic(icon)}<span class="l">{T(tr,en)}</span>{ic("chevron-down","caret") if caret else ""}</button>'
 def grp(label_tr,label_en,inner,cls=''): return f'<div class="rgroup {cls}"><div class="btns">{inner}</div><div class="glabel">{T(label_tr,label_en)}</div></div>'
-MARK_REV=open('/home/claude/atolyecad/brand/logo/logo-mark-reverse.svg').read()
+MARK_REV=open('/home/claude/repo/brand/logo/logo-mark-reverse.svg').read()
 
 def head(title,extra=''):
     return f'''<!doctype html>

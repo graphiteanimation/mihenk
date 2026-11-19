@@ -1,6 +1,6 @@
 import glyphs, subprocess, os
 from PIL import Image
-B='/home/claude/atolyecad/brand/explorations/'
+B='/home/claude/repo/brand/explorations/'
 INK='#14202B'; BLUE='#1F6FD1'
 def svg(w,h,body): return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w*4}" height="{h*4}">{body}</svg>'
 # Yön 1: V-blok M + datum üçgeni

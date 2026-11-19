@@ -1,6 +1,6 @@
 import glyphs, subprocess, os
 from PIL import Image
-R='/home/claude/atolyecad/brand/'
+R='/home/claude/repo/brand/'
 INK='#14202B'; BLUE='#1F6FD1'; PAPER='#F2F5F8'; BLUE_D='#5BA0F0'
 M='M4 29.5V7h5.5L16 17l6.5-10H28v22.5h-5.5V18L16 27.5 9.5 18v11.5z'
 TRI='M10 3h12l-6 9.5z'

@@ -44,7 +44,7 @@ try:
     br = p.chromium.launch(channel='chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'])
     def newpage(init='', scheme='light', w=1440, h=900):
         ctx = br.new_context(viewport={'width': w, 'height': h}, locale='tr-TR', color_scheme=scheme)
-        ctx.add_init_script("if (!sessionStorage.getItem('__i')) { sessionStorage.setItem('__i', '1'); localStorage.setItem('atolye.lang', 'tr'); localStorage.setItem('atolye.recoveryMs', '0'); " + init + " }")
+        ctx.add_init_script("if (!sessionStorage.getItem('__i')) { sessionStorage.setItem('__i', '1'); localStorage.setItem('mihenk.lang', 'tr'); localStorage.setItem('mihenk.recoveryMs', '0'); " + init + " }")
         pg = ctx.new_page(); pg.goto(URL); pg.wait_for_function('() => window.app'); pg.evaluate('app.ready'); return ctx, pg
     css = lambda pg, v: pg.evaluate(f'getComputedStyle(document.documentElement).getPropertyValue("{v}").trim()')
     attr = lambda pg, a: pg.evaluate(f'document.documentElement.getAttribute("{a}")')
@@ -124,7 +124,7 @@ try:
     print('marka')
     ctx, pg = newpage("localStorage.setItem('mihenk.welcome', 'off');")
     txt = pg.evaluate('document.body.innerText')
-    check('ekranda "AtolyeCAD" yazmaz (Hakkında notu hariç)', 'AtolyeCAD' not in txt and 'Atölye CAD' not in txt)
+    check('ekranda eski ad yazmaz', 'Atolye' not in txt.replace('ö','o') and 'Atölye' not in txt)
     check('başlık Mihenk', 'Mihenk' in pg.title())
     ctx.close()
     br.close()

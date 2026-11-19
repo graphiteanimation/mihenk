@@ -34,7 +34,7 @@ try:
     # Arayüz dili: Türkçe sabitlenir (kayıtlı tercih yoksa); dil testi en sonda (bölüm H) tercihin saklanmasını da sınar.
     ctx = br.new_context(viewport={'width': 1400, 'height': 860}, accept_downloads=True, locale='tr-TR')
     # otomatik kurtarma zamanlayıcısı bu testte kapalı (60 sn'lik zamanlayıcı bölüm S'de ayrı bağlamda sınanır)
-    ctx.add_init_script("try { if (!localStorage.getItem('atolye.lang')) localStorage.setItem('atolye.lang', 'tr'); localStorage.setItem('atolye.recoveryMs', '0'); localStorage.setItem('mihenk.welcome', 'off'); } catch (e) {}")
+    ctx.add_init_script("try { if (!localStorage.getItem('mihenk.lang')) localStorage.setItem('mihenk.lang', 'tr'); localStorage.setItem('mihenk.recoveryMs', '0'); localStorage.setItem('mihenk.welcome', 'off'); } catch (e) {}")
     # CSP ihlali dinleyicisi: sıkı CSP (meta) altında uygulama hiçbir ihlal olmadan çalışmalı
     ctx.add_init_script("window.__csp = []; document.addEventListener('securitypolicyviolation', (e) => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI + ' ' + (e.sample || '') + ' @' + e.sourceFile + ':' + e.lineNumber));")
     page = ctx.new_page()
@@ -217,14 +217,6 @@ try:
     fc.value.set_files(path); page.wait_for_timeout(300); idle()
     check('aç: aynı hacim geri yüklendi', near(vol(), vsaved), f'{vol()} vs {vsaved}')
     check('aç: parametre ve özellikler', ev('app.doc.params.length') == 1 and ev('app.doc.features.length') == 3)
-    # eski biçim: .acad (app = AtolyeCAD) açılır, kaydedince .mhnk (app = Mihenk) yazılır
-    old = os.path.join(TMP, 'eski.acad'); jo = json.load(open(path)); jo['app'] = 'AtolyeCAD'; json.dump(jo, open(old, 'w'))
-    with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
-    fc.value.set_files(old); page.wait_for_timeout(300); idle()
-    check('.acad (app: AtolyeCAD) açıldı', near(vol(), vsaved) and ev('app.fileName') == 'eski.acad', f'{vol()} {ev("app.fileName")}')
-    with page.expect_download() as dl: menu('Dosya', 'Kaydet')
-    d2 = dl.value; p2 = os.path.join(TMP, 'eski-kayit.mhnk'); d2.save_as(p2)
-    check('.acad açıkken Kaydet: öneri eski.mhnk, içerik app=Mihenk, özgün .acad aynı', d2.suggested_filename == 'eski.mhnk' and json.load(open(p2))['app'] == 'Mihenk' and json.load(open(old))['app'] == 'AtolyeCAD', d2.suggested_filename)
     with page.expect_download() as dl: menu('Dosya', 'STEP Dışa Aktar…')
     stp = os.path.join(TMP, 'deneme.step'); dl.value.save_as(stp)
     check('STEP dışa aktar: dosya boyutu > 0', os.path.getsize(stp) > 1000, str(os.path.getsize(stp)))
@@ -236,7 +228,7 @@ try:
     fc.value.set_files(stp); page.wait_for_timeout(500); idle()
     check('STEP içe aktar: aynı hacim', nbodies() >= 1 and near(vol(), vsaved, 5e-3), f'{nbodies()} {vol()}')
     check('içe aktarılan özellik çizelgede', ev('app.doc.features[0].type') == 'import')
-    bad = os.path.join(TMP, 'bozuk.acad'); open(bad, 'w').write('{kötü')
+    bad = os.path.join(TMP, 'bozuk.mhnk'); open(bad, 'w').write('{kötü')
     menu('Dosya', 'Aç…'); page.wait_for_selector('#modal:not(.hidden)')  # kaydedilmemiş (import) uyarısı
     with page.expect_file_chooser() as fc: page.click('#modal button[data-v="true"]')
     fc.value.set_files(bad); page.wait_for_timeout(400)
@@ -473,17 +465,17 @@ try:
     # içe aktar -> geri al -> başka dosya içe aktar
     ev('app.markDirty(false)'); menu('Dosya', 'Yeni'); idle(); do_import(stepA); ev('app.undo()'); idle(); do_import(stepB)
     check('S-02: içe aktar, geri al, başka dosya içe aktar: B geometrisi', near(vol(), 8000, 5e-3), str(vol()))
-    # eski biçim: iki .acad dosyasında aynı kimlik (imp1) + farklı veri
+    # eski kimlik düzeni: iki .mhnk dosyasında aynı kimlik (imp1) + farklı veri
     def legacy(path, stp):
         d = base64.b64encode(open(stp, 'rb').read()).decode()
-        json.dump({'app': 'AtolyeCAD', 'version': 1, 'doc': {'params': [], 'features': [{'id': 'imp1', 'type': 'import', 'name': 'x', 'format': 'step', 'data': d}]}}, open(path, 'w'))
-    accA = os.path.join(TMP, 'sec_A.acad'); accB = os.path.join(TMP, 'sec_B.acad'); legacy(accA, stepA); legacy(accB, stepB)
-    def open_acad(path):
+        json.dump({'app': 'Mihenk', 'version': 1, 'doc': {'params': [], 'features': [{'id': 'imp1', 'type': 'import', 'name': 'x', 'format': 'step', 'data': d}]}}, open(path, 'w'))
+    accA = os.path.join(TMP, 'sec_A.mhnk'); accB = os.path.join(TMP, 'sec_B.mhnk'); legacy(accA, stepA); legacy(accB, stepB)
+    def open_mhnk(path):
         ev('app.markDirty(false)')
         with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
         fc.value.set_files(path); page.wait_for_timeout(500); idle()
-    open_acad(accA); v1 = vol(); open_acad(accB); v2 = vol()
-    check('S-02: A.acad aç, B.acad aç (ikisinde de imp1): 1000 sonra 8000', near(v1, 1000, 5e-3) and near(v2, 8000, 5e-3), f'{v1} {v2}')
+    open_mhnk(accA); v1 = vol(); open_mhnk(accB); v2 = vol()
+    check('S-02: A.mhnk aç, B.mhnk aç (ikisinde de imp1): 1000 sonra 8000', near(v1, 1000, 5e-3) and near(v2, 8000, 5e-3), f'{v1} {v2}')
 
     # S-12: şema doğrulaması, mevcut belge korunur
     ev('(d) => app.loadDoc(d)', {'params': [], 'features': [{'id': 'b1', 'type': 'primitive', 'name': 'K', 'kind': 'box', 'x': '0', 'y': '0', 'z': '0', 'w': '40', 'd': '30', 'h': '20', 'op': 'new'}]}); idle()
@@ -499,13 +491,13 @@ try:
         'yinelenen kimlik': {'params': [], 'features': [box0, box0]}, 'içe aktarma özeti yanlış': {'params': [], 'features': [{'id': 'imp_1', 'type': 'import', 'name': 'x', 'format': 'step', 'data': base64.b64encode(open(stepA, 'rb').read()).decode(), 'hash': '0' * 64}]},
     }
     for nm, doc in bads.items():
-        pth = os.path.join(TMP, 'sec_bad.acad'); json.dump({'app': 'AtolyeCAD', 'version': 1, 'doc': doc}, open(pth, 'w'))
+        pth = os.path.join(TMP, 'sec_bad.mhnk'); json.dump({'app': 'Mihenk', 'version': 1, 'doc': doc}, open(pth, 'w'))
         ev('app.markDirty(false)'); ev('document.querySelector("#toast").classList.add("hidden")')
         with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
         fc.value.set_files(pth); page.wait_for_timeout(500); idle()
         check(f'şema: "{nm}" reddedildi, uyarı gösterildi, mevcut belge aynen korundu', ev('JSON.stringify(app.doc)') == snap and 'açılamadı' in toast_text() and not page.is_visible('#modal:not(.hidden)'), toast_text())
     # daha yeni sürüm: uyarı penceresi; vazgeç = yüklenmez, "Yine de Aç" = yüklenir
-    pth = os.path.join(TMP, 'sec_new.acad'); json.dump({'app': 'AtolyeCAD', 'version': 2, 'doc': {'params': [], 'features': [dict(box0, id='nb1', w='77')]}}, open(pth, 'w'))
+    pth = os.path.join(TMP, 'sec_new.mhnk'); json.dump({'app': 'Mihenk', 'version': 2, 'doc': {'params': [], 'features': [dict(box0, id='nb1', w='77')]}}, open(pth, 'w'))
     ev('app.markDirty(false)')
     with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
     fc.value.set_files(pth); page.wait_for_selector('#modal:not(.hidden)')
@@ -542,10 +534,10 @@ try:
     # S-06: otomatik kurtarma (tarayıcı kipi: IndexedDB). Varsayılan ayarlı ayrı bağlam (60 sn zamanlayıcı açık)
     print('S: otomatik kurtarma (tarayıcı)')
     c3 = br.new_context(viewport={'width': 1300, 'height': 800}, accept_downloads=True, locale='tr-TR')
-    c3.add_init_script("try { if (!localStorage.getItem('atolye.lang')) localStorage.setItem('atolye.lang', 'tr'); } catch (e) {} window.__ints = []; const si = window.setInterval.bind(window); window.setInterval = (f, ms, ...a) => { window.__ints.push([f, ms]); return si(f, ms, ...a); };")
+    c3.add_init_script("try { if (!localStorage.getItem('mihenk.lang')) localStorage.setItem('mihenk.lang', 'tr'); } catch (e) {} window.__ints = []; const si = window.setInterval.bind(window); window.setInterval = (f, ms, ...a) => { window.__ints.push([f, ms]); return si(f, ms, ...a); };")
     p3 = c3.new_page(); p3.on('dialog', lambda d: d.accept()); ev3 = p3.evaluate
     p3.goto(f'http://127.0.0.1:{PORT}/'); p3.wait_for_function('() => window.app', timeout=30000); ev3('app.ready')
-    def idb_has(): return ev3("""() => new Promise((res) => { const r = indexedDB.open('atolyecad-recovery', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => { const g = r.result.transaction('kv').objectStore('kv').get('autosave'); g.onsuccess = () => { r.result.close(); res(g.result ? g.result.byteLength : 0); }; }; r.onerror = () => res(-1); })""")
+    def idb_has(): return ev3("""() => new Promise((res) => { const r = indexedDB.open('mihenk-recovery', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => { const g = r.result.transaction('kv').objectStore('kv').get('autosave'); g.onsuccess = () => { r.result.close(); res(g.result ? g.result.byteLength : 0); }; }; r.onerror = () => res(-1); })""")
     p3.wait_for_function('() => window.app._recTimer'); check('kurtarma: zamanlayıcı 60 sn aralıkla kuruldu', ev3('app.recoveryMs') == 60000 and ev3('window.__ints.some(([f, ms]) => ms === 60000)'))
     ev3('(d) => app.loadDoc(d)', {'params': [], 'features': [box0]}); ev3('app.whenIdle()')
     ev3('window.__ints.find(([f, ms]) => ms === 60000)[0]()'); p3.wait_for_timeout(300)
@@ -580,7 +572,7 @@ try:
     def lang_menu(code):
         page.click('#menubar .tbtn[data-cmd="settings"]'); page.click(f'[data-testid="set-lang-{code}"]'); page.keyboard.press('Escape')
         idle(); page.wait_for_timeout(200)
-    def stored_lang(): return ev("localStorage.getItem('atolye.lang')")
+    def stored_lang(): return ev("localStorage.getItem('mihenk.lang')")
     def left_text(): return page.inner_text('#st-left').strip()
 
     # ilk açılış dili: işletim sistemi dili (kayıtlı tercih yok)
@@ -588,7 +580,7 @@ try:
         c2 = br.new_context(viewport={'width': 1200, 'height': 800}, locale=loc)
         p2 = c2.new_page(); p2.goto(f'http://127.0.0.1:{PORT}/'); p2.wait_for_function('() => (window.app && document.querySelector("#menubar button"))', timeout=30000)
         got = p2.evaluate('document.querySelector("#menubar [data-menu=file]").textContent.trim()')
-        check(f'ilk açılış ({loc}): menü "{word}", tercih yazılmadı', got == word and p2.evaluate("localStorage.getItem('atolye.lang')") is None and p2.evaluate('document.documentElement.lang') == want, got)
+        check(f'ilk açılış ({loc}): menü "{word}", tercih yazılmadı', got == word and p2.evaluate("localStorage.getItem('mihenk.lang')") is None and p2.evaluate('document.documentElement.lang') == want, got)
         c2.close()
 
     ev('app.loadDoc({params: [], features: []})'); idle(); ev('app.viewport.view("iso", true)')

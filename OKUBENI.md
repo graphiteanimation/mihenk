@@ -1,6 +1,6 @@
 # Mihenk CAD/CAM 0.3.0
 
-Parametrik CAD/CAM programı (önceki adı AtolyeCAD). Hedef makine: Neway VM1160H + Mitsubishi M80V + GSA bölme başlığı (A ekseni). Dosya uzantısı `.mhnk`; eski `.acad` dosyaları yalnız açılır.
+Parametrik CAD/CAM programı. Hedef makine: Neway VM1160H + Mitsubishi M80V + GSA bölme başlığı (A ekseni). Dosya uzantısı `.mhnk`.
 
 **NC çıktısı makinede DOĞRULANMAMIŞTIR.** Her programı önce simülasyonda ve makinede havada, tek blok ile deneyin. A ekseni yönü makinede teyit edilmedi. Ayrıntı: kılavuzun GÜVENLİK bölümü.
 

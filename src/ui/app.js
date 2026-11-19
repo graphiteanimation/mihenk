@@ -36,7 +36,7 @@ export async function sha256Hex(bytes) { return hex(await crypto.subtle.digest('
 const importId = (doc) => { const used = new Set(doc.features.map((f) => f.id)); for (;;) { const r = crypto.getRandomValues(new Uint32Array(2)); const id = 'imp_' + hex(r.buffer); if (!used.has(id)) return id; } };
 // Otomatik kurtarma aralığı (60 sn). Yalnız tarayıcı/test kipinde localStorage ile geçersiz kılınabilir (0 = kapalı).
 const RECOVERY_MS = 60000;
-const recoveryInterval = () => { if (window.native) return RECOVERY_MS; try { const v = localStorage.getItem('atolye.recoveryMs'); return v == null ? RECOVERY_MS : Math.max(0, Number(v) || 0); } catch (e) { return RECOVERY_MS; } };
+const recoveryInterval = () => { if (window.native) return RECOVERY_MS; try { const v = localStorage.getItem('mihenk.recoveryMs'); return v == null ? RECOVERY_MS : Math.max(0, Number(v) || 0); } catch (e) { return RECOVERY_MS; } };
 
 class App {
   constructor() {
@@ -539,7 +539,7 @@ class App {
     window.native?.docState('new'); this.clearRecovery();
   }
   fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: this.doc })); }
-  // kind: 'acad' | 'step' | 'stl'. Electron'da yol HİÇ gönderilmez; ana süreç diyalog açar ya da bu oturumdaki geçerli belge yoluna yazar.
+  // kind: 'doc' | 'step' | 'stl'. Electron'da yol HİÇ gönderilmez; ana süreç diyalog açar ya da bu oturumdaki geçerli belge yoluna yazar.
   async writeOut(bytes, defaultName, kind, saveAs) {
     if (window.native) return window.native.saveFile({ saveAs: !!saveAs, data: bytes, defaultName, kind });
     const a = h('a', { href: URL.createObjectURL(new Blob([bytes])), download: defaultName }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
@@ -548,14 +548,14 @@ class App {
   async save(as = false) {
     if (this.sketchSession || this.edit) { toast(t('msg.finish_before_save')); return; }
     try {
-      const name = (this.fileName || 'Belge').replace(/\.(acad|mhnk)$/i, '') + '.mhnk'; // i18n-ignore: yedek dosya adı
+      const name = (this.fileName || 'Belge').replace(/\.mhnk$/i, '') + '.mhnk'; // i18n-ignore: yedek dosya adı
       const p = await this.writeOut(this.fileBytes(), name, 'doc', as || !this.filePath);
       if (!p) return;
-      this.filePath = window.native ? p : null; /* eski .acad açıkken kayıt .mhnk olur */ this.fileName = String(p).split(/[\\/]/).pop(); this.markDirty(false); toast(t('msg.saved', { name: this.fileName }));
+      this.filePath = window.native ? p : null;  this.fileName = String(p).split(/[\\/]/).pop(); this.markDirty(false); toast(t('msg.saved', { name: this.fileName }));
       this.clearRecovery();
     } catch (e) { toast(t('msg.save_failed', { msg: errText(e) }), true); }
   }
-  // kind: 'acad' | 'step' | 'stl' (Electron: ana süreç diyaloğu; tarayıcı: <input type=file>)
+  // kind: 'doc' | 'step' | 'stl' (Electron: ana süreç diyaloğu; tarayıcı: <input type=file>)
   async pickFile(accept, kind) {
     if (window.native) { const r = await window.native.openFile(kind); return r ? { name: r.name, path: kind === 'doc' ? r.name : null, data: new Uint8Array(r.data) } : null; }
     return new Promise((resolve) => {
@@ -567,7 +567,7 @@ class App {
   }
   async openFile() {
     if (this.guard()) return; if (!(await this.confirmDiscard())) return;
-    const f = await this.pickFile('.mhnk,.acad', 'doc'); if (!f) return;
+    const f = await this.pickFile('.mhnk', 'doc'); if (!f) return;
     await this.openBytes(f.data, f.name, f.path);
   }
   // İçe aktarma özetlerini doğrula (hash alanı varsa)
@@ -679,7 +679,7 @@ class App {
     try {
       const names = Object.fromEntries(ids.map((id) => [id, this.bodyName(id)]));
       const data = await this.query('export', { format, ids, names });
-      const name = (this.fileName || 'Belge').replace(/\.(acad|mhnk)$/i, '') + '.' + format;
+      const name = (this.fileName || 'Belge').replace(/\.mhnk$/i, '') + '.' + format;
       const p = await this.writeOut(data, name, format, true);
       if (p) toast(t('msg.exported', { fmt: format.toUpperCase(), kb: Math.round(data.length / 1024) }));
     } catch (e) { toast(t('msg.export_failed', { msg: errText(e) }), true); }

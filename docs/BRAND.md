@@ -32,8 +32,8 @@ Bu, web aramasıyla yapılmış bir ön taramadır. Hukuki marka araştırması 
 | appId | `com.d160.mihenk` |
 | npm paket adı | `mihenk` |
 | Kurulum klasörü | `Mihenk` (ör. `%LOCALAPPDATA%\Programs\Mihenk` / `C:\Program Files\Mihenk`) |
-| Ayar klasörü (userData) | `Mihenk` (ilk açılışta eski `AtolyeCAD` klasöründen ayar ve kurtarma dosyası **kopyalanır**, silinmez) |
-| Dosya uzantısı | `.mhnk` (okuma: `.mhnk`, `.acad`) |
+| Ayar klasörü (userData) | `Mihenk` |
+| Dosya uzantısı | `.mhnk` (okuma ve yazma) |
 | Dosya türü adı | "Mihenk belgesi" / "Mihenk document" |
 
 ## 2. Logo

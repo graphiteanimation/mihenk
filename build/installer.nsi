@@ -85,7 +85,7 @@ Section "$(SEC_PROGRAM)"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "UninstallString" "$\"$INSTDIR\Kaldir.exe$\""
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayIcon" "$INSTDIR\${APP}.exe"
-  ; .mhnk ilişkilendirmesi: mevcut başka bir ilişkilendirme yedeklenir, kaldırmada geri yüklenir (eski .acad dosyaları Dosya > Aç ile açılır)
+  ; .mhnk ilişkilendirmesi: mevcut başka bir ilişkilendirme yedeklenir, kaldırmada geri yüklenir
   ReadRegStr $2 HKCU "Software\Classes\.mhnk" ""
   ${If} $2 != ""
   ${AndIf} $2 != "Mihenk.Belge"

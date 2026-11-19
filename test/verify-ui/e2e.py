@@ -204,7 +204,7 @@ def main():
     with sync_playwright() as p:
         br = p.chromium.launch(channel='chrome', args=ARGS)
         ctx = br.new_context(viewport={'width': 1440, 'height': 900}, locale='tr-TR' if LANG == 'tr' else 'en-US', accept_downloads=True)
-        ctx.add_init_script("if (!sessionStorage.getItem('__i')) { sessionStorage.setItem('__i','1'); localStorage.setItem('atolye.lang','%s'); localStorage.setItem('atolye.recoveryMs','0'); localStorage.setItem('mihenk.welcome','off'); localStorage.setItem('atolye.theme','%s'); localStorage.setItem('mihenk.theme','%s'); }" % (LANG, THEME, THEME))
+        ctx.add_init_script("if (!sessionStorage.getItem('__i')) { sessionStorage.setItem('__i','1'); localStorage.setItem('mihenk.lang','%s'); localStorage.setItem('mihenk.recoveryMs','0'); localStorage.setItem('mihenk.welcome','off'); localStorage.setItem('atolye.theme','%s'); localStorage.setItem('mihenk.theme','%s'); }" % (LANG, THEME, THEME))
         pg = ctx.new_page(); C.pg = pg; C.br = br; C.ctx = ctx
         C.errs = []
         pg.on('pageerror', lambda e: C.errs.append('PAGEERROR ' + str(e)))

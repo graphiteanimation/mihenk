@@ -10,8 +10,8 @@ const { CSP, WORKER_CSP, isWorkerScript } = require('./csp.cjs');
 
 const DIST = path.join(__dirname, '..', 'dist');
 const DEV = !app.isPackaged;                                  // geliştirme: paketlenmemiş
-const SELFTEST = DEV && process.env.ATOLYE_SELFTEST === '1';  // öz-test yalnız geliştirmede
-const ORIGIN = 'app://atolye/';
+const SELFTEST = DEV && process.env.MIHENK_SELFTEST === '1';  // öz-test yalnız geliştirmede
+const ORIGIN = 'app://mihenk/';
 const MAX_FILE = 200 * 1024 * 1024;                           // dosya boyutu üst sınırı (200 MB)
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -19,8 +19,8 @@ const MIME = {
   '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ico': 'image/x-icon', '.map': 'application/json', '.txt': 'text/plain; charset=utf-8',
 };
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
-// 'doc' = Mihenk belgesi: okuma .mhnk ve eski .acad; yazma her zaman .mhnk (eski dosyaya dokunulmaz).
-const KINDS = { doc: ['.mhnk', '.acad'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'] };
+// 'doc' = Mihenk belgesi: okuma ve yazma .mhnk.
+const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'] };
 const SAVE_ONLY = new Set(['nc']);   // NC çıktısı yalnız yazılır; arayüz bu türde dosya açtıramaz
 const DOC_EXT = '.mhnk';
 
@@ -40,7 +40,7 @@ if (SELFTEST) {
 app.commandLine.appendSwitch('host-resolver-rules', 'MAP * ~NOTFOUND');
 
 // Kendi kullanıcı verisi klasörü (sınama sırasında gerçek ayarları bozmamak için; yalnız geliştirmede)
-if (DEV && process.env.ATOLYE_USERDATA) app.setPath('userData', path.resolve(process.env.ATOLYE_USERDATA));
+if (DEV && process.env.MIHENK_USERDATA) app.setPath('userData', path.resolve(process.env.MIHENK_USERDATA));
 else if (SELFTEST) app.setPath('userData', path.join(os.tmpdir(), 'mihenk-selftest-' + process.pid));
 
 let win = null;
@@ -68,25 +68,10 @@ function saveSettings() {
     fs.writeFileSync(f + '.tmp', JSON.stringify(settings, null, 2)); fs.renameSync(f + '.tmp', f);
   } catch (e) { console.error('settings write failed:', e.message); }
 }
-// Eski AtolyeCAD kullanıcı verisi (%APPDATA%/AtolyeCAD): ilk açılışta (yeni klasörde settings.json yokken) ayar ve kurtarma dosyası
-// yeni klasöre KOPYALANIR; eski klasöre dokunulmaz. Geliştirmede ATOLYE_LEGACY_USERDATA ile gösterilir.
-function migrateLegacyUserData() {
-  try {
-    const dest = app.getPath('userData');
-    if (fs.existsSync(path.join(dest, 'settings.json')) || fs.existsSync(path.join(dest, '.migrated'))) return;
-    const old = DEV && process.env.ATOLYE_LEGACY_USERDATA ? path.resolve(process.env.ATOLYE_LEGACY_USERDATA) : path.join(app.getPath('appData'), 'AtolyeCAD');
-    if (!fs.existsSync(old) || path.resolve(old) === path.resolve(dest)) return;
-    fs.mkdirSync(dest, { recursive: true });
-    const s = path.join(old, 'settings.json'); if (fs.existsSync(s)) fs.copyFileSync(s, path.join(dest, 'settings.json'));
-    const r = path.join(old, 'recovery', 'autosave.acad');
-    if (fs.existsSync(r)) { fs.mkdirSync(path.join(dest, 'recovery'), { recursive: true }); fs.copyFileSync(r, path.join(dest, 'recovery', 'autosave.mhnk')); }
-    fs.writeFileSync(path.join(dest, '.migrated'), 'AtolyeCAD\n');
-  } catch (e) { console.error('legacy userData copy failed:', e.message); }
-}
 // Kurulumun yazdığı dil dosyası (kurulum dizinindeki `lang`: "tr" ya da "en"). Yalnız ilk açılışta (kayıtlı tercih yokken) okunur.
 function applyInstallLang() {
   if ('lang' in settings) return;
-  const f = DEV ? process.env.ATOLYE_LANGFILE : path.join(path.dirname(app.getPath('exe')), 'lang');
+  const f = DEV ? process.env.MIHENK_LANGFILE : path.join(path.dirname(app.getPath('exe')), 'lang');
   if (!f) return;
   try {
     const v = fs.readFileSync(f, 'utf8').trim().toLowerCase();
@@ -115,7 +100,7 @@ const liveRecent = () => loadRecent().filter((x) => { try { return fs.statSync(x
 const recoveryFile = () => path.join(app.getPath('userData'), 'recovery', 'autosave.mhnk');
 function clearRecovery() { try { fs.rmSync(recoveryFile(), { force: true }); } catch (e) { /* yoksa sorun değil */ } }
 
-// ---- gönderen doğrulaması (S-01/S-03): yalnız ana pencerenin ana çerçevesi ve app://atolye/ kökeni
+// ---- gönderen doğrulaması (S-01/S-03): yalnız ana pencerenin ana çerçevesi ve app://mihenk/ kökeni
 function okSender(ev) {
   try {
     const f = ev.senderFrame;
@@ -125,7 +110,7 @@ function okSender(ev) {
 const guarded = (fn) => async (ev, ...a) => { if (!okSender(ev)) throw new Error('forbidden'); return fn(ev, ...a); };
 
 function argvDoc(argv) {
-  const f = argv.slice(1).find((a) => /\.(mhnk|acad)$/i.test(a) && !a.startsWith('--'));
+  const f = argv.slice(1).find((a) => /\.mhnk$/i.test(a) && !a.startsWith('--'));
   if (!f || f.startsWith('\\\\') || f.startsWith('//')) return null;   // UNC (ağ) yolu: kimlik doğrulama sızdırabilir, açılmaz
   return path.resolve(f);
 }
@@ -153,7 +138,7 @@ function registerProtocol() {
   protocol.handle('app', async (req) => {
     try {
       const u = new URL(req.url);
-      if (u.host !== 'atolye') return new Response('Forbidden', { status: 403 });
+      if (u.host !== 'mihenk') return new Response('Forbidden', { status: 403 });
       let rel = decodeURIComponent(u.pathname);
       if (rel.includes('\0')) return new Response('Not Found', { status: 404 });
       if (rel === '/' || rel === '') rel = '/index.html';
@@ -208,7 +193,7 @@ function registerIpc() {
     if (!opts || typeof opts !== 'object' || Object.keys(opts).some((k) => !['saveAs', 'data', 'defaultName', 'kind'].includes(k))) throw new Error('bad args');
     const { saveAs, data, defaultName, kind } = opts;
     if (typeof saveAs !== 'boolean' || !Object.hasOwn(KINDS, kind) || !(data instanceof Uint8Array) || data.byteLength > MAX_FILE) throw new Error('bad args');
-    // eski .acad dosyası açıkken Kaydet yeni .mhnk için diyalog açar: özgün dosyanın üzerine yazılmaz
+    // açık dosya .mhnk ise Kaydet üzerine yazar; değilse (yeni belge) diyalog açılır
     let p = kind === 'doc' && !saveAs && currentPath && path.extname(currentPath).toLowerCase() === DOC_EXT ? currentPath : null;
     let fromDialog = false;
     if (!p) {
@@ -258,7 +243,7 @@ function registerIpc() {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 1200, minHeight: 700, title: 'Mihenk CAD/CAM', icon: path.join(__dirname, 'icon.png'), show: !SELFTEST || process.env.ATOLYE_SHOW === '1',
+    width: 1400, height: 900, minWidth: 1200, minHeight: 700, title: 'Mihenk CAD/CAM', icon: path.join(__dirname, 'icon.png'), show: !SELFTEST || process.env.MIHENK_SHOW === '1',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true,
       allowRunningInsecureContent: false, webviewTag: false, spellcheck: false, devTools: DEV,
@@ -284,7 +269,7 @@ function createWindow() {
   if (SELFTEST) runSelfTest(win);
 }
 
-// ATOLYE_SELFTEST=1 (yalnız paketlenmemişken): pencere içinde kutu oluşturup hacmi, güvenlik denetimlerini stdout'a yazar ve çıkar.
+// MIHENK_SELFTEST=1 (yalnız paketlenmemişken): pencere içinde kutu oluşturup hacmi, güvenlik denetimlerini stdout'a yazar ve çıkar.
 function runSelfTest(w) {
   const done = (code, msg) => { console.log(msg); setTimeout(() => app.exit(code), 100); };
   const timer = setTimeout(() => done(2, 'SELFTEST ZAMAN AŞIMI'), 90000); // i18n-ignore: geliştirici çıktısı
@@ -310,7 +295,7 @@ function runSelfTest(w) {
         window.app.setLanguage('en'); const en = menu();
         window.app.setLanguage('tr'); const tr = menu();
         let ext = 'GITTI'; try { await fetch('http://127.0.0.1:${port}/fetch', { mode: 'no-cors' }); } catch (e) { ext = 'ENGELLENDI'; }
-        let pathWrite = 'YAZDI'; try { await window.native.saveFile({ path: '/tmp/atolye-selftest-forbidden', saveAs: false, data: new Uint8Array(1), defaultName: 'x', kind: 'doc' }); } catch (e) { pathWrite = 'REDDEDILDI'; }
+        let pathWrite = 'YAZDI'; try { await window.native.saveFile({ path: '/tmp/mihenk-selftest-forbidden', saveAs: false, data: new Uint8Array(1), defaultName: 'x', kind: 'doc' }); } catch (e) { pathWrite = 'REDDEDILDI'; }
         return JSON.stringify({ url: location.href, bodies: b.length, volume: b[0] && b[0].volume, native: typeof window.native, ok: window.app.result.status.b1.ok, lang0, en, tr, saved: window.native.getSetting('lang'), ext, pathWrite });
       })()`;
       const out = await w.webContents.executeJavaScript(js);
@@ -334,7 +319,6 @@ function runSelfTest(w) {
 
 app.on('web-contents-created', (e, wc) => lockdownContents(wc));
 app.whenReady().then(() => {
-  migrateLegacyUserData();
   loadSettings();
   applyInstallLang();
   lockdownSession(session.defaultSession);

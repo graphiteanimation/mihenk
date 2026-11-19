@@ -1,6 +1,6 @@
 // Otomatik kurtarma deposu (S-06). Electron: ana süreç userData/recovery/autosave.mhnk dosyasını yazar (yolu renderer bilmez).
 // Tarayıcı/test kipi: IndexedDB (büyük içe aktarma verisi localStorage kotasına sığmaz).
-const DB = 'atolyecad-recovery', STORE = 'kv', KEY = 'autosave';
+const DB = 'mihenk-recovery', STORE = 'kv', KEY = 'autosave';
 
 function idb() {
   return new Promise((resolve, reject) => {

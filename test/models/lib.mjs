@@ -1,5 +1,5 @@
 // Bağımsız çekirdek testleri için ortak yardımcılar.
-// Çekirdek kaynağı: ATOLYE_SRC ortam değişkeni (varsayılan ../../src). Yalnız status.ok ve geometriye bakılır.
+// Çekirdek kaynağı: MIHENK_SRC ortam değişkeni (varsayılan ../../src). Yalnız status.ok ve geometriye bakılır.
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import opencascade from 'replicad-opencascadejs';
@@ -7,7 +7,7 @@ import * as R from 'replicad';
 
 export { R };
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const SRC = process.env.ATOLYE_SRC || path.resolve(here, '../../src');
+export const SRC = process.env.MIHENK_SRC || path.resolve(here, '../../src');
 const wasm = path.resolve(here, '../../node_modules/replicad-opencascadejs/dist/replicad_single.wasm');
 const KM = await import(pathToFileURL(path.join(SRC, 'kernel/kernel.js')).href);
 const PM = await import(pathToFileURL(path.join(SRC, 'shared/profiles.js')).href);

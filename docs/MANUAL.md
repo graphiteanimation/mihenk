@@ -63,14 +63,12 @@ The program makes no network connections. It works offline; your files stay on t
    - **Density**: Normal / Large (wider controls for gloved or touch use)
    - **Welcome screen**: Show at startup
 4. The bottom of the welcome screen also has quick language/theme/density selectors.
-5. Old AtolyeCAD settings are copied to the new folder on first start; the old folder is not deleted.
 
 ### 1.4 File types, saving, backup
 
 | Type | Extension | Note |
 |---|---|---|
 | Mihenk document | `.mhnk` | Saving always writes this type. |
-| Old AtolyeCAD document | `.acad` | It opens. When you save, you are asked for a new `.mhnk` file name; the original `.acad` is not changed. |
 | STEP, STL | `.step` `.stp` `.stl` | Imported and exported from the File menu. |
 | Sketch | `.dxf` | Only while a Sketch is open (Section 3.7). |
 | NC code | `.nc` | Saved from the Manufacture tab (Section 5.10). |

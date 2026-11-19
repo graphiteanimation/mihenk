@@ -31,7 +31,7 @@ try:
     # Durum/ipucu metinleri Türkçe beklenir: dil tercihi sabitlenir (varsayılan dil işletim sisteminden gelir).
     ctx = br.new_context(viewport={'width': 1400, 'height': 860}, locale='tr-TR')
     ctx.add_init_script("const _ce = console.error; console.error = (...a) => { _ce(a.join(' ') + ' @@ ' + new Error().stack.split('\\n').slice(2,8).join(' | ')); };")
-    ctx.add_init_script("try { localStorage.setItem('atolye.lang', 'tr'); } catch (e) {}")
+    ctx.add_init_script("try { localStorage.setItem('mihenk.lang', 'tr'); } catch (e) {}")
     page = ctx.new_page()
     errs = []
     page.on('pageerror', lambda e: errs.append(str(e) + ' ' + str(getattr(e, 'stack', ''))[:300]))

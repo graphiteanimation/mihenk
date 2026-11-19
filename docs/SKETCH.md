@@ -1,4 +1,4 @@
-# Sketch ortamı (AtolyeCAD)
+# Sketch ortamı (Mihenk)
 
 Durum: ÇALIŞMA SÜRÜYOR. Bu belge ilerledikçe güncellenir; en alttaki "Yapılan / Kalan" listesi güncel durumu gösterir.
 

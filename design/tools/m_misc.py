@@ -13,7 +13,7 @@ def welcome(out='01-karsilama.html'):
     <div><h1>{T("Atölye için CAD/CAM.","CAD/CAM for the shop floor.")}</h1><p class="lead" style="margin-top:12px">{T("Çevrimdışı çalışır. Dosyalarınız bu bilgisayarda kalır. Hesabın sonucu ekranda görünür, doğrulanmayan hiçbir şey sessizce geçmez.","Works offline. Your files stay on this computer. Every result is visible, and nothing unverified passes silently.")}</p></div>
     <div class="col" style="gap:12px">
       <button class="bigact primary">{ic("file-new")}<span>{T("Yeni belge","New document")}<span class="sub">{T("Boş bir parça ile başla","Start with an empty part")}</span></span><span class="kbd">Ctrl+N</span></button>
-      <button class="bigact">{ic("file-open")}<span>{T("Aç…","Open…")}<span class="sub">{T("Mihenk, eski AtolyeCAD ve STEP dosyaları","Mihenk, legacy AtolyeCAD and STEP files")}</span></span><span class="kbd">Ctrl+O</span></button>
+      <button class="bigact">{ic("file-open")}<span>{T("Aç…","Open…")}<span class="sub">{T("Mihenk ve STEP dosyaları","Mihenk and STEP files")}</span></span><span class="kbd">Ctrl+O</span></button>
       <button class="bigact">{ic("box")}<span>{T("Örnek parça","Sample part")}<span class="sub">{T("Flanş plakası — sketch, extrude, delik","Flange plate — sketch, extrude, hole")}</span></span></button>
     </div>
     <div class="foot"><span class="badge ok">{ic("check","sm")}{T("Çekirdek hazır","Kernel ready")}</span><span>{T("Sürüm","Version")} 0.2.0</span><span>{T("Çevrimdışı · veriler bu bilgisayarda","Offline · data stays on this computer")}</span></div>

@@ -1017,12 +1017,10 @@ const base = {
   "set.reset": "Varsayılanlara dön",
   "set.version": "Sürüm",
   "set.about_note": "Mihenk, SAHA MİHENK kapsamında D160 Makina için geliştirilmiştir.",
-  "set.legacy_note": "Eski AtolyeCAD (.acad) dosyaları açılır; kayıt her zaman .mhnk olarak yapılır.",
   "set.offline": "Çevrimdışı çalışır; verileriniz bu bilgisayarda kalır.",
   "st.cancelled": "Hesaplama iptal edildi",
   "w.lead": "Çevrimdışı çalışır. Dosyalarınız bu bilgisayarda kalır. Hesabın sonucu ekranda görünür; doğrulanmayan hiçbir şey sessizce geçmez.",
-  "w.open_sub": "Mihenk, eski AtolyeCAD ve STEP dosyaları",
-  "w.legacy": "eski biçim",
+  "w.open_sub": "Mihenk ve STEP dosyaları",
 };
 
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.

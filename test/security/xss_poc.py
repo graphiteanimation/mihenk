@@ -1,4 +1,4 @@
-# Kötü niyetli .acad ile XSS / prototip kirliliği / DoS denemesi. Kaynağı DEĞİŞTİRMEZ.
+# Kötü niyetli .mhnk ile XSS / prototip kirliliği / DoS denemesi. Kaynağı DEĞİŞTİRMEZ.
 # Önce:  npx vite --port 5210 &      Çalıştır:  python3 -I test/security/xss_poc.py
 import json, sys, time
 from playwright.sync_api import sync_playwright
@@ -22,7 +22,7 @@ doc = {
     {'id': 'f1', 'type': 'fillet', 'name': P('fillet.name'), 'edges': [{'body': 'b1', 'idx': 0}], 'r': P('fillet.r')},
   ],
 }
-bytes_ = json.dumps({'app': 'AtolyeCAD', 'version': 1, 'doc': doc}).encode()
+bytes_ = json.dumps({'app': 'Mihenk', 'version': 1, 'doc': doc}).encode()
 with sync_playwright() as p:
     br = p.chromium.launch(channel='chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'])
     page = br.new_context(viewport={'width': 1400, 'height': 860}).new_page()
@@ -33,7 +33,7 @@ with sync_playwright() as p:
     page.goto(URL); page.wait_for_function('window.app && window.app.ready', timeout=90000)
     page.evaluate('async () => await window.app.ready')
     # gerçek "Dosya > Aç" akışının ikinci yarısı (diyalogdan sonra çağrılan işlev)
-    page.evaluate('''async (arr) => { await window.app.openBytes(new Uint8Array(arr), '<img src=x onerror="window.__pwn=(window.__pwn||[]).concat([\\'filename\\'])">.acad', null); }''', list(bytes_))
+    page.evaluate('''async (arr) => { await window.app.openBytes(new Uint8Array(arr), '<img src=x onerror="window.__pwn=(window.__pwn||[]).concat([\\'filename\\'])">.mhnk', null); }''', list(bytes_))
     page.evaluate('async () => { await window.app.whenIdle(); }')
     time.sleep(1.5)
     # tüm panelleri aç/kapat: özellik düzenleme, parametre penceresi, yeniden adlandırma, bağlam menüsü

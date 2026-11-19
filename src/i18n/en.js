@@ -1017,12 +1017,10 @@ const base = {
   "set.reset": "Restore defaults",
   "set.version": "Version",
   "set.about_note": "Mihenk is built for D160 Makina under SAHA MIHENK.",
-  "set.legacy_note": "Legacy AtolyeCAD (.acad) files open; saving always writes .mhnk.",
   "set.offline": "Works offline; your data stays on this computer.",
   "st.cancelled": "Computation cancelled",
   "w.lead": "Works offline. Your files stay on this computer. Every result is shown on screen; nothing unverified passes silently.",
-  "w.open_sub": "Mihenk and legacy AtolyeCAD files",
-  "w.legacy": "legacy format",
+  "w.open_sub": "Mihenk and STEP files",
 };
 
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.

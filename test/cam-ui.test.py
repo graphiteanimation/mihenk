@@ -34,7 +34,7 @@ try:
     br = p.chromium.launch(channel='chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'])
     def newpage(lang='tr', init='', w=1440, h=900):
         ctx = br.new_context(viewport={'width': w, 'height': h}, locale='tr-TR')
-        ctx.add_init_script("if (!sessionStorage.getItem('__i')) { sessionStorage.setItem('__i', '1'); localStorage.setItem('atolye.lang', '" + lang + "'); localStorage.setItem('atolye.recoveryMs', '0'); localStorage.setItem('mihenk.welcome', 'off'); " + init + " }")
+        ctx.add_init_script("if (!sessionStorage.getItem('__i')) { sessionStorage.setItem('__i', '1'); localStorage.setItem('mihenk.lang', '" + lang + "'); localStorage.setItem('mihenk.recoveryMs', '0'); localStorage.setItem('mihenk.welcome', 'off'); " + init + " }")
         pg = ctx.new_page(); errs = []
         pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
         pg.goto(URL); pg.wait_for_function('() => window.app'); pg.evaluate('app.ready'); pg.errs = errs; return ctx, pg

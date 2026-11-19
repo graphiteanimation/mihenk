@@ -48,7 +48,6 @@ ok(code(() => validateDoc(pat({ count1: 'QQ' }))) === null, 'çözülemeyen ifad
 ok(checkEnvelope({ app: 'Mihenk', version: 1, doc: {} }).newer === false, 'sürüm 1');
 ok(checkEnvelope({ app: 'Mihenk', version: FILE_VERSION + 1, doc: {} }).newer === true, 'daha yeni sürüm bildirilir');
 ok(checkEnvelope({ app: 'Mihenk', doc: {} }).version === 1, 'sürümsüz = 1');
-ok(checkEnvelope({ app: 'AtolyeCAD', version: 1, doc: {} }).version === 1, 'eski app alanı (AtolyeCAD) de kabul');
 ok(code(() => checkEnvelope({ app: 'Baska', doc: {} })) === 'schema.not_doc', 'başka uygulama');
 ok(code(() => checkEnvelope({ app: 'Mihenk', version: 'x', doc: {} })) === 'schema.bad_field', 'sürüm metin');
 

@@ -1,15 +1,15 @@
 # Ekran görüntüsü matrisi: {açık/TR, koyu/EN} x {1440, 1920} x {karşılama, model, eskiz, ayarlar}. Çıktı: test/shots/ui/
 import subprocess, time, sys
 from playwright.sync_api import sync_playwright
-PORT = 4194; OUT = '/home/claude/atolyecad/test/shots/ui/'
-srv = subprocess.Popen(['npx', 'vite', 'preview', '--port', str(PORT)], cwd='/home/claude/atolyecad', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(3)
+PORT = 4194; OUT = '/home/claude/repo/test/shots/ui/'
+srv = subprocess.Popen(['npx', 'vite', 'preview', '--port', str(PORT)], cwd='/home/claude/repo', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(3)
 with sync_playwright() as p:
     br = p.chromium.launch(channel='chrome', args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'])
     for theme, lang, scheme in [('light', 'tr', 'light'), ('dark', 'en', 'dark')]:
         for w, h in [(1440, 900), (1920, 1080)]:
             tag = f'{w}_{theme}_{lang}'
             ctx = br.new_context(viewport={'width': w, 'height': h}, locale='tr-TR', color_scheme=scheme)
-            ctx.add_init_script(f"if (!sessionStorage.getItem('__i')) {{ sessionStorage.setItem('__i','1'); localStorage.setItem('atolye.lang','{lang}'); localStorage.setItem('mihenk.theme','{theme}'); localStorage.setItem('atolye.recoveryMs','0'); }}")
+            ctx.add_init_script(f"if (!sessionStorage.getItem('__i')) {{ sessionStorage.setItem('__i','1'); localStorage.setItem('mihenk.lang','{lang}'); localStorage.setItem('mihenk.theme','{theme}'); localStorage.setItem('mihenk.recoveryMs','0'); }}")
             pg = ctx.new_page(); pg.goto(f'http://127.0.0.1:{PORT}/'); pg.wait_for_function('() => window.app'); pg.evaluate('app.ready'); pg.wait_for_timeout(600)
             pg.screenshot(path=OUT + f'01-karsilama_{tag}.png')
             pg.click('[data-testid="w-new"]')

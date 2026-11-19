@@ -1,5 +1,5 @@
 import json, os, icons_src as S
-R='/home/claude/atolyecad/brand/icons/'
+R='/home/claude/repo/brand/icons/'
 for f in os.listdir(R):
     if f.endswith('.svg') or f=='icons.json': os.remove(R+f)
 HEAD='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
@@ -13,5 +13,5 @@ for cat,names in S.G.items():
         sv=f'<svg viewBox="0 0 24 24">{S.I[n]}</svg>'
         out.append(f'<div class="t"><div class="big">{sv}</div><div class="sm"><span class="a">{sv}</span>{sv}</div><span>{n}</span></div>')
     out.append('</div>')
-open('/home/claude/atolyecad/design/icon-sheet.html','w').write('\n'.join(out))
+open('/home/claude/repo/design/icon-sheet.html','w').write('\n'.join(out))
 print(len(S.I))

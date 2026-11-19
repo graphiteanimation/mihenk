@@ -21,7 +21,7 @@ const srv = http.createServer((req, res) => {
 }).listen(0, '127.0.0.1');
 await new Promise((r) => srv.on('listening', r)); const PORT = srv.address().port;
 
-const app = await electron.launch({ args: [APP, '--no-sandbox'], env: { ...process.env, ATOLYE_SHOW: '1' } });
+const app = await electron.launch({ args: [APP, '--no-sandbox'], env: { ...process.env, MIHENK_SHOW: '1' } });
 const page = await app.firstWindow();
 await page.waitForFunction(() => window.app && window.app.ready, null, { timeout: 90000 }).catch(() => {});
 await page.waitForTimeout(1500);
@@ -38,7 +38,7 @@ R.renderer = await page.evaluate(async (PORT) => {
   try { window.__x = 0; const s = document.createElement('div'); s.innerHTML = '<img src=x onerror="window.__x=1">'; document.body.append(s); await new Promise(r => setTimeout(r, 300)); o.inlineHandlerRan = window.__x === 1; } catch (e) { o.inlineHandlerRan = 'ERR'; }
   const probe = async (u) => { try { const r = await fetch(u); return r.status + ' ' + (await r.text()).slice(0, 30).replace(/\n/g, ' '); } catch (e) { return 'ERR ' + e.message; } };
   o.traversal = {};
-  for (const u of ['app://atolye/../package.json', 'app://atolye/%2e%2e/package.json', 'app://atolye/%252e%252e/package.json', 'app://atolye/%252e%252e/secret.txt', 'app://atolye/%252e%252e/dist-secret/x.txt', 'app://atolye/%2e%2e%2fdist-secret/x.txt', 'app://atolye/%252e%252e%252fdist-secret%252fx.txt', 'app://atolye/..%5c..%5cpackage.json', 'app://atolye/index.html%00.txt', 'app://atolye//etc/passwd', 'app://atolye/%252fetc%252fpasswd'])
+  for (const u of ['app://mihenk/../package.json', 'app://mihenk/%2e%2e/package.json', 'app://mihenk/%252e%252e/package.json', 'app://mihenk/%252e%252e/secret.txt', 'app://mihenk/%252e%252e/dist-secret/x.txt', 'app://mihenk/%2e%2e%2fdist-secret/x.txt', 'app://mihenk/%252e%252e%252fdist-secret%252fx.txt', 'app://mihenk/..%5c..%5cpackage.json', 'app://mihenk/index.html%00.txt', 'app://mihenk//etc/passwd', 'app://mihenk/%252fetc%252fpasswd'])
     o.traversal[u] = await probe(u);
   try { await fetch('http://127.0.0.1:' + PORT + '/beacon-fetch', { mode: 'no-cors' }); o.netFetchNoCors = 'gitti'; } catch (e) { o.netFetchNoCors = 'ERR ' + e.message; }
   try { await new Promise((res) => { const i = new Image(); i.onload = i.onerror = res; i.src = 'http://127.0.0.1:' + PORT + '/beacon-img'; }); } catch (e) {}

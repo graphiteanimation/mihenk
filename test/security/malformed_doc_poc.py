@@ -1,4 +1,4 @@
-# Bozuk/kötü niyetli .acad belgelerinin yüklenmesi (şema doğrulaması yok). Kaynağı DEĞİŞTİRMEZ.
+# Bozuk/kötü niyetli .mhnk belgelerinin yüklenmesi (şema doğrulaması yok). Kaynağı DEĞİŞTİRMEZ.
 # Önce: (kaynak ağacında) npx vite --port 5210 &     Çalıştır: python3 -I test/security/malformed_doc_poc.py
 import json, time
 from playwright.sync_api import sync_playwright
@@ -24,10 +24,10 @@ with sync_playwright() as p:
     page.goto('http://127.0.0.1:5210/'); page.wait_for_function('window.app && window.app.ready', timeout=90000); page.evaluate('async()=>await window.app.ready')
     for name, doc in cases.items():
         errs.clear()
-        b = json.dumps({'app': 'AtolyeCAD', 'version': 1, 'doc': doc}).encode()
+        b = json.dumps({'app': 'Mihenk', 'version': 1, 'doc': doc}).encode()
         t0 = time.time()
         r = page.evaluate('''async (arr) => { const a = window.app; let thrown = null;
-            try { await Promise.race([a.openBytes(new Uint8Array(arr), 't.acad', null), new Promise((_, rej) => setTimeout(() => rej(new Error('ZAMAN AŞIMI 20sn')), 20000))]); } catch (e) { thrown = String(e.message || e).slice(0, 90); }
+            try { await Promise.race([a.openBytes(new Uint8Array(arr), 't.mhnk', null), new Promise((_, rej) => setTimeout(() => rej(new Error('ZAMAN AŞIMI 20sn')), 20000))]); } catch (e) { thrown = String(e.message || e).slice(0, 90); }
             let usable = true; try { await a.loadDoc({ params: [], features: [] }); a.C.renderAll(); } catch (e) { usable = 'ONARILAMADI ' + String(e.message).slice(0, 60); }
             return { thrown, docType: Array.isArray(a.doc) ? 'array' : typeof a.doc, usableAfter: usable }; }''', list(b))
         print(f'{name:36s} thrown={r["thrown"]!s:60.60s} recover={r["usableAfter"]} t={time.time()-t0:.1f}s uncaught={errs[:1]}')

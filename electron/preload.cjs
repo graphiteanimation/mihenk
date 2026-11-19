@@ -1,9 +1,9 @@
 // Arayüze güvenli köprü: yerel dosya diyalogları, ayarlar. contextIsolation + sandbox açık, nodeIntegration kapalı.
-// Köprü YALNIZ app://atolye/ kökeninde kurulur; başka bir sayfa (gezinti engellense de) hiçbir işlev görmez.
+// Köprü YALNIZ app://mihenk/ kökeninde kurulur; başka bir sayfa (gezinti engellense de) hiçbir işlev görmez.
 // Yol parametresi YOKTUR: dosya yolunu yalnız ana süreç bilir (diyalogla seçilen / açılan).
 const { contextBridge, ipcRenderer } = require('electron');
 
-if (location.protocol === 'app:' && location.host === 'atolye') {
+if (location.protocol === 'app:' && location.host === 'mihenk') {
   contextBridge.exposeInMainWorld('native', {
     // kind: 'doc' | 'step' | 'stl' → {name, data:Uint8Array} | null (ana süreç diyalog açar)
     openFile: (kind) => ipcRenderer.invoke('native:open', String(kind)),
@@ -12,7 +12,7 @@ if (location.protocol === 'app:' && location.host === 'atolye') {
     // belge durumu: 'opened' (az önce açılan dosya yüklendi) | 'new' (yeni belge): geçerli belge yolunu ana süreç günceller
     docState: (s) => ipcRenderer.send('native:docState', String(s)),
     setTitle: (t) => ipcRenderer.send('native:title', String(t)),
-    // komut satırından (çift tık) açılan .mhnk/.acad dosyası → {name,data} | null
+    // komut satırından (çift tık) açılan .mhnk dosyası → {name,data} | null
     // son kullanılan belgeler: [{name, dir, ms}] ve dizinle açma (yolu renderer vermez)
     recentList: () => ipcRenderer.invoke('native:recentList'),
     openRecent: (i) => ipcRenderer.invoke('native:openRecent', Number(i)),

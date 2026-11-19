@@ -29,7 +29,7 @@ export function showSettings(app, tab = 'general') {
       ];
   };
   const about = () => [h('div', { class: 'sec', text: 'Mihenk CAD/CAM' }), h('table', { class: 'kv' }, h('tr', {}, h('td', { text: t('set.version') }), h('td', { text: pkg.version }))),
-    h('div', { class: 'note', text: t('set.about_note') }), h('div', { class: 'note', text: t('set.legacy_note') }), h('div', { class: 'note', text: t('set.offline') })];
+    h('div', { class: 'note', text: t('set.about_note') }), h('div', { class: 'note', text: t('set.offline') })];
   const draw = () => {
     nav.replaceChildren(...TABS.map(([id, key, ic]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(id === cur), 'data-testid': 'set-tab-' + id, onclick: () => { cur = id; draw(); } }, h('span', { html: icon(ic, 'sm') }), t(key))));
     pane.replaceChildren(...(cur === 'about' ? about() : general()));
@@ -59,7 +59,7 @@ export function renderWelcome(app) {
   if (window.native?.recentList) window.native.recentList().then((items) => {
     if (!Array.isArray(items) || !items.length) return;
     list.replaceChildren(...items.slice(0, 6).map((it, i) => h('button', { type: 'button', class: 'ri', 'data-testid': 'w-recent-item', onclick: go(() => app.openRecent(i)) },
-      h('span', { class: 'thumb', html: icon('file-open') }), h('span', {}, h('span', { class: 'nm', text: it.name }), h('span', { class: 'path', text: it.dir || '' })), h('span', { class: 'meta' }, h('span', { text: new Date(it.ms).toLocaleString(getLang(), { dateStyle: 'medium', timeStyle: 'short' }) }), /\.acad$/i.test(it.name) ? h('span', { class: 'badge', text: t('w.legacy') }) : null))));
+      h('span', { class: 'thumb', html: icon('file-open') }), h('span', {}, h('span', { class: 'nm', text: it.name }), h('span', { class: 'path', text: it.dir || '' })), h('span', { class: 'meta' }, h('span', { text: new Date(it.ms).toLocaleString(getLang(), { dateStyle: 'medium', timeStyle: 'short' }) })))));
   }).catch(() => {});
   root.replaceChildren(left, right);
 }

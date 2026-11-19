@@ -8,7 +8,7 @@ import { KErr, toErr } from './errors.js';
 
 export const LANGS = ['tr', 'en'];
 const DICTS = { tr, en };
-const STORE_KEY = 'atolye.lang';
+const STORE_KEY = 'mihenk.lang';
 const warned = new Set();
 
 // İlk dil: kayıtlı tercih → işletim sistemi dili (tr ise Türkçe, değilse İngilizce) → Türkçe.
