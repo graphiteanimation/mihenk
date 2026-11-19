@@ -121,7 +121,7 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 
 ## Durum — 2026-11-12 öğleden sonra (eksik analizi; kod DEĞİŞMEDİ)
 - Kurulum: SHA-256 teyitli; bilgisayarda kurulumu kullanıcı başlatacak (Dosya Gezgini yalnız tıklama izni, pencere görünmedi).
-- Eksik analizi (NX/Fusion kıyası): https://claude.ai/artifact/L4C72y7G1BHEPQBf3Se3Ru — ara dosyalar AtolyeCAD\analiz\ (envanter, referans, dogrulama, PROMPT).
+- Eksik analizi (NX/Fusion kıyası): https://claude.ai/artifact/L4C72y7G1BHEPQBf3Se3Ru — ara dosyalar Mihenk\analiz\ (envanter, referans, dogrulama, PROMPT).
 - Onay bekleyen: O-019 (0.3.x tezgâh kabulü önce) … O-028. Yol haritası: 0.4 prizmatik eksiksiz → 0.5 verim/çarpışma → 0.6 3D + teknik resim → 1.0.
 - SIRADAKİ: kullanıcı O-019…O-028 onayı + Windows kurulumu; onaydan sonra O'lar spesifikasyona işlenir.
 
@@ -129,3 +129,9 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - 0.3.0 bilgisayara kuruldu: C:\Users\sand\AppData\Local\Programs\Mihenk\Mihenk.exe. Açılıyor; Tasarım, İmalat, Neway profili görünüyor (Neway'de eksik veri uyarısı beklenen).
 - KURULUM HATASI bulundu: build/installer.nsi EnsureSubdir "\Mihenk" (7 karakter) yerine son 10 karakteri karşılaştırıyordu → her kurulumda yola bir "\Mihenk" daha ekleniyordu. Ayrıca klasör sayfasında yol elle değiştirilince DirLeave ekleme yapmadı ve dosyalar Programs köküne açıldı (kendi kaldırıcısıyla temizlendi). Düzeltme: StrCpy $0 $INSTDIR 7 -7 (commit'li). DirLeave'in çalışmaması 0.3.1'de Windows'ta sınanmalı; 0.3.1 kurulum dosyası yeniden üretilmeli.
 - Eski kurulumlar duruyor: Programs\Mihenk\Mihenk\ altında iç içe 3 kopya (11 Kasım, ~1,2 GB). Kullanıcı onayıyla silinecek.
+
+## Durum — 2026-11-19 (K-024: ad temizliği)
+- Kullanıcı: "Artık programın ismi Mihenk, eski atolyecad ilişkili şeyleri sil, dosya yollarını düzelt." (K-024, spesifikasyona işlendi.)
+- Kod (b6cbba6): .acad desteği ve %APPDATA%\AtolyeCAD ayar taşıma kaldırıldı; köken app://mihenk/, anahtarlar mihenk.*, IndexedDB mihenk-recovery, ortam değişkenleri MIHENK_*. Testler: tüm adımlar geçti (app.test.py zincirde bir kez kararsız sayfa hatası verdi, tek başına iki kez 194/194 geçti). Not: köken değiştiği için tema/yoğunluk tercihi bir kez sıfırlanır.
+- Bilgisayar: klasör Documents\Fusion-Klon-Spec\Mihenk (eski AtolyeCAD); AtolyeCAD-Kurulum-0.1.0.exe, AtolyeCAD-kaynak-*.zip, Roaming\AtolyeCAD içeriği ve iç içe 3 eski Mihenk kurulumu silindi; Belge.acad → Belge.mhnk. Boş Roaming\AtolyeCAD klasörü duruyor (erişim kökü olduğu için silinemedi).
+- Bilgisayardaki kurulu 0.3.0 hâlâ eski adları kullanır; temizlik 0.3.1 kurulumuyla gelir.
