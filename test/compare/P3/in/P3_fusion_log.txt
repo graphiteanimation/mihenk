@@ -1,0 +1,363 @@
+17:45:14  === MihenkKarsilastirma P3 basladi ===
+17:45:14  Fusion surum: 2706.1.14
+17:45:14  STEP: C:\Users\sand\Documents\Fusion-Klon-Spec\Mihenk\test-fusion-karsilastirma\parcalar\P3_NIST_FTC06_blok.stp
+17:45:19  Govde 'Body1' kutu (mm): min=(-152.4, -0.0, -247.65) max=(152.4, 97.79, 0.0)
+17:45:19  Eksen eslemesi (plan->Fusion): [[1, 0, 0], [0, 1, 0], [0, 0, 1]] (birim, dondurme yok)
+17:45:21  Takim T20 olusturuldu: tip=face mill D=50.00 mm no=20 preset=1
+17:45:21  Takim T21 olusturuldu: tip=flat end mill D=12.00 mm no=21 preset=1
+17:45:21  Takim T22 olusturuldu: tip=flat end mill D=6.00 mm no=22 preset=1
+17:45:21  Takim T24 olusturuldu: tip=spot drill D=10.00 mm no=24 preset=1
+17:45:21  Takim T34 olusturuldu: tip=flat end mill D=12.00 mm no=34 preset=1
+17:45:21  Takim T35 olusturuldu: tip=bull nose end mill D=12.00 mm no=35 preset=1
+17:45:21  Takim T36 olusturuldu: tip=drill D=10.50 mm no=36 preset=1
+17:45:21  Takim T37 olusturuldu: tip=drill D=7.10 mm no=37 preset=1
+17:45:21  Setup S1 'P3-S1 Ust'
+17:45:22      param job_stockOffsetMode = 'simple'  [ok]
+17:45:22      param job_stockOffsetSides = 2.0000 mm  [ok]
+17:45:22      param job_stockOffsetTop = 2.0000 mm  [ok]
+17:45:22      param job_stockOffsetBottom = 2.0000 mm  [ok]
+17:45:23      param wcs_orientation_mode = 'axesZX'  [ok]
+17:45:23      deger wcs_orientation_axisZ = [<class 'adsk.fusion.ConstructionAxis'>]  [ok]
+17:45:23      param wcs_orientation_flipZ = false  [ok]
+17:45:23      deger wcs_orientation_axisX = [<class 'adsk.fusion.ConstructionAxis'>]  [ok]
+17:45:23      param wcs_orientation_flipX = false  [ok]
+17:45:23      param wcs_origin_mode = 'stockPoint'  [ok]
+17:45:24      param wcs_origin_boxPoint = 'top center'  [ok]
+17:45:24      param job_workOffset = 2  [ok]
+17:45:24      param job_programName = '2003'  [ok]
+17:45:24    stok boyutu (WCS X,Y,Z) = 308.80 x 251.65 x 101.79 mm
+17:45:24    WCS orijin (Fusion, mm) = (0.00, 997.90, -1238.25)
+17:45:24   Islem 1 Yuzey T20 (face, T20)
+17:45:24      strateji adi kabul edildi: face
+17:45:24      param tool_spindleSpeed = 4500 rpm  [ok]
+17:45:25      param tool_feedCutting = 2250 mm/min  [ok]
+17:45:25      param tool_feedPlunge = 750 mm/min  [ok]
+17:45:25      param tool_coolant = 'flood'  [ok]
+17:45:25      param doMultipleDepths = true  [ok]
+17:45:25      param maximumStepdown = 1 mm  [ok]
+17:45:25      param verticalStockToLeave = 0 mm  [ok]
+17:45:25   Islem 2 3D Adaptive T34 (adaptive, T34)
+17:45:25      strateji adi kabul edildi: adaptive
+17:45:26      param tool_spindleSpeed = 8000 rpm  [ok]
+17:45:26      param tool_feedCutting = 1500 mm/min  [ok]
+17:45:27      param tool_feedPlunge = 500 mm/min  [ok]
+17:45:27      param tool_coolant = 'flood'  [ok]
+17:45:27      param bottomHeight_mode = 'from stock top'  [ok]
+17:45:27      param bottomHeight_offset = -99.9900 mm  [ok]
+17:45:27      param optimalLoad = 1.2 mm  [ok]
+17:45:28      param maximumStepdown = 12 mm  [ok]
+17:45:28      param useStockToLeave = true  [ok]
+17:45:28      param stockToLeave = 0.3 mm  [ok]
+17:45:28      param verticalStockToLeave = 0.2 mm  [ok]
+17:45:28   Islem 3 Yatay temizleme T35 (horizontal, T35)
+17:45:28      strateji adi kabul edildi: horizontal
+17:45:29      param tool_spindleSpeed = 8000 rpm  [ok]
+17:45:29      param tool_feedCutting = 1500 mm/min  [ok]
+17:45:29      param tool_feedPlunge = 500 mm/min  [ok]
+17:45:30      param tool_coolant = 'flood'  [ok]
+17:45:30      param bottomHeight_mode = 'from stock top'  [ok]
+17:45:30      param bottomHeight_offset = -68.2900 mm  [ok]
+17:45:30      param stockToLeave = 0 mm  [ok]
+17:45:30   Islem 4 3D Kontur T35 (contour_new|contour3d|steep, T35)
+17:45:30      strateji adi kabul edildi: contour_new
+17:45:31      param tool_spindleSpeed = 8000 rpm  [ok]
+17:45:32      param tool_feedCutting = 1500 mm/min  [ok]
+17:45:32      param tool_feedPlunge = 500 mm/min  [ok]
+17:45:32      param tool_coolant = 'flood'  [ok]
+17:45:32      param bottomHeight_mode = 'from stock top'  [ok]
+17:45:33      param bottomHeight_offset = -68.2900 mm  [ok]
+17:45:33      param maximumStepdown = 1 mm  [ok]
+17:45:34      param stockToLeave = 0 mm  [ok]
+17:45:34   Islem 5 2D Kontur dis siluet T34 (contour2d, T34)
+17:45:34      strateji adi kabul edildi: contour2d
+17:45:34      param tool_spindleSpeed = 8000 rpm  [ok]
+17:45:35      param tool_feedCutting = 1500 mm/min  [ok]
+17:45:35      param tool_feedPlunge = 500 mm/min  [ok]
+17:45:35      param tool_coolant = 'flood'  [ok]
+17:45:35      param topHeight_mode = 'from stock top'  [ok]
+17:45:36      param topHeight_offset = -63.7900 mm  [ok]
+17:45:36      param bottomHeight_mode = 'from stock top'  [ok]
+17:45:36      param bottomHeight_offset = -99.9900 mm  [ok]
+17:45:36      param doMultipleDepths = true  [ok]
+17:45:36      param maximumStepdown = 12 mm  [ok]
+17:45:36      param stockToLeave = 0 mm  [ok]
+17:45:37      param compensation = 'left'  [ok]
+17:45:37    secici siluet_dis: siluet secimi (resmi ornek)
+17:45:37      siluet: yalniz dis halka (OnlyOutsideLoops)
+17:45:37      geometri contours <- siluet
+17:45:37   Islem 6 Bore D15.875 havsa T21 (bore, T21)
+17:45:37      strateji adi kabul edildi: bore
+17:45:37      param tool_spindleSpeed = 8000 rpm  [ok]
+17:45:37      param tool_feedCutting = 1800 mm/min  [ok]
+17:45:37      param tool_feedPlunge = 600 mm/min  [ok]
+17:45:37      param tool_coolant = 'flood'  [ok]
+17:45:37      param topHeight_mode = 'from stock top'  [ok]
+17:45:37      param topHeight_offset = -68.0400 mm  [ok]
+17:45:38      param bottomHeight_mode = 'from stock top'  [ok]
+17:45:38      param bottomHeight_offset = -80.7400 mm  [ok]
+17:45:38      param threadPitch = 1 mm  [ok]
+17:45:38      param stockToLeave = 0 mm  [ok]
+17:45:38      param direction = 'climb'  [ok]
+17:45:38    secici plaka_havsa: 4 silindir + 0 koni yuzu
+17:45:38      geometri circularFaces <- 4 yuz
+17:45:38   Islem 7 Punta T24 4x D10.54 (drill, T24)
+17:45:38      strateji adi kabul edildi: drill
+17:45:38      param tool_spindleSpeed = 3000 rpm  [ok]
+17:45:39      param tool_feedCutting = 300 mm/min  [ok]
+17:45:39      param tool_feedPlunge = 300 mm/min  [ok]
+17:45:39      param tool_coolant = 'flood'  [ok]
+17:45:39      param bottomHeight_mode = 'from stock top'  [ok]
+17:45:39      param bottomHeight_offset = -82.2400 mm  [ok]
+17:45:39      param cycleType = 'drilling'  [ok]
+17:45:39    secici plaka_delikleri: 4 silindir + 0 koni yuzu
+17:45:39      geometri holeFaces <- 4 yuz
+17:45:39   Islem 8 Delme D10.5 T36 (drill, T36)
+17:45:39      strateji adi kabul edildi: drill
+17:45:40      param tool_spindleSpeed = 3500 rpm  [ok]
+17:45:40      param tool_feedCutting = 500 mm/min  [ok]
+17:45:40      param tool_feedPlunge = 500 mm/min  [ok]
+17:45:40      param tool_coolant = 'flood'  [ok]
+17:45:40      param cycleType = 'deep-drilling'  [ok]
+17:45:41      param peckingDepth = 5 mm  [ok]
+17:45:41      param drillTipThroughBottom = true  [ok]
+17:45:41      param breakThroughDepth = 1 mm  [ok]
+17:45:41      geometri holeFaces <- 4 yuz
+17:45:41   Islem 9 Bore D6.35 direk deligi T22 (bore, T22)
+17:45:41      strateji adi kabul edildi: bore
+17:45:41      param tool_spindleSpeed = 8000 rpm  [ok]
+17:45:41      param tool_feedCutting = 960 mm/min  [ok]
+17:45:41      param tool_feedPlunge = 320 mm/min  [ok]
+17:45:42      param tool_coolant = 'flood'  [ok]
+17:45:42      param topHeight_mode = 'from stock top'  [ok]
+17:45:42      param topHeight_offset = -14.7000 mm  [ok]
+17:45:42      param bottomHeight_mode = 'from stock top'  [ok]
+17:45:42      param bottomHeight_offset = -27.4000 mm  [ok]
+17:45:42      param threadPitch = 1 mm  [ok]
+17:45:42      param stockToLeave = 0 mm  [ok]
+17:45:42      param direction = 'climb'  [ok]
+17:45:42    secici post_delikleri: 2 silindir + 0 koni yuzu
+17:45:42      geometri circularFaces <- 2 yuz
+17:45:44    -> 1 Yuzey T20: basarili=True hesap=1.71s isleme=173.3s uyari=- hata=-
+17:54:58    -> 2 3D Adaptive T34: basarili=True hesap=553.70s isleme=18698.9s uyari=- hata=-
+17:55:25    -> 3 Yatay temizleme T35: basarili=True hesap=26.74s isleme=772.8s uyari=- hata=-
+17:56:19    -> 4 3D Kontur T35: basarili=True hesap=52.88s isleme=4622.3s uyari=- hata=-
+17:56:23    -> 5 2D Kontur dis siluet T34: basarili=True hesap=3.85s isleme=208.7s uyari=- hata=-
+17:56:23    -> 6 Bore D15.875 havsa T21: basarili=True hesap=0.01s isleme=42.3s uyari=- hata=-
+17:56:36    -> 7 Punta T24 4x D10.54: basarili=True hesap=12.33s isleme=7.6s uyari=- hata=-
+17:56:52    -> 8 Delme D10.5 T36: basarili=True hesap=15.83s isleme=18.5s uyari=- hata=-
+17:56:53    -> 9 Bore D6.35 direk deligi T22: basarili=True hesap=0.02s isleme=9.0s uyari=- hata=-
+17:56:53   Setup S1 isleme suresi: 24658.4 s, takim degisimi 7
+17:56:53  Setup S2 'P3-S2 On A'
+17:56:53    stok: onceki setup'tan (isUsingPreviousSetupData)
+17:56:53  4 eksen makine (Generic4Axis sablonu) olusturuldu: Autodesk 
+17:56:53    makine dogrusal eksen: X
+17:56:53    makine dogrusal eksen: Y
+17:56:53    makine dogrusal eksen: Z
+17:56:53    makine doner eksen: A yon=(-1.00,0.00,0.00)
+17:56:53    4 eksen makine setup'a atandi
+17:56:54      param wcs_orientation_mode = 'axesZX'  [ok]
+17:56:54      deger wcs_orientation_axisZ = [<class 'adsk.fusion.ConstructionAxis'>]  [ok]
+17:56:54      param wcs_orientation_flipZ = true  [ok]
+17:56:54      deger wcs_orientation_axisX = [<class 'adsk.fusion.ConstructionAxis'>]  [ok]
+17:56:55      param wcs_orientation_flipX = false  [ok]
+17:56:55      param wcs_origin_mode = 'stockPoint'  [ok]
+17:56:55      param wcs_origin_boxPoint = 'top center'  [ok]
+17:56:55      param job_workOffset = 4  [ok]
+17:56:55      param job_programName = '2004'  [ok]
+17:56:55    stok boyutu (WCS X,Y,Z) = 308.80 x 101.79 x 251.65 mm
+17:56:55    WCS orijin (Fusion, mm) = (0.00, 488.95, -2496.50)
+17:56:55   Islem 10 3D Adaptive on T34 (adaptive, T34)
+17:56:55      strateji adi kabul edildi: adaptive
+17:56:56      param tool_spindleSpeed = 8000 rpm  [ok]
+17:56:56      param tool_feedCutting = 1500 mm/min  [ok]
+17:56:57      param tool_feedPlunge = 500 mm/min  [ok]
+17:56:57      param tool_coolant = 'flood'  [ok]
+17:56:57      stok ustu (takim ekseni) plan degeri: 249.65 mm (setup 'stok_ust_s')
+17:56:57      param bottomHeight_mode = 'from stock top'  [ok]
+17:56:58      param bottomHeight_offset = -14.7000 mm  [ok]
+17:56:58      param optimalLoad = 1.2 mm  [ok]
+17:56:58      param maximumStepdown = 12 mm  [ok]
+17:56:58      param useStockToLeave = true  [ok]
+17:56:59      param stockToLeave = 0.3 mm  [ok]
+17:56:59      param verticalStockToLeave = 0.2 mm  [ok]
+17:56:59   Islem 11 Yatay temizleme on T35 (horizontal, T35)
+17:56:59      strateji adi kabul edildi: horizontal
+17:57:00      param tool_spindleSpeed = 8000 rpm  [ok]
+17:57:00      param tool_feedCutting = 1500 mm/min  [ok]
+17:57:00      param tool_feedPlunge = 500 mm/min  [ok]
+17:57:01      param tool_coolant = 'flood'  [ok]
+17:57:01      stok ustu (takim ekseni) plan degeri: 249.65 mm (setup 'stok_ust_s')
+17:57:01      param bottomHeight_mode = 'from stock top'  [ok]
+17:57:01      param bottomHeight_offset = -14.8700 mm  [ok]
+17:57:01      param stockToLeave = 0 mm  [ok]
+17:57:01   Islem 12 2D Kontur boss dis T21 (contour2d, T21)
+17:57:01      strateji adi kabul edildi: contour2d
+17:57:02      param tool_spindleSpeed = 8000 rpm  [ok]
+17:57:02      param tool_feedCutting = 1800 mm/min  [ok]
+17:57:03      param tool_feedPlunge = 600 mm/min  [ok]
+17:57:03      param tool_coolant = 'flood'  [ok]
+17:57:03      stok ustu (takim ekseni) plan degeri: 249.65 mm (setup 'stok_ust_s')
+17:57:03      param topHeight_mode = 'from stock top'  [ok]
+17:57:04      param topHeight_offset = -2.0000 mm  [ok]
+17:57:04      param bottomHeight_mode = 'from stock top'  [ok]
+17:57:04      param bottomHeight_offset = -14.7000 mm  [ok]
+17:57:04      param doMultipleDepths = true  [ok]
+17:57:05      param maximumStepdown = 6.4 mm  [ok]
+17:57:05      param stockToLeave = 0 mm  [ok]
+17:57:05      param compensation = 'left'  [ok]
+17:57:06    secici boss_daireleri: 12 aday, uc konumdaki 4 kenar (s=247.65 mm)
+17:57:06      zincir: kenar ccw=False isReverted=True acik=False
+17:57:06      zincir: kenar ccw=False isReverted=True acik=False
+17:57:06      zincir: kenar ccw=False isReverted=True acik=False
+17:57:06      zincir: kenar ccw=False isReverted=True acik=False
+17:57:06   Islem 13 Bore D10.16 havsa T22 (bore, T22)
+17:57:06      strateji adi kabul edildi: bore
+17:57:07      param tool_spindleSpeed = 8000 rpm  [ok]
+17:57:07      param tool_feedCutting = 960 mm/min  [ok]
+17:57:07      param tool_feedPlunge = 320 mm/min  [ok]
+17:57:07      param tool_coolant = 'flood'  [ok]
+17:57:07      stok ustu (takim ekseni) plan degeri: 249.65 mm (setup 'stok_ust_s')
+17:57:08      param topHeight_mode = 'from stock top'  [ok]
+17:57:08      param topHeight_offset = -2.0000 mm  [ok]
+17:57:08      param bottomHeight_mode = 'from stock top'  [ok]
+17:57:08      param bottomHeight_offset = -9.9400 mm  [ok]
+17:57:09      param threadPitch = 1 mm  [ok]
+17:57:09      param stockToLeave = 0 mm  [ok]
+17:57:09      param direction = 'climb'  [ok]
+17:57:09    secici boss_havsa: 4 silindir + 0 koni yuzu
+17:57:09      geometri circularFaces <- 4 yuz
+17:57:09   Islem 14 Punta T24 4x D7.14 (drill, T24)
+17:57:09      strateji adi kabul edildi: drill
+17:57:11      param tool_spindleSpeed = 3000 rpm  [ok]
+17:57:11      param tool_feedCutting = 300 mm/min  [ok]
+17:57:11      param tool_feedPlunge = 300 mm/min  [ok]
+17:57:12      param tool_coolant = 'flood'  [ok]
+17:57:12      stok ustu (takim ekseni) plan degeri: 249.65 mm (setup 'stok_ust_s')
+17:57:12      param bottomHeight_mode = 'from stock top'  [ok]
+17:57:13      param bottomHeight_offset = -11.4400 mm  [ok]
+17:57:13      param cycleType = 'drilling'  [ok]
+17:57:13    secici boss_delikleri: 4 silindir + 0 koni yuzu
+17:57:14      geometri holeFaces <- 4 yuz
+17:57:14   Islem 15 Delme D7.1 T37 (drill, T37)
+17:57:14      strateji adi kabul edildi: drill
+17:57:15      param tool_spindleSpeed = 3500 rpm  [ok]
+17:57:15      param tool_feedCutting = 420 mm/min  [ok]
+17:57:16      param tool_feedPlunge = 420 mm/min  [ok]
+17:57:16      param tool_coolant = 'flood'  [ok]
+17:57:16      stok ustu (takim ekseni) plan degeri: 249.65 mm (setup 'stok_ust_s')
+17:57:16      param cycleType = 'deep-drilling'  [ok]
+17:57:16      param peckingDepth = 5 mm  [ok]
+17:57:16      param drillTipThroughBottom = true  [ok]
+17:57:17      param breakThroughDepth = 1 mm  [ok]
+17:57:17      geometri holeFaces <- 4 yuz
+17:57:59    -> 10 3D Adaptive on T34: basarili=True hesap=42.15s isleme=2477.0s uyari=- hata=-
+17:58:02    -> 11 Yatay temizleme on T35: basarili=True hesap=3.02s isleme=279.3s uyari=- hata=-
+17:58:04    -> 12 2D Kontur boss dis T21: basarili=True hesap=1.60s isleme=41.4s uyari=- hata=-
+17:58:04    -> 13 Bore D10.16 havsa T22: basarili=True hesap=0.01s isleme=78.5s uyari=- hata=-
+17:58:09    -> 14 Punta T24 4x D7.14: basarili=True hesap=4.15s isleme=5.9s uyari=- hata=-
+17:58:12    -> 15 Delme D7.1 T37: basarili=True hesap=3.43s isleme=27.9s uyari=- hata=-
+17:58:12   Setup S2 isleme suresi: 2985.0 s, takim degisimi 5
+17:58:12  Setup S3 'P3-S3 Arka A'
+17:58:12    stok: onceki setup'tan (isUsingPreviousSetupData)
+17:58:12    4 eksen makine setup'a atandi
+17:58:13      param wcs_orientation_mode = 'axesZX'  [ok]
+17:58:13      deger wcs_orientation_axisZ = [<class 'adsk.fusion.ConstructionAxis'>]  [ok]
+17:58:13      param wcs_orientation_flipZ = false  [ok]
+17:58:13      deger wcs_orientation_axisX = [<class 'adsk.fusion.ConstructionAxis'>]  [ok]
+17:58:13      param wcs_orientation_flipX = false  [ok]
+17:58:13      param wcs_origin_mode = 'stockPoint'  [ok]
+17:58:13      param wcs_origin_boxPoint = 'top center'  [ok]
+17:58:14      param job_workOffset = 5  [ok]
+17:58:14      param job_programName = '2005'  [ok]
+17:58:14    stok boyutu (WCS X,Y,Z) = 308.80 x 101.79 x 251.65 mm
+17:58:14    WCS orijin (Fusion, mm) = (0.00, 488.95, 20.00)
+17:58:14   Islem 16 Yatay temizleme arka yuz T35 (horizontal, T35)
+17:58:14      strateji adi kabul edildi: horizontal
+17:58:14      param tool_spindleSpeed = 8000 rpm  [ok]
+17:58:14      param tool_feedCutting = 1500 mm/min  [ok]
+17:58:14      param tool_feedPlunge = 500 mm/min  [ok]
+17:58:14      param tool_coolant = 'flood'  [ok]
+17:58:14      stok ustu (takim ekseni) plan degeri: 2.00 mm (setup 'stok_ust_s')
+17:58:14      param bottomHeight_mode = 'from stock top'  [ok]
+17:58:14      param bottomHeight_offset = -2.1700 mm  [ok]
+17:58:14      param stockToLeave = 0 mm  [ok]
+17:58:14   Islem 17 Bore D14.288 arka T34 (bore, T34)
+17:58:14      strateji adi kabul edildi: bore
+17:58:15      param tool_spindleSpeed = 8000 rpm  [ok]
+17:58:15      param tool_feedCutting = 1500 mm/min  [ok]
+17:58:15      param tool_feedPlunge = 500 mm/min  [ok]
+17:58:15      param tool_coolant = 'flood'  [ok]
+17:58:15      stok ustu (takim ekseni) plan degeri: 2.00 mm (setup 'stok_ust_s')
+17:58:15      param topHeight_mode = 'from stock top'  [ok]
+17:58:15      param topHeight_offset = -2.0000 mm  [ok]
+17:58:15      param bottomHeight_mode = 'from stock top'  [ok]
+17:58:15      param bottomHeight_offset = -34.7500 mm  [ok]
+17:58:15      param threadPitch = 2 mm  [ok]
+17:58:15      param stockToLeave = 0 mm  [ok]
+17:58:15      param direction = 'climb'  [ok]
+17:58:16    secici arka_delikleri: 2 silindir + 0 koni yuzu
+17:58:16      geometri circularFaces <- 2 yuz
+17:58:18    -> 16 Yatay temizleme arka yuz T35: basarili=True hesap=2.39s isleme=369.8s uyari=- hata=-
+17:58:19    -> 17 Bore D14.288 arka T34: basarili=True hesap=0.04s isleme=39.4s uyari=- hata=-
+17:58:19   Setup S3 isleme suresi: 424.3 s, takim degisimi 1
+17:58:19  Setup S4 'P3-S4 Alt'
+17:58:19    stok: onceki setup'tan (isUsingPreviousSetupData)
+17:58:19      param wcs_orientation_mode = 'axesZX'  [ok]
+17:58:19      deger wcs_orientation_axisZ = [<class 'adsk.fusion.ConstructionAxis'>]  [ok]
+17:58:19      param wcs_orientation_flipZ = true  [ok]
+17:58:19      deger wcs_orientation_axisX = [<class 'adsk.fusion.ConstructionAxis'>]  [ok]
+17:58:19      param wcs_orientation_flipX = false  [ok]
+17:58:19      param wcs_origin_mode = 'stockPoint'  [ok]
+17:58:19      param wcs_origin_boxPoint = 'top center'  [ok]
+17:58:19      param job_workOffset = 6  [ok]
+17:58:19      param job_programName = '2006'  [ok]
+17:58:19    stok boyutu (WCS X,Y,Z) = 308.80 x 251.65 x 101.79 mm
+17:58:19    WCS orijin (Fusion, mm) = (0.00, -20.00, -1238.25)
+17:58:19   Islem 18 Yuzey alt T20 (face, T20)
+17:58:19      strateji adi kabul edildi: face
+17:58:20      param tool_spindleSpeed = 4500 rpm  [ok]
+17:58:20      param tool_feedCutting = 2250 mm/min  [ok]
+17:58:20      param tool_feedPlunge = 750 mm/min  [ok]
+17:58:20      param tool_coolant = 'flood'  [ok]
+17:58:20      param doMultipleDepths = true  [ok]
+17:58:20      param maximumStepdown = 1 mm  [ok]
+17:58:20      param verticalStockToLeave = 0 mm  [ok]
+17:58:22    -> 18 Yuzey alt T20: basarili=True hesap=1.58s isleme=173.3s uyari=- hata=-
+17:58:22   Setup S4 isleme suresi: 173.3 s, takim degisimi 0
+17:58:22  Post kutuphanesi: 358 freze postu, Mitsubishi adaylari: ['Mitsubishi | MELDAS', 'Mitsubishi | Micro Dynamics Mega 30VT', 'Mitsubishi | Mitsubishi', 'ShopSabre CNC | ShopSabre IS-M with Mitsubishi M8 Series Control']
+17:58:22  genericPostFolder: C:\Users\sand\AppData\Local\Autodesk\Autodesk Fusion 360\CAM\cache\posts  mitsubishi*.cps: ['mitsubishi.cps']
+17:58:23  Secilen post: vendor='Mitsubishi' aciklama='Mitsubishi' surum=44250 uzanti=.nc -> user://Mihenk_mitsubishi 9.cps
+17:58:23      deger nc_program_filename = P3_S1_Ust_fusion_KARSILASTIRMA_TEZGAHA_GITMEZ  [ok]
+17:58:23      deger nc_program_openInEditor = False  [ok]
+17:58:23      deger nc_program_output_folder = C:/Users/sand/Documents/Fusion-Klon-Spec/Mihenk/test-fusion-karsilastirma/sonuclar/P3  [ok]
+17:58:23      deger nc_program_name = 2003  [ok]
+17:58:23    post parametreleri: metric, group_preferences, optionalStop, preloadTool, toolChangeOrder, useRadius, useRigidTapping, group_homePositions, safePositionMethod, group_multiAxis, useTiltedWorkplane, group_formats, showSequenceNumbers, sequenceNumberStart, sequenceNumberIncrement, o8, separateWordsWithSpace, writeMachine, writeTools, group_probing, singleResultsFile, groupBuiltin, builtin_allowHelicalMoves, builtin_highFeedMapping, builtin_highFeedrate, builtin_maximumCircularRadius, builtin_minimumChordLength, builtin_minimumCircularRadius, builtin_tolerance
+17:58:24    safePositionMethod = G28
+17:58:42    NC S1: ok=True dosya=C:\Users\sand\Documents\Fusion-Klon-Spec\Mihenk\test-fusion-karsilastirma\sonuclar\P3\P3_S1_Ust_fusion_KARSILASTIRMA_TEZGAHA_GITMEZ.nc satir=699610 sayac={'G81': 1, 'G83': 1, 'G84': 0, 'G41': 0, 'G42': 0, 'A': 0, 'M6': 8, 'M8': 8}
+17:58:42      deger nc_program_filename = P3_S2_On_A_fusion_KARSILASTIRMA_TEZGAHA_GITMEZ  [ok]
+17:58:42      deger nc_program_openInEditor = False  [ok]
+17:58:42      deger nc_program_output_folder = C:/Users/sand/Documents/Fusion-Klon-Spec/Mihenk/test-fusion-karsilastirma/sonuclar/P3  [ok]
+17:58:42      deger nc_program_name = 2004  [ok]
+17:58:42      deger nc_program_useMachineConfig = True  [ok]
+17:58:42    post parametreleri: metric, group_preferences, optionalStop, preloadTool, toolChangeOrder, useRadius, useRigidTapping, group_homePositions, safePositionMethod, group_multiAxis, useTiltedWorkplane, group_formats, showSequenceNumbers, sequenceNumberStart, sequenceNumberIncrement, o8, separateWordsWithSpace, writeMachine, writeTools, group_probing, singleResultsFile, groupBuiltin, builtin_allowHelicalMoves, builtin_highFeedMapping, builtin_highFeedrate, builtin_maximumCircularRadius, builtin_minimumChordLength, builtin_minimumCircularRadius, builtin_tolerance
+17:58:42    safePositionMethod = G28
+17:58:43    NC S2: ok=True dosya=C:\Users\sand\Documents\Fusion-Klon-Spec\Mihenk\test-fusion-karsilastirma\sonuclar\P3\P3_S2_On_A_fusion_KARSILASTIRMA_TEZGAHA_GITMEZ.nc satir=59788 sayac={'G81': 1, 'G83': 1, 'G84': 0, 'G41': 0, 'G42': 0, 'A': 7, 'M6': 6, 'M8': 6}
+17:58:43    S2 A sonucu: A kelimesi var: ['0']
+17:58:43      deger nc_program_filename = P3_S3_Arka_A_fusion_KARSILASTIRMA_TEZGAHA_GITMEZ  [ok]
+17:58:43      deger nc_program_openInEditor = False  [ok]
+17:58:43      deger nc_program_output_folder = C:/Users/sand/Documents/Fusion-Klon-Spec/Mihenk/test-fusion-karsilastirma/sonuclar/P3  [ok]
+17:58:43      deger nc_program_name = 2005  [ok]
+17:58:43      deger nc_program_useMachineConfig = True  [ok]
+17:58:43    post parametreleri: metric, group_preferences, optionalStop, preloadTool, toolChangeOrder, useRadius, useRigidTapping, group_homePositions, safePositionMethod, group_multiAxis, useTiltedWorkplane, group_formats, showSequenceNumbers, sequenceNumberStart, sequenceNumberIncrement, o8, separateWordsWithSpace, writeMachine, writeTools, group_probing, singleResultsFile, groupBuiltin, builtin_allowHelicalMoves, builtin_highFeedMapping, builtin_highFeedrate, builtin_maximumCircularRadius, builtin_minimumChordLength, builtin_minimumCircularRadius, builtin_tolerance
+17:58:44    safePositionMethod = G28
+17:58:44    NC S3: ok=True dosya=C:\Users\sand\Documents\Fusion-Klon-Spec\Mihenk\test-fusion-karsilastirma\sonuclar\P3\P3_S3_Arka_A_fusion_KARSILASTIRMA_TEZGAHA_GITMEZ.nc satir=1659 sayac={'G81': 0, 'G83': 0, 'G84': 0, 'G41': 0, 'G42': 0, 'A': 3, 'M6': 2, 'M8': 2}
+17:58:44    S3 A sonucu: A kelimesi var: ['0']
+17:58:44      deger nc_program_filename = P3_S4_Alt_fusion_KARSILASTIRMA_TEZGAHA_GITMEZ  [ok]
+17:58:44      deger nc_program_openInEditor = False  [ok]
+17:58:44      deger nc_program_output_folder = C:/Users/sand/Documents/Fusion-Klon-Spec/Mihenk/test-fusion-karsilastirma/sonuclar/P3  [ok]
+17:58:44      deger nc_program_name = 2006  [ok]
+17:58:44    post parametreleri: metric, group_preferences, optionalStop, preloadTool, toolChangeOrder, useRadius, useRigidTapping, group_homePositions, safePositionMethod, group_multiAxis, useTiltedWorkplane, group_formats, showSequenceNumbers, sequenceNumberStart, sequenceNumberIncrement, o8, separateWordsWithSpace, writeMachine, writeTools, group_probing, singleResultsFile, groupBuiltin, builtin_allowHelicalMoves, builtin_highFeedMapping, builtin_highFeedrate, builtin_maximumCircularRadius, builtin_minimumChordLength, builtin_minimumCircularRadius, builtin_tolerance
+17:58:44    safePositionMethod = G28
+17:58:44    NC S4: ok=True dosya=C:\Users\sand\Documents\Fusion-Klon-Spec\Mihenk\test-fusion-karsilastirma\sonuclar\P3\P3_S4_Alt_fusion_KARSILASTIRMA_TEZGAHA_GITMEZ.nc satir=71 sayac={'G81': 0, 'G83': 0, 'G84': 0, 'G41': 0, 'G42': 0, 'A': 2, 'M6': 1, 'M8': 1}
+17:58:46  Bulut kaydi atlandi: 'Mihenk-Test' projesi yok (baska proje olusturulmadi)
+17:58:46  Rapor yazildi. === bitti ===
