@@ -43,6 +43,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-042** (2026-11-21) — "her yeni oturum açıp… klasöre erişim yetkisi istiyor ve github yetkisi istiyor. bu iş bitinceye kadar gerekli tüm yetkileri… verebilir miyim?" Anlam: izin istemleri en aza indirilir; klasör/bilgisayar yalnız sürüm kapısında, aynı sohbet mümkün olduğunca uzun sürdürülür (CALISMA-DUZENI §4).
 
+- **K-042** (2026-11-21) — "bütün ihtiyaç duyacağı yetkileri promptu verdiğim anda başlangıçta istesin. böylece daha sonra yetki isterse ben görmediğim için bekleyebiliyor, bunu engellemiş oluruz." Uygulama: CALISMA-DUZENI §4 adım 0.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|

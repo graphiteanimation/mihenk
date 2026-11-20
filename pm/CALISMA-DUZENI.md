@@ -30,6 +30,12 @@ Kural: bir bilgi tek yerde durur. Zip kopyası, tarihli devam günlüğü, sohbe
 
 ## 4. Oturum protokolü
 Başlangıç (kullanıcı mesajı: `Mihenk: devam` ya da `Mihenk: WP-NN`):
+0. **İzinler önce, hepsi birden (K-042).** Hiçbir okuma ya da iş başlamadan, ilk yanıtta tek satır ("Başlamadan izinleri istiyorum; hepsini onaylarsan sonra bir daha sormam.") ve ardından aynı turda şu istemler:
+   a. GitHub: `add_repo` (graphiteanimation/mihenk, push).
+   b. Bilgisayar klasörü: `device_request_folder_access` → `~/Documents/Fusion-Klon-Spec` (zaten bağlıysa atla).
+   c. Silme izni: `device_request_delete_permission` → aynı klasör (git kilit dosyaları ve yedek depo eşitlemesi için; kullanıcı dosyası silinmez).
+   d. Ekran kontrolü: `computer-use` skill'ine göre aç, `computer_request_access` ile Mihenk ve Dosya Gezgini (kurulum dosyasını çalıştırmak için) için erişim iste.
+   Bir araç yoksa (ör. telefondan açılan sohbet) o adım atlanır ve DURUM'a yazılır; iş durmaz. Yanıt beklenen bir istem varken başka iş başlatılmaz; onaylar gelince 1. adıma geçilir. Oturumun geri kalanında yeni izin istenmez; gerekirse iş o izni gerektirmeyen yoldan sürer ve DURUM'a not düşülür.
 1. `pm/DURUM.md` ve BACKLOG'un ilk "Hazır" WP'sini oku. Başka belge ancak WP gerektirirse okunur.
 2. Depoyu GitHub'dan klonla (`graphiteanimation/mihenk`), `npm ci`. Bilgisayar yalnız kurulum denemesi, ekran testi ve kullanıcı dosyaları için gerekir. İzin istemlerini azalt (K-042): oturum başında bilgisayar klasörü istenmez ve bilgisayar araçları çağrılmaz; bunlar yalnız sürüm kapısında (kurulum + ekran denemesi) kullanılır. GitHub için oturumda depo zaten varsa yeniden eklenmez.
 3. Kullanıcıya en çok 3 satır: bu oturumun WP'si, kabul ölçütü, kullanıcıdan gereken (varsa).
