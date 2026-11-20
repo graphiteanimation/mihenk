@@ -33,6 +33,7 @@ const STEPS = [
   py('test/app.test.py', { needsBuild: true }),
   py('test/ui.test.py', { needsBuild: true }),
   py('test/cam-ui.test.py', { needsBuild: true }),
+  py('test/iptal.test.py', { needsBuild: true }),
   node('test/electron.test.mjs'),
 ];
 
