@@ -46,8 +46,8 @@ export function defaults(type, kind, ctx) {
     case 'extrude': { const sketch = freeSketch(); return { sketch, profiles: 'all', dist: '10', extent: 'dist', dir: 'one', dist2: '10', ...sketchOp(sketch) }; }
     case 'revolve': { const sketch = freeSketch(); const o = sketchOp(sketch); return { sketch, profiles: 'all', axis: { kind: 'sketchX' }, angle: '360', op: o.op }; }
     case 'hole': { const used = new Set(); const withPts = ctx.sketches.filter((s) => (s.ents || []).some((e) => e.type === 'point' || (e.type === 'circle' && !e.cons))); const sketch = (withPts.slice(-1)[0] || ctx.sketches.slice(-1)[0])?.id || ''; return { sketch, kind: 'simple', dia: '6', extent: 'dist', depth: '10', tipAngle: '118', cboreDia: '12', cboreDepth: '4', csinkDia: '12', csinkAngle: '90', flip: false, thread: null }; }
-    case 'fillet': return { edges: [], r: '2' };
-    case 'chamfer': return { edges: [], d: '1' };
+    case 'fillet': return { edges: [], r: '2', chain: true };
+    case 'chamfer': return { edges: [], d: '1', mode: 'equal', chain: true };
     case 'shell': return { faces: [], t: '2' };
     case 'combine': return { target: '', tools: [], op: 'join', keepTools: false };
     case 'move': return { bodies: [], dx: '0', dy: '0', dz: '0', angle: '0', axis: 'Z', cx: '0', cy: '0', cz: '0', copy: false };
@@ -99,8 +99,15 @@ export function fieldsFor(f, ctx) {
       if (f.kind === 'csink') F.push({ t: 'expr', k: 'csinkDia', label: tk('fld.csink_dia'), unit: 'mm' }, { t: 'expr', k: 'csinkAngle', label: tk('fld.csink_angle'), unit: '°' });
       F.push({ t: 'check', k: 'flip', label: tk('fld.flip') });
       break;
-    case 'fillet': F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'expr', k: 'r', label: tk('fld.radius'), unit: 'mm' }); break;
-    case 'chamfer': F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'expr', k: 'd', label: tk('fld.dist'), unit: 'mm' }); break;
+    case 'fillet': F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'check', k: 'chain', label: tk('fld.chain') }, { t: 'expr', k: 'r', label: tk('fld.radius'), unit: 'mm' }); break;
+    case 'chamfer':
+      F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'check', k: 'chain', label: tk('fld.chain') },
+        { t: 'select', k: 'mode', label: tk('fld.cham_mode'), opts: [['equal', tk('cham.equal')], ['two', tk('cham.two')], ['angle', tk('cham.angle')]] },
+        { t: 'expr', k: 'd', label: tk(f.mode === 'two' ? 'fld.dist1' : 'fld.dist'), unit: 'mm' });
+      if (f.mode === 'two') F.push({ t: 'expr', k: 'd2', label: tk('fld.dist2'), unit: 'mm', def: '1' });
+      if (f.mode === 'angle') F.push({ t: 'expr', k: 'angle', label: tk('fld.angle'), unit: '°', def: '45' });
+      if (f.mode === 'two' || f.mode === 'angle') F.push({ t: 'check', k: 'flip', label: tk('fld.cham_flip') });
+      break;
     case 'shell': F.push({ t: 'sel', k: 'faces', label: tk('fld.faces_open'), kind: 'face' }, { t: 'expr', k: 't', label: tk('fld.thickness'), unit: 'mm' }); break;
     case 'combine':
       F.push({ t: 'sel', k: 'target', label: tk('fld.target'), kind: 'body', single: true }, { t: 'sel', k: 'tools', label: tk('fld.tools'), kind: 'body' },
@@ -200,7 +207,7 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
     case 'revolve': parts.push(n(f.angle) + '°'); parts.push(op(f.op)); break;
     case 'hole': parts.push(f.thread?.designation || 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;
     case 'fillet': parts.push('R' + n(f.r)); parts.push(cnt('hs.n_edges', f.edges)); break;
-    case 'chamfer': parts.push(mm(f.d)); parts.push(cnt('hs.n_edges', f.edges)); break;
+    case 'chamfer': parts.push(f.mode === 'two' ? n(f.d) + ' × ' + mm(f.d2) : f.mode === 'angle' ? mm(f.d) + ' × ' + n(f.angle ?? 45) + '°' : mm(f.d)); parts.push(cnt('hs.n_edges', f.edges)); break;
     case 'shell': parts.push(mm(f.t)); parts.push(cnt('hs.n_faces', f.faces)); break;
     case 'primitive':
       if (f.kind === 'box') parts.push([n(f.w), n(f.d), n(f.h)].join('×') + ' mm');

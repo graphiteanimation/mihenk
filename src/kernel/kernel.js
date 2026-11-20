@@ -237,12 +237,25 @@ export class Kernel {
         const isF = f.type === 'fillet';
         const val = N(isF ? f.r : f.d, isF ? tk('ef.radius') : tk('ef.dist'));
         if (!(val > 0)) throw new KErr('fc.value_positive'); this.dim(val, isF ? tk('ef.radius') : tk('ef.dist'));
+        // WP-08: pah türü: equal (varsayılan) | two (iki mesafe) | angle (mesafe + açı). Referans yüz: kenarın komşu yüzlerinden
+        // topolojik adı (sıralı) ilk olan; flip diğerini seçer (ad tabanlı: parametre değişince taraf kaymaz).
+        const cm = isF ? 'equal' : f.mode ?? 'equal'; if (!['equal', 'two', 'angle'].includes(cm)) throw new KErr('chamfer.mode_unknown');
+        let v2 = null;
+        if (cm === 'two') { v2 = N(f.d2 ?? '1', tk('ef.dist2')); if (!(v2 > 0)) throw new KErr('fc.value_positive'); this.dim(v2, tk('ef.dist2')); }
+        if (cm === 'angle') { v2 = N(f.angle ?? 45, tk('ef.angle')); if (!(v2 > 0 && v2 < 90)) throw new KErr('chamfer.angle_range', { value: v2 }); }
         if (!Array.isArray(f.edges) || !f.edges.length) throw new KErr('fc.no_edges');
         const byBody = new Map();
         f.edges.forEach((r, k) => { const { body, i } = this.resolveIdx(r, state, 'edge', { ...ctx, field: 'edges', index: k }); const bid = r.body; if (!byBody.has(bid)) byBody.set(bid, { body, sel: new Map() }); const nm = edgeName(body, i); byBody.get(bid).sel.set(i, nm.error ? `#${k}` : `<${nm.a}&${nm.b}${nm.nb ? '|' + nm.nb.join('|') : ''}>`); });
         for (const [bid, { body, sel }] of byBody) {
           let res = null;
-          try { res = TP.edgeBlend(f.type, body, [...sel.keys()], val, (j) => `${f.id}:${isF ? 'blend' : 'cham'}${sel.get(j)}`, (k) => { const vk = vertKey(body, k); return vk ? `${f.id}:${isF ? 'vblend' : 'vcham'}${vk}` : `${f.id}:v?`; }); } catch (e) { res = null; }
+          const T0 = TP.topoOf(body.shape);
+          const spec = cm === 'equal' ? null : (j) => {
+            const fs = [...T0.edgeFaces[j]].map((i) => ({ i, k: faceKey(body, i) || '~' + i })).sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i));
+            if (fs.length < 2) throw new KErr('chamfer.no_face');
+            const face = fs[f.flip ? 1 : 0].i;
+            return cm === 'two' ? { d1: val, d2: v2, face } : { d: val, angle: v2, face };
+          };
+          try { res = TP.edgeBlend(f.type, body, [...sel.keys()], val, (j) => `${f.id}:${isF ? 'blend' : 'cham'}${sel.get(j)}`, (k) => { const vk = vertKey(body, k); return vk ? `${f.id}:${isF ? 'vblend' : 'vcham'}${vk}` : `${f.id}:v?`; }, spec); } catch (e) { if (e instanceof KErr && e.code === 'chamfer.no_face') throw e; res = null; }
           if (!res || isEmpty(res.shape)) throw new KErr(isF ? 'fillet.too_big' : 'chamfer.too_big');
           state.bodies.set(bid, { ...body, shape: res.shape, fn: res.fn });
         }
@@ -651,6 +664,13 @@ export class Kernel {
     return out;
   }
 
+  // WP-08: teğet zincir sorgusu (arayüz kenar seçimi): son modelde {body, idx} kenarının G1 zinciri → kenar dizinleri
+  tangentChain(ref) {
+    const body = this.last?.bodies.get(ref?.body); if (!body) throw new KErr('body_none');
+    const T = TP.topoOf(body.shape); const i = ref.name ? resolveName(body, 'edge', ref.name, ref.hint) : ref.idx;
+    if (!Number.isInteger(i) || !T.edges.list[i]) throw new KErr('elem_none');
+    return TP.tangentChain(body.shape, i);
+  }
   mesh(b) { let m = this.meshCache.get(b.shape); if (!m) { try { m = meshBody(b); } catch (e) { m = { error: errOf(e) }; } this.meshCache.set(b.shape, m); } return m; }
 
   // ---- sorgular ----

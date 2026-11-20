@@ -307,8 +307,14 @@ export class FeaturePanel {
       if (i >= 0) list.splice(i, 1); else if (f?.single) list = [hit.body]; else list.push(hit.body);
     } else {
       const i = list.findIndex((r) => r.body === hit.body && r.idx === hit.idx);
-      if (i >= 0) list.splice(i, 1);
-      else { try { list.push(await this.app.describe(hit, kind)); } catch (e) { toast(t('msg.selection_unreadable', { msg: errText(e) }), true); return; } }
+      // WP-08: teğet zincir (yuvarlat/pah): tıklanan kenarın G1 zinciri birlikte seçilir / bırakılır
+      let chain = [hit.idx];
+      if (kind === 'edge' && (d.type === 'fillet' || d.type === 'chamfer') && d.chain) { try { chain = await this.app.query('tangentChain', { ref: { body: hit.body, idx: hit.idx } }); } catch (e) { chain = [hit.idx]; } }
+      if (i >= 0) list = list.filter((r) => !(r.body === hit.body && chain.includes(r.idx)));
+      else {
+        try { for (const idx of chain) if (!list.some((r) => r.body === hit.body && r.idx === idx)) list.push(await this.app.describe({ ...hit, idx }, kind)); }
+        catch (e) { toast(t('msg.selection_unreadable', { msg: errText(e) }), true); return; }
+      }
     }
     this.setSelList(k, list); this.refreshSels(); this.updateViewport(); this.changed();
   }

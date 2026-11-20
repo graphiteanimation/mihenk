@@ -18,4 +18,13 @@ export default {
   "err.extrude.to_face_parallel": "Target face is parallel to the extrude direction: cannot be reached",
   "err.extrude.to_face_miss": "The profile does not reach the target face's plane",
   "err.extrude.to_body_behind": "Target body is not in the extrude direction (try Flip)",
+  "fld.chain": "Tangent chain",
+  "fld.cham_mode": "Chamfer type",
+  "cham.equal": "Equal distance",
+  "cham.two": "Two distances",
+  "cham.angle": "Distance and angle",
+  "fld.cham_flip": "Swap side",
+  "err.chamfer.mode_unknown": "Unknown chamfer type",
+  "err.chamfer.angle_range": "Chamfer angle must be between 0° and 90° (entered {value})",
+  "err.chamfer.no_face": "The chamfer edge has no two adjacent faces",
 };

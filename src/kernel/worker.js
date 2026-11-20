@@ -19,6 +19,7 @@ self.onmessage = async (ev) => {
     }
     else if (cmd === 'repairInfo') result = K.repairInfo(args.id);
     else if (cmd === 'featureFaces') result = K.featureFaces(args.id);
+    else if (cmd === 'tangentChain') result = K.tangentChain(args.ref);
     else if (cmd === 'describe') result = K.describe(args.ref, args.kind);
     else if (cmd === 'facePlane') result = K.facePlane(args.ref);
     else if (cmd === 'measure') result = K.measure(args.a, args.b);

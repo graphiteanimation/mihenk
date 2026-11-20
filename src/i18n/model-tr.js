@@ -18,4 +18,13 @@ export default {
   "err.extrude.to_face_parallel": "Hedef yüz extrude yönüne paralel: ulaşılamaz",
   "err.extrude.to_face_miss": "Profil hedef yüzün düzlemine ulaşmıyor",
   "err.extrude.to_body_behind": "Hedef gövde extrude yönünde değil (Ters çevir'i deneyin)",
+  "fld.chain": "Teğet zincir",
+  "fld.cham_mode": "Pah türü",
+  "cham.equal": "Eşit mesafe",
+  "cham.two": "İki mesafe",
+  "cham.angle": "Mesafe + açı",
+  "fld.cham_flip": "Tarafı değiştir",
+  "err.chamfer.mode_unknown": "Bilinmeyen pah türü",
+  "err.chamfer.angle_range": "Pah açısı 0° ile 90° arasında olmalı (girilen {value})",
+  "err.chamfer.no_face": "Pah kenarının iki komşu yüzü yok",
 };

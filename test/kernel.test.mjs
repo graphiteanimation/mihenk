@@ -469,4 +469,40 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   const vA = (await K8.rebuild(c03({ dist: '18' }))).bodies.map((b) => b.volume), vB = (await K8.rebuild(c03({ extent: 'all' }))).bodies.map((b) => b.volume);
   ok(vA.length === 1 && Math.abs(vA[0] - vB[0]) < 1e-6, `C-03 (çekirdek): Kes Mesafe 18 ile Tümü aynı hacim (${vA} / ${vB}); P1 farkı üretilemedi`);
 }
+
+// ------------------------------------------------------------------ WP-08 dilim 2: iki mesafeli / açılı pah, teğet zincir
+{
+  const K8 = await initKernel(opencascade, () => wasm);
+  const bx = { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '30', h: '20', op: 'new' };
+  await K8.rebuild({ features: [bx] });
+  let e = null; for (let i = 0; i < 12; i++) { const d = K8.describe({ body: 'b', idx: i }, 'edge'); if ([d.start, d.end].every((p) => Math.abs(p[1]) < 1e-9 && Math.abs(p[2] - 20) < 1e-9)) e = d; }
+  const topW = async () => { for (let i = 0; i < 12; i++) { const d = K8.describe({ body: 'b', idx: i }, 'face'); if (d.normal && d.normal[2] > 0.99) return d.area / 40; } return null; };
+  let r = await K8.rebuild({ features: [bx, { id: 'c', type: 'chamfer', edges: [e], d: '2', mode: 'two', d2: '4' }] });
+  ok(r.status.c.ok, 'WP-08 iki mesafeli pah: ' + r.status.c.error?.code); near(24000 - r.bodies[0].volume, 40 * 2 * 4 / 2, 'WP-08 iki mesafeli pah 2×4: kaldırılan hacim', 1e-9);
+  const w1 = await topW();
+  r = await K8.rebuild({ features: [bx, { id: 'c', type: 'chamfer', edges: [e], d: '2', mode: 'two', d2: '4', flip: true }] }); const w2 = await topW();
+  ok(r.status.c.ok && Math.abs(Math.abs(w1 - w2) - 2) < 1e-6 && [w1, w2].some((w) => Math.abs(w - 28) < 1e-6) && [w1, w2].some((w) => Math.abs(w - 26) < 1e-6), `WP-08 iki mesafeli pah: Tarafı değiştir üst yüz genişliğini 28↔26 yapar (${w1}, ${w2})`);
+  r = await K8.rebuild({ features: [bx, { id: 'c', type: 'chamfer', edges: [e], d: '2', mode: 'angle', angle: '30' }] });
+  near(24000 - r.bodies[0].volume, 40 * 2 * 2 * Math.tan(Math.PI / 6) / 2, 'WP-08 açılı pah 2 mm × 30°: kaldırılan hacim', 1e-9);
+  r = await K8.rebuild({ features: [bx, { id: 'c', type: 'chamfer', edges: [e], d: '2', mode: 'angle', angle: '95' }] });
+  ok(r.status.c.error?.code === 'chamfer.angle_range' && r.bodies.length === 1 && Math.abs(r.bodies[0].volume - 24000) < 1e-6, 'WP-08 açılı pah: aralık dışı açı açık hata, gövde bozulmaz');
+  r = await K8.rebuild({ features: [bx, { id: 'c', type: 'chamfer', edges: [e], d: '2' }] }); near(24000 - r.bodies[0].volume, 40 * 2, 'WP-08 eski pah (mode yok) değişmedi: eşit 2 mm', 1e-9);
+  // teğet zincir: yuvarlatılmış dikdörtgen extrude (8 kenarlık üst döngü)
+  const P = { a: { x: 5, y: 0 }, b: { x: 35, y: 0 }, c: { x: 40, y: 5 }, d: { x: 40, y: 25 }, e: { x: 35, y: 30 }, f: { x: 5, y: 30 }, g: { x: 0, y: 25 }, h: { x: 0, y: 5 }, c1: { x: 35, y: 5 }, c2: { x: 35, y: 25 }, c3: { x: 5, y: 25 }, c4: { x: 5, y: 5 } };
+  const ents = [['l1', 'line', 'a', 'b'], ['a1', 'arc', 'b', 'c', 'c1'], ['l2', 'line', 'c', 'd'], ['a2', 'arc', 'd', 'e', 'c2'], ['l3', 'line', 'e', 'f'], ['a3', 'arc', 'f', 'g', 'c3'], ['l4', 'line', 'g', 'h'], ['a4', 'arc', 'h', 'a', 'c4']].map(([id, type, a, b, c]) => (c ? { id, type, a, b, c } : { id, type, a, b }));
+  const rr = [{ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '0' }, points: P, ents }, { id: 'x', type: 'extrude', sketch: 's', profiles: 'all', dist: '10', op: 'new' }];
+  r = await K8.rebuild({ features: rr }); const v0 = r.bodies[0].volume;
+  let top = null; for (let i = 0; i < r.bodies[0].nEdges; i++) { const d = K8.describe({ body: 'x', idx: i }, 'edge'); if (d.geom === 'LINE' && Math.abs(d.start[2] - 10) < 1e-9 && Math.abs(d.end[2] - 10) < 1e-9) { top = d; break; } }
+  const ch = K8.tangentChain({ body: 'x', idx: top.idx });
+  ok(ch.length === 8 && ch.every((i) => { const d = K8.describe({ body: 'x', idx: i }, 'edge'); return Math.abs(d.start[2] - 10) < 1e-9; }), 'WP-08 teğet zincir: üst döngünün 8 kenarı (4 çizgi + 4 yay): ' + ch.length);
+  const edges = ch.map((i) => K8.describe({ body: 'x', idx: i }, 'edge'));
+  r = await K8.rebuild({ features: [...rr, { id: 'f', type: 'fillet', edges, r: '1', chain: true }] });
+  // yuvarlatma hacmi: kesit (1 - π/4)·r² × çevre (dış kenarlar boyunca; yay köşelerinde ofset yarıçap düzeltmesi Pappus ile)
+  const per = 2 * (30 + 20) + 2 * Math.PI * 5; const A = 1 - Math.PI / 4;
+  const d0 = (10 - 3 * Math.PI) / (12 - 3 * Math.PI); // r=1 köşe artığının ağırlık merkezi: kenardan içe (10-3π)/(12-3π)
+  const vexp = A * (2 * (30 + 20) + 2 * Math.PI * (5 - d0));
+  ok(r.status.f.ok, 'WP-08 teğet zincir yuvarlatma: ' + r.status.f.error?.code); near(v0 - r.bodies[0].volume, vexp, 'WP-08 teğet zincir yuvarlatma R1: kaldırılan hacim (Pappus)', 1e-6);
+  r = await K8.rebuild({ features: [...rr, { id: 'f', type: 'chamfer', edges, d: '1', mode: 'two', d2: '2', chain: true }] });
+  ok(r.status.f.ok, 'WP-08 teğet zincir üzerinde iki mesafeli pah: ' + r.status.f.error?.code);
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

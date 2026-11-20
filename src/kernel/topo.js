@@ -101,11 +101,17 @@ export function boolean(op, args, tools) {
 }
 
 // Kenar işlemleri: kind 'fillet'|'chamfer'; edges = ham kenar dizini; nameOfEdge(j), nameOfVert(k) → üretilen yüz adı
-export function edgeBlend(kind, body, edgeIdx, val, nameOfEdge, nameOfVert) {
+// WP-08: spec(j) → {d1, d2, face} (iki mesafe; face: d1'in ölçüldüğü komşu yüz dizini) ya da {d, angle, face} (mesafe + açı, derece)
+export function edgeBlend(kind, body, edgeIdx, val, nameOfEdge, nameOfVert, spec = null) {
   const O = oc(); const r = scope(); const T = topoOf(body.shape);
   try {
     const b = r(kind === 'fillet' ? new O.BRepFilletAPI_MakeFillet(body.shape.wrapped, O.ChFi3d_FilletShape.ChFi3d_Rational) : new O.BRepFilletAPI_MakeChamfer(body.shape.wrapped));
-    for (const j of edgeIdx) { const e = r(O.TopoDS.Edge(T.edges.list[j])); b.Add(val, e); }
+    for (const j of edgeIdx) {
+      const e = r(O.TopoDS.Edge(T.edges.list[j])); const sp = spec ? spec(j) : null;
+      if (!sp) { b.Add(val, e); continue; }
+      const F = r(O.TopoDS.Face(T.faces.list[sp.face]));
+      if (sp.angle != null) b.AddDA(sp.d, (sp.angle * Math.PI) / 180, e, F); else b.Add(sp.d1, sp.d2, e, F);
+    }
     b.Build(progress(r));
     if (!b.IsDone()) return null;
     const raw = b.Shape(); if (raw.IsNull()) { raw.delete(); return null; }
@@ -296,3 +302,38 @@ export function draft(item, faceIdx, dir, deg, plane) {
 }
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const norm3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+
+// WP-08: teğet zincir. Kenar j'den başlayıp ortak köşelerde teğeti sürekli (G1) tek komşu kenar varsa ilerler.
+// Döner: zincirdeki kenar dizinleri (j dahil, sıralı). Belirsiz (birden çok teğet aday) köşede durur.
+export function tangentChain(w, j0, tolAng = 1e-3) {
+  const O = oc(); const T = topoOf(w);
+  const vk = (k) => T.verts.list[k];
+  const tanAt = (j, k) => { // kenar j'nin köşe k'deki, köşeden DIŞARI bakan birim teğeti
+    const r = scope();
+    try {
+      const e = r(O.TopoDS.Edge(T.edges.list[j])); const c = r(new O.BRepAdaptor_Curve(e));
+      const v = r(O.TopoDS.Vertex(vk(k))); const p0 = r(O.BRep_Tool.Pnt(v));
+      const t0 = c.FirstParameter(), t1 = c.LastParameter(); const a = r(c.Value(t0)), b = r(c.Value(t1));
+      const atStart = a.Distance(p0) <= b.Distance(p0); const t = atStart ? t0 : t1;
+      const P = r(new O.gp_Pnt(0, 0, 0)), D = r(new O.gp_Vec(0, 0, 0)); c.D1(t, P, D);
+      const L = D.Magnitude(); if (!(L > 1e-12)) return null;
+      const s = atStart ? 1 : -1; return [s * D.X() / L, s * D.Y() / L, s * D.Z() / L];
+    } catch (e) { return null; } finally { r.done(); }
+  };
+  const vertEdges = new Map(); T.edgeVerts.forEach((vs, j) => { for (const k of vs) { if (!vertEdges.has(k)) vertEdges.set(k, []); vertEdges.get(k).push(j); } });
+  const seen = new Set([j0]); const order = [j0];
+  const walk = (j, kFrom, push) => {
+    let cur = j, from = kFrom;
+    for (let guard = 0; guard < 10000; guard++) {
+      const vs = T.edgeVerts[cur]; if (!vs || vs.length !== 2) return; // kapalı (tek köşeli) kenar: zincir kendisi
+      const k = vs[0] === from ? vs[1] : vs[0];
+      const tc = tanAt(cur, k); if (!tc) return;
+      const cands = (vertEdges.get(k) || []).filter((x) => x !== cur && T.edgeFaces[x].length === 2).filter((x) => { const tx = tanAt(x, k); return tx && tc[0] * tx[0] + tc[1] * tx[1] + tc[2] * tx[2] < -1 + tolAng; });
+      if (cands.length !== 1 || seen.has(cands[0])) return;
+      seen.add(cands[0]); push(cands[0]); from = k; cur = cands[0];
+    }
+  };
+  const vs0 = T.edgeVerts[j0] || [];
+  if (vs0.length === 2) { walk(j0, vs0[0], (x) => order.push(x)); walk(j0, vs0[1], (x) => order.unshift(x)); }
+  return order;
+}
