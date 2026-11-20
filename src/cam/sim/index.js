@@ -79,7 +79,7 @@ export function createSim(input, opts = {}) {
         if (r <= shaftR && h > zFlute) {
           if (r <= R) note('flute_exceeded', h - zFlute + tol, px, py, pz); else { note('shaft_collision', h - zFlute + tol, px, py, pz); continue; }
         }
-        if (r > R) continue;
+        if (r > R || (mode === 1 && r > g.cutR)) continue; // T-22: kilavuz kesmesi dis dibi capina kadar (dis bolgesi kasitli)
         const zb = pz + g.profile(r);
         if (mode === 0) { if (h > zb + tol) note('rapid_in_stock', h - zb, px, py, pz); continue; }
         if (h > zb) {
@@ -162,6 +162,8 @@ export function createSim(input, opts = {}) {
         if (cur.pos.x !== p[0] || cur.pos.y !== p[1]) rapidTo({ x: p[0], y: p[1], z: cur.pos.z });
         if (cur.pos.z !== m.retract) rapidTo({ x: p[0], y: p[1], z: m.retract });
         const b = { x: p[0], y: p[1], z: m.bottom }; sweep(cur.pos, b, 1); cur.pos = b;
+        // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
+        if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
         rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance ? m.clearance : m.retract });
       });
       const lp = m.points[m.points.length - 1]; cur.prog = { x: lp[0], y: lp[1], z: m.clearance };

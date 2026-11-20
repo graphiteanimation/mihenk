@@ -1,6 +1,7 @@
 // Stok simulasyonu testi. Calistir: node test/sim.test.mjs
 import { mk, normalizeRapids } from '../src/cam/ir.js';
 import { simulate, createSim, heightmapFromFn, sampleHeightmap, createHeightmap, toolGeom } from '../src/cam/sim/index.js';
+import { tapMinorDia } from '../src/cam/sim/tool.js';
 import { postProgram, readNC } from '../src/cam/post/index.js';
 import * as S from './cam-samples/samples.mjs';
 
@@ -170,6 +171,37 @@ console.log('5. adim adim API, kareler, hatalar');
   const plain = { ...S.TOOLS.flat6 }; delete plain.holder;
   const r3 = simulate(TP(plain, [mk.rapid(0, 0, 10), mk.rapid(0, 0, 1), mk.feed(0, 0, -10, 100, 'plunge'), mk.rapid(0, 0, 10)]), { stockBox: BOX, res: 0.5, tools: { 2: { fluteLen: 5, bodyLen: 8, holder: { dia: 40, len: 50 } } } });
   ok(codes(r3).includes('cam.sim.holder_collision'), 'opts.tools ile tutucu eklendi');
+}
+
+console.log('6. T-22 kilavuz: dis dibi capi (gercek hatalar hala yakalanir)');
+{
+  ok(Math.abs(tapMinorDia({ dia: 3, pitch: 0.5 }) - 2.459) < 1e-3, 'M3x0,5 dip 2,459: ' + tapMinorDia({ dia: 3, pitch: 0.5 }));
+  ok(Math.abs(tapMinorDia({ dia: 6, pitch: 1 }) - 4.9175) < 1e-3, 'M6x1 dip 4,918');
+  ok(Math.abs(tapMinorDia({ dia: 10, pitch: 1.5 }) - 8.376) < 1e-3, 'M10x1,5 dip 8,376');
+  ok(tapMinorDia({ dia: 3, pitch: 0.5, minorDia: 2.5 }) === 2.5, 'takimda minorDia varsa o');
+  ok(toolGeom({ type: 'tap', dia: 3, fluteLen: 10, bodyLen: 30 }).cutR === 1.5, 'hatve yoksa majör cap (muhafazakar)');
+  ok(toolGeom({ type: 'tap', dia: 3, pitch: 0.5, fluteLen: 10, bodyLen: 30 }).R === 1.5, 'zarf (hizli/saft/tutucu) majör capla');
+  const RM = 2.459 / 2;
+  // model: (0,0)'da Ø2,459 x 10 delik (STEP dis dibi capinda), gerisi z=0 dolu
+  const model = heightmapFromFn([-10, -10], [10, 10], 0.05, (x, y) => (Math.hypot(x, y) <= RM ? -10 : 0));
+  // stok: Ø2,5 on delik delinmis
+  const pre = heightmapFromFn([-10, -10], [10, 10], 0.05, (x, y) => (Math.hypot(x, y) <= 1.25 ? -10 : 0));
+  const bx = { min: [-10, -10, -30], max: [10, 10, 0] };
+  const tapT = (dia, pitch, x = 0, bottom = -8, retract = 5) => TP({ number: 8, H: 8, type: 'tap', dia, pitch, fluteLen: 12, bodyLen: 40 },
+    [mk.rapid(x, 0, 10), mk.cycle({ cycle: 'tap', points: [[x, 0]], top: 0, bottom, retract, clearance: 10, pitch, f: 5000 * pitch }), mk.rapid(x, 0, 10)]);
+  const run = (tp, o = {}) => simulate(tp, { stockBox: bx, stockHeightmap: pre, modelHeightmap: model, res: 0.05, ...o });
+  let r = run(tapT(3, 0.5));
+  ok(r.issues.length === 0, 'M3 kilavuz Ø2,459 model deliginde oyma yok: ' + codes(r));
+  r = run(tapT(4, 0.7));
+  ok(codes(r).includes('cam.sim.gouge'), 'M4 kilavuz M3 deliginde: oyma yakalanir: ' + codes(r));
+  r = run(tapT(3, 0.5, 5));
+  ok(codes(r).includes('cam.sim.gouge'), 'kilavuz deliksiz yerde: oyma yakalanir: ' + codes(r));
+  r = run(tapT(3, 0.5, 0, -12));
+  ok(codes(r).includes('cam.sim.gouge'), 'kilavuz delik dibinden derin: oyma yakalanir: ' + codes(r));
+  r = run(tapT(3, 0.5, 0, -8, -3));
+  ok(codes(r).includes('cam.sim.rapid_in_stock'), 'R duzlemi delik icinde: majör capla hizli stok icinde yakalanir: ' + codes(r));
+  r = run(tapT(3, 0.5), { tools: { 8: { minorDia: 2.8 } } });
+  ok(codes(r).includes('cam.sim.gouge'), 'takim minorDia (2,8) model deliginden buyuk: oyma: ' + codes(r));
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
