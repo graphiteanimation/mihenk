@@ -142,4 +142,7 @@ export default {
   "err.cam.contour.faces_differ_z": "Seçilen profiller farklı yükseklikte (Z {z1} ve Z {z2}); seçimden alınan taban birisi için yanlış olur. Ayrı işlemler oluşturun.",
   "err.cam.geom.self_intersect": "Sınır kendini kesiyor; bölge belirsiz. Sketch'i ya da modeli düzeltin.",
   "err.cam.gate.tool_geom_assumed": "T{tool}: {field} girilmemiş. Simülasyon sap çapını kesici çapına eşit ve ucu sivri (uç düz çapı 0) varsayar. Gerçek değerleri takım düzenleyicide girin.",
+  "err.cam.geom.chain_empty": "Zincir için eskiz ögesi seçilmedi.",
+  "err.cam.geom.chain_ent_missing": "Zincirin {ent} ögesi {sketch} eskizinde bulunamadı (silinmiş ya da çizgi/yay/daire değil).",
+  "err.cam.geom.chain_broken": "Seçilen ögeler uç uca bağlı tek bir zincir oluşturmuyor ({n} ögeden {linked} tanesi bağlı).",
 };

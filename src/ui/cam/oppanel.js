@@ -5,7 +5,8 @@ import { icon } from '../icons.js';
 import { t, errText, fmtNum } from '../../shared/i18n.js';
 import { applyPreset } from '../../cam/tools.js';
 import { CYCLE_TOOLS } from '../../cam/ops/drill.js';
-import { findRegions, resolveProfiles, selectionFor } from '../../shared/profiles.js';
+import { findRegions, resolveProfiles, selectionFor, entSeg } from '../../shared/profiles.js';
+import * as G from '../../shared/geom2d.js';
 import { clone, getP, setP, numField, textField, selField, checkField, sec, callout, panelShell, okCancel, panelKeys } from './util.js';
 import { protectedHits, toolLabel, openToolManager } from './toolui.js';
 
@@ -14,6 +15,24 @@ const TOOL_KINDS = { face: ['face', 'flat', 'bullnose'], contour: ['flat', 'bull
 const COOLANT = ['flood', 'mist', 'air', 'through', 'off'];
 const TOP_FROM = ['stockTop', 'modelTop', 'selection', 'abs'];
 const BOT_FROM = ['selection', 'modelBottom', 'stockBottom', 'modelTop', 'abs'];
+// T-02: eskizdeki bagli zincir bilesenleri (cizgi/yay/daire, yapi olmayan): [{ents:[kimlik], closed, len}]
+export function sketchChains(sk) {
+  const P = sk?.points || {}; const key = (id) => (P[id] ? `${Math.round(P[id].x * 1e6)},${Math.round(P[id].y * 1e6)}` : null);
+  const ents = (sk?.ents || []).filter((e) => !e.cons && (e.type === 'line' || e.type === 'arc' || e.type === 'circle'));
+  const par = new Map(); const find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
+  const uni = (a, b) => { if (!par.has(a)) par.set(a, a); if (!par.has(b)) par.set(b, b); par.set(find(a), find(b)); };
+  const ends = (e) => (e.type === 'circle' ? [key(e.c)] : [key(e.a), key(e.b)]);
+  for (const e of ents) { const k = ends(e); if (k.some((x) => x == null)) continue; uni('e:' + e.id, k[0]); if (k[1]) uni('e:' + e.id, k[1]); }
+  const comps = new Map();
+  for (const e of ents) { if (!par.has('e:' + e.id)) continue; const r = find('e:' + e.id); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(e); }
+  return [...comps.values()].map((list) => {
+    const deg = new Map(); for (const e of list) for (const k of ends(e)) deg.set(k, (deg.get(k) || 0) + 1);
+    const closed = list.length === 1 ? list[0].type === 'circle' || key(list[0].a) === key(list[0].b) : [...deg.values()].every((d) => d === 2);
+    const branch = [...deg.values()].some((d) => d > 2);
+    let len = 0; for (const e of list) { try { const g = entSeg(sk, e); len += G.length(g); } catch (x) { /* uzunluk gösterilmez */ } }
+    return { ents: list.map((e) => e.id), closed, branch, len };
+  }).filter((c) => !c.branch);
+}
 export const OP_TYPE_KEY = (op) => (op.type === 'drill' && op.cycle === 'tap' ? 'thread' : op.type);
 
 export const compatibleTools = (tools, type, cycle) => tools.filter((x) => (type === 'drill' ? (CYCLE_TOOLS[cycle] || []) : TOOL_KINDS[type] || []).includes(x.type));
@@ -36,8 +55,8 @@ export class OpPanel {
     this.cam = cam; this.app = cam.app; this.id = opId; this.isNew = isNew; this.closed = false; this.tab = 'tool'; this.pickMode = 'face'; this.sketchId = null;
     const l = cam.opLoc(opId); this.setupId = l.setup.id; this.draft = clone(l.op); this.out = null;
     // C-10: yeniden açılan işlemde "Seçim türü" gerçek seçimi gösterir (eskiz profili / gövde dış sınırı / yüz)
-    const gs = this.draft.geom || []; const gk = gs.find((g) => g.kind === 'sketch') || gs.find((g) => g.kind === 'silhouette') || gs.find((g) => g.kind === 'face');
-    if (gk) { this.pickMode = gk.kind === 'sketch' ? 'sketch' : gk.kind === 'silhouette' ? 'silhouette' : 'face'; if (gk.kind === 'sketch') this.sketchId = gk.sketch; }
+    const gs = this.draft.geom || []; const gk = gs.find((g) => g.kind === 'sketch') || gs.find((g) => g.kind === 'chain') || gs.find((g) => g.kind === 'silhouette') || gs.find((g) => g.kind === 'face');
+    if (gk) { this.pickMode = gk.kind === 'sketch' ? 'sketch' : gk.kind === 'chain' ? 'chain' : gk.kind === 'silhouette' ? 'silhouette' : 'face'; if (gk.kind === 'sketch' || gk.kind === 'chain') this.sketchId = gk.sketch; }
   }
   get tool() { return this.cam.tools().find((x) => x.id === this.draft.toolId) || null; }
   open() { this.render(); this.unkeys = panelKeys(document.getElementById('panel'), () => this.ok(), () => this.cancel()); this.showResult(); this.pickView(); this.cam.ops.refreshPaths(this.id); }
@@ -160,6 +179,7 @@ export class OpPanel {
   geomLabel(g) {
     if (g.kind === 'face') return t('cam.op.g_face', { body: g.ref?.body ?? '?', n: (g.ref?.idx ?? 0) + 1 });
     if (g.kind === 'sketch') { const sk = this.app.doc.features.find((f) => f.id === g.sketch); const p = g.profiles; return t('cam.op.g_sketch', { name: sk?.name || g.sketch, n: p === 'all' || p == null ? t('common.all') : p.length }); }
+    if (g.kind === 'chain') { const sk = this.app.doc.features.find((f) => f.id === g.sketch); return t('cam.op.g_chain', { name: sk?.name || g.sketch, n: (g.ents || []).length }) + (g.reverse ? ' ' + t('cam.op.g_chain_rev') : ''); }
     return t('cam.op.g_sil', { body: g.body });
   }
   tabGeom() {
@@ -171,18 +191,31 @@ export class OpPanel {
     if (d.type === 'drill') return this.holesRows();
     // kontur ve cep: seçim listesi
     const mode = this.pickMode; const sk = this.app.doc.features.filter((f) => f.type === 'sketch');
-    rows.push(selField({ label: t('cam.op.pick_what'), value: mode, f: 'op-pickmode', hint: t('cam.op.pickhint.' + mode), opts: [['face', t('cam.op.pm_face')], ['sketch', t('cam.op.pm_sketch')], ['silhouette', t('cam.op.pm_sil')]], set: (v) => { this.pickMode = v; this.render(); this.showResult(); this.pickView(); } }));
-    if (mode === 'sketch') {
+    rows.push(selField({ label: t('cam.op.pick_what'), value: mode, f: 'op-pickmode', hint: t('cam.op.pickhint.' + mode), opts: [['face', t('cam.op.pm_face')], ['sketch', t('cam.op.pm_sketch')], ['chain', t('cam.op.pm_chain')], ['silhouette', t('cam.op.pm_sil')]].filter((o) => d.type === 'contour' || o[0] !== 'chain'), set: (v) => { this.pickMode = v; this.render(); this.showResult(); this.pickView(); } }));
+    if (mode === 'sketch' || mode === 'chain') {
       if (!sk.length) rows.push(callout('warn', null, t('cam.op.no_sketch')));
       else { if (!sk.some((s) => s.id === this.sketchId)) this.sketchId = sk[0].id; rows.push(selField({ label: t('cam.op.sketch'), value: this.sketchId, f: 'op-sketch', opts: sk.map((s) => [s.id, s.name || s.id]), set: (v) => { this.sketchId = v; this.pickView(); } })); }
     }
+    if (mode === 'chain' && sk.length) {
+      const cur = sk.find((x) => x.id === this.sketchId); const chains = cur ? sketchChains(cur) : [];
+      const box = h('div', { class: 'op-geom', 'data-testid': 'op-chains' });
+      chains.forEach((c, ci) => {
+        const sig = [...c.ents].sort().join(','); const hit = (d.geom || []).find((g) => g.kind === 'chain' && g.sketch === this.sketchId && [...(g.ents || [])].sort().join(',') === sig);
+        const cb = h('input', { type: 'checkbox', checked: !!hit, 'data-testid': 'op-chain-pick', 'data-f': 'op-chain-' + ci });
+        cb.addEventListener('change', () => { d.geom = d.geom || []; if (cb.checked) d.geom.push({ kind: 'chain', sketch: this.sketchId, ents: c.ents.slice() }); else d.geom = d.geom.filter((g) => g !== hit); this.invalidate(); this.render(); this.showResult(); this.pickView(); });
+        box.append(h('label', { class: 'op-grow chk' }, cb, h('span', { class: 'nm', text: t('cam.op.chain_row', { n: c.ents.length, len: fmtNum(c.len, 2), kind: c.closed ? t('cam.op.chain_closed') : t('cam.op.chain_open') }) })));
+      });
+      if (!chains.length) box.append(h('div', { class: 'note', text: t('cam.op.chain_none') }));
+      rows.push(sec(t('cam.op.chain_list')), box);
+    }
     const list = h('div', { class: 'op-geom', 'data-testid': 'op-geom-list' });
     (d.geom || []).forEach((g, i) => list.append(h('div', { class: 'op-grow', 'data-testid': 'op-geom-row' }, h('span', { class: 'nm', text: this.geomLabel(g) }),
+      g.kind === 'chain' ? h('button', { class: 'btn ghost sm', type: 'button', 'data-testid': 'op-chain-rev', title: t('cam.op.chain_rev_hint'), onclick: () => { if (g.reverse) delete g.reverse; else g.reverse = true; this.invalidate(); this.render(); this.showResult(); } }, t('cam.op.chain_rev')) : null,
       h('button', { class: 'btn ghost icon', type: 'button', 'aria-label': t('cam.op.g_remove'), 'data-testid': 'op-geom-del', onclick: () => { d.geom.splice(i, 1); this.invalidate(); this.render(); this.showResult(); this.pickView(); }, html: icon('close', 'sm') }))));
     if (!(d.geom || []).length) list.append(h('div', { class: 'note', 'data-testid': 'op-geom-empty', text: t('cam.op.g_empty') }));
     rows.push(sec(t('cam.op.g_selected')), list);
     if (d.type === 'contour') {
-      rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ['on', t('cam.op.side_on')]], { f: 'side', hint: t('cam.op.side_hint') }),
+      rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ['on', t('cam.op.side_on')], ...((d.geom || []).some((g) => g.kind === 'chain') ? [['left', t('cam.op.side_left')], ['right', t('cam.op.side_right')]] : [])], { f: 'side', hint: t('cam.op.side_hint') }),
         this.sel(t('cam.op.comp'), 'comp', [['computer', t('cam.op.comp_computer')], ['wear', t('cam.op.comp_wear')]], { f: 'comp', def: 'computer', hint: t('cam.op.comp_hint'), redraw: true }));
     }
     rows.push(this.sel(t('cam.op.dir'), 'dir', [['climb', t('cam.op.dir_climb')], ['conv', t('cam.op.dir_conv')]], { f: 'dir', def: 'climb' }));
@@ -210,6 +243,7 @@ export class OpPanel {
     const vp = this.app.viewport, d = this.draft; vp.setRegions(null, null); this.app.setHint('');
     if (this.tab !== 'geom' || !(d.type === 'contour' || d.type === 'pocket')) { vp.setFilter({}); vp.setSelection([]); return; }
     const m = this.pickMode;
+    if (m === 'chain') { vp.setFilter({}); vp.setSelection([]); this.app.setHint(t('cam.op.pickhint.chain')); return; }
     if (m === 'sketch') {
       vp.setFilter({}); vp.setSelection([]);
       const sk = this.app.doc.features.find((f) => f.id === this.sketchId); const pl = this.app.result?.sketches?.[this.sketchId]?.plane;
@@ -281,6 +315,7 @@ export class OpPanel {
         this.num(t('cam.op.sta_radial'), 'stockToLeave.radial', { min: 0, nullable: true, f: 'sta-radial' }), this.num(t('cam.op.sta_axial'), 'stockToLeave.axial', { min: 0, nullable: true, f: 'sta-axial' }),
         sec(t('cam.op.rough')), checkField({ label: t('cam.op.rough_on'), value: !!(d.roughPasses && d.roughPasses.n > 0), f: 'op-rough', hint: wear ? t('cam.op.rough_wear') : t('cam.op.rough_hint'), set: (v) => { if (v) d.roughPasses = { n: 2, stepover: null }; else delete d.roughPasses; this.invalidate(); this.render(); this.showResult(); } }));
       if (d.roughPasses) rows.push(this.num(t('cam.op.rough_n'), 'roughPasses.n', { unit: '', int: true, min: 1, max: 100, f: 'rough-n' }), this.num(t('cam.op.stepover'), 'roughPasses.stepover', { min: 0.001, f: 'rough-stepover' }));
+      if ((d.geom || []).some((g) => g.kind === 'chain')) rows.push(sec(t('cam.op.chain_ext')), this.num(t('cam.op.extend_start'), 'extendStart', { min: 0, nullable: true, f: 'extend-start', hint: t('cam.op.extend_chain_hint') }), this.num(t('cam.op.extend_end'), 'extendEnd', { min: 0, nullable: true, f: 'extend-end' }));
       rows.push(sec(t('cam.op.entry')), this.sel(t('cam.op.ramp_kind'), 'ramp.kind', [['plunge', t('cam.op.en_plunge')], ['ramp', t('cam.op.en_ramp')]], { f: 'ramp-kind', def: 'plunge', redraw: true, set: (v) => { d.ramp = v === 'ramp' ? { kind: v, angle: null } : { kind: v }; this.invalidate(); } }));
       if (r.kind === 'ramp') rows.push(this.num(t('cam.op.entry_angle'), 'ramp.angle', { unit: '°', min: 0.1, max: 45, f: 'ramp-angle', hint: t('cam.op.entry_angle_hint') }));
       for (const [key, nm] of [['leadIn', 'cam.op.lead_in'], ['leadOut', 'cam.op.lead_out']]) {

@@ -3,7 +3,7 @@
 import { cerr } from './err.js';
 import * as P from './path2d.js';
 import * as G from '../../shared/geom2d.js';
-import { findRegions, resolveProfiles } from '../../shared/profiles.js';
+import { findRegions, resolveProfiles, entSeg } from '../../shared/profiles.js';
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 // path2d yonlu dongu -> cekirdek ogeleri (geom2d kanonik + fwd)
@@ -57,6 +57,36 @@ export function sketchFaces(sel, sk, plane, frame) {
     const inners = r.holes.map((h) => { let l = norm(h.loop.flatMap(itemSegs)); if (P.area(l) > 0) l = P.reverseLoop(l); return toItems(l); });
     return { z, normalOk: true, outer: toItems(outer), inners, open: false, above: null, src: 'sketch' };
   });
+}
+
+// T-02: sketch ogelerinden (cizgi/yay) ACIK ya da kapali ZINCIR -> contour 'chain' girdisi { segs:[geom2d+fwd], closed, z } (setup uzayi).
+// sel = {kind:'chain', sketch, ents:[kimlik], reverse?}. Ogeler uc uca tek zincir olmali (aksi: cam.geom.chain_broken); zincir yonu
+// geom2d.orderChain sirasidir (serbest uclu zincirde bir serbest uctan baslar), reverse:true ters cevirir. Egri turleri cizgi/yay/daire.
+export function sketchChain(sel, sk, plane, frame) {
+  if (!sk || !Array.isArray(sk.ents) || !sk.points) throw cerr('cam.geom.sketch_missing', { sketch: String(sel.sketch) });
+  if (!plane || !Array.isArray(plane.n)) throw cerr('cam.geom.sketch_missing', { sketch: String(sel.sketch) });
+  const k = dot(plane.n, frame.z);
+  if (Math.abs(Math.abs(k) - 1) > 1e-7) throw cerr('cam.geom.sketch_not_perpendicular');
+  if (!Array.isArray(sel.ents) || !sel.ents.length) throw cerr('cam.geom.chain_empty');
+  const T3 = (u, v) => [plane.o[0] + plane.x[0] * u + plane.y[0] * v, plane.o[1] + plane.x[1] * u + plane.y[1] * v, plane.o[2] + plane.x[2] * u + plane.y[2] * v];
+  const toS = (p) => { const d = [p[0] - frame.o[0], p[1] - frame.o[1], p[2] - frame.o[2]]; return [dot(d, frame.x), dot(d, frame.y), dot(d, frame.z)]; };
+  const z = toS(T3(0, 0))[2];
+  const T = (p) => { const q = toS(T3(p[0], p[1])); return [q[0], q[1]]; };
+  const mirror = k < 0;
+  const segs = sel.ents.map((id) => {
+    const e = sk.ents.find((x) => x.id === id); const g = e ? entSeg(sk, e) : null;
+    if (!g) throw cerr('cam.geom.chain_ent_missing', { ent: String(id), sketch: String(sel.sketch) });
+    if (!['line', 'arc', 'circle'].includes(g.type)) throw cerr('cam.geom.unsupported_curve', { type: String(g.type) });
+    return g;
+  });
+  const ord = G.orderChain(segs, 1e-6);
+  if (!ord || ord.length !== segs.length) throw cerr('cam.geom.chain_broken', { n: segs.length, linked: ord ? ord.length : 0 });
+  let path = ord.flatMap((o) => P.fromGeom2d(o.seg, o.fwd));
+  if (sel.reverse) path = P.reverseLoop(path);
+  const closed = P.dist(path[0].a, path[path.length - 1].b) < 1e-6;
+  if (!closed) for (let i = 0; i + 1 < path.length; i++) if (P.dist(path[i].b, path[i + 1].a) > 1e-6) throw cerr('cam.geom.chain_broken', { n: segs.length, linked: i + 1 });
+  const mapped = mapLoop(path, T, mirror);
+  return { segs: toItems(mapped), closed, z, src: 'chain' };
 }
 
 // silhouette(zl, sections) -> yuz (dis sinir, z = govde tabani)

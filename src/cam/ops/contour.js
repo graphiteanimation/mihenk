@@ -87,6 +87,13 @@ function leads(loop, lin, lout, toolSide, check, endsOnly = false) {
   } else for (const s of [...pre, ...post]) for (let k = 0; k <= 16; k++) { const pt = P.pointAt(s, k / 16); if (!check(pt)) throw cerr('cam.contour.lead_no_fit'); }
   return { pre, post };
 }
+// T-02: acik zincirin basina/sonuna teget dogru uzatma (mm); 0 ise zincir aynen doner
+export function extendChain(chain, s, e) {
+  const out = chain.slice();
+  if (s > 0) { const t = P.tangentAt(chain[0], 0), a = chain[0].a; out.unshift(P.line([a[0] - t[0] * s, a[1] - t[1] * s], a)); }
+  if (e > 0) { const t = P.tangentAt(chain[chain.length - 1], 1), b = chain[chain.length - 1].b; out.push(P.line(b, [b[0] + t[0] * e, b[1] + t[1] * e])); }
+  return out;
+}
 // dongude uzun dogru parcasinin ortasindan basla (giris icin iyi nokta); yoksa en uzun parcanin ortasi
 function goodStart(loop) {
   let best = null; for (const s of loop) { const w = P.length(s) * (s.k === 'L' ? 2 : 1); if (!best || w > best.w) best = { w, s }; }
@@ -125,10 +132,13 @@ export function computeContour(op, ctx) {
   const ramp = op.ramp ?? { kind: 'plunge' }; if (!['plunge', 'ramp'].includes(ramp.kind)) throw cerr('cam.op.unsupported', { what: 'ramp.' + ramp.kind });
   const rampAng = ramp.kind === 'ramp' ? need(op, 'ramp.angle', (v) => v > 0 && v <= 45, '0 < angle <= 45') : null;
   const lin = op.leadIn ?? { kind: 'none' }, lout = op.leadOut ?? { kind: 'none' };
-  if (comp === 'wear') {
+  // acik zincirde giris/cikis = extendStart/extendEnd (asagida); zincir secimi varsa bu denetim kapali halkalar icin dongude yapilir
+  const hasChain = (op.geom || []).some((g) => g.kind === 'chain');
+  const wearLeadCheck = () => {
     if (lin.kind !== 'line' || lout.kind !== 'line') throw cerr('cam.contour.wear_needs_line_lead');
     if (!(lin.len > r) || !(lout.len > r)) throw cerr('cam.contour.wear_lead_short', { min: r3(r) });
-  }
+  };
+  if (comp === 'wear' && !hasChain) wearLeadCheck();
   if (ramp.kind === 'ramp' && (lin.kind !== 'none' || lout.kind !== 'none')) throw cerr('cam.contour.ramp_with_lead');
   if (ramp.kind === 'ramp' && comp === 'wear') throw cerr('cam.contour.wear_ramp');
   const tabs = op.tabs && op.tabs.n > 0 ? { n: need(op, 'tabs.n', (v) => Number.isInteger(v) && v >= 1 && v <= 100, 'integer 1..100'), width: need(op, 'tabs.width'), height: need(op, 'tabs.height') } : null;
@@ -149,12 +159,21 @@ export function computeContour(op, ctx) {
   const passes = []; // [{loop, toolSide, check, offsets:[d...] (rough..final)}]
   for (const it of items) {
     if (it.chain) {
-      const side = op.side ?? 'on'; if (side !== 'on') throw cerr('cam.contour.open_needs_on');
-      if (lin.kind !== 'none' || lout.kind !== 'none' || tabs || comp === 'wear') throw cerr('cam.contour.open_options');
-      passes.push({ chain: it.chain }); continue;
+      // T-02: acik zincir. side 'on' (merkez zincirde) | 'left' | 'right' (zincir yonune gore takimin bulundugu taraf; r + yanal pay ofset).
+      // extendStart/extendEnd: zincirin uclarina teget dogru uzatma (giris/cikis payi). wear: yalniz left/right, uzatmalar > r (dogrusal giris/cikis).
+      const side = op.side ?? 'on'; if (!['on', 'left', 'right'].includes(side)) throw cerr('cam.contour.open_needs_on');
+      if (lin.kind !== 'none' || lout.kind !== 'none' || tabs) throw cerr('cam.contour.open_options');
+      if (comp === 'wear' && side === 'on') throw cerr('cam.contour.wear_on');
+      const exS = opt(op, 'extendStart', nonNeg, 'number >= 0', 0), exE = opt(op, 'extendEnd', nonNeg, 'number >= 0', 0);
+      if (comp === 'wear' && (!(exS > r) || !(exE > r))) throw cerr('cam.contour.wear_lead_short', { min: r3(r) });
+      let ch = extendChain(it.chain, exS, exE);
+      if (side !== 'on') { const dd = (comp === 'wear' ? 0 : r) + stR; if (dd > 0) ch = P.offsetChainOpen(ch, side === 'left' ? dd : -dd); }
+      if (comp === 'wear') { if (compSide && compSide !== side) throw cerr('cam.contour.wear_mixed_side'); compSide = side; }
+      passes.push({ chain: ch, wear: comp === 'wear' }); continue;
     }
     const side = op.side ?? it.defSide; if (!['outside', 'inside', 'on'].includes(side)) throw cerr('cam.op.bad_field', { field: 'side', expect: 'outside/inside/on', op: op.name || op.id });
     const base = it.loop; // CCW, bolge solda
+    if (comp === 'wear' && hasChain && side !== 'on') wearLeadCheck();
     if (side === 'on') { if (comp === 'wear') throw cerr('cam.contour.wear_on'); passes.push({ loops: [[{ loop: dir === 'climb' ? base : P.reverseLoop(base), d: 0 }]], toolSide: null, check: () => true, base }); continue; }
     const outside = side === 'outside';
     const dFinal = (comp === 'wear' ? 0 : r) + stR; const dCheck = r + stR;
@@ -187,7 +206,13 @@ export function computeContour(op, ctx) {
   const zTabTop = tabs ? zBot + tabs.height : null;
   for (const ps of passes) {
     if (ps.chain) { // acik zincir 'on'
-      for (const z of levels) { const a = ps.chain[0].a; b.linkTo(a[0], a[1], z, cut.feedPlunge); b.segs(ps.chain, z, cut.feedCut); b.up(); }
+      for (const z of levels) {
+        const a = ps.chain[0].a; b.linkTo(a[0], a[1], z, cut.feedPlunge);
+        if (ps.wear) b.moves.push({ t: 'comp', on: true });
+        ps.chain.forEach((sg, i) => b.seg(sg, z, z, cut.feedCut, ps.wear && (i === 0 || i === ps.chain.length - 1) ? 'lead' : 'cut')); // wear: uzatmalar = dogrusal giris/cikis
+        if (ps.wear) { b.moves.push({ t: 'comp', on: false }); const lp = b.pos; const tt = P.tangentAt(ps.chain[ps.chain.length - 1], 1); b.feed(lp[0] + tt[0] * r, lp[1] + tt[1] * r, z, cut.feedCut, 'lead'); }
+        b.up();
+      }
       continue;
     }
     for (let li = 0; li < levels.length; li++) {

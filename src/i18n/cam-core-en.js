@@ -141,4 +141,7 @@ export default {
   "err.cam.contour.faces_differ_z": "The selected profiles are at different heights (Z {z1} and Z {z2}); the bottom from the selection would be wrong for one of them. Create separate operations.",
   "err.cam.geom.self_intersect": "The boundary crosses itself; the region is ambiguous. Fix the sketch or model.",
   "err.cam.gate.tool_geom_assumed": "T{tool}: {field} is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp (flat-tip diameter 0). Enter the real values in the tool editor.",
+  "err.cam.geom.chain_empty": "No sketch entities are selected for the chain.",
+  "err.cam.geom.chain_ent_missing": "Sketch entity {ent} of the chain was not found in sketch {sketch} (deleted or not a line/arc/circle).",
+  "err.cam.geom.chain_broken": "The selected entities do not form a single connected chain ({linked} of {n} entities are linked).",
 };

@@ -2,7 +2,7 @@
 import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
-import { sketchFaces, silhouetteFace, midLevels } from './geom/select.js';
+import { sketchFaces, sketchChain, silhouetteFace, midLevels } from './geom/select.js';
 import { simulate, createHeightmap, stockFromPrevious, chainSources } from './sim/index.js';
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
@@ -29,6 +29,11 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
       const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
       const plane = rebuild?.sketches?.[sel.sketch]?.plane;
       for (const f of sketchFaces(sel, sk, plane, S.frame)) { sels.push({ ...sel, kind: 'face' }); faces.push(f); }
+    } else if (sel.kind === 'chain') { // T-02: eskiz ogelerinden acik/kapali zincir (yalniz kontur)
+      if (op.type !== 'contour') throw cerr('cam.geom.sel_unsupported', { kind: 'chain' });
+      const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
+      const plane = rebuild?.sketches?.[sel.sketch]?.plane;
+      sels.push(sel); faces.push(sketchChain(sel, sk, plane, S.frame));
     } else if (sel.kind === 'silhouette') {
       if (!S.bodies.includes(sel.body)) throw cerr('cam.setup.body_missing', { body: String(sel.body) });
       const zl = await query('camZLevels', { body: sel.body, frame: S.frame });

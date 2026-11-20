@@ -761,5 +761,73 @@ section('11. WP-06 T-10 stockToLeave iki bicim; T-11 tipDia / shaftDia');
   }
 }
 
+section('12. WP-06 T-02 acik zincir (sketch ogeleri): secim, taraf, uzatma, wear');
+{
+  const { simulate } = await import('../src/cam/sim/index.js');
+  const pt = (x, y) => ({ x, y });
+  const sk = { id: 'sk', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '-5' },
+    points: { p1: pt(10, 10), p2: pt(50, 10), c: pt(50, 20), p3: pt(60, 20), p4: pt(60, 40), q1: pt(80, 5), q2: pt(90, 5) },
+    ents: [{ id: 'l1', type: 'line', a: 'p1', b: 'p2' }, { id: 'a1', type: 'arc', c: 'c', a: 'p2', b: 'p3' }, { id: 'l2', type: 'line', a: 'p3', b: 'p4' }, { id: 'x1', type: 'line', a: 'q1', b: 'q2' }] };
+  const plane = { o: [0, 0, -5], x: [1, 0, 0], y: [0, 1, 0], n: [0, 0, 1] };
+  const body = { id: 'b', vertices: [0, 0, -10, 100, 60, 0].length ? [0, 0, -10, 100, 0, -10, 100, 60, -10, 0, 60, -10, 0, 0, 0, 100, 0, 0, 100, 60, 0, 0, 60, 0] : [] };
+  const nw = structuredClone(NEWAY_FIXTURE);
+  const M = { ...nw, id: 'm', spindle: { maxRpm: 12000, minRpm: 50 }, feed: { maxCut: 10000, rapid: 30000 }, post: { props: { ...nw.post.props, safeRetract: 'G28' } } };
+  const tool = flat(4, { id: 'em4', number: 7, lengthOffset: 7, diaOffset: 7 });
+  const camOf = (op) => ({ tools: [tool], setups: [{ id: 's1', name: 'S1', bodies: ['b'], workOffset: { kind: 'G55' }, frame: { origin: { kind: 'model' } }, stock: { kind: 'boxOffset', side: 0, top: 0, bottom: 0 }, ops: [op] }] });
+  const rebuild = { bodies: [body], sketches: { sk: { plane } }, holes: [] };
+  const run = (opx) => CAM.generateProgram(camOf({ id: 'ch', type: 'contour', name: 'Yarik', toolId: 'em4', ...base, stepdown: 2, heights: { clearance: 10, retract: 2 }, ...opx }), { rebuild, machine: M, query: async () => { throw new Error('yok'); }, doc: { features: [sk] }, name: 'O1' });
+  const cutPts = (tp, zf = (z) => z < -4.99) => cutPoints(tp, zf, 0.2).map((p) => [p[0], p[1]]);
+  const chain = (ents, extra = {}) => [{ kind: 'chain', sketch: 'sk', ents, ...extra }];
+  const full = ['l1', 'a1', 'l2'];
+  // secim -> zincir
+  { const f = CAM.resolveGeom; const S = CAM.resolveSetup(camOf({}).setups[0], rebuild, M, {});
+    const r = await f({ type: 'contour', geom: chain(['l2', 'l1', 'a1']) }, S, { rebuild, doc: { features: [sk] }, query: async () => null });
+    const c = r.faces[0]; ok(!c.closed && c.segs.length === 3 && Math.abs(c.z + 5) < 1e-9, 'T-02: 3 oge tek acik zincir (sira ogelerin listesinden bagimsiz), z = eskiz duzlemi: ' + c.segs.length);
+    const L = P.length; const ps = c.segs.flatMap((g) => P.fromGeom2d(g, g.fwd !== false)); ok(Math.abs(ps.reduce((a, q) => a + L(q), 0) - (40 + Math.PI * 5 + 20)) < 1e-6 && (P.dist(ps[0].a, [60, 40]) < 1e-9 || P.dist(ps[0].a, [10, 10]) < 1e-9), 'T-02: zincir uzunlugu 40 + 5pi + 20, serbest uctan baslar (ilk listelenen ogenin serbest ucu)');
+    const rv = await f({ type: 'contour', geom: chain(full, { reverse: true }) }, S, { rebuild, doc: { features: [sk] }, query: async () => null }); const pr = rv.faces[0].segs.flatMap((g) => P.fromGeom2d(g, g.fwd !== false));
+    ok(P.dist(pr[0].a, [60, 40]) < 1e-9 && P.dist(pr[pr.length - 1].b, [10, 10]) < 1e-9, 'T-02: reverse zincir yonunu cevirir');
+    for (const [e, code] of [[['l1', 'x1'], 'cam.geom.chain_broken'], [[], 'cam.geom.chain_empty'], [['l1', 'yok'], 'cam.geom.chain_ent_missing']]) { let er = null; try { await f({ type: 'contour', geom: chain(e) }, S, { rebuild, doc: { features: [sk] }, query: async () => null }); } catch (x) { er = x.code; } ok(er === code, `T-02: ${code} (${er})`); }
+    let er2 = null; try { await f({ type: 'pocket', geom: chain(full) }, S, { rebuild, doc: { features: [sk] }, query: async () => null }); } catch (x) { er2 = x.code; } ok(er2 === 'cam.geom.sel_unsupported', 'T-02: cep zincir secimi desteklenmez (hata): ' + er2);
+  }
+  const chainP = (tp) => { const out = []; return (() => { let q = null; for (const m of tp.moves) { if (m.t === 'rapid') q = m; } return out; })(); };
+  void chainP;
+  const base2 = (() => { const S = CAM.resolveSetup(camOf({}).setups[0], rebuild, M, {}); return S; })();
+  // on: merkez zincirde, uzatmalar
+  { const r = await run({ geom: chain(full), side: 'on', heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } });
+    const tp = r.ops[0].toolpath; ok(r.ops[0].ok && tp, 'T-02: zincir kontur hesaplandi: ' + JSON.stringify(r.ops[0].error));
+    const on = P.fromGeom2d; void on; const pts = cutPts(tp);
+    const refPath = [P.line([10, 10], [50, 10]), P.arc([50, 20], 10, -Math.PI / 2, Math.PI / 2), P.line([60, 20], [60, 40])];
+    ok(pts.length > 20 && pts.every((p) => P.distTo(p, refPath) < 1e-6), 'T-02 on: tum kesme noktalari zincir uzerinde');
+    ok(Math.abs(tp.stats.zMin + 5) < 1e-9, 'T-02: taban = eskiz duzlemi (Z-5), 2 mm pasolar');
+    const ex = (await run({ geom: chain(full), side: 'on', extendStart: 5, extendEnd: 3, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } })).ops[0].toolpath; const px = cutPts(ex);
+    ok(px.some((p) => p[0] >= 5 - 1e-6 && p[0] < 5.3 && Math.abs(p[1] - 10) < 1e-6) && !px.some((p) => p[0] < 5 - 1e-6) && px.some((p) => Math.abs(p[0] - 60) < 1e-6 && Math.abs(p[1] - 43) < 1e-6), 'T-02: extendStart 5 -> (5,10), extendEnd 3 -> (60,43) (teget dogrular)');
+    const sr = simulate(tp, { res: 0.5, stockBox: base2.stockBox, stockHeightmap: heightmapFromFn([0, 0], [100, 60], 0.5, () => 0) }); ok(sr.issues.length === 0 && sr.removedVolume > 0, 'T-02: sim temiz, malzeme kaldirir (yarik): ' + sr.issues.map((i) => i.code));
+  }
+  // sol / sag: r + pay kadar ofset, taraf zincir yonune gore
+  { const L = await run({ geom: chain(full), side: 'left', stockToLeave: { radial: 0.3, axial: 0 }, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } }), R = await run({ geom: chain(full), side: 'right', heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } });
+    const refPath = [P.line([10, 10], [50, 10]), P.arc([50, 20], 10, -Math.PI / 2, Math.PI / 2), P.line([60, 20], [60, 40])];
+    const pl = cutPts(L.ops[0].toolpath), pr = cutPts(R.ops[0].toolpath);
+    ok(L.ops[0].ok && pl.length > 20 && pl.every((p) => Math.abs(P.distTo(p, refPath) - 2.3) < 1e-6), 'T-02 sol: her nokta zincirden tam r + pay = 2,3: ' + L.ops[0].ok + JSON.stringify(L.ops[0].error));
+    ok(pl.some((p) => Math.abs(p[0] - 30) < 0.3 && p[1] > 10) && !pl.some((p) => Math.abs(p[0] - 30) < 0.3 && p[1] < 10), 'T-02 sol: zincir +X giderken sol = +Y tarafi');
+    ok(R.ops[0].ok && pr.every((p) => Math.abs(P.distTo(p, refPath) - 2) < 1e-6) && pr.some((p) => Math.abs(p[0] - 30) < 0.3 && p[1] < 10), 'T-02 sag: r = 2 ve -Y tarafi');
+    const g = CAM.gates(R.program, M, { sim: { res: 0.5, modelHeightmaps: { s1: heightmapFromFn([0, 0], [100, 60], 0.5, () => -Infinity) } } });
+    ok(!g.some((x) => x.level === 'block' && x.code.startsWith('cam.sim.')), 'T-02: sim kapilari engel vermez: ' + g.filter((x) => x.level === 'block').map((x) => x.code));
+  }
+  // wear
+  { const W = (extra) => run({ geom: chain(full), side: 'left', comp: 'wear', extendStart: 6, extendEnd: 6, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } }, ...extra });
+    const w = await W({}); const tp = w.ops[0].toolpath;
+    ok(w.ops[0].ok && tp.comp === 'wear' && tp.compSide === 'left' && tp.moves.filter((m) => m.t === 'comp' && m.on).length === tp.moves.filter((m) => m.t === 'comp' && !m.on).length && tp.moves.some((m) => m.t === 'comp'), 'T-02 wear: G41 (left), her derinlikte comp ac/kapa: ' + JSON.stringify(w.ops[0].error));
+    const wp = []; walk(tp, (m, k, from) => { if (from && m.kind === 'cut' && m.t === 'feed' && m.z < -4.99 && m.y > 9.99 && m.y < 10.01 && m.x > 5 && m.x < 55) wp.push([m.x, m.y]); }); ok(wp.length > 0, 'T-02 wear: programlanan yol zincirin kendisi (ofset yok)');
+    const w2 = await W({ extendStart: 1 }); ok(!w2.ops[0].ok && w2.ops[0].error.code === 'cam.contour.wear_lead_short', 'T-02 wear: kisa giris uzatmasi reddedilir: ' + w2.ops[0].error?.code);
+    const w3 = await W({ side: 'on' }); ok(!w3.ops[0].ok && w3.ops[0].error.code === 'cam.contour.wear_on', 'T-02 wear: side on reddedilir');
+    const bad = await run({ geom: chain(full), side: 'outside', heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } }); ok(!bad.ops[0].ok && bad.ops[0].error.code === 'cam.contour.open_needs_on', 'T-02: acik zincirde outside hala reddedilir');
+    const lead = await run({ geom: chain(full), side: 'on', leadIn: { kind: 'line', len: 3 }, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } }); ok(!lead.ops[0].ok && lead.ops[0].error.code === 'cam.contour.open_options', 'T-02: acik zincirde leadIn yerine extendStart');
+  }
+  // NC: post kodu G41 D
+  { const w = await run({ geom: chain(full), side: 'left', comp: 'wear', extendStart: 6, extendEnd: 6, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } });
+    const nc = (await import('../src/cam/post/index.js')).postProgram(w.program, M, { date: 'x', gates: [] }); ok(/G41 D7/.test(nc.text) && /G40/.test(nc.text), 'T-02: NC G41 D7 ... G40');
+  }
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
