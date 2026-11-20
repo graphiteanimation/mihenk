@@ -72,7 +72,7 @@ const R = await page.evaluate(async ([PORT, ASSETS]) => {
   return o;
 }, [PORT, ASSETS]);
 check('Node globalleri renderer\'da yok', R.nodeGlobals === 'undefined,undefined,undefined', R.nodeGlobals);
-check('köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler', R.nativeKeys === 'argvFile,docState,getSetting,openFile,openRecent,recentList,recoveryClear,recoveryLoad,recoverySave,saveFile,setDirty,setSetting,setStrings,setTitle,versions', R.nativeKeys);
+check('köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler', R.nativeKeys === 'argvFile,docState,getSetting,openFile,openLogFolder,openRecent,recentList,recoveryClear,recoveryLoad,recoverySave,saveFile,setDirty,setSetting,setStrings,setTitle,versions', R.nativeKeys);
 check('CSP yanıt başlığı = electron/csp.cjs', R.csp === CSP, R.csp);
 check('CSP meta etiketi = başlık', R.cspMeta === CSP);
 check('ana betik de aynı sıkı CSP\'yi alır (unsafe-eval yok)', R.mainJsCsp === CSP && !/'unsafe-eval'/.test(R.mainJsCsp || ''), String(R.mainJsCsp));

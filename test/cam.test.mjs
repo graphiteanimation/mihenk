@@ -285,7 +285,7 @@ section('2b. yerlesik genel sablonlar ve tezgah ice/disa aktarma');
   ok(j.format === MACHINE_FORMAT && j.version === 1 && j.machines.length === 2 && !('builtin' in j.machines[1]) && !('nameKey' in j.machines[1]), 'disa aktar: bicim, builtin/nameKey atilir');
   const im = importMachines(txt, []); ok(im.machines.length === 2 && !im.errors.length && JSON.stringify(im.machines[0]) === JSON.stringify(NEWAY_FIXTURE), 'gecerli dosya: gidis-donus ayni');
   // ornek dosya
-  const ex = importMachines(fs.readFileSync(path.join(ROOT, 'ornekler/tezgahlar/Neway-VM1160H-M80V-GSA.mhnk-tezgah.json'), 'utf8'), []);
+  const ex = importMachines(fs.readFileSync(path.join(ROOT, 'pm/arsiv/Neway-VM1160H-M80V-GSA.mhnk-tezgah.json'), 'utf8'), []);
   ok(ex.machines.length === 1 && !ex.errors.length && JSON.stringify(ex.machines[0]) === JSON.stringify(NEWAY_FIXTURE), 'ornek dosya fixture ile ayni');
   // bozuk JSON, yanlis bicim, surum, sinirlar
   throwsCode(() => importMachines('{bozuk'), 'cam.machine.file_bad', 'bozuk JSON');

@@ -26,14 +26,16 @@ const HOOK = WIN ? ['--import', pathToFileURL(path.join(ROOT, 'scripts', 'win-es
 const node = (f) => ({ name: f, cmd: process.execPath, args: [...HOOK, path.join(ROOT, f)] });
 const py = (f, extra = {}) => ({ name: f, cmd: PY, args: [path.join(ROOT, f)], ...extra });
 const STEPS = [
-  ...['test/i18n.test.mjs', 'test/security.test.mjs', 'test/kernel.test.mjs', 'test/solver.test.mjs', 'test/geom2d.test.mjs', 'test/profiles.test.mjs', 'test/sketchops.test.mjs', 'test/dxf.test.mjs', 'test/stability.test.mjs', 'test/models/run-all.mjs', 'test/cam.test.mjs', 'test/post.test.mjs', 'test/wp04-devir.test.mjs', 'test/sim.test.mjs'].map(node),
+  ...['test/i18n.test.mjs', 'test/security.test.mjs', 'test/kernel.test.mjs', 'test/solver.test.mjs', 'test/geom2d.test.mjs', 'test/profiles.test.mjs', 'test/sketchops.test.mjs', 'test/dxf.test.mjs', 'test/stability.test.mjs', 'test/models/run-all.mjs', 'test/cam.test.mjs', 'test/post.test.mjs', 'test/wp04-devir.test.mjs', 'test/sim.test.mjs', 'test/altin.test.mjs', 'test/ornekler.test.mjs', 'test/nc-baslik.test.mjs', 'test/altin/kos.mjs'].map(node),
   { name: 'vite build', cmd: process.execPath, args: [path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), 'build'], build: true },
   py('test/sketcher.test.py', { needsBuild: true }),
   // WP-04 dilim 1: "konsolda sayfa hatası yok" kararsızlığı giderildi (testin kendi CSP sınaması ayrı listeye alınıyor); yeniden deneme kaldırıldı.
   py('test/app.test.py', { needsBuild: true }),
   py('test/ui.test.py', { needsBuild: true }),
   py('test/cam-ui.test.py', { needsBuild: true }),
+  py('test/iptal.test.py', { needsBuild: true }),
   node('test/electron.test.mjs'),
+  { ...node('test/gunluk.test.mjs'), needsBuild: true }, // dist gerektirir: vite build'den SONRA
 ];
 
 const only = (process.env.TEST_ONLY || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -57,6 +59,9 @@ function summary(out) {
   return { line: lines.length ? lines[lines.length - 1].slice(0, 160) : '(çıktı yok)' };
 }
 
+// WP-10: test:all izlenen (ya da yeni, yok sayılmayan) dosya bırakmamalı. Koşu öncesi ve sonrası `git status --porcelain` karşılaştırılır.
+const gitState = () => { const r = spawnSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }); return r.status === 0 ? new Set(r.stdout.split(/\r?\n/).filter(Boolean)) : null; };
+const gitBefore = gitState();
 const results = []; let buildOk = true;
 console.log(`test:all — ${steps.length} adım (${process.platform}, node ${process.version})`);
 for (const [i, step] of steps.entries()) {
@@ -72,14 +77,20 @@ for (const [i, step] of steps.entries()) {
   if (!ok) { const fl = r.out.split(/\r?\n/).filter((l) => /FAIL|KALDI|Error/.test(l)).slice(0, 60); if (fl.length) console.log('-- kalan denetimler --\n' + fl.join('\n') + '\n-- çıktının son 40 satırı --'); console.log(r.out.split(/\r?\n/).slice(-40).join('\n')); if (r.err) console.log('başlatma hatası: ' + r.err); }
   if (CI) console.log('::endgroup::');
   console.log(`${tag} ... ${ok ? 'GEÇTİ' : 'KALDI'} (${fmt(r.ms)}${attempts > 1 ? `, ${attempts}. denemede${ok ? ' geçti' : ' de kaldı'} — ${step.retryLabel}` : ''}) | ${s.line}`);
-  results.push({ name: step.name, status: ok ? 'GEÇTİ' : 'KALDI', pass: s.pass, fail: s.fail, attempts, retried });
+  const known = (r.out.match(/BİLİNEN AÇIK/g) || []).length, skipped = [...r.out.matchAll(/^\s*ATLANDI \((\d+)\)/gm)].reduce((a, m) => a + +m[1], 0);
+  results.push({ name: step.name, status: ok ? 'GEÇTİ' : 'KALDI', pass: s.pass, fail: s.fail, attempts, retried, known, skipped });
   if (step.build && !ok) buildOk = false;
 }
 
 console.log('\n==== ÖZET ====');
 let tp = 0, tf = 0;
-for (const r of results) { if (r.pass != null) { tp += r.pass; tf += r.fail; } console.log(`${r.status.padEnd(7)} ${r.name}${r.pass != null ? `  (${r.pass} geçti, ${r.fail} kaldı)` : ''}${r.attempts > 1 ? '  [yeniden denendi]' : ''}`); }
+for (const r of results) { if (r.pass != null) { tp += r.pass; tf += r.fail; } console.log(`${r.status.padEnd(7)} ${r.name}${r.pass != null ? `  (${r.pass} geçti, ${r.fail} kaldı)` : ''}${r.attempts > 1 ? '  [yeniden denendi]' : ''}${r.known ? `  [${r.known} bilinen açık]` : ''}${r.skipped ? `  [ATLANDI (${r.skipped})]` : ''}`); }
+const knownN = results.reduce((a, r) => a + (r.known || 0), 0), skipN = results.reduce((a, r) => a + (r.skipped || 0), 0);
+const gitAfter = gitState();
+if (gitBefore && gitAfter) { const dirty = [...gitAfter].filter((l) => !gitBefore.has(l)); results.push({ name: 'izlenen dosya değişmedi (git status)', status: dirty.length ? 'KALDI' : 'GEÇTİ' }); if (dirty.length) console.log('test:all şu dosyaları değiştirdi/oluşturdu:\n  ' + dirty.join('\n  ')); }
 const bad = results.filter((r) => r.status !== 'GEÇTİ');
 console.log(`${results.length - bad.length}/${results.length} adım geçti; sayılan denetim: ${tp} geçti, ${tf} kaldı`);
+if (knownN) console.log(`${knownN} bilinen açık (yeşil sayılmaz; ayrıntı ilgili adımın çıktısında: BİLİNEN AÇIK)`);
+if (skipN) console.log(`ATLANDI (${skipN}): koşulmayan denetim adımı (ayrıntı: models/run-all çıktısı)`);
 if (bad.length) console.log('KALAN/ATLANAN: ' + bad.map((r) => r.name + ' (' + r.status + ')').join(', '));
 process.exit(bad.length ? 1 : 0);

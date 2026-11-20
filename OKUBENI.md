@@ -28,3 +28,30 @@ Adım adım kullanım, örnek parça, güvenlik kapıları ve sorun giderme:
 
 ## Kaynak kod ve lisanslar
 `npm install`, `npm run dev`, `npm run build`. Tasarım sözleşmesi `DESIGN.md`. Açık kaynak: OpenCascade (LGPL-2.1 + istisna), replicad (MIT), PlaneGCS/FreeCAD (LGPL-2.1+), three.js (MIT), Electron (MIT).
+
+---
+
+## Sürüm notu şablonu (yayın öncesi doldurulur; GitHub Release metni olarak kullanılır)
+<!-- Bu bölüm yalnız şablondur; her sürümde kopyalanıp doldurulur, "Bilinen sınırlar" yukarıdaki güncel listeyle eşitlenir. -->
+```
+# Mihenk <sürüm> — <tarih>
+
+## Yenilikler
+- <kullanıcıya görünen değişiklikler, WP numarasıyla>
+
+## Düzeltmeler
+- <düzeltilen hatalar>
+
+## Doğrulama (bu sürüm için ölçüldü)
+- npm run test:all: <adım>/<adım> geçti, <denetim> denetim, <kalan> kalan
+- Altın parça seti (npm run test:altin): P1–P4 BLOCK <a>/<b>/<c>/<d>; temiz NC <x>/<y> setup; tablo: release/altin/sonuc.json
+- Kurulu sürüm duman testi (Actions, Windows): <geçen>/<toplam>
+- Windows kabul listesi (pm/KABUL-WINDOWS.md): <geçen>/<toplam> — <tarih>, <Windows sürümü> ya da "uygulanmadı"
+
+## Bilinen sınırlar
+- <OKUBENI.md "Bilinen sınırlar" ile aynı>; NC çıktısı makinede DOĞRULANMAMIŞTIR.
+
+## Dosyalar
+- Mihenk-Kurulum-<sürüm>.exe — SHA-256: <değer> (SHA256SUMS.txt ile aynı). Kod imzasızdır.
+```
+
