@@ -472,10 +472,12 @@ export class Kernel {
     // son durum (this.last) bir önceki tamamlanmış hesaptaki gibi kalır (iptal edilen hesabın öneki saklanmaz:
     // yarıda bırakılan durumun OCCT nesneleri sonraki hesapta güvenilir değildi, bkz. kernel.test.mjs).
     let lastYield = now();
+    // iptalde işlem özetleri (changed karşılaştırması) ve son başarılı sonuçlar iptal öncesine döner
+    const keep = opts.shouldStop ? { sums: new Map(this.sums), lastGood: new Map(this.lastGood), upgrades: new Map(this.upgrades) } : null;
     for (let i = 0; i < end; i++) {
       if (opts.shouldStop) {
         if (now() - lastYield > 8) { await fastYield(); lastYield = now(); }
-        if (opts.shouldStop()) throw new KErr('rebuild.cancelled');
+        if (opts.shouldStop()) { this.sums = keep.sums; this.lastGood = keep.lastGood; this.upgrades = keep.upgrades; throw new KErr('rebuild.cancelled'); }
       }
       const f = feats[i];
       if (!f || typeof f !== 'object' || typeof f.id !== 'string' || !f.id) { docErrors.push({ code: 'feature.invalid', params: { index: i } }); valid = false; newCache.push(null); continue; }

@@ -283,7 +283,14 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   n = 0; try { await KC.rebuild(d, { shouldStop: () => ++n > 3 }); } catch (e) { /* beklenen */ }
   const r3 = await KC.rebuild(d); ok(sig(r3) === sig(await KF.rebuild(d)), 'ikinci iptal sonrası da doğru');
   const ff = KC.featureFaces('bx'); ok(ff.length === 1 && ff[0].body === 'bx' && ff[0].faces.length >= 5, 'featureFaces: kutunun yüzleri (' + JSON.stringify(ff) + ')');
-  ok(KC.featureFaces('k1').some((x) => x.body === 'e1' && x.faces.length >= 1), 'featureFaces: delik (kesme) yüzü hedef gövdede');
+  ok(KC.featureFaces('k1').some((x) => x.body === 'e1' && x.faces.length >= 1), 'featureFaces: delik (kesme) yüzü hedef gövdede ' + JSON.stringify(KC.featureFaces('k1')) + ' ' + JSON.stringify([...KC.last.bodies.keys()]));
+  { // iptal özetleri kirletmez: A → (B iptal) → B tam: düzenlenen kutu yine "değişti"
+    const KS = await initKernel(opencascade, () => wasm); await KS.rebuild(d); let m = 0;
+    try { await KS.rebuild(d2, { shouldStop: () => ++m > 6 }); } catch (e) { /* beklenen */ }
+    const rB = await KS.rebuild(d2); ok(rB.featInfo.bx.changed && !rB.featInfo.e1.changed, 'iptal sonrası featInfo.changed doğru (bx değişti, e1 aynı)');
+    m = 0; try { await KS.rebuild(d, { shouldStop: () => ++m > 6 }); } catch (e) { /* beklenen */ }
+    const rA = await KS.rebuild(d); ok(rA.featInfo.bx.changed, 'geri dönüşte de bx "değişti" (iptal edilen hesap özeti yazmadı)');
+  }
   // onarım: yuvarlatmanın kenarını yok eden değişiklik
   const hd = (h) => ({ params: [], features: [
     { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '40', h: '20', op: 'new' },
