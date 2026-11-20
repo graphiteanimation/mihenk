@@ -589,6 +589,43 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
     ok(rQ.ops[0]?.ok && rQ.ops[0].toolpath.warnings.some((w) => w.code === 'cam.drill.through_to_model_bottom' && w.params.n === 2), 'T-14: cekirdek sorgusu basarisiz -> tum delikler eski kural + uyari');
     await K.rebuild(doc);
   }
+  // T-04: setup n'in son stogu setup n+1'in baslangic stogu (P1 S3 hayalet stok durumunu kuran sentetik cok-setup testi)
+  {
+    const dP = { params: [], features: [{ id: 'pb', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '60', d: '40', h: '20', op: 'new' }, ...[15, 45].map((x, i) => ({ id: 'pc' + i, type: 'primitive', kind: 'cylinder', x, y: 0, z: 10, dia: 6.8, h: 10, axis: 'Y', op: 'cut', targets: ['pb'] }))] };
+    const rP = await K.rebuild(dP); const pid = rP.bodies[0].id; ok(Object.values(rP.status).every((x) => x.ok) && Math.abs(rP.bodies[0].volume - (60 * 40 * 20 - 2 * Math.PI * 3.4 * 3.4 * 10)) < 1, 'T-04 modeli: kutu + 2 yan delik');
+    const side = { feature: 'S', kind: 'simple', dia: 6.8, depth: 10, through: false, tipAngle: 118, thread: null, dir: [0, 1, 0], positions: [[15, 0, 10], [45, 0, 10]], dirs: [[0, 1, 0], [0, 1, 0]], bodies: [[pid], [pid]], count: 2, lost: 0 };
+    const rbP = { ...rP, holes: [side] };
+    let pBot = null; for (let i = 0; i < rP.bodies[0].nFaces; i++) { const d = K.describe({ body: pid, idx: i }, 'face'); if (d.geom === 'PLANE' && d.normal[2] < -0.99 && Math.abs(d.fp[2]) < 1e-6) pBot = d; }
+    const MA = { ...M, axes: { ...M.axes, A: { ...NEWAY_FIXTURE.axes.A } } }; const aDeg = -90 * Math.sign(MA.axes.A.dir[0]);
+    const stk = { kind: 'boxOffset', side: 5, top: 5, bottom: 0 };
+    const S1o = [{ id: 'q1', type: 'face', name: 'Yuzey', toolId: 'em10', ...base, heights: { ...hh, top: { from: 'stockTop', off: 0 }, bottom: { from: 'modelTop', off: 0 } }, stepover: 7, stepdown: 2.5, extend: 1 },
+      { id: 'q2', type: 'contour', name: 'Dis', toolId: 'em10', ...base, heights: { ...hh, top: { from: 'modelTop', off: 0 }, bottom: { from: 'abs', off: -20 } }, geom: [{ kind: 'face', ref: pBot, loops: 'outer' }], stepdown: 5, leadIn: { kind: 'arc', r: 4 }, leadOut: { kind: 'arc', r: 4 } }];
+    const S2o = [{ id: 'q3', type: 'drill', name: 'Yan', toolId: 'dr', ...base, heights: hh, holes: { kind: 'feature' }, cycle: 'peck', peck: 3, depth: { from: 'hole', tipComp: false }, order: 'asis' }];
+    const mkCam = (s2) => ({ ...cam, setups: [
+      { id: 'T1', name: 'Ust', bodies: [pid], frame: { origin: { kind: 'stockTopCenter' }, zAxis: { kind: 'base', dir: '+Z' }, xAxis: { kind: 'base', dir: '+X' } }, workOffset: { kind: 'G54' }, stock: stk, clearanceZ: 5, ops: S1o },
+      { id: 'T2', name: 'Yan', bodies: [pid], workOffset: { kind: 'G55' }, stock: stk, clearanceZ: 5, ops: S2o, ...s2 }] });
+    const yan = { frame: { origin: { kind: 'stockTopCenter' }, zAxis: { kind: 'base', dir: '-Y' }, xAxis: { kind: 'base', dir: '+X' } } };
+    const rot = { frame: { origin: { kind: 'stockTopCenter' }, zAxis: { kind: 'base', dir: '+Z' }, xAxis: { kind: 'base', dir: '+X' } }, rotary: { enabled: true, aAngle: aDeg } };
+    const hmFor = (camX) => { const out = {}; for (const st of camX.setups) { const S = CAM.resolveSetup(st, rbP, MA); out[st.id] = K.camHeightmap({ bodies: [pid], frame: S.frame, res: 0.5, bbox: [S.stockBox.min[0], S.stockBox.min[1], S.stockBox.max[0], S.stockBox.max[1]] }); } return out; };
+    const ghost = (g) => g.filter((x) => x.level === 'block' && ['cam.sim.rapid_in_stock', 'cam.sim.holder_collision', 'cam.sim.shaft_collision', 'cam.sim.flute_exceeded'].includes(x.code));
+    for (const [nm, s2] of [['yan (-Y)', yan], ['3+1 A' + aDeg, rot]]) {
+      const cX = mkCam(s2); const mh = hmFor(cX);
+      const S2 = CAM.resolveSetup(cX.setups[1], rbP, MA); ok(Math.abs(S2.frame.z[1] + 1) < 1e-9, `T-04 ${nm}: S2 takim ekseni -Y`);
+      const qP = async (cmd, args) => { if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+      const r1 = await CAM.generateProgram(cX, { rebuild: rbP, machine: MA, query: qP, doc: dP, name: 'O1004', sim: { res: 0.5, modelHeightmaps: mh } });
+      const r0 = await CAM.generateProgram(cX, { rebuild: rbP, machine: MA, query: qP, doc: dP, name: 'O1004', sim: { res: 0.5, modelHeightmaps: mh, chain: false } });
+      ok(r1.ops.every((o) => o.ok), `T-04 ${nm}: islemler hesaplandi ` + JSON.stringify(r1.ops.filter((o) => !o.ok).map((o) => o.error)));
+      const g0 = ghost(r0.gates).filter((x) => x.params.op === 'q3' || x.opId === 'q3'), g1 = ghost(r1.gates);
+      ok(g0.length > 0, `T-04 ${nm} kontrol: zincirsiz S2 hayalet stok engeli var (${g0.map((x) => x.code)})`);
+      ok(g1.length === 0, `T-04 ${nm}: zincirle hayalet BLOCK 0: ` + JSON.stringify(g1.slice(0, 3)));
+      ok(!r1.gates.some((x) => x.level === 'block' && x.code === 'cam.sim.gouge'), `T-04 ${nm}: oyma yok ` + JSON.stringify(r1.gates.filter((x) => x.code === 'cam.sim.gouge').map((x) => [x.params.op, x.params.depth, x.params.vertical, x.params.x, x.params.y, x.params.z])));
+    }
+    // yanlis "temiz" yok: S1 yan duvari kesmezse (yalniz yuzey) S2 hizlisi hala engel
+    const cY = mkCam(yan); cY.setups[0].ops = [S1o[0]];
+    const rY = await CAM.generateProgram(cY, { rebuild: rbP, machine: MA, query: async (c, a) => K[c](a), doc: dP, name: 'O1005', sim: { res: 0.5, modelHeightmaps: hmFor(cY) } });
+    ok(ghost(rY.gates).length > 0, 'T-04: S1 yan stogu kaldirmadiysa S2 engel kalir (yanlis temiz yok)');
+    await K.rebuild(doc);
+  }
 }
 
 section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');

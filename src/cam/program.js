@@ -3,7 +3,7 @@ import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
 import { sketchFaces, silhouetteFace, midLevels } from './geom/select.js';
-import { simulate, createHeightmap } from './sim/index.js';
+import { simulate, createHeightmap, stockFromPrevious } from './sim/index.js';
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
 export function buildProgram({ name, number = null, machine, sections }) {
@@ -11,7 +11,7 @@ export function buildProgram({ name, number = null, machine, sections }) {
   const out = [];
   for (const sec of sections || []) for (const tp of sec.toolpaths || []) {
     const S = sec.setup;
-    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, machinePos: S.machinePos ?? null }, toolpath: tp });
+    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, machinePos: S.machinePos ?? null, frame: S.frame ?? null }, toolpath: tp });
   }
   if (!out.length) throw cerr('cam.program.empty');
   const p = { name, number, machine: machine ? { id: machine.id, name: machine.name, rev: machine.rev ?? null, control: machine.control } : null, units: 'mm', sections: out };
@@ -98,6 +98,22 @@ export async function drillMaps(st, tps, S, { res, model, query }) {
   return hm && mm ? { stockMap: hm, modelMap: mm } : {};
 }
 
+// T-04: setup kayitlari [{S, tps, stk}] (islem sirasi). ensureInit: kaydin baslangic stogu onceki setup'larin son stogundan
+// (sim ile ayni zincir kurali); biri bilinmiyorsa (sim hatasi) zincir kurulmaz -> ham kutu (daha cok malzeme: muhafazakar).
+export function chainStock(recs, idx, res) {
+  const rec = recs[idx]; if (rec.stk.init) return; rec.stk.init = true;
+  if (!idx) return;
+  const prev = [];
+  for (let k = 0; k < idx; k++) {
+    const p = recs[k]; chainStock(recs, k, res);
+    let hm = advanceStock(p.stk, p.tps, p.S, res);
+    if (!hm && !p.stk.failed) { const b = p.S.stockBox; hm = createHeightmap([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, b.max[2]); }
+    if (!hm) return;
+    prev.push({ frame: p.S.frame, hm, box: p.S.stockBox });
+  }
+  try { rec.stk.hm = stockFromPrevious(prev, { frame: rec.S.frame, box: rec.S.stockBox }, res); } catch (e) { rec.stk.hm = null; }
+}
+
 // generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
 //   doc: sketch secimleri icin belge (sketch ozellikleri); query komutlari: camFaceLoops, camSection, camZLevels, facePlane
 //   query(cmd, args) -> Promise: cekirdek worker komutu ('camFaceLoops', 'facePlane')
@@ -107,6 +123,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
   const { resolveSetup, computeOp } = await import('./index.js');
   const ops = []; const sections = []; const pre = [];
   const tools = cam?.tools || [];
+  const recs = []; // T-04: setup stok zinciri (drill gecis haritalari icin)
   let holesX = null; // T-14: delik cikislari bir kez (tum setup'lar icin ayni model uzayi verisi)
   for (const setup of cam?.setups || []) {
     let S;
@@ -116,6 +133,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
       S = resolveSetup(setup, rebuild, machine, { planes });
     } catch (e) { pre.push({ level: 'block', code: e.code || 'internal', params: e.params || {}, setupId: setup.id }); continue; }
     const tps = []; const stk = { hm: null, done: 0 }; const mres = Math.min(sim?.res > 0 ? sim.res : 0.5, 0.5);
+    const ri = recs.push({ S, tps, stk }) - 1;
     for (const op of setup.ops || []) {
       if (op.suppressed) continue; if (onlyOps && !onlyOps.includes(op.id)) continue;
       try {
@@ -124,6 +142,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
         if (op.type === 'contour' || op.type === 'pocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
+        if (op.type === 'drill') chainStock(recs, ri, mres);
         const maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, model: sim?.modelHeightmaps?.[S.id]?.res <= mres ? sim.modelHeightmaps[S.id] : null, query }) : {};
         const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });

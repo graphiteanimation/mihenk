@@ -290,23 +290,24 @@ async function computeOne(S, op0, toolOverride, variant = 0, mctx = null) {
   const { alts, fop, ...base } = op0; const op = variant ? { ...base, ...(alts?.[variant - 1] || {}) } : base; const tool = toolOverride || tools.find((t) => t.id === op.toolId); const geom = {}; let opx = op;
   if (op.type === 'drill') geom.holes = holesX;
   // T-23: islem basi stok + model haritasi (generateProgram ile ayni yol; ortam P_NODMAP=1 -> eski muhafazakar gruplama)
+  if (op.type === 'drill' && mctx && !process.env.P_NODMAP && !process.env.P_NOCHAIN) CAM.chainStock(mctx.recs, mctx.ri, 0.5); // T-04
   const maps = op.type === 'drill' && mctx && !process.env.P_NODMAP ? await CAM.drillMaps(mctx.stk, mctx.tps, S, { res: 0.5, query }) : {};
   if (op.type === 'contour' || op.type === 'pocket') { const g = await CAM.resolveGeom(op, S, { rebuild: rbX, doc, query }); geom.faces = g.faces; opx = { ...op, geom: g.sels }; }
   return CAM.computeOp(opx, { setup: S, tool, geom, machine: M, ...maps });
 }
-const progs = [];
+const progs = []; const RECS = [];
 for (const setup of cam.setups) {
   const rec = { id: setup.id, ad: setup.name, wcs: setup.workOffset.kind, islemler: [], gates: [] };
   let S; try { S = CAM.resolveSetup(setup, rbX, M); } catch (e) { rec.setup_hata = opError(e); R.setups.push(rec); log('SETUP HATA', setup.id, JSON.stringify(rec.setup_hata)); continue; }
   rec.cozulmus = { frame: { o: S.frame.o.map(r3), x: S.frame.x.map(r3), y: S.frame.y.map(r3), z: S.frame.z.map(r3) }, aAngle: S.aAngle, stockBox: { min: S.stockBox.min.map(r3), max: S.stockBox.max.map(r3) }, modelBBox: { min: S.modelBBox.min.map(r3), max: S.modelBBox.max.map(r3) }, stockBoyut: S.stockBox.max.map((v, i) => r3(v - S.stockBox.min[i])) };
   log(`\n== ${setup.id} cozuldu, stok ${rec.cozulmus.stockBoyut.join('x')} frame.z ${rec.cozulmus.frame.z} aAngle ${S.aAngle} model ${JSON.stringify(rec.cozulmus.modelBBox)}`);
-  const tps = []; const stk = { hm: null, done: 0 };
+  const tps = []; const stk = { hm: null, done: 0 }; const ri = RECS.push({ S, tps, stk }) - 1;
   for (const op0 of setup.ops) {
     const o = { id: op0.id, fop: op0.fop, ad: op0.name, tur: op0.type, takim: 'T' + tools.find((t) => t.id === op0.toolId).number, denemeler: [] };
     const ta = now(); const nv = 1 + (op0.alts?.length || 0);
     for (let vi = 0; vi < nv; vi++) {
       try {
-        const tp = await computeOne(S, op0, null, vi, { stk, tps });
+        const tp = await computeOne(S, op0, null, vi, { stk, tps, recs: RECS, ri });
         o.hesap_s = r3(now() - ta); o.ok = true; o.varyant = vi; o.varyant_deger = vi ? JSON.stringify(op0.alts[vi - 1]) : 'birincil';
         o.uyarilar = (tp.warnings || []).map((w) => ({ code: w.code, params: w.params }));
         o.kesme_mm = r3(tp.stats.cutLen); o.hizli_mm = r3(tp.stats.rapidLen); o.sure_s = r3(tp.stats.timeMin * 60); o.zMin = tp.stats.zMin; o.hareket = tp.moves.length; o.passDepth = tp.meta?.passDepth ?? null;
@@ -415,6 +416,18 @@ const tool = (n, o) => ({ ...tools.find((q) => q.number === n), ...o });
   }
 }
 
+// T-04 zincir deneyi: tum setup'lar tek programda, sim setup n+1 baslangic stogunu setup n'in son stogundan kurar
+// (ana kapi sayilari setup basina ayri program: karsilastirma icin degismez). P_NOCHAIN=1 ile atlanir.
+if (!NOSIM && !process.env.P_NOCHAIN) {
+  const okr = progs.filter((r) => r.program && r.hm);
+  try {
+    const tz = now(); const pz = CAM.buildProgram({ name: 'OZ', number: 1, machine: M, sections: okr.map((r) => ({ setup: r.S, toolpaths: r.tps })) });
+    const gz = CAM.gates(pz, M, { sim: { res: RES, modelHeightmaps: Object.fromEntries(okr.map((r) => [r.S.id, r.hm])), tools: simTools } });
+    const by = {}; for (const g of gz) { const id = g.section != null ? pz.sections[g.section].setup.id : 'genel'; const k = `${g.level} ${g.code}`; (by[id] ||= { block: 0, kod: {} }); if (g.level === 'block') by[id].block++; by[id].kod[k] = (by[id].kod[k] || 0) + 1; }
+    R.deneyler.T04_zincir = { aciklama: 'tek program, setup zinciri (sim chain)', s: r3(now() - tz), setup: Object.fromEntries(Object.entries(by).map(([id, v]) => [id, { block: v.block, kod: Object.fromEntries(Object.entries(v.kod).filter(([k]) => k.startsWith('block') || k.includes('sim'))) }])) };
+  } catch (e) { R.deneyler.T04_zincir = { hata: opError(e) }; }
+  log('deney T04_zincir', JSON.stringify(R.deneyler.T04_zincir));
+}
 // ------------------------------------------------------------------ cikti
 R.sure_s = r3(now() - t0);
 { // Fusion islem no -> Mihenk islem ozeti (+ Fusion sayilari, JSON'dan)

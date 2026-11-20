@@ -316,7 +316,7 @@ console.log('8. T-08 yerel stok yuksekligi (govde boyu) + tutucu boslugu uyarisi
   ok(seen.some((i) => i.code === 'cam.sim.holder_clearance_low'), 'adim adim: tutucu boslugu uyarisi gorulur');
 }
 
-console.log('8. T-23 cok noktali cevrim: sorunlar nokta basina');
+console.log('8b. T-23 cok noktali cevrim: sorunlar nokta basina');
 {
   const bx = { min: [-20, -20, -30], max: [20, 20, 0] };
   const drill = { number: 7, H: 7, type: 'drill', dia: 6.1, tipAngle: 118, fluteLen: 30, bodyLen: 50 };
@@ -327,6 +327,44 @@ console.log('8. T-23 cok noktali cevrim: sorunlar nokta basina');
   const g2 = simulate(single, { stockBox: bx, modelHeightmap: holes, res: 0.1 }).issues.filter((i) => i.code === 'cam.sim.gouge');
   ok(g1.length === 2 && g1.map((i) => i.params.point).join() === '0,1' && Math.abs(g1[0].params.x + 10) < 1e-9 && Math.abs(g1[1].params.x - 10) < 1e-9, 'iki noktali cevrim: her delik ayri oyma kaydi (nokta 0, 1): ' + g1.map((i) => [i.params.point, i.params.x]));
   ok(g2.length === 2 && g1.length === g2.length, 'tek noktali cevrimlerle ayni sorun sayisi (BLOCK sayimi gruplamadan bagimsiz)');
+}
+
+console.log('9. T-04 setup zinciri: onceki setup stogu (cerceve donusumu, alt kesme muhafazakar)');
+{
+  const tl = { number: 4, H: 4, D: 4, type: 'flat', dia: 10, cornerR: 0, tipAngle: null, fluteLen: 50, bodyLen: 60, centerCutting: true, pitch: null };
+  const tp = (moves) => TP(tl, moves);
+  const FA = { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+  const boxA = { min: [-20, -20, -30], max: [20, 20, 0] };
+  // A: X >= 0 yarisi Z-10'a kadar kesilir (takim R5 -> X > -5)
+  const mA = [mk.rapid(5, -30, 10), mk.rapid(5, -30, -10)]; for (let y = -30, k = 0; y <= 30; y += 4, k++) { mA.push(mk.feed(k % 2 ? 5 : 30, y, -10, 500)); mA.push(mk.feed(k % 2 ? 30 : 5, y, -10, 500)); if (y + 4 <= 30) mA.push(mk.feed(k % 2 ? 30 : 5, y + 4, -10, 500)); } mA.push(mk.rapid(mA[mA.length - 1].x, mA[mA.length - 1].y, 10));
+  // B: +X yanindan (z_B = +X, x_B = +Y, y_B = +Z), orijin X20
+  const FB = { o: [20, 0, 0], x: [0, 1, 0], y: [0, 0, 1], z: [1, 0, 0] }; const boxB = { min: [-20, -30, -40], max: [20, 0, 0] };
+  // C: alttan (z_C = -Z): alt yuz dokunulmamis -> stok tam kalir
+  const FC = { o: [0, 0, -30], x: [1, 0, 0], y: [0, -1, 0], z: [0, 0, -1] }; const boxC = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const sec = (id, frame, stockBox, toolpath) => ({ setup: { id, name: id, workOffset: { kind: 'G54' }, aAngle: null, stockBox, frame }, toolpath });
+  const prog = (...secs) => ({ name: 'T04', number: null, units: 'mm', machine: null, sections: secs });
+  const rapidY = (yB, zB) => tp([mk.rapid(-30, yB, 10), mk.rapid(-30, yB, zB), mk.rapid(30, yB, zB), mk.rapid(30, yB, 10)]);
+  const stockBoxes = { A: boxA, B: boxB, C: boxC };
+  const run = (p, o = {}) => simulate(p, { res: 0.5, stockBoxes, ...o });
+  const rin = (r, id) => r.issues.filter((i) => i.code === 'cam.sim.rapid_in_stock' && r.issues && i.section === id);
+  // B'de z_B=-10 (X10) hizli, y_B=-5 (Z-5): A orayi bosaltti -> zincirle temiz; zincirsiz hayalet stok
+  let p = prog(sec('A', FA, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-5, -10)));
+  let r = run(p); ok(r.chainedSetups.includes('B') && !rin(r, 1).length, 'B: A\'nin bosalttigi bolgede hizli temiz (zincir): ' + JSON.stringify(rin(r, 1).map((i) => i.params.depth)));
+  let r0 = run(p, { chain: false }); ok(rin(r0, 1).length === 1, 'B zincirsiz: ayni hizli hayalet stokta (eski davranis)');
+  // B'de y_B=-15 (Z-15): A kesmedi -> malzeme var, hizli engel kalir (yanlis temiz yok)
+  r = run(prog(sec('A', FA, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-15, -10)))); ok(rin(r, 1).length === 1, 'B: A\'nin kesmedigi derinlikte hizli hala engel');
+  // B'de X-10 tarafi (z_B=-30): A kesmedi
+  r = run(prog(sec('A', FA, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-5, -30)))); ok(rin(r, 1).length === 1, 'B: A\'nin kesmedigi X<-5 bolgesinde hizli engel');
+  // C (alttan): ust yuzdeki kesim alttan gorunmez -> stok tam (alt kesme bilinmez: malzeme var)
+  const hC = run(prog(sec('A', FA, boxA, tp(mA)), sec('C', FC, boxC, tp([mk.rapid(0, 0, 10), mk.rapid(0, 0, 5), mk.rapid(0, 0, 10)])))).remainBySetup.C;
+  ok(Math.min(...hC.data) >= -1e-6, 'C (alttan): baslangic stogu tam (ust) - alt kesme muhafazakar: min ' + Math.min(...hC.data));
+  // ayni setup kimligi tekrar: zincir yalniz ilk giriste
+  r = run(prog(sec('A', FA, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-5, -10)), sec('B', FB, boxB, rapidY(-5, -10)))); ok(!rin(r, 1).length && !rin(r, 2).length, 'ayni setup ikinci bolum: zincirlenmis stokla devam');
+  // initialHeightmaps zincirden once gelir
+  const full = createHeightmap([boxB.min[0], boxB.min[1]], [boxB.max[0], boxB.max[1]], 0.5, 0);
+  r = run(p, { initialHeightmaps: { B: full } }); ok(rin(r, 1).length === 1 && !r.chainedSetups.includes('B'), 'initialHeightmaps zinciri ezer');
+  // cerceve yoksa zincir yok (eski programlar)
+  r = run(prog(sec('A', null, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-5, -10)))); ok(rin(r, 1).length === 1 && !r.chainedSetups.length, 'onceki setup cercevesiz -> zincir yok (muhafazakar)');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
