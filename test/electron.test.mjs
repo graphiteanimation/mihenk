@@ -231,6 +231,45 @@ await stubDialogs(app, { open: dxfOut });
 const dxfIn = await page.evaluate(async () => { const r = await window.native.openFile('dxf'); return r && r.name; });
 check('DXF dosya türü: açma diyaloğu .dxf kabul eder', dxfIn === 'cizim.dxf');
 await app.close();
+// ---- WP-04 dilim 6: NC ve DXF kaydı GERÇEK pencerede, uygulamanın kendi akışıyla (menü/komut → writeOut → ana süreç diyaloğu → atomik yazım)
+console.log('2c: NC ve DXF kaydı gerçek pencerede (uygulama akışı)');
+{
+  const ud = path.join(TMP, 'ud2c'); ({ app, page } = await launch(ud));
+  const rect = { q1: { x: 20, y: 15 }, q2: { x: 60, y: 15 }, q3: { x: 60, y: 45 }, q4: { x: 20, y: 45 } };
+  const DOC = { params: [], features: [
+    { id: 'b1', type: 'primitive', name: 'Blok', kind: 'box', x: '0', y: '0', z: '0', w: '80', d: '60', h: '20', op: 'new' },
+    { id: 's1', type: 'sketch', name: 'Cizim 1', plane: { kind: 'base', name: 'XY', offset: '20' }, points: rect, ents: [1, 2, 3, 4].map((i) => ({ id: 'ql' + i, type: 'line', a: 'q' + i, b: 'q' + (i % 4 + 1) })) },
+  ] };
+  await page.evaluate(async (d) => { await window.app.loadDoc(d); await window.app.whenIdle(); }, DOC);
+  // DXF: eskiz oturumunda "DXF dışa aktar" akışı (app.exportDxf → writeOut → native:save kind=dxf)
+  const dxfF = path.join(TMP, 'gercek-cizim.dxf'); await stubDialogs(app, { save: dxfF });
+  await page.evaluate(() => window.app.editSketch(1)); await page.waitForFunction(() => !!window.app.sketchSession);
+  await page.evaluate(() => window.app.exportDxf('2000'));
+  const dxfTxt = fs.existsSync(dxfF) ? fs.readFileSync(dxfF, 'utf8') : '';
+  check('DXF: eskiz akışı kayıt diyaloğunu açtı, .dxf yazıldı (SECTION/LINE/EOF)', (await dlgCounts(app)).save === 1 && /SECTION/.test(dxfTxt) && (dxfTxt.match(/\nLINE\n/g) || []).length >= 4 && /EOF\s*$/.test(dxfTxt), dxfTxt.slice(0, 80));
+  check('DXF: geçici dosya kalmadı', fs.readdirSync(TMP).every((n) => !n.endsWith('.tmp')));
+  await page.evaluate(() => window.app.cancelSketch());
+  // NC: İmalat → setup → yüzey işlemi → Post işle → NC penceresinde Kaydet (.nc)
+  const MACH = { id: 'el-gen', name: 'Test Fanuc', rev: 1, control: 'fanuc-generic', axes: { X: { travel: 800 }, Y: { travel: 500 }, Z: { travel: 500 } }, spindle: { maxRpm: 12000, minRpm: 100 }, feed: { maxCut: 8000, rapid: 24000 }, toolChange: { maxTools: 20, kind: 'fixed' }, protected: { T: [], H: [], D: [], wcs: [] }, post: { props: {} } };
+  const TOOL = { id: 'em10', number: 1, lengthOffset: 1, diaOffset: 1, type: 'flat', dia: 10, fluteLen: 25, bodyLen: 40, flutes: 2, centerCutting: true, name: 'Freze 10', presets: [] };
+  await page.evaluate((m) => window.native.setSetting('machines', JSON.stringify([m])), MACH);
+  await page.click('[data-testid=tab-manufacture]');
+  await page.evaluate(([m, t]) => { app.cam.setMachine(m); app.cam.setTools([t]); }, [MACH.id, TOOL]);
+  await page.click('[data-cmd=cam-setup]'); await page.click('[data-testid=panel-ok]');
+  await page.evaluate(() => { const c = app.cam; c.ops.create('face'); c.closePanel(); c.mut((x) => { Object.assign(x.setups[0].ops[0], { toolId: 'em10', rpm: 8000, feedCut: 1500, feedPlunge: 500, stepover: 7, stepdown: 1 }); }); });
+  await page.click('[data-cmd=cam-post]'); await page.waitForSelector('[data-testid=nc-text], [data-testid=issue-list]', { timeout: 60000 });
+  check('NC penceresi açıldı (engel listesi değil)', (await page.locator('[data-testid=nc-text]').count()) === 1, (await page.innerText('#modal')).slice(0, 200));
+  const ncF = path.join(TMP, 'gercek-program.nc'); await stubDialogs(app, { save: ncF });
+  const ncMem = await page.evaluate(() => app.cam.ops.nc.text);
+  await page.click('[data-testid=nc-save]'); await sleep(600);
+  const ncDisk = fs.existsSync(ncF) ? fs.readFileSync(ncF, 'utf8') : '';
+  check('NC: kayıt diyaloğu açıldı, .nc diske yazıldı ve bellekteki metinle birebir aynı', (await dlgCounts(app)).save === 1 && ncDisk.length > 100 && ncDisk === ncMem, `disk=${ncDisk.length} bellek=${ncMem.length}`);
+  check('NC: DOĞRULANMADI başlığı ve program sonu var', /UNVERIFIED/.test(ncDisk) && /M30|M02/.test(ncDisk));
+  check('NC: kayıt sonrası geçici dosya kalmadı, .bak oluşmadı (yalnız belge türü yedeklenir)', fs.readdirSync(TMP).every((n) => !n.endsWith('.tmp')) && !fs.existsSync(ncF + '.bak'));
+  await page.click('[data-testid=nc-close]');
+  await app.close();
+}
+
 // ================================================================ 3. otomatik kurtarma
 console.log('3: otomatik kurtarma (temiz kapanış, çökme, sor)');
 const ud3 = path.join(TMP, 'ud3'); const recF = path.join(ud3, 'recovery', 'autosave.mhnk');

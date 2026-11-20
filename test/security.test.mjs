@@ -108,7 +108,14 @@ const nsi = fs.readFileSync(path.join(ROOT, 'build/installer.nsi'), 'utf8');
 ok(!/RMDir\s+\/r\s+"\$INSTDIR"/i.test(nsi), 'RMDir /r "$INSTDIR" yok');
 ok(/\$\\"\$INSTDIR\\\$\{APP\}\.exe\$\\" \$\\"%1\$\\"/.test(nsi), '.mhnk komutu tırnaklı');
 ok(/\\Mihenk/.test(nsi) && /DirLeave|\.onVerifyInstDir/.test(nsi), 'dizin sonuna Mihenk ekleme işlevi var');
+ok(/StrCpy \$0 \$INSTDIR 7 -7/.test(nsi) && /Section "\$\(SEC_PROGRAM\)"\s*\n[^\n]*\n\s*Call EnsureSubdir/.test(nsi), 'EnsureSubdir 7 karakter karşılaştırır ve kurulum bölümü başında da çağrılır (DirLeave çalışmasa da)');
 ok(/uninstall-files\.nsh/.test(nsi), 'kaldırıcı dosya listesini kullanıyor');
 
+for (const wf of ['ci.yml', 'release.yml']) {
+  const y = fs.readFileSync(path.join(ROOT, '.github/workflows', wf), 'utf8');
+  const uses = [...y.matchAll(/^\s*(?:-\s*)?uses:\s*(\S+)/gm)].map((m) => m[1]).filter((u) => !u.startsWith('./'));
+  ok(uses.length > 0 && uses.every((u) => /@[0-9a-f]{40}$/.test(u)), wf + ': tüm action\'lar commit SHA\'sına sabit: ' + uses.filter((u) => !/@[0-9a-f]{40}$/.test(u)).join(','));
+}
+ok(/NSIS_VERSION:\s*'\d+\.\d+(\.\d+)?'/.test(fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')), 'CI: NSIS sürümü sabit');
 if (skipped) console.log(`  not: ${skipped} denetim atlandı (dist/ yok; önce vite build)`);
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
