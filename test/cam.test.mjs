@@ -517,6 +517,30 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
   await K.rebuild(doc);
   // eksik veri: genel makine sablonu -> block
   const r2b = await CAM.generateProgram(cam, { rebuild: rb, machine: builtinMachines()[0], query, name: 'O1' }); ok(r2b.blocked && r2b.gates.some((g) => g.code === 'cam.gate.missing'), 'sablon makine: eksik veri block');
+  // T-05a: holes.kind 'points' (sketch noktalari) ve 'feature' (filtreli) generateProgram'da calisir
+  {
+    const dbase = { toolId: 'dr', ...base, heights: hh, cycle: 'peck', peck: 3, order: 'asis' };
+    const pOps = [
+      { id: 'p1', type: 'drill', name: 'Nokta', ...dbase, holes: { kind: 'points', sketch: 's3' }, depth: { from: 'abs', tipComp: false, z: -10 } },
+      { id: 'p2', type: 'drill', name: 'Nokta2', ...dbase, holes: { kind: 'points', sketch: 's3', ents: ['hp2'] }, depth: { from: 'abs', tipComp: false, z: -10 } },
+      { id: 'p3', type: 'drill', name: 'Ozellik', ...dbase, holes: { kind: 'feature', filter: { feature: 'h' } }, depth: { from: 'hole', tipComp: false } },
+      { id: 'p4', type: 'drill', name: 'Yok', ...dbase, holes: { kind: 'points', sketch: 's3', ents: ['yok'] }, depth: { from: 'abs', tipComp: false, z: -10 } },
+      { id: 'p5', type: 'drill', name: 'YokSk', ...dbase, holes: { kind: 'points', sketch: 'yok' }, depth: { from: 'abs', tipComp: false, z: -10 } },
+    ];
+    const camP = { ...cam, setups: [{ ...cam.setups[0], ops: pOps }] };
+    ok(validateDoc({ ...doc, cam: camP }), 'T-05a: points/feature secimli belge semadan gecer');
+    const rp = await CAM.generateProgram(camP, { rebuild: rb, machine: M, query, doc, name: 'O1001' });
+    const opR = (id) => rp.ops.find((o) => o.opId === id);
+    const cyPts = (id) => (opR(id)?.toolpath?.moves || []).filter((m) => m.t === 'cycle').flatMap((m) => m.points.map((q) => [q[0], q[1], m.top]));
+    const want = [[12, 12, -1], [12, 52, -1], [52, 7, -1]]; // sketch z=30, setup orijini (-2,-2,31)
+    const same = (a, b) => a.length === b.length && b.every((w) => a.some((q) => Math.hypot(q[0] - w[0], q[1] - w[1], q[2] - w[2]) < 1e-9));
+    ok(opR('p1')?.ok && same(cyPts('p1'), want), 'T-05a points: uc sketch noktasi setup uzayinda: ' + JSON.stringify(cyPts('p1')) + ' ' + JSON.stringify(opR('p1')?.error));
+    ok(opR('p2')?.ok && same(cyPts('p2'), [want[1]]), 'T-05a points + ents: yalniz secilen nokta');
+    ok(opR('p3')?.ok && same(cyPts('p3'), want), 'T-05a feature filtresi: delik ozelligi konumlari');
+    ok(opR('p4') && !opR('p4').ok && opR('p4').error.code === 'cam.drill.point_missing', 'T-05a: bulunmayan oge acik hata: ' + JSON.stringify(opR('p4')?.error));
+    ok(opR('p5') && !opR('p5').ok && opR('p5').error.code === 'cam.geom.sketch_missing', 'T-05a: bulunmayan sketch acik hata');
+    ok(rp.gates.some((g) => g.level === 'block' && g.opId === 'p4'), 'T-05a: basarisiz islem kapida engel');
+  }
 }
 
 section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');

@@ -38,6 +38,25 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
   return { sels, faces };
 }
 
+// T-05a: holes.kind 'points' -> sketch noktalari (model uzayi) [{p:[x,y,z]}]. sel = {kind:'points', sketch, ents?}.
+// ents verilmezse sketch'in nokta ogeleri (yoksa yapi cizgisi olmayan daire merkezleri; cekirdek 'hole' kurali ile ayni);
+// ents verilirse yalniz o ogeler: nokta -> konumu, daire/yay -> merkezi. Bulunmayan oge sessizce atlanmaz: hata.
+export function sketchPoints(sel, { rebuild, doc }) {
+  const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
+  const plane = rebuild?.sketches?.[sel.sketch]?.plane;
+  if (!sk || !Array.isArray(sk.ents) || !sk.points || !plane || !Array.isArray(plane.o)) throw cerr('cam.geom.sketch_missing', { sketch: String(sel.sketch) });
+  const P = sk.points; const at = (k) => { const q = P[k]; return q && Number.isFinite(q.x) && Number.isFinite(q.y) ? q : null; };
+  const of = (e) => (e.type === 'point' ? at(e.p) : (e.type === 'circle' || e.type === 'arc') ? at(e.c) : null);
+  let src;
+  if (Array.isArray(sel.ents) && sel.ents.length) {
+    src = sel.ents.map((id) => { const e = sk.ents.find((x) => x.id === id); const q = e ? of(e) : null; if (!q) throw cerr('cam.drill.point_missing', { ent: String(id), sketch: String(sel.sketch) }); return q; });
+  } else {
+    src = sk.ents.filter((e) => e.type === 'point').map(of).filter(Boolean);
+    if (!src.length) src = sk.ents.filter((e) => e.type === 'circle' && !e.cons).map(of).filter(Boolean);
+  }
+  return src.map((q) => ({ p: [0, 1, 2].map((k) => plane.o[k] + plane.x[k] * q.x + plane.y[k] * q.y) }));
+}
+
 // generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
 //   doc: sketch secimleri icin belge (sketch ozellikleri); query komutlari: camFaceLoops, camSection, camZLevels, facePlane
 //   query(cmd, args) -> Promise: cekirdek worker komutu ('camFaceLoops', 'facePlane')
@@ -60,7 +79,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
       try {
         const tool = tools.find((t) => t.id === op.toolId); if (!tool) throw cerr('cam.op.no_tool', { op: op.name || op.id });
         const geom = {};
-        if (op.type === 'drill') { geom.holes = rebuild?.holes || []; }
+        if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else geom.holes = rebuild?.holes || []; }
         let opx = op;
         if (op.type === 'contour' || op.type === 'pocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
         const tp = computeOp(opx, { setup: S, tool, geom, machine });
