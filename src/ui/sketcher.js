@@ -8,6 +8,7 @@ import { snapAt, SNAP_LABEL } from './sketch/snap.js';
 import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
+import { TEXT_METHODS } from './sketch/text.js';
 import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
 import { dropEditedLinks, syncRefs } from './sketch/ops.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
@@ -1059,4 +1060,4 @@ export class Sketcher {
   }
 }
 
-Object.assign(Sketcher.prototype, EDIT_METHODS, COMFORT_METHODS);
+Object.assign(Sketcher.prototype, EDIT_METHODS, COMFORT_METHODS, TEXT_METHODS);

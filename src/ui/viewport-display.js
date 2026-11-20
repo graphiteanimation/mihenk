@@ -4,6 +4,7 @@ import './viewport-display.css';
 import { h } from './dom.js';
 import { t, onLangChange } from '../shared/i18n.js';
 import { getStr, setStr } from './prefs.js';
+import { COL } from './viewport.js'; // döngüsel içe aktarma: yalnız çalışma anında (setGridStep) kullanılır
 
 export const DISPLAY_MODES = ['shaded', 'wire', 'ghost'];
 const MODE_KEY = { shaded: 'vd.shaded', wire: 'vd.wire', ghost: 'vd.ghost' };
@@ -54,7 +55,10 @@ export const DISPLAY_METHODS = {
     c.top = s.h; c.bottom = -s.h; c.left = -s.h * asp; c.right = s.h * asp; c.lookAt(this.controls.target); c.updateProjectionMatrix(); this.controls.update();
     this.dirty = true; this.onCamera && this.onCamera(); this.onView && this.onView();
   },
-  namedViews() { const out = []; for (let i = 1; i <= MAX_VIEWS; i++) { const d = decodeView(getStr(slotKey(i))); if (d) out.push({ slot: i, name: d.name, s: d.s, fh: d.fh }); } return out; },
+  // WP-08 devir (c): görünüşler belgeyle saklanır: uygulama `viewStore` ({get(slot), set(slot, metin)}) verir; yoksa kullanıcı ayarı (WP-09 biçimi)
+  _vget(i) { return this.viewStore ? this.viewStore.get(i) || '' : getStr(slotKey(i)); },
+  _vset(i, v) { if (this.viewStore) this.viewStore.set(i, v); else setStr(slotKey(i), v); },
+  namedViews() { const out = []; for (let i = 1; i <= MAX_VIEWS; i++) { const d = decodeView(this._vget(i)); if (d) out.push({ slot: i, name: d.name, s: d.s, fh: d.fh }); } return out; },
   // Kaydet: ad >24 karakterse "…" ile kısaltılır; kısaltılmış biçimi FARKLI tam adlı başka bir kayıtla aynıysa REDDEDİLİR (birbirini ezmez); aynı tam ad üzerine yazar.
   // Kayıt geri okunup doğrulanmadan ok:true dönmez; okunamıyorsa önceki değer geri konur.
   saveNamedView(name) {
@@ -66,11 +70,11 @@ export const DISPLAY_METHODS = {
     let slot = same ? same.slot : null;
     if (!slot) { const used = new Set(list.map((v) => v.slot)); for (let i = 1; i <= MAX_VIEWS; i++) if (!used.has(i)) { slot = i; break; } }
     if (!slot) return { ok: false, err: 'vd.full' };
-    const st = this.viewState(), enc = encodeView(nm, st, fh), key = slotKey(slot), prev = getStr(key);
-    const good = () => { const d = decodeView(getStr(key)); return !!d && d.name === nm && Math.abs(d.s.z - st.z) <= Math.abs(st.z) * 1e-5 && Math.abs(d.s.h - st.h) <= Math.abs(st.h) * 1e-5; };
+    const st = this.viewState(), enc = encodeView(nm, st, fh), key = slot, prev = this._vget(key);
+    const good = () => { const d = decodeView(this._vget(key)); return !!d && d.name === nm && Math.abs(d.s.z - st.z) <= Math.abs(st.z) * 1e-5 && Math.abs(d.s.h - st.h) <= Math.abs(st.h) * 1e-5; };
     if (enc.length > MAX_LEN) return { ok: false, err: 'vd.save_failed' };
-    setStr(key, enc);
-    if (!good()) { setStr(key, prev || ''); return { ok: false, err: 'vd.save_failed' }; }
+    this._vset(key, enc);
+    if (!good()) { this._vset(key, prev || ''); return { ok: false, err: 'vd.save_failed' }; }
     this._dispRender(); return { ok: true, slot, replaced: !!same, name: nm };
   },
   recallNamedView(name) {
@@ -79,7 +83,7 @@ export const DISPLAY_METHODS = {
   },
   deleteNamedView(name) {
     const v = this.namedViews().find((x) => x.name.toLowerCase() === String(name).toLowerCase()); if (!v) return false;
-    setStr(slotKey(v.slot), ''); this._dispRender(); return true;
+    this._vset(v.slot, ''); this._dispRender(); return true;
   },
   // ---- arayüz (görünüm alanının sağ altı)
   _dispInit() {
@@ -111,4 +115,18 @@ export const DISPLAY_METHODS = {
     if (focusId) { const f = el.querySelector(`[data-vd="${focusId}"]`); if (f) f.focus(); }
   },
   relangDisplay() { this._dispRender(); },
+  // WP-08 devir (d): ızgara görüntüsü yakalama aralığına uyar. Ana ızgara (400 mm, 10 mm) korunur; aralık 10 mm'den farklıysa
+  // yakalama aralığında ince ızgara (en çok 200 bölme; kapladığı alan aralıkla ölçeklenir) eklenir; ≥10 mm'de ana ızgara o aralığı kullanır.
+  setGridStep(step) {
+    const s = Number(step); if (!(s > 0) || !this.grid || !this.helperGroup) return false;
+    const T = this.grid.constructor;
+    const mk = (size, div, c1, c2, op) => { const g = new T(size, div, c1, c2); g.rotation.x = Math.PI / 2; g.material.transparent = true; g.material.opacity = op; g.material.depthWrite = false; return g; };
+    const drop = (g) => { this.helperGroup.remove(g); g.geometry.dispose(); g.material.dispose(); };
+    if (this.snapGrid) { drop(this.snapGrid); this.snapGrid = null; }
+    const mainStep = s >= 10 ? s : 10;
+    if (this.grid.userData.step !== mainStep) { const g = mk(mainStep * 40, 40, COL.gridMajor, COL.gridMinor, 0.55); g.userData.step = mainStep; drop(this.grid); this.grid = g; this.helperGroup.add(g); }
+    if (s < 10) { const div = Math.min(200, Math.round(Math.min(400, s * 200) / s)); const g = mk(div * s, div, COL.gridMinor, COL.gridMinor, 0.22); g.userData.step = s; this.snapGrid = g; this.helperGroup.add(g); }
+    this.gridStep = s; this.dirty = true; return true;
+  },
+  gridSpacing() { return this.snapGrid ? this.snapGrid.userData.step : this.grid?.userData.step || 10; },
 };

@@ -335,7 +335,7 @@ export function changeMeasure(a, b) {
 }
 // Eşleştirme. cands: [{idx, pts}] (pts: eskiz yerel noktaları). Döner: {c: aday, d: kayma mm} ya da null (belirsiz/uzak → bağlama).
 //  (i) imzaya <= 1 mm (iki uç/merkez+yarıçap birlikte) en yakın aday, ikincisi >= 1 mm uzak → kabul (indeksten bağımsız);
-//  (ii) aynı indeksli kenar makul değişimse (changeMeasure.ok) ve diğer tüm adaylar ondan >= 2 kat ve >= 1 mm uzaksa → kabul (parametrik değişim; d = yan/merkez kayması);
+//  (ii) aynı indeksli kenar makul değişimse (changeMeasure.ok, yan kayma <= 25 mm) ve ondan >= 1 mm daha yakın BAŞKA aday yoksa → kabul (parametrik değişim; d = yan/merkez kayması);
 //  (iii) aksi halde null. Aynı indeks yalnız "makul değişim" izni verir, daha yakın bir adayı asla ezmez.
 // İmzasız (eski belge) bağda yalnız aynı indeks (d: 0).
 export function matchEdgeD(meta, cands) {
@@ -346,7 +346,7 @@ export function matchEdgeD(meta, cands) {
   if (xs.length) { const second = xs.length > 1 ? xs[1].d : Infinity; if (xs[0].d <= TOL_B && second - xs[0].d >= CLEAR) return xs[0]; }
   const si = cands.findIndex((c) => c.idx === meta.g); if (si < 0) return null;
   const cm = changeMeasure(sig, sigs[si]); if (!cm || !cm.ok) return null;
-  for (let i = 0; i < cands.length; i++) { if (i === si) continue; const o = changeMeasure(sig, sigs[i]); if (o && !(o.k >= 2 * cm.k && o.k - cm.k >= CLEAR)) return null; }
+  for (let i = 0; i < cands.length; i++) { if (i === si) continue; const o = changeMeasure(sig, sigs[i]); if (o && (o.k <= cm.k - CLEAR || (o.k < cm.k && o.k <= TOL_B))) return null; } // belirgin (>= 1 mm) daha yakın ya da imzaya <= 1 mm uyan (ama (i)'de ayırt edilemeyen) başka aday varsa → bağlama
   return { c: cands[si], d: cm.sh };
 }
 export function matchEdge(meta, cands) { const m = matchEdgeD(meta, cands); return m ? m.c : null; }

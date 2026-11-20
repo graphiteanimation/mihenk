@@ -1,4 +1,4 @@
-# AtolyeCAD Güvenlik Düzeltmeleri
+# Mihenk Güvenlik Düzeltmeleri
 
 Kaynak: `docs/SECURITY-AUDIT.md` (git `41468d9`, v0.1.0). Bu belge her bulgu için yapılan değişikliği (dosya:satır) ve kanıtı listeler. Denetim belgesine dokunulmamıştır.
 Test komutu: `npm run test:all` (i18n 27, güvenlik birimi 70, çekirdek 65, çözücü 16, sketcher 78, arayüz 180, Electron 59 = 495 kontrol; hepsi geçti).
@@ -34,7 +34,7 @@ Kısaltmalar: `main` = electron/main.cjs, `app` = src/ui/app.js.
 - Değişiklik:
   - `native:save` yalnız `{saveAs, data, defaultName, kind}` kabul eder; başka anahtar (özellikle `path`) hata verir (main:173-190). `kind` ∈ acad/step/stl, `data` yalnız `Uint8Array`, ≤200 MB, uzantı ana süreçte zorlanır (main:20, 175-183).
   - Hedef yol: (a) ana süreçte açılan kaydetme diyaloğunun yolu, ya da (b) ana süreçte tutulan `currentPath` (yalnız diyalogla açılan/kaydedilen .acad; main:30-31, 162-199). Renderer'ın "yük başarılı" bildirimi `docState('opened'|'new')` ile gelir ve yol taşımaz (main:193-197, preload:15). Yeni belge yolu sıfırlar, böylece "Yeni → Kaydet" önceki dosyanın üstüne yazmaz.
-  - Tüm `ipcMain` işleyicilerinde gönderen doğrulaması: `okSender` (main:86-91) ana pencere + ana çerçeve + `senderFrame.url` `app://atolye/` ile başlamalı; `handle` için `guarded` (main:92), `on` işleyicilerinde doğrudan çağrı.
+  - Tüm `ipcMain` işleyicilerinde gönderen doğrulaması: `okSender` (main:86-91) ana pencere + ana çerçeve + `senderFrame.url` `app://mihenk/` ile başlamalı; `handle` için `guarded` (main:92), `on` işleyicilerinde doğrudan çağrı.
   - Arayüz: `writeOut` artık yol göndermez (app:496-500).
 - Kanıt: `test/electron.test.mjs` bölüm 1: yol anahtarlı/geçersiz tür/geçersiz veri çağrıları reddedildi, hedef dosya oluşmadı; `data:` çerçevesinden ham `ipcRenderer` ile tüm `invoke` çağrıları reddedildi, yetkisiz `setSetting`/`setTitle` etkisiz. Bölüm 2: ilk Kaydet diyalog açar, ikinci Kaydet açmaz ve aynı dosyaya yazar, Yeni belge sonrası diyalog açılır, Aç sonrası Kaydet açılan dosyaya yazar, geçersiz dosya açılamayınca kayıt hedefi değişmez. Denetçi PoC'u `electron_probe.mjs` yeniden koşuldu: `arbitraryWrite: "ERR ... bad args"`, `fileWritten: null`.
 
@@ -52,8 +52,8 @@ Kısaltmalar: `main` = electron/main.cjs, `app` = src/ui/app.js.
 - Sınırlama: gerçek işletim sistemi dosya bırakma olayı üretilemedi; `drop` olayı ve `will-navigate file://` ayrı ayrı kanıtlandı.
 
 ### S-04 Kum havuzu
-- Değişiklik: `sandbox:true` (main:223); `ATOLYE_NO_SANDBOX` ve kodla `--no-sandbox` eklemesi kaldırıldı (main:33-34 yorumu). Öz-test ve `ATOLYE_USERDATA`/`ATOLYE_LANGFILE` yalnız `!app.isPackaged` (main:12-13, 40-41). Kök kullanıcıda `--no-sandbox` yalnız komut satırından (testlerde `SANDBOX_ARGS`).
-- Kanıt: öz-test çıktısı `SELFTEST GEÇTI ... sandbox=true`; `getLastWebPreferences().sandbox === true` (electron.test.mjs). Linux paketli derleme (`electron-builder --linux dir`, aynı kod+fuse): `ATOLYE_SELFTEST` ve `ATOLYE_USERDATA` ortam değişkenleri yok sayıldı (öz-test çıktısı yok, userData oluşmadı).
+- Değişiklik: `sandbox:true` (main:223); `MIHENK_NO_SANDBOX` ve kodla `--no-sandbox` eklemesi kaldırıldı (main:33-34 yorumu). Öz-test ve `MIHENK_USERDATA`/`MIHENK_LANGFILE` yalnız `!app.isPackaged` (main:12-13, 40-41). Kök kullanıcıda `--no-sandbox` yalnız komut satırından (testlerde `SANDBOX_ARGS`).
+- Kanıt: öz-test çıktısı `SELFTEST GEÇTI ... sandbox=true`; `getLastWebPreferences().sandbox === true` (electron.test.mjs). Linux paketli derleme (`electron-builder --linux dir`, aynı kod+fuse): `MIHENK_SELFTEST` ve `MIHENK_USERDATA` ortam değişkenleri yok sayıldı (öz-test çıktısı yok, userData oluşmadı).
 
 ### S-05 CSP
 - Değişiklik: `electron/csp.cjs` tek kaynak; `index.html:5` meta (aynı metin); `protocol.handle` her yanıta başlık ekler (main:132). Tam ilke: `default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'`.
@@ -70,7 +70,7 @@ Kısaltmalar: `main` = electron/main.cjs, `app` = src/ui/app.js.
 - Sınırlama: 60 sn'lik gerçek bekleme yapılmadı; aralığın kurulduğu ve geri çağrının yedek yazdığı ayrı ayrı gösterildi.
 
 ### S-07 Kaldırıcı
-- Değişiklik: `scripts/gen-uninstall-list.mjs` kurulum ağacından `Delete`/`RMDir` listesi üretir (release/uninstall-files.nsh: 72 dosya, 2 klasör); `build/installer.nsi:92-110` yalnız bu listeyi, `lang` ve `Kaldir.exe` dosyalarını siler, `RMDir` (özyinelemesiz; dolu klasör silinmez); `RMDir /r` kaldırıldı. `EnsureSubdir` (nsi:36-45) dizin sonuna `\AtolyeCAD` ekler (dizin sayfası çıkışı ve `.onInit`, yani sessiz kurulum `/D=` dahil). `.acad` komutu tırnaklı (nsi:87). Kısayollar tek tek silinir.
+- Değişiklik: `scripts/gen-uninstall-list.mjs` kurulum ağacından `Delete`/`RMDir` listesi üretir (release/uninstall-files.nsh: 72 dosya, 2 klasör); `build/installer.nsi:92-110` yalnız bu listeyi, `lang` ve `Kaldir.exe` dosyalarını siler, `RMDir` (özyinelemesiz; dolu klasör silinmez); `RMDir /r` kaldırıldı. `EnsureSubdir` (nsi:36-45) dizin sonuna `\Mihenk` ekler (dizin sayfası çıkışı ve `.onInit`, yani sessiz kurulum `/D=` dahil). `.acad` komutu tırnaklı (nsi:87). Kısayollar tek tek silinir.
 - Kanıt: `test/security.test.mjs` bölüm 5 (statik: `RMDir /r "$INSTDIR"` yok, tırnaklı komut, alt dizin işlevi, liste kullanımı); `makensis` derlemesi uyarısız bitti, `file release/*.exe`: "PE32 executable ... Nullsoft Installer self-extracting archive".
 - ÇALIŞTIRILMADI: Windows'ta kurulum/kaldırma. Dizin ekleme ve kaldırıcı davranışı yalnız betik okumasıyla gösterildi.
 
@@ -85,7 +85,7 @@ Kısaltmalar: `main` = electron/main.cjs, `app` = src/ui/app.js.
 
 ### S-10 Fuse'lar
 - Değişiklik: package.json `build.electronFuses` (55-61): `runAsNode:false`, `enableNodeOptionsEnvironmentVariable:false`, `enableNodeCliInspectArguments:false`, `onlyLoadAppFromAsar:true`, `grantFileProtocolExtraPrivileges:false`. Yeni bağımlılık yok (`@electron/fuses` electron-builder'ın zaten getirdiği paket). `enableEmbeddedAsarIntegrityValidation` BİLEREK kapalı: `signAndEditExecutable:false` iken Windows'ta bütünlük kaynağı gömülmediğinden açılışı bozabilir; bunun için imzalama/kaynak düzenleme gerekir.
-- Kanıt: `npx electron-fuses read --app release/win-unpacked/AtolyeCAD.exe`: RunAsNode Disabled, EnableNodeOptionsEnvironmentVariable Disabled, EnableNodeCliInspectArguments Disabled, OnlyLoadAppFromAsar Enabled, GrantFileProtocolExtraPrivileges Disabled. Linux paketli derlemede `ELECTRON_RUN_AS_NODE=1 ... -e` komutu çalıştırılmadı.
+- Kanıt: `npx electron-fuses read --app release/win-unpacked/Mihenk.exe`: RunAsNode Disabled, EnableNodeOptionsEnvironmentVariable Disabled, EnableNodeCliInspectArguments Disabled, OnlyLoadAppFromAsar Enabled, GrantFileProtocolExtraPrivileges Disabled. Linux paketli derlemede `ELECTRON_RUN_AS_NODE=1 ... -e` komutu çalıştırılmadı.
 
 ### S-11 F12
 - Değişiklik: `devTools: DEV` (main:224) ve F12 işleyicisi yalnız `if (DEV)` (main:229).
@@ -103,7 +103,7 @@ Kısaltmalar: `main` = electron/main.cjs, `app` = src/ui/app.js.
 - Yapılmadı (çekirdek, kapsam dışı). `poc_corrupt_import.mjs` sonucu değişmedi.
 
 ### S-15 İmzasız ikililer
-- Değişiklik: `scripts/sha256sums.mjs` → `release/SHA256SUMS.txt` (`npm run dist` sonunda; `sha256sum -c` biçimi). Kod imzası yok. Güncel özet: `3560576e01d1cc142c0985d9743b7cee6ee40304a75fedf573c13c90f277364d  AtolyeCAD-Kurulum-0.1.0.exe`.
+- Değişiklik: `scripts/sha256sums.mjs` → `release/SHA256SUMS.txt` (`npm run dist` sonunda; `sha256sum -c` biçimi). Kod imzası yok. Güncel özet: `3560576e01d1cc142c0985d9743b7cee6ee40304a75fedf573c13c90f277364d  Mihenk-Kurulum-0.1.0.exe`.
 - Kanıt: `sha256sum -c SHA256SUMS.txt` → OK.
 
 ### S-16 Kurulum artıkları
@@ -116,8 +116,8 @@ Kısaltmalar: `main` = electron/main.cjs, `app` = src/ui/app.js.
 - Yapıldı: `build.files` içine `!node_modules/**`; `app.asar` içeriği yalnız `dist`, `electron`, `package.json`; kurulum dosyası 132 MB'tan 121 MB'a indi. Yapılmadı: LGPL kaynak paketi.
 
 ### Kurulum dili → ilk açılış dili
-- Değişiklik: kurulum dizinine `lang` dosyası (`tr`/`en`) yazılır (nsi:60-69) ve `HKCU\Software\AtolyeCAD\Lang`; `main` ilk açılışta, kayıtlı tercih yokken okur (main:67-77).
-- Kanıt: electron.test.mjs bölüm 4 (`ATOLYE_LANGFILE` ile): en → menü "File", tr → "Dosya", kayıtlı tercih kurulum dilini ezer. NSIS tarafı (`$LANGUAGE` → dosya) Windows'ta çalıştırılmadı.
+- Değişiklik: kurulum dizinine `lang` dosyası (`tr`/`en`) yazılır (nsi:60-69) ve `HKCU\Software\Mihenk\Lang`; `main` ilk açılışta, kayıtlı tercih yokken okur (main:67-77).
+- Kanıt: electron.test.mjs bölüm 4 (`MIHENK_LANGFILE` ile): en → menü "File", tr → "Dosya", kayıtlı tercih kurulum dilini ezer. NSIS tarafı (`$LANGUAGE` → dosya) Windows'ta çalıştırılmadı.
 
 ## Denetçi PoC'ları yeniden koşuldu
 
@@ -134,7 +134,7 @@ Kısaltmalar: `main` = electron/main.cjs, `app` = src/ui/app.js.
 | poc_kernel.mjs P2, poc_dos_pattern.mjs, poc_corrupt_import.mjs | yeniden üretiliyor | HÂLÂ ÜRETİLİYOR (çekirdek; bilerek bırakıldı) |
 
 ## Doğrulanamayanlar
-- Windows'ta: kurulum, kaldırma, `.acad` ilişkilendirme yedeği, `lang` dosyası yazımı, paketli `AtolyeCAD.exe` davranışı (F12, fuse etkisi). Yalnız Linux'ta üretilen `.exe` biçimi (`file`), fuse bayrakları (`electron-fuses read`) ve aynı kodun Linux paketli derlemesi denendi.
+- Windows'ta: kurulum, kaldırma, `.acad` ilişkilendirme yedeği, `lang` dosyası yazımı, paketli `Mihenk.exe` davranışı (F12, fuse etkisi). Yalnız Linux'ta üretilen `.exe` biçimi (`file`), fuse bayrakları (`electron-fuses read`) ve aynı kodun Linux paketli derlemesi denendi.
 - Gerçek işletim sistemi kum havuzu (çekirdek `chrome-sandbox` / kullanıcı alanı): bu ortam kök kullanıcı, testler `--no-sandbox` komut satırı bayrağıyla koştu. `sandbox:true` tercihi, bayrak ve preload davranışı doğrulandı; Chromium'un gerçek süreç içi kısıtlaması doğrulanamadı.
 - Gerçek OS sürükle-bırak olayı, gerçek 60 sn bekleme, 200 MB üstü dosyanın tarayıcı belleği davranışı.
 - Kod imzası ve SmartScreen.

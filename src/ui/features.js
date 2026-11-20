@@ -6,9 +6,10 @@ import { evalExpr } from '../shared/expr.js';
 export const TYPE_KEY = {
   sketch: tk('feat.sketch'), extrude: tk('feat.extrude'), revolve: tk('feat.revolve'), hole: tk('feat.hole'), fillet: tk('feat.fillet'), chamfer: tk('feat.chamfer'), shell: tk('feat.shell'),
   combine: tk('feat.combine'), move: tk('feat.move'), pattern: tk('feat.pattern'), mirror: tk('feat.mirror'), import: tk('feat.import'),
+  split: tk('feat.split'), splitface: tk('feat.splitface'), faceop: tk('feat.faceop'),
 };
 export const KIND_KEY = { box: tk('feat.box'), cylinder: tk('feat.cylinder'), sphere: tk('feat.sphere') };
-const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', box: 'box', cylinder: 'cyl', sphere: 'sph' };
+const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', split: 'spl', splitface: 'sfc', faceop: 'fop', box: 'box', cylinder: 'cyl', sphere: 'sph' };
 
 export const featLabel = (f) => (f.type === 'primitive' ? t(KIND_KEY[f.kind] || KIND_KEY.box) : TYPE_KEY[f.type] ? t(TYPE_KEY[f.type]) : f.type);
 
@@ -30,6 +31,30 @@ export const AXES = [['X', null], ['Y', null], ['Z', null]];
 // Kaba diş tablosu (ad, adım, nominal çap)
 export const THREADS = [['M3', 0.5, 3], ['M4', 0.7, 4], ['M5', 0.8, 5], ['M6', 1, 6], ['M8', 1.25, 8], ['M10', 1.5, 10], ['M12', 1.75, 12], ['M14', 2, 14], ['M16', 2, 16], ['M20', 2.5, 20], ['M24', 3, 24]]
   .map(([designation, pitch, major]) => ({ designation, pitch, major }));
+// WP-08: diş tabloları (yalnız veri + kılavuz matkabı çapı; diş geometrisi modellenmez). drill: önerilen matkap çapı (mm).
+// - iso: ISO metrik kaba (ISO 261 kaba seri); matkap = D − P (yaygın kılavuz matkabı kuralı; yukarıdaki THREADS ile aynı).
+// - iso_fine: ISO metrik ince (ISO 261 ince seri seçkisi); matkap = D − P.
+// - g: G / BSPP silindirik boru dişi (ISO 228-1). Diş/inç ve matkap çapları: engineersedge.com "Tap drill size table and chart for
+//   Whitworth pipe thread" (https://engineersedge.com/hardware/DIN-ISO-228.htm; sayfa 2 basamaklı D verir: 9.73, 13.16 …).
+//   D'nin 3 basamaklı değerleri (9,728 …) ISO 228-1 tablosundan bellekle yazıldı, sayfayla 2 basamağa kadar tutuyor; 3. basamak DOĞRULANMADI.
+// - npt: NPT konik boru dişi (ASME B1.20.1). Dış çap ve "Tap Drill" sütunu: engineeringtoolbox.com "NPT - National Pipe Taper Threads"
+//   (https://www.engineeringtoolbox.com/npt-national-pipe-taper-threads-d_750.html; 1/8 için harf matkap "R"; R = 0,339 in bellekle).
+//   Kaynak sayfa matkap çaplarının raybalı mı raybasız mı olduğunu BELİRTMİYOR → yöntem DOĞRULANMADI; R harf matkabının inç değeri DOĞRULANMADI.
+//   NPT konik olduğu için delik silindirik kalır; değerler CAM/çizim için bilgidir.
+// Arayüzde matkap çapı "öneri" olarak gösterilir (kullanıcı kendi tablosuyla değiştirebilir).
+const IN = 25.4;
+const fine = [['M3x0.35', 0.35, 3], ['M4x0.5', 0.5, 4], ['M5x0.5', 0.5, 5], ['M6x0.75', 0.75, 6], ['M8x1', 1, 8], ['M10x1', 1, 10], ['M10x1.25', 1.25, 10], ['M12x1.25', 1.25, 12], ['M12x1.5', 1.5, 12], ['M14x1.5', 1.5, 14], ['M16x1.5', 1.5, 16], ['M18x1.5', 1.5, 18], ['M20x1.5', 1.5, 20], ['M22x1.5', 1.5, 22], ['M24x2', 2, 24]];
+const bspp = [['G1/8', 28, 9.728, 8.8], ['G1/4', 19, 13.157, 11.8], ['G3/8', 19, 16.662, 15.25], ['G1/2', 14, 20.955, 19], ['G5/8', 14, 22.911, 21], ['G3/4', 14, 26.441, 24.5], ['G1', 11, 33.249, 30.75], ['G1 1/4', 11, 41.91, 39.25], ['G1 1/2', 11, 47.803, 45.25], ['G2', 11, 59.614, 57]];
+const npt = [['1/8 NPT', 27, 0.405, 0.339], ['1/4 NPT', 18, 0.54, 7 / 16], ['3/8 NPT', 18, 0.675, 37 / 64], ['1/2 NPT', 14, 0.84, 23 / 32], ['3/4 NPT', 14, 1.05, 59 / 64], ['1 NPT', 11.5, 1.315, 1 + 5 / 32], ['1 1/4 NPT', 11.5, 1.66, 1.5], ['1 1/2 NPT', 11.5, 1.9, 1 + 47 / 64], ['2 NPT', 11.5, 2.375, 2 + 7 / 32]];
+const r4 = (x) => Math.round(x * 10000) / 10000;
+export const THREAD_TABLES = {
+  iso: THREADS.map((x) => ({ ...x, family: 'iso', drill: r4(x.major - x.pitch) })),
+  iso_fine: fine.map(([designation, pitch, major]) => ({ designation, pitch, major, family: 'iso_fine', drill: r4(major - pitch) })),
+  g: bspp.map(([designation, tpi, major, drill]) => ({ designation, pitch: r4(IN / tpi), tpi, major, family: 'g', drill })),
+  npt: npt.map(([designation, tpi, od, drill]) => ({ designation, pitch: r4(IN / tpi), tpi, major: r4(od * IN), family: 'npt', taper: true, drill: r4(drill * IN) })),
+};
+export const THREAD_FAMILIES = [['iso', tk('thr.iso')], ['iso_fine', tk('thr.iso_fine')], ['g', tk('thr.g')], ['npt', tk('thr.npt')]];
+export const threadFamily = (th) => th?.family || (th ? 'iso' : 'iso');
 
 // Yeni özellik: varsayılan alanlar. ctx = {doc, bodies:[], sketches:[feature], sketchOnFace?:bool, lastFree?:id}
 export function defaults(type, kind, ctx) {
@@ -46,10 +71,13 @@ export function defaults(type, kind, ctx) {
     case 'extrude': { const sketch = freeSketch(); return { sketch, profiles: 'all', dist: '10', extent: 'dist', dir: 'one', dist2: '10', ...sketchOp(sketch) }; }
     case 'revolve': { const sketch = freeSketch(); const o = sketchOp(sketch); return { sketch, profiles: 'all', axis: { kind: 'sketchX' }, angle: '360', op: o.op }; }
     case 'hole': { const used = new Set(); const withPts = ctx.sketches.filter((s) => (s.ents || []).some((e) => e.type === 'point' || (e.type === 'circle' && !e.cons))); const sketch = (withPts.slice(-1)[0] || ctx.sketches.slice(-1)[0])?.id || ''; return { sketch, kind: 'simple', dia: '6', extent: 'dist', depth: '10', tipAngle: '118', cboreDia: '12', cboreDepth: '4', csinkDia: '12', csinkAngle: '90', flip: false, thread: null }; }
-    case 'fillet': return { edges: [], r: '2' };
-    case 'chamfer': return { edges: [], d: '1' };
+    case 'fillet': return { edges: [], r: '2', chain: true };
+    case 'chamfer': return { edges: [], d: '1', mode: 'equal', chain: true };
     case 'shell': return { faces: [], t: '2' };
     case 'combine': return { target: '', tools: [], op: 'join', keepTools: false };
+    case 'split': return { body: ctx.bodies.length === 1 ? ctx.bodies[0].id : '', tool: { kind: 'base', name: 'YZ', offset: '0' } };
+    case 'splitface': return { faces: [], tool: { kind: 'base', name: 'YZ', offset: '0' } };
+    case 'faceop': return { faces: [], mode: 'offset', dist: '1', dx: '0', dy: '0', dz: '0' };
     case 'move': return { bodies: [], dx: '0', dy: '0', dz: '0', angle: '0', axis: 'Z', cx: '0', cy: '0', cz: '0', copy: false };
     case 'pattern': {
       const src = patternSources(ctx.doc).slice(-1)[0];
@@ -77,9 +105,13 @@ export function fieldsFor(f, ctx) {
     case 'extrude':
       F.push({ t: 'sketch', k: 'sketch', label: tk('fld.sketch') }, { t: 'profiles', k: 'profiles', label: tk('fld.profiles') }, opField(),
         { t: 'select', k: 'dir', label: tk('fld.dir'), opts: [['one', tk('dir.one')], ['sym', tk('dir.sym')], ['two', tk('dir.two')]] },
-        { t: 'select', k: 'extent', label: tk('fld.extent'), opts: [['dist', tk('extent.dist')], ['all', tk('extent.all')]] });
-      if (f.extent !== 'all') F.push({ t: 'expr', k: 'dist', label: tk(f.dir === 'two' ? 'fld.dist1' : 'fld.dist'), unit: 'mm' });
-      if (f.dir === 'two' && f.extent !== 'all') F.push({ t: 'expr', k: 'dist2', label: tk('fld.dist2'), unit: 'mm' });
+        { t: 'select', k: 'extent', label: tk('fld.extent'), opts: [['dist', tk('extent.dist')], ['all', tk('extent.all')], ['face', tk('extent.face')], ['body', tk('extent.body')]] });
+      if (f.extent === 'face') F.push({ t: 'sel', k: 'toFace', label: tk('fld.to_face'), kind: 'face', single: true });
+      else if (f.extent === 'body') F.push({ t: 'sel', k: 'toBody', label: tk('fld.to_body'), kind: 'body', single: true });
+      else if (f.extent !== 'all') F.push({ t: 'expr', k: 'dist', label: tk(f.dir === 'two' ? 'fld.dist1' : 'fld.dist'), unit: 'mm' });
+      if (f.dir === 'two' && (f.extent ?? 'dist') === 'dist') F.push({ t: 'expr', k: 'dist2', label: tk('fld.dist2'), unit: 'mm' });
+      // WP-08: konik açı yalnız tek yön + Mesafe / Yüze kadar
+      if ((f.dir ?? 'one') === 'one' && ['dist', 'face', undefined].includes(f.extent)) F.push({ t: 'expr', k: 'taper', label: tk('fld.taper'), unit: '°', def: '0' });
       F.push({ t: 'check', k: 'flip', label: tk('fld.flip') });
       break;
     case 'revolve':
@@ -95,8 +127,15 @@ export function fieldsFor(f, ctx) {
       if (f.kind === 'csink') F.push({ t: 'expr', k: 'csinkDia', label: tk('fld.csink_dia'), unit: 'mm' }, { t: 'expr', k: 'csinkAngle', label: tk('fld.csink_angle'), unit: '°' });
       F.push({ t: 'check', k: 'flip', label: tk('fld.flip') });
       break;
-    case 'fillet': F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'expr', k: 'r', label: tk('fld.radius'), unit: 'mm' }); break;
-    case 'chamfer': F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'expr', k: 'd', label: tk('fld.dist'), unit: 'mm' }); break;
+    case 'fillet': F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'check', k: 'chain', label: tk('fld.chain') }, { t: 'expr', k: 'r', label: tk('fld.radius'), unit: 'mm' }); break;
+    case 'chamfer':
+      F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'check', k: 'chain', label: tk('fld.chain') },
+        { t: 'select', k: 'mode', label: tk('fld.cham_mode'), opts: [['equal', tk('cham.equal')], ['two', tk('cham.two')], ['angle', tk('cham.angle')]] },
+        { t: 'expr', k: 'd', label: tk(f.mode === 'two' ? 'fld.dist1' : 'fld.dist'), unit: 'mm' });
+      if (f.mode === 'two') F.push({ t: 'expr', k: 'd2', label: tk('fld.dist2'), unit: 'mm', def: '1' });
+      if (f.mode === 'angle') F.push({ t: 'expr', k: 'angle', label: tk('fld.angle'), unit: '°', def: '45' });
+      if (f.mode === 'two' || f.mode === 'angle') F.push({ t: 'check', k: 'flip', label: tk('fld.cham_flip') });
+      break;
     case 'shell': F.push({ t: 'sel', k: 'faces', label: tk('fld.faces_open'), kind: 'face' }, { t: 'expr', k: 't', label: tk('fld.thickness'), unit: 'mm' }); break;
     case 'combine':
       F.push({ t: 'sel', k: 'target', label: tk('fld.target'), kind: 'body', single: true }, { t: 'sel', k: 'tools', label: tk('fld.tools'), kind: 'body' },
@@ -109,14 +148,30 @@ export function fieldsFor(f, ctx) {
       break;
     case 'pattern':
       F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'kind', label: tk('fld.pat_type'), opts: [['rect', tk('pat.rect')], ['circ', tk('pat.circ')]] });
-      if (f.kind === 'circ') F.push({ t: 'expr', k: 'count', label: tk('fld.count') }, { t: 'expr', k: 'total', label: tk('fld.total_angle'), unit: '°' }, { t: 'select', k: 'axis', label: tk('fld.axis'), opts: AXES },
-        { t: 'expr', k: 'cx', label: tk('fld.c_x'), unit: 'mm' }, { t: 'expr', k: 'cy', label: tk('fld.c_y'), unit: 'mm' }, { t: 'expr', k: 'cz', label: tk('fld.c_z'), unit: 'mm' });
+      if (f.kind === 'circ') {
+        F.push({ t: 'expr', k: 'count', label: tk('fld.count') }, { t: 'expr', k: 'total', label: tk('fld.total_angle'), unit: '°' }, { t: 'select', k: 'axis', label: tk('fld.axis'), opts: [...AXES, ['edge', tk('fld.axis_edge')]] });
+        // WP-08: eksen bir kenardan (doğru kenar ya da dairesel kenarın ekseni)
+        if (f.axis === 'edge') F.push({ t: 'sel', k: 'axisRef', label: tk('fld.axis_ref'), kind: 'edge', single: true });
+        else F.push({ t: 'expr', k: 'cx', label: tk('fld.c_x'), unit: 'mm' }, { t: 'expr', k: 'cy', label: tk('fld.c_y'), unit: 'mm' }, { t: 'expr', k: 'cz', label: tk('fld.c_z'), unit: 'mm' });
+      }
       else F.push({ t: 'expr', k: 'count1', label: tk('fld.count1') }, { t: 'expr', k: 'step1', label: tk('fld.step1'), unit: 'mm' }, { t: 'select', k: 'dir1', label: tk('fld.dir1'), opts: AXES },
         { t: 'expr', k: 'count2', label: tk('fld.count2') }, { t: 'expr', k: 'step2', label: tk('fld.step2'), unit: 'mm' }, { t: 'select', k: 'dir2', label: tk('fld.dir2'), opts: AXES });
       if (f.source?.kind === 'body') F.push({ t: 'check', k: 'join', label: tk('fld.join_body') });
       break;
+    // WP-08 devir (f): yüz üzerine kurulu eskizin düzlem yüzü (yalnız onarım kipinde panelle açılır)
+    case 'sketch': if (f.plane?.kind === 'face') F.push({ t: 'sel', k: 'sketchFace', label: tk('fld.sketch_face'), kind: 'face', single: true }); break;
+    case 'split': F.push({ t: 'sel', k: 'body', label: tk('fld.body'), kind: 'body', single: true }, { t: 'tool', k: 'tool', label: tk('fld.split_tool') }); break;
+    case 'splitface': F.push({ t: 'sel', k: 'faces', label: tk('fld.faces'), kind: 'face' }, { t: 'tool', k: 'tool', label: tk('fld.split_tool') }); break;
+    case 'faceop':
+      F.push({ t: 'sel', k: 'faces', label: tk('fld.faces'), kind: 'face' }, { t: 'select', k: 'mode', label: tk('fld.faceop_mode'), opts: [['offset', tk('faceop.offset')], ['move', tk('faceop.move')], ['delete', tk('faceop.delete')]] });
+      if ((f.mode ?? 'offset') === 'offset') F.push({ t: 'expr', k: 'dist', label: tk('fld.offset_dist'), unit: 'mm' });
+      if (f.mode === 'move') F.push({ t: 'expr', k: 'dx', label: tk('fld.tr_x'), unit: 'mm' }, { t: 'expr', k: 'dy', label: tk('fld.tr_y'), unit: 'mm' }, { t: 'expr', k: 'dz', label: tk('fld.tr_z'), unit: 'mm' });
+      break;
     case 'mirror':
-      F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')]] }, { t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' });
+      F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')], ['face', tk('fld.plane_face')]] });
+      // WP-08: aynalama düzlemi düzlemsel bir yüzden
+      if (f.plane === 'face') F.push({ t: 'sel', k: 'planeRef', label: tk('fld.mirror_face'), kind: 'face', single: true });
+      else F.push({ t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' });
       break;
   }
   return F;
@@ -192,11 +247,11 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
   const parts = [];
   switch (f.type) {
     case 'sketch': parts.push(f.plane?.kind === 'face' ? t('hs.on_face') : String(f.plane?.name || '')); parts.push(tn('hs.n_ents', (f.ents || []).length)); break;
-    case 'extrude': parts.push(f.extent === 'all' ? t('hs.all') : mm(f.dist)); if (f.dir === 'sym') parts.push(t('hs.sym')); parts.push(op(f.op)); break;
+    case 'extrude': parts.push(f.extent === 'all' ? t('hs.all') : f.extent === 'face' ? t('hs.to_face') : f.extent === 'body' ? t('hs.to_body') : mm(f.dist)); if (f.dir === 'sym') parts.push(t('hs.sym')); if (f.taper && n(f.taper) !== fmt(0)) parts.push('∠' + n(f.taper) + '°'); parts.push(op(f.op)); break;
     case 'revolve': parts.push(n(f.angle) + '°'); parts.push(op(f.op)); break;
-    case 'hole': parts.push(f.thread?.designation || 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;
+    case 'hole': parts.push(f.thread?.designation ? f.thread.designation + (f.thread.family && f.thread.family !== 'iso' ? ' (Ø' + fmt(f.thread.drill) + ')' : '') : 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;
     case 'fillet': parts.push('R' + n(f.r)); parts.push(cnt('hs.n_edges', f.edges)); break;
-    case 'chamfer': parts.push(mm(f.d)); parts.push(cnt('hs.n_edges', f.edges)); break;
+    case 'chamfer': parts.push(f.mode === 'two' ? n(f.d) + ' × ' + mm(f.d2) : f.mode === 'angle' ? mm(f.d) + ' × ' + n(f.angle ?? 45) + '°' : mm(f.d)); parts.push(cnt('hs.n_edges', f.edges)); break;
     case 'shell': parts.push(mm(f.t)); parts.push(cnt('hs.n_faces', f.faces)); break;
     case 'primitive':
       if (f.kind === 'box') parts.push([n(f.w), n(f.d), n(f.h)].join('×') + ' mm');
@@ -205,9 +260,11 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
       parts.push(op(f.op)); break;
     case 'combine': parts.push(t(f.op === 'cut' ? 'op.cut' : f.op === 'intersect' ? 'op.intersect' : 'op.combine_join')); parts.push(cnt('hs.n_tools', f.tools)); break;
     case 'move': parts.push([n(f.dx ?? 0), n(f.dy ?? 0), n(f.dz ?? 0)].join(', ') + ' mm'); if (f.angle && n(f.angle) !== fmt(0)) parts.push(n(f.angle) + '°'); break;
-    case 'pattern': parts.push(f.kind === 'circ' ? '×' + n(f.count) : '×' + n(f.count1) + (f.count2 ? ' × ' + n(f.count2) : '')); break;
-    case 'mirror': parts.push(String(f.plane || '')); break;
+    case 'pattern': parts.push(f.kind === 'circ' ? '×' + n(f.count) : '×' + n(f.count1) + (f.count2 ? ' × ' + n(f.count2) : '')); if (f.kind === 'circ' && f.axis === 'edge') parts.push(t('hs.axis_edge')); break;
+    case 'mirror': parts.push(f.plane === 'face' ? t('hs.on_face') : String(f.plane || '')); break;
     case 'import': parts.push(String(f.format || '').toUpperCase()); break;
+    case 'split': case 'splitface': parts.push(f.tool?.kind === 'face' ? t('hs.on_face') : String(f.tool?.name || '') + (f.tool?.offset && n(f.tool.offset) !== fmt(0) ? ' ' + mm(f.tool.offset) : '')); if (f.type === 'splitface') parts.push(cnt('hs.n_faces', f.faces)); break;
+    case 'faceop': parts.push(t(f.mode === 'move' ? 'faceop.move' : f.mode === 'delete' ? 'faceop.delete' : 'faceop.offset')); if ((f.mode ?? 'offset') === 'offset') parts.push(mm(f.dist)); parts.push(cnt('hs.n_faces', f.faces)); break;
     default: break;
   }
   return parts.filter(Boolean).join(' · ');
@@ -244,8 +301,9 @@ export function moveUnit(doc, i) {
 // i. işlemi (birimini) özgün dizideki `to` aralığına (to. elemanın önüne; to = n → sona) taşı.
 // Geri sarma işaretçisi aynı iki komşu arasında kalır; to === rollback → işaretçinin önüne.
 // Döner: {ok, noop, features, rollback, groups, at} ya da {ok:false, why:{feat, dep}}.
-export function planMove(doc, i, to, status = {}, refs = null) {
-  const feats = doc.features; const unit = moveUnit(doc, i); if (!unit.length) return { ok: false, noop: true };
+// WP-08 devir (e): unitIdx verilirse (ör. bir grubun bütün işlemleri) o ardışık dizinler birlikte taşınır.
+export function planMove(doc, i, to, status = {}, refs = null, unitIdx = null) {
+  const feats = doc.features; const unit = Array.isArray(unitIdx) && unitIdx.length ? unitIdx.slice().sort((a, b) => a - b) : moveUnit(doc, i); if (!unit.length) return { ok: false, noop: true };
   const uset = new Set(unit.map((k) => feats[k].id)); const MARK = { mark: true };
   const rb = doc.rollback; const arr = feats.slice(); if (rb != null) arr.splice(rb, 0, MARK);
   let target = null;
@@ -274,15 +332,17 @@ export function planMove(doc, i, to, status = {}, refs = null) {
   return { ok: true, noop: false, features: rest, rollback: nrb, groups, at: at < 0 ? Math.min(...unit) : at, sensitive };
 }
 // sürükleme sırasında her aralığın durumu (bırakılabilir mi, değilse neden)
-export function dropTargets(doc, i, status = {}) {
+export function dropTargets(doc, i, status = {}, unitIdx = null) {
   const refs = refsMap(doc, status); const out = [];
-  for (let to = 0; to <= doc.features.length; to++) out.push(planMove(doc, i, to, status, refs));
+  for (let to = 0; to <= doc.features.length; to++) out.push(planMove(doc, i, to, status, refs, unitIdx));
   return out;
 }
 
 // ------------------------------------------------------------------ WP-02 dilim 4: gruplar
 // Belge şeması yalnız isteğe bağlı `groups` alanı kazanır: [{id, name, first, last}] (ardışık aralık, ilk/son işlem kimliği).
 // Aralığın içine eklenen işlem gruba girer. Grup iç içe olmaz, çakışmaz.
+// grubun işlem dizinleri (bütün olarak taşımak için)
+export const groupUnit = (doc, gid) => { const r = groupRanges(doc).find((x) => x.id === gid); return r ? Array.from({ length: r.b - r.a + 1 }, (_, k) => r.a + k) : []; };
 export function groupRanges(doc) {
   const pos = new Map(doc.features.map((f, i) => [f.id, i])); const out = [];
   for (const g of Array.isArray(doc.groups) ? doc.groups : []) {

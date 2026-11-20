@@ -25,3 +25,7 @@ export const toolLibrary = () => {
   const out = []; for (const x of l) { try { out.push(normalizeTool(x)); } catch (e) { /* bozuk kayıt atlanır */ } } return out;
 };
 export const saveToolLibrary = (list) => write('toolLibrary', list);
+
+// WP-07: kullanici kesme verisi satirlari (tum belgelerde gecerli; belgeye ozel satirlar doc.cam.cutLib'te)
+export const userCutLib = () => { const l = read('cutLib'); return Array.isArray(l) ? l.filter((e) => e && typeof e === 'object') : []; };
+export const saveUserCutLib = (list) => write('cutLib', list);

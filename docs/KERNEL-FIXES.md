@@ -1,4 +1,4 @@
-# AtolyeCAD çekirdek düzeltmeleri (KERNEL-TEST-REPORT F-01…F-26)
+# Mihenk çekirdek düzeltmeleri (KERNEL-TEST-REPORT F-01…F-26)
 
 Durum: ilerledikçe güncellenir (son durum bölüm 2 ve 4). Ölçüt: ya doğru sonuç ya açık hata (`{ok:false, error:{code, params}}`); sessiz yanlış yok.
 

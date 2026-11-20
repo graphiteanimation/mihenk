@@ -8,11 +8,15 @@ O2009
 (T28 H28 D28 DIA 3.000 FLAT)
 (T37 H37 D37 DIA 7.100 DRILL)
 (WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING)
-(GATES 0 BLOCK 6 WARN)
+(GATES 0 BLOCK 10 WARN)
+(WARNING: T22: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
 (WARNING: No machine position for "P4-S3 Z+": absolute travel could not be checked. Only the toolpath span was checked.)
-(WARNING: 18 Delme T37 4x O7,1 Zarti G83 Q5 [uc s-2]: 4 holes differ from the tool diameter [?7.1]. Check the tool.)
-(WARNING: 19 Yarik taban T28: X40..55 Y0..24, Z37,5 -> 36,5: About 1.688 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 20 Yarik 2x5 mm T28: Z36,5 -> 34,5: About 4.078 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: T24: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: T37: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 18 Delme T37 4x O7,1 Zarti G83 Q5 [uc s-2]: 4 holes differ from the tool diameter [D7.1]. Check the tool.)
+(WARNING: T28: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 19 Yarik taban T28: X40..55 Y0..24, Z37,5 -> 36,5: About 1.688 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 20 Yarik 2x5 mm T28: Z36,5 -> 34,5: About 4.078 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
 (WARNING: A axis direction [profile dir [-1,0,0]] is not verified on the machine. Confirm the A direction with a marked part before cutting.)
 (WARNING: The simulation cannot see side gouges smaller than 0.25 mm [half the grid size]. Wall accuracy comes from the toolpath calculation.)
 G90 G17 G21 G40 G49 G80 G94
@@ -26,6 +30,7 @@ S8000 M3
 G0 G90 G58 X-50.5 Y7.5
 G43 H22 Z15.
 M8
+Z5.
 G1 Z-2. F320.
 G3 X-53.5 Z-2.247 I-1.5 J0. F960.
 X-50.5 Z-2.494 I1.5 J0.
@@ -719,15 +724,9 @@ G43 H24 Z15.
 M8
 Z5.
 G98 G81 X-52. Y7.5 Z-13.5 R-7. F300.
-G80
-G0 X-30. Y7.5 Z5.
-G98 G81 X-30. Y7.5 Z-13.5 R-7. F300.
-G80
-G0 X-8. Y7.5 Z5.
-G98 G81 X-8. Y7.5 Z-13.5 R-7. F300.
-G80
-G0 X14. Y7.5 Z5.
-G98 G81 X14. Y7.5 Z-13.5 R-7. F300.
+X-30.
+X-8.
+X14.
 G80
 G0 X14. Y7.5 Z15.
 (OP 3: 18 Delme T37 4x O7,1 Zarti G83 Q5 [uc s-2] [drill] SETUP P4-S3 Z+)
@@ -743,15 +742,9 @@ G43 H37 Z15.
 M8
 Z5.
 G98 G83 X-52. Y7.5 Z-41.5 R-7. Q5. F420.
-G80
-G0 X-30. Y7.5 Z5.
-G98 G83 X-30. Y7.5 Z-41.5 R-7. Q5. F420.
-G80
-G0 X-8. Y7.5 Z5.
-G98 G83 X-8. Y7.5 Z-41.5 R-7. Q5. F420.
-G80
-G0 X14. Y7.5 Z5.
-G98 G83 X14. Y7.5 Z-41.5 R-7. Q5. F420.
+X-30.
+X-8.
+X14.
 G80
 G0 X14. Y7.5 Z15.
 (OP 4: 19 Yarik taban T28: X40..55 Y0..24, Z37,5 -> 36,5 [pocket] SETUP P4-S3 Z+)
@@ -765,6 +758,7 @@ S8000 M3
 G0 G90 G58 X46.9 Y-8.6
 G43 H28 Z15.
 M8
+Z5.
 G1 Z-2. F100.
 X48.1 Z-2.063 F320.
 Y1.6 Z-2.597
@@ -835,12 +829,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G58 X42.1 Y-13.4
 G43 H28 Z15.
-M8
+Z5.
 G1 Z-3. F100.
 X42.9 Z-3.042 F320.
 Y4.881 Z-4.

@@ -1,5 +1,5 @@
 {
- "baslangic": "2026-11-19T18:56:57.245Z",
+ "baslangic": "2026-11-20T19:13:52.710Z",
  "varsayim": [
   {
    "alan": "geometri/eskizler",
@@ -189,11 +189,11 @@
  ],
  "import": {
   "dolgu": {
-   "sure_s": 10.189,
+   "sure_s": 27.919,
    "docErrors": [],
    "hacim": 212764.368
   },
-  "sure_s": 0.001,
+  "sure_s": 1.089,
   "durum": {
    "imp": {
     "ok": true,
@@ -222,7 +222,7 @@
    }
   ],
   "docErrors": [],
-  "rebuild_holes_sayisi": 0,
+  "rebuild_holes_sayisi": 7,
   "bbox_plan": {
    "beklenen": [
     [
@@ -250,7 +250,7 @@
    ],
    "hacim_plan": 188318
   },
-  "rebuild_eskizlerle_s": 0.006,
+  "rebuild_eskizlerle_s": 0.012,
   "docErrors2": []
  },
  "makine": {
@@ -316,17 +316,18 @@
      "tur": "face",
      "takim": "T20",
      "denemeler": [],
-     "hesap_s": 0.002,
+     "hesap_s": 0.003,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
-     "kesme_mm": 1476.994,
-     "hizli_mm": 252.993,
-     "sure_s": 41.246,
+     "kesme_mm": 1466.994,
+     "hizli_mm": 262.993,
+     "sure_s": 40.471,
      "zMin": -2,
-     "hareket": 17,
-     "passDepth": 1
+     "hareket": 18,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 10
     },
     {
      "id": "o2R1",
@@ -346,7 +347,7 @@
        }
       }
      ],
-     "hesap_s": 1.592,
+     "hesap_s": 2.064,
      "ok": true,
      "varyant": 1,
      "varyant_deger": "{\"entry\":{\"kind\":\"ramp\",\"angle\":3}}",
@@ -358,12 +359,13 @@
        }
       }
      ],
-     "kesme_mm": 7730.819,
-     "hizli_mm": 593.296,
-     "sure_s": 318.236,
+     "kesme_mm": 7720.819,
+     "hizli_mm": 603.296,
+     "sure_s": 317.061,
      "zMin": -3.1999999999999997,
-     "hareket": 1441,
-     "passDepth": 1.1999999999999997
+     "hareket": 1442,
+     "passDepth": 1.1999999999999997,
+     "hava_ilerleme_mm": 60
     },
     {
      "id": "o2R2",
@@ -372,7 +374,7 @@
      "tur": "pocket",
      "takim": "T34",
      "denemeler": [],
-     "hesap_s": 0.46,
+     "hesap_s": 0.661,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -384,12 +386,13 @@
        }
       }
      ],
-     "kesme_mm": 7041.724,
-     "hizli_mm": 344.084,
-     "sure_s": 286.609,
+     "kesme_mm": 7031.726,
+     "hizli_mm": 354.084,
+     "sure_s": 285.434,
      "zMin": -3.8,
-     "hareket": 719,
-     "passDepth": 0.5999999999999996
+     "hareket": 721,
+     "passDepth": 0.5999999999999996,
+     "hava_ilerleme_mm": 25
     },
     {
      "id": "o2R3",
@@ -398,7 +401,7 @@
      "tur": "pocket",
      "takim": "T34",
      "denemeler": [],
-     "hesap_s": 0.524,
+     "hesap_s": 0.622,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -410,12 +413,13 @@
        }
       }
      ],
-     "kesme_mm": 5403.282,
-     "hizli_mm": 232.724,
-     "sure_s": 219.625,
+     "kesme_mm": 5393.279,
+     "hizli_mm": 242.724,
+     "sure_s": 218.45,
      "zMin": -5.8,
-     "hareket": 1074,
-     "passDepth": 2
+     "hareket": 1075,
+     "passDepth": 2,
+     "hava_ilerleme_mm": 15
     },
     {
      "id": "o2R4",
@@ -435,7 +439,7 @@
        }
       }
      ],
-     "hesap_s": 0.419,
+     "hesap_s": 0.501,
      "ok": true,
      "varyant": 1,
      "varyant_deger": "{\"entry\":{\"kind\":\"ramp\",\"angle\":3}}",
@@ -447,12 +451,13 @@
        }
       }
      ],
-     "kesme_mm": 4821.836,
-     "hizli_mm": 251.777,
-     "sure_s": 197.759,
+     "kesme_mm": 4811.836,
+     "hizli_mm": 261.777,
+     "sure_s": 196.584,
      "zMin": -9.8,
-     "hareket": 597,
-     "passDepth": 4.000000000000001
+     "hareket": 598,
+     "passDepth": 4.000000000000001,
+     "hava_ilerleme_mm": 20
     },
     {
      "id": "o2R5",
@@ -461,7 +466,7 @@
      "tur": "pocket",
      "takim": "T34",
      "denemeler": [],
-     "hesap_s": 0.211,
+     "hesap_s": 0.193,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -473,12 +478,13 @@
        }
       }
      ],
-     "kesme_mm": 6992.546,
-     "hizli_mm": 647.842,
-     "sure_s": 288.057,
+     "kesme_mm": 6979.104,
+     "hizli_mm": 658.856,
+     "sure_s": 286.747,
      "zMin": -24.8,
-     "hareket": 625,
-     "passDepth": 7.5
+     "hareket": 626,
+     "passDepth": 7.5,
+     "hava_ilerleme_mm": 20
     },
     {
      "id": "o2R6",
@@ -498,7 +504,7 @@
        }
       }
      ],
-     "hesap_s": 0.187,
+     "hesap_s": 0.174,
      "ok": true,
      "varyant": 1,
      "varyant_deger": "{\"entry\":{\"kind\":\"ramp\",\"angle\":3}}",
@@ -510,12 +516,13 @@
        }
       }
      ],
-     "kesme_mm": 2771.466,
-     "hizli_mm": 592.395,
-     "sure_s": 127.444,
+     "kesme_mm": 2761.466,
+     "hizli_mm": 602.395,
+     "sure_s": 126.269,
      "zMin": -33.2,
-     "hareket": 484,
-     "passDepth": 8.400000000000002
+     "hareket": 485,
+     "passDepth": 8.400000000000002,
+     "hava_ilerleme_mm": 30
     },
     {
      "id": "o3_8",
@@ -524,7 +531,7 @@
      "tur": "pocket",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.13,
+     "hesap_s": 0.151,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -536,12 +543,13 @@
        }
       }
      ],
-     "kesme_mm": 1387.022,
-     "hizli_mm": 244.783,
-     "sure_s": 61.693,
+     "kesme_mm": 1377.022,
+     "hizli_mm": 254.783,
+     "sure_s": 60.518,
      "zMin": -25,
-     "hareket": 130,
-     "passDepth": 0.1999999999999993
+     "hareket": 131,
+     "passDepth": 0.1999999999999993,
+     "hava_ilerleme_mm": 10
     },
     {
      "id": "o3_23",
@@ -550,7 +558,7 @@
      "tur": "pocket",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.245,
+     "hesap_s": 0.329,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -562,12 +570,13 @@
        }
       }
      ],
-     "kesme_mm": 1502.098,
-     "hizli_mm": 202.413,
-     "sure_s": 63.79,
+     "kesme_mm": 1492.098,
+     "hizli_mm": 212.413,
+     "sure_s": 62.615,
      "zMin": -10,
-     "hareket": 209,
-     "passDepth": 0.1999999999999993
+     "hareket": 210,
+     "passDepth": 0.1999999999999993,
+     "hava_ilerleme_mm": 10
     },
     {
      "id": "o3_27",
@@ -576,7 +585,7 @@
      "tur": "pocket",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.336,
+     "hesap_s": 0.417,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -588,12 +597,13 @@
        }
       }
      ],
-     "kesme_mm": 1924.865,
-     "hizli_mm": 337.699,
-     "sure_s": 81.279,
+     "kesme_mm": 1914.864,
+     "hizli_mm": 347.699,
+     "sure_s": 80.104,
      "zMin": -6,
-     "hareket": 346,
-     "passDepth": 0.20000000000000018
+     "hareket": 347,
+     "passDepth": 0.20000000000000018,
+     "hava_ilerleme_mm": 15
     },
     {
      "id": "c4_0",
@@ -602,17 +612,18 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.021,
+     "hesap_s": 0.07,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
-     "kesme_mm": 1001.511,
-     "hizli_mm": 157.261,
-     "sure_s": 44.454,
+     "kesme_mm": 991.511,
+     "hizli_mm": 167.261,
+     "sure_s": 43.279,
      "zMin": -3,
-     "hareket": 547,
-     "passDepth": 1
+     "hareket": 548,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 25
     },
     {
      "id": "c4_1",
@@ -621,7 +632,7 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.009,
+     "hesap_s": 0.022,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -634,12 +645,13 @@
        }
       }
      ],
-     "kesme_mm": 488.2,
-     "hizli_mm": 80.462,
-     "sure_s": 21.969,
+     "kesme_mm": 478.2,
+     "hizli_mm": 122.47,
+     "sure_s": 20.874,
      "zMin": -4,
-     "hareket": 169,
-     "passDepth": 1
+     "hareket": 170,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 10
     },
     {
      "id": "c4_2",
@@ -648,7 +660,7 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.01,
+     "hesap_s": 0.036,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -661,12 +673,13 @@
        }
       }
      ],
-     "kesme_mm": 469.195,
-     "hizli_mm": 20,
-     "sure_s": 20.418,
+     "kesme_mm": 459.195,
+     "hizli_mm": 30,
+     "sure_s": 19.243,
      "zMin": -5,
-     "hareket": 202,
-     "passDepth": 1
+     "hareket": 203,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c4_3",
@@ -675,7 +688,7 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.012,
+     "hesap_s": 0.016,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -688,12 +701,13 @@
        }
       }
      ],
-     "kesme_mm": 471.817,
-     "hizli_mm": 21,
-     "sure_s": 20.605,
+     "kesme_mm": 461.817,
+     "hizli_mm": 31,
+     "sure_s": 19.43,
      "zMin": -6,
-     "hareket": 194,
-     "passDepth": 1
+     "hareket": 195,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c4_4",
@@ -702,7 +716,7 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.015,
+     "hesap_s": 0.021,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -715,12 +729,13 @@
        }
       }
      ],
-     "kesme_mm": 473.062,
-     "hizli_mm": 22,
-     "sure_s": 20.737,
+     "kesme_mm": 463.062,
+     "hizli_mm": 32,
+     "sure_s": 19.562,
      "zMin": -7,
-     "hareket": 177,
-     "passDepth": 1
+     "hareket": 178,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c4_5",
@@ -729,7 +744,7 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.007,
+     "hesap_s": 0.009,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -742,12 +757,13 @@
        }
       }
      ],
-     "kesme_mm": 474.732,
-     "hizli_mm": 23,
-     "sure_s": 20.887,
+     "kesme_mm": 464.732,
+     "hizli_mm": 33,
+     "sure_s": 19.712,
      "zMin": -8,
-     "hareket": 121,
-     "passDepth": 1
+     "hareket": 122,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c4_6",
@@ -756,7 +772,7 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.007,
+     "hesap_s": 0.009,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -769,12 +785,13 @@
        }
       }
      ],
-     "kesme_mm": 476.166,
-     "hizli_mm": 24,
-     "sure_s": 21.027,
+     "kesme_mm": 466.166,
+     "hizli_mm": 34,
+     "sure_s": 19.852,
      "zMin": -9,
-     "hareket": 113,
-     "passDepth": 1
+     "hareket": 114,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c4_7",
@@ -783,7 +800,7 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.013,
+     "hesap_s": 0.01,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -796,12 +813,13 @@
        }
       }
      ],
-     "kesme_mm": 479.995,
-     "hizli_mm": 25,
-     "sure_s": 21.262,
+     "kesme_mm": 469.995,
+     "hizli_mm": 35,
+     "sure_s": 20.087,
      "zMin": -10,
-     "hareket": 138,
-     "passDepth": 1
+     "hareket": 139,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c4_8",
@@ -823,12 +841,13 @@
        }
       }
      ],
-     "kesme_mm": 471.932,
-     "hizli_mm": 26,
-     "sure_s": 21.022,
+     "kesme_mm": 461.932,
+     "hizli_mm": 36,
+     "sure_s": 19.847,
      "zMin": -11,
-     "hareket": 39,
-     "passDepth": 1
+     "hareket": 40,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c4_9",
@@ -837,7 +856,7 @@
      "tur": "contour",
      "takim": "T35",
      "denemeler": [],
-     "hesap_s": 0.008,
+     "hesap_s": 0.007,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -850,12 +869,13 @@
        }
       }
      ],
-     "kesme_mm": 6106.22,
-     "hizli_mm": 381,
-     "sure_s": 269.921,
+     "kesme_mm": 6096.22,
+     "hizli_mm": 391,
+     "sure_s": 268.746,
      "zMin": -24,
-     "hareket": 261,
-     "passDepth": 1
+     "hareket": 262,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 65
     },
     {
      "id": "c4_10",
@@ -877,12 +897,13 @@
        }
       }
      ],
-     "kesme_mm": 488.115,
-     "hizli_mm": 40,
-     "sure_s": 22.825,
+     "kesme_mm": 478.115,
+     "hizli_mm": 50,
+     "sure_s": 21.65,
      "zMin": -25,
-     "hareket": 101,
-     "passDepth": 1
+     "hareket": 102,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "o5",
@@ -904,12 +925,13 @@
        }
       }
      ],
-     "kesme_mm": 1629.714,
-     "hizli_mm": 103.4,
-     "sure_s": 72.759,
+     "kesme_mm": 1619.714,
+     "hizli_mm": 113.4,
+     "sure_s": 71.584,
      "zMin": -33.2,
-     "hareket": 61,
-     "passDepth": 11.066666666666668
+     "hareket": 62,
+     "passDepth": 11.066666666666668,
+     "hava_ilerleme_mm": 15
     },
     {
      "id": "o6",
@@ -930,12 +952,13 @@
        }
       }
      ],
-     "kesme_mm": 425.2,
-     "hizli_mm": 94.2,
-     "sure_s": 210.936,
+     "kesme_mm": 415.2,
+     "hizli_mm": 104.2,
+     "sure_s": 200.961,
      "zMin": -7.5,
-     "hareket": 79,
-     "passDepth": 0.5
+     "hareket": 80,
+     "passDepth": 0.5,
+     "hava_ilerleme_mm": 30
     },
     {
      "id": "o7",
@@ -944,17 +967,18 @@
      "tur": "pocket",
      "takim": "T22",
      "denemeler": [],
-     "hesap_s": 0.015,
+     "hesap_s": 0.014,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
-     "kesme_mm": 661.053,
-     "hizli_mm": 549.626,
-     "sure_s": 74.44,
+     "kesme_mm": 651.053,
+     "hizli_mm": 559.626,
+     "sure_s": 72.59,
      "zMin": -27,
-     "hareket": 139,
-     "passDepth": 1
+     "hareket": 140,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 40
     },
     {
      "id": "o8",
@@ -963,52 +987,23 @@
      "tur": "drill",
      "takim": "T24",
      "denemeler": [],
-     "hesap_s": 0.001,
+     "hesap_s": 1.486,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
      "kesme_mm": 26,
-     "hizli_mm": 285.159,
-     "sure_s": 5.913,
+     "hizli_mm": 20,
+     "sure_s": 5.25,
      "zMin": -28.5,
-     "hareket": 10,
+     "hareket": 4,
      "passDepth": 1.5,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "spot",
-        "n": 1,
-        "top": -27,
-        "bottom": -28.5,
-        "retract": -22,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
-        "top": -27,
-        "bottom": -28.5,
-        "retract": -22,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
-        "top": -27,
-        "bottom": -28.5,
-        "retract": -22,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
+        "n": 4,
         "top": -27,
         "bottom": -28.5,
         "retract": -22,
@@ -1026,18 +1021,11 @@
      "tur": "drill",
      "takim": "T33",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 0.013,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [
-      {
-       "code": "cam.drill.through_to_model_bottom",
-       "params": {
-        "n": 4,
-        "z": -33
-       }
-      },
       {
        "code": "cam.drill.dia_mismatch",
        "params": {
@@ -1047,46 +1035,17 @@
       }
      ],
      "kesme_mm": 52.44,
-     "hizli_mm": 285.159,
-     "sure_s": 8.204,
-     "zMin": -35.110109214511944,
-     "hareket": 10,
-     "passDepth": 8.110109214511944,
+     "hizli_mm": 20,
+     "sure_s": 7.541,
+     "zMin": -35.110109214511915,
+     "hareket": 4,
+     "passDepth": 8.110109214511915,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "peck",
-        "n": 1,
-        "top": -27,
-        "bottom": -35.11,
-        "retract": -22,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -27,
-        "bottom": -35.11,
-        "retract": -22,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -27,
-        "bottom": -35.11,
-        "retract": -22,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
+        "n": 4,
         "top": -27,
         "bottom": -35.11,
         "retract": -22,
@@ -1104,42 +1063,23 @@
      "tur": "drill",
      "takim": "T41",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 0.019,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
      "kesme_mm": 102.102,
-     "hizli_mm": 92.767,
-     "sure_s": 17.735,
+     "hizli_mm": 70.767,
+     "sure_s": 17.68,
      "zMin": -17.516947909965857,
-     "hareket": 10,
+     "hareket": 6,
      "passDepth": 12.516947909965856,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "peck",
-        "n": 1,
-        "top": -6,
-        "bottom": -17.517,
-        "retract": -1,
-        "clearance": 5,
-        "f": 350,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -6,
-        "bottom": -17.517,
-        "retract": -1,
-        "clearance": 5,
-        "f": 350,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
+        "n": 3,
         "top": -6,
         "bottom": -17.517,
         "retract": -1,
@@ -1167,7 +1107,7 @@
      "tur": "drill",
      "takim": "T39",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 0.001,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -1181,66 +1121,17 @@
       }
      ],
      "kesme_mm": 106.2,
-     "hizli_mm": 85.294,
-     "sure_s": 17.913,
+     "hizli_mm": 20,
+     "sure_s": 17.75,
      "zMin": -18.7,
-     "hareket": 14,
+     "hareket": 4,
      "passDepth": 12.7,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "peck",
-        "n": 1,
-        "top": -6,
-        "bottom": -18.7,
-        "retract": -1,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -6,
-        "bottom": -18.7,
-        "retract": -1,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -6,
-        "bottom": -18.7,
-        "retract": -1,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -6,
-        "bottom": -18.7,
-        "retract": -1,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -6,
-        "bottom": -18.7,
-        "retract": -1,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
+        "n": 6,
         "top": -6,
         "bottom": -18.7,
         "retract": -1,
@@ -1258,72 +1149,23 @@
      "tur": "drill",
      "takim": "T40",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 0.003,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
      "kesme_mm": 90,
-     "hizli_mm": 85.294,
-     "sure_s": 11.013,
+     "hizli_mm": 20,
+     "sure_s": 10.85,
      "zMin": -16,
-     "hareket": 14,
+     "hareket": 4,
      "passDepth": 10,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "tap",
-        "n": 1,
-        "top": -6,
-        "bottom": -16,
-        "retract": -1,
-        "clearance": 5,
-        "f": 500,
-        "pitch": 0.5
-       },
-       {
-        "cycle": "tap",
-        "n": 1,
-        "top": -6,
-        "bottom": -16,
-        "retract": -1,
-        "clearance": 5,
-        "f": 500,
-        "pitch": 0.5
-       },
-       {
-        "cycle": "tap",
-        "n": 1,
-        "top": -6,
-        "bottom": -16,
-        "retract": -1,
-        "clearance": 5,
-        "f": 500,
-        "pitch": 0.5
-       },
-       {
-        "cycle": "tap",
-        "n": 1,
-        "top": -6,
-        "bottom": -16,
-        "retract": -1,
-        "clearance": 5,
-        "f": 500,
-        "pitch": 0.5
-       },
-       {
-        "cycle": "tap",
-        "n": 1,
-        "top": -6,
-        "bottom": -16,
-        "retract": -1,
-        "clearance": 5,
-        "f": 500,
-        "pitch": 0.5
-       },
-       {
-        "cycle": "tap",
-        "n": 1,
+        "n": 6,
         "top": -6,
         "bottom": -16,
         "retract": -1,
@@ -1338,9 +1180,29 @@
    "gates": [
     {
      "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 20,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
      "code": "cam.gate.travel_abs_unchecked",
      "params": {
       "setup": "P4-S1 Ust"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 34,
+      "field": "shaftDia"
      },
      "opId": null,
      "moveIndex": null
@@ -1403,6 +1265,16 @@
       "op": "2 Adaptive karsiligi R6: Y8.2--0.2 (ada kesit Y=0.05) T34"
      },
      "opId": "o2R6",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 35,
+      "field": "shaftDia"
+     },
+     "opId": null,
      "moveIndex": null
     },
     {
@@ -1558,6 +1430,16 @@
     },
     {
      "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 29,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
      "code": "cam.pocket.rest_material",
      "params": {
       "area": 1.5,
@@ -1567,25 +1449,33 @@
      "moveIndex": null
     },
     {
-     "level": "block",
-     "code": "cam.gate.body_short",
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
      "params": {
-      "depth": 27,
-      "bodyLen": 25,
-      "op": "7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 (cep + helis)"
+      "tool": 22,
+      "field": "shaftDia"
      },
-     "opId": "o7",
+     "opId": null,
      "moveIndex": null
     },
     {
      "level": "warn",
-     "code": "cam.drill.through_to_model_bottom",
+     "code": "cam.gate.tool_geom_assumed",
      "params": {
-      "n": 4,
-      "z": -33,
-      "op": "9 Delme T33 O6,1 G83 Q3 boydan boya +1"
+      "tool": 24,
+      "field": "shaftDia"
      },
-     "opId": "o9",
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 33,
+      "field": "shaftDia"
+     },
+     "opId": null,
      "moveIndex": null
     },
     {
@@ -1601,6 +1491,26 @@
     },
     {
      "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 41,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 39,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
      "code": "cam.drill.dia_mismatch",
      "params": {
       "n": 6,
@@ -1608,6 +1518,16 @@
       "op": "11 Delme T39 6x M3 on delik O2,5 G83 Q3 (uc Y14,3)"
      },
      "opId": "o11",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 40,
+      "field": "shaftDia"
+     },
+     "opId": null,
      "moveIndex": null
     },
     {
@@ -1621,14 +1541,30 @@
     },
     {
      "level": "block",
+     "code": "cam.sim.holder_contact",
+     "params": {
+      "x": 71.48215892927254,
+      "y": -28.26933810809399,
+      "z": -27,
+      "clearance": 0,
+      "min": 0.01,
+      "op": "o7"
+     },
+     "opId": "o7",
+     "moveIndex": 24
+    },
+    {
+     "level": "block",
      "code": "cam.sim.gouge",
      "params": {
       "x": 70,
       "y": -28.5,
-      "z": -35.110109214511944,
-      "depth": 7.010813845392519,
+      "z": -28.31227480698722,
+      "depth": 0.02971079603334381,
       "cells": 120,
-      "op": "o9"
+      "op": "o9",
+      "vertical": 7.010813845392491,
+      "point": 0
      },
      "opId": "o9",
      "moveIndex": 2
@@ -1639,10 +1575,12 @@
      "params": {
       "x": 70,
       "y": -28.5,
-      "z": -35.110109214511944,
-      "depth": 0.11010921451191535,
+      "z": -35.110109214511915,
+      "depth": 0.11010921451188693,
       "cells": 1,
-      "op": "o9"
+      "op": "o9",
+      "point": 0,
+      "allow": 0.11
      },
      "opId": "o9",
      "moveIndex": 2
@@ -1653,13 +1591,15 @@
      "params": {
       "x": 70,
       "y": 28.5,
-      "z": -35.110109214511944,
-      "depth": 7.010813845392519,
+      "z": -28.31227480698722,
+      "depth": 0.02971079603334381,
       "cells": 120,
-      "op": "o9"
+      "op": "o9",
+      "vertical": 7.010813845392491,
+      "point": 1
      },
      "opId": "o9",
-     "moveIndex": 4
+     "moveIndex": 2
     },
     {
      "level": "warn",
@@ -1667,13 +1607,15 @@
      "params": {
       "x": 70,
       "y": 28.5,
-      "z": -35.110109214511944,
-      "depth": 0.11010921451191535,
+      "z": -35.110109214511915,
+      "depth": 0.11010921451188693,
       "cells": 1,
-      "op": "o9"
+      "op": "o9",
+      "point": 1,
+      "allow": 0.11
      },
      "opId": "o9",
-     "moveIndex": 4
+     "moveIndex": 2
     },
     {
      "level": "block",
@@ -1681,13 +1623,15 @@
      "params": {
       "x": -70,
       "y": -28.5,
-      "z": -35.110109214511944,
-      "depth": 7.010813845392519,
+      "z": -28.31227480698722,
+      "depth": 0.02971079603334381,
       "cells": 120,
-      "op": "o9"
+      "op": "o9",
+      "vertical": 7.010813845392491,
+      "point": 2
      },
      "opId": "o9",
-     "moveIndex": 6
+     "moveIndex": 2
     },
     {
      "level": "warn",
@@ -1695,13 +1639,15 @@
      "params": {
       "x": -70,
       "y": -28.5,
-      "z": -35.110109214511944,
-      "depth": 0.11010921451191535,
+      "z": -35.110109214511915,
+      "depth": 0.11010921451188693,
       "cells": 1,
-      "op": "o9"
+      "op": "o9",
+      "point": 2,
+      "allow": 0.11
      },
      "opId": "o9",
-     "moveIndex": 6
+     "moveIndex": 2
     },
     {
      "level": "block",
@@ -1709,13 +1655,15 @@
      "params": {
       "x": -70,
       "y": 28.5,
-      "z": -35.110109214511944,
-      "depth": 7.010813845392519,
+      "z": -28.31227480698722,
+      "depth": 0.02971079603334381,
       "cells": 120,
-      "op": "o9"
+      "op": "o9",
+      "vertical": 7.010813845392491,
+      "point": 3
      },
      "opId": "o9",
-     "moveIndex": 8
+     "moveIndex": 2
     },
     {
      "level": "warn",
@@ -1723,13 +1671,15 @@
      "params": {
       "x": -70,
       "y": 28.5,
-      "z": -35.110109214511944,
-      "depth": 0.11010921451191535,
+      "z": -35.110109214511915,
+      "depth": 0.11010921451188693,
       "cells": 1,
-      "op": "o9"
+      "op": "o9",
+      "point": 3,
+      "allow": 0.11
      },
      "opId": "o9",
-     "moveIndex": 8
+     "moveIndex": 2
     },
     {
      "level": "block",
@@ -1738,9 +1688,11 @@
       "x": 31.9,
       "y": 30,
       "z": -18.7,
-      "depth": 0.24009078957140062,
+      "depth": 0.18466967736328851,
       "cells": 18,
-      "op": "o11"
+      "op": "o11",
+      "vertical": 0.24009078957140062,
+      "point": 0
      },
      "opId": "o11",
      "moveIndex": 2
@@ -1752,110 +1704,30 @@
       "x": 42.9,
       "y": 30,
       "z": -18.7,
-      "depth": 0.24009078957140062,
+      "depth": 0.18466967736328851,
       "cells": 18,
-      "op": "o11"
+      "op": "o11",
+      "vertical": 0.24009078957140062,
+      "point": 1
      },
      "opId": "o11",
-     "moveIndex": 4
-    },
-    {
-     "level": "block",
-     "code": "cam.sim.gouge",
-     "params": {
-      "x": 53.9,
-      "y": 30,
-      "z": -18.7,
-      "depth": 0.24009078957140062,
-      "cells": 18,
-      "op": "o11"
-     },
-     "opId": "o11",
-     "moveIndex": 6
-    },
-    {
-     "level": "block",
-     "code": "cam.sim.gouge",
-     "params": {
-      "x": 35.1,
-      "y": 20,
-      "z": -18.7,
-      "depth": 0.24033019857743199,
-      "cells": 18,
-      "op": "o11"
-     },
-     "opId": "o11",
-     "moveIndex": 8
-    },
-    {
-     "level": "block",
-     "code": "cam.sim.gouge",
-     "params": {
-      "x": 46.1,
-      "y": 20,
-      "z": -18.7,
-      "depth": 0.24033019857743199,
-      "cells": 18,
-      "op": "o11"
-     },
-     "opId": "o11",
-     "moveIndex": 10
-    },
-    {
-     "level": "block",
-     "code": "cam.sim.gouge",
-     "params": {
-      "x": 57.1,
-      "y": 20,
-      "z": -18.7,
-      "depth": 0.24033019857743199,
-      "cells": 18,
-      "op": "o11"
-     },
-     "opId": "o11",
-     "moveIndex": 12
-    },
-    {
-     "level": "block",
-     "code": "cam.sim.gouge",
-     "params": {
-      "x": 31.9,
-      "y": 30,
-      "z": -16,
-      "depth": 10,
-      "cells": 200,
-      "op": "o12"
-     },
-     "opId": "o12",
      "moveIndex": 2
     },
     {
      "level": "block",
      "code": "cam.sim.gouge",
      "params": {
-      "x": 42.9,
-      "y": 30,
-      "z": -16,
-      "depth": 10,
-      "cells": 200,
-      "op": "o12"
-     },
-     "opId": "o12",
-     "moveIndex": 4
-    },
-    {
-     "level": "block",
-     "code": "cam.sim.gouge",
-     "params": {
       "x": 53.9,
       "y": 30,
-      "z": -16,
-      "depth": 10,
-      "cells": 200,
-      "op": "o12"
+      "z": -18.7,
+      "depth": 0.18466967736328851,
+      "cells": 18,
+      "op": "o11",
+      "vertical": 0.24009078957140062,
+      "point": 2
      },
-     "opId": "o12",
-     "moveIndex": 6
+     "opId": "o11",
+     "moveIndex": 2
     },
     {
      "level": "block",
@@ -1863,13 +1735,15 @@
      "params": {
       "x": 35.1,
       "y": 20,
-      "z": -16,
-      "depth": 10,
-      "cells": 200,
-      "op": "o12"
+      "z": -18.7,
+      "depth": 0.18525993162989102,
+      "cells": 18,
+      "op": "o11",
+      "vertical": 0.24033019857743199,
+      "point": 3
      },
-     "opId": "o12",
-     "moveIndex": 8
+     "opId": "o11",
+     "moveIndex": 2
     },
     {
      "level": "block",
@@ -1877,13 +1751,15 @@
      "params": {
       "x": 46.1,
       "y": 20,
-      "z": -16,
-      "depth": 10,
-      "cells": 200,
-      "op": "o12"
+      "z": -18.7,
+      "depth": 0.18525993162989102,
+      "cells": 18,
+      "op": "o11",
+      "vertical": 0.24033019857743199,
+      "point": 4
      },
-     "opId": "o12",
-     "moveIndex": 10
+     "opId": "o11",
+     "moveIndex": 2
     },
     {
      "level": "block",
@@ -1891,13 +1767,15 @@
      "params": {
       "x": 57.1,
       "y": 20,
-      "z": -16,
-      "depth": 10,
-      "cells": 200,
-      "op": "o12"
+      "z": -18.7,
+      "depth": 0.18525993162989102,
+      "cells": 18,
+      "op": "o11",
+      "vertical": 0.24033019857743199,
+      "point": 5
      },
-     "opId": "o12",
-     "moveIndex": 12
+     "opId": "o11",
+     "moveIndex": 2
     }
    ],
    "cozulmus": {
@@ -1954,24 +1832,25 @@
      35
     ]
    },
-   "hm_s": 0.954,
-   "gates_s": 2.583,
+   "hm_s": 1.357,
+   "gates_s": 4.253,
    "blocked": true,
    "kapi_ozet": {
+    "warn cam.gate.tool_geom_assumed": 10,
     "warn cam.gate.travel_abs_unchecked": 1,
     "warn cam.pocket.rest_material": 10,
     "warn cam.contour.rest_corner": 11,
-    "block cam.gate.body_short": 1,
-    "warn cam.drill.through_to_model_bottom": 1,
     "warn cam.drill.dia_mismatch": 2,
     "warn cam.gate.sim_lateral_tol": 1,
-    "block cam.sim.gouge": 16,
+    "block cam.sim.holder_contact": 1,
+    "block cam.sim.gouge": 10,
     "warn cam.sim.below_stock": 4
    },
-   "sim_s": 2.844,
-   "sim_issue_say": 20,
+   "sim_s": 3.893,
+   "sim_issue_say": 15,
    "sim_issue_kod": {
-    "cam.sim.gouge": 16,
+    "cam.sim.holder_contact": 1,
+    "cam.sim.gouge": 10,
     "cam.sim.below_stock": 4
    },
    "sim_suppressed": 0,
@@ -1993,7 +1872,7 @@
       1062.5,
       0
      ],
-     "hacim_mm3": 12715.276,
+     "hacim_mm3": 12715.274,
      "max_mm": 7.5,
      "en_buyuk": [
       [
@@ -2048,7 +1927,7 @@
       ]
      ]
     },
-    "kaldirilan_hacim_mm3": 139094.471,
+    "kaldirilan_hacim_mm3": 138944.469,
     "artik_10mm_kareler_gt1mm": [
      {
       "kare_x_y": "20,10",
@@ -2121,18 +2000,28 @@
       "max_mm": 6.2
      }
     ],
-    "oyma_alan_mm2": 47,
-    "oyma_max_mm": 10
+    "oyma_alan_mm2": 32,
+    "oyma_max_mm": 7.011
    },
    "sim_issues": [
     {
      "level": "error",
+     "code": "cam.sim.holder_contact",
+     "op": "o7",
+     "x": 71.482,
+     "y": -28.269,
+     "z": -27,
+     "depth": null,
+     "moveIndex": 24
+    },
+    {
+     "level": "error",
      "code": "cam.sim.gouge",
      "op": "o9",
      "x": 70,
      "y": -28.5,
-     "z": -35.11,
-     "depth": 7.011,
+     "z": -28.312,
+     "depth": 0.03,
      "cells": 120,
      "moveIndex": 2
     },
@@ -2153,10 +2042,10 @@
      "op": "o9",
      "x": 70,
      "y": 28.5,
-     "z": -35.11,
-     "depth": 7.011,
+     "z": -28.312,
+     "depth": 0.03,
      "cells": 120,
-     "moveIndex": 4
+     "moveIndex": 2
     },
     {
      "level": "warn",
@@ -2167,7 +2056,7 @@
      "z": -35.11,
      "depth": 0.11,
      "cells": 1,
-     "moveIndex": 4
+     "moveIndex": 2
     },
     {
      "level": "error",
@@ -2175,10 +2064,10 @@
      "op": "o9",
      "x": -70,
      "y": -28.5,
-     "z": -35.11,
-     "depth": 7.011,
+     "z": -28.312,
+     "depth": 0.03,
      "cells": 120,
-     "moveIndex": 6
+     "moveIndex": 2
     },
     {
      "level": "warn",
@@ -2189,7 +2078,7 @@
      "z": -35.11,
      "depth": 0.11,
      "cells": 1,
-     "moveIndex": 6
+     "moveIndex": 2
     },
     {
      "level": "error",
@@ -2197,10 +2086,10 @@
      "op": "o9",
      "x": -70,
      "y": 28.5,
-     "z": -35.11,
-     "depth": 7.011,
+     "z": -28.312,
+     "depth": 0.03,
      "cells": 120,
-     "moveIndex": 8
+     "moveIndex": 2
     },
     {
      "level": "warn",
@@ -2211,7 +2100,7 @@
      "z": -35.11,
      "depth": 0.11,
      "cells": 1,
-     "moveIndex": 8
+     "moveIndex": 2
     },
     {
      "level": "error",
@@ -2220,7 +2109,7 @@
      "x": 31.9,
      "y": 30,
      "z": -18.7,
-     "depth": 0.24,
+     "depth": 0.185,
      "cells": 18,
      "moveIndex": 2
     },
@@ -2231,119 +2120,53 @@
      "x": 42.9,
      "y": 30,
      "z": -18.7,
-     "depth": 0.24,
+     "depth": 0.185,
      "cells": 18,
-     "moveIndex": 4
-    },
-    {
-     "level": "error",
-     "code": "cam.sim.gouge",
-     "op": "o11",
-     "x": 53.9,
-     "y": 30,
-     "z": -18.7,
-     "depth": 0.24,
-     "cells": 18,
-     "moveIndex": 6
-    },
-    {
-     "level": "error",
-     "code": "cam.sim.gouge",
-     "op": "o11",
-     "x": 35.1,
-     "y": 20,
-     "z": -18.7,
-     "depth": 0.24,
-     "cells": 18,
-     "moveIndex": 8
-    },
-    {
-     "level": "error",
-     "code": "cam.sim.gouge",
-     "op": "o11",
-     "x": 46.1,
-     "y": 20,
-     "z": -18.7,
-     "depth": 0.24,
-     "cells": 18,
-     "moveIndex": 10
-    },
-    {
-     "level": "error",
-     "code": "cam.sim.gouge",
-     "op": "o11",
-     "x": 57.1,
-     "y": 20,
-     "z": -18.7,
-     "depth": 0.24,
-     "cells": 18,
-     "moveIndex": 12
-    },
-    {
-     "level": "error",
-     "code": "cam.sim.gouge",
-     "op": "o12",
-     "x": 31.9,
-     "y": 30,
-     "z": -16,
-     "depth": 10,
-     "cells": 200,
      "moveIndex": 2
     },
     {
      "level": "error",
      "code": "cam.sim.gouge",
-     "op": "o12",
-     "x": 42.9,
-     "y": 30,
-     "z": -16,
-     "depth": 10,
-     "cells": 200,
-     "moveIndex": 4
-    },
-    {
-     "level": "error",
-     "code": "cam.sim.gouge",
-     "op": "o12",
+     "op": "o11",
      "x": 53.9,
      "y": 30,
-     "z": -16,
-     "depth": 10,
-     "cells": 200,
-     "moveIndex": 6
+     "z": -18.7,
+     "depth": 0.185,
+     "cells": 18,
+     "moveIndex": 2
     },
     {
      "level": "error",
      "code": "cam.sim.gouge",
-     "op": "o12",
+     "op": "o11",
      "x": 35.1,
      "y": 20,
-     "z": -16,
-     "depth": 10,
-     "cells": 200,
-     "moveIndex": 8
+     "z": -18.7,
+     "depth": 0.185,
+     "cells": 18,
+     "moveIndex": 2
     },
     {
      "level": "error",
      "code": "cam.sim.gouge",
-     "op": "o12",
+     "op": "o11",
      "x": 46.1,
      "y": 20,
-     "z": -16,
-     "depth": 10,
-     "cells": 200,
-     "moveIndex": 10
+     "z": -18.7,
+     "depth": 0.185,
+     "cells": 18,
+     "moveIndex": 2
     },
     {
      "level": "error",
      "code": "cam.sim.gouge",
-     "op": "o12",
+     "op": "o11",
      "x": 57.1,
      "y": 20,
-     "z": -16,
-     "depth": 10,
-     "cells": 200,
-     "moveIndex": 12
+     "z": -18.7,
+     "depth": 0.185,
+     "cells": 18,
+     "moveIndex": 2
     }
    ],
    "post": {
@@ -2352,20 +2175,20 @@
     "hata": {
      "code": "cam.post.gates_blocked",
      "params": {
-      "n": 17,
-      "code": "cam.gate.body_short",
-      "op": "7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 (cep + helis)"
+      "n": 11,
+      "code": "cam.sim.holder_contact",
+      "op": "o7"
      }
     }
    },
    "nc_bloklu": {
     "dosya": "out/P4_S1_Ust_mihenk_BLOKLU_KARSILASTIRMA_TEZGAHA_GITMEZ.nc",
-    "baslik_satir": 18,
-    "satir": 8393,
-    "bayt": 197336,
-    "G81": 4,
-    "G83": 14,
-    "G84": 6,
+    "baslik_satir": 12,
+    "satir": 8319,
+    "bayt": 198347,
+    "G81": 1,
+    "G83": 4,
+    "G84": 1,
     "G41": 0,
     "G42": 0,
     "A": 1,
@@ -2374,43 +2197,27 @@
     ],
     "A_satirlari": [
      {
-      "satir": 53,
+      "satir": 62,
       "metin": "G0 A0."
      }
     ],
     "G84_satirlari": [
      {
-      "satir": 8356,
+      "satir": 8292,
       "metin": "(OP 29: 12 Kilavuz T40 6x M3x0,5 G84 [Y17] [drill] SETUP P4-S1 Ust)"
      },
      {
-      "satir": 8368,
-      "metin": "G98 G84 X31.9 Y30. Z-16. R-1. F0.5 ,R1"
-     },
-     {
-      "satir": 8371,
-      "metin": "G98 G84 X42.9 Y30. Z-16. R-1. F0.5 ,R1"
-     },
-     {
-      "satir": 8374,
-      "metin": "G98 G84 X53.9 Y30. Z-16. R-1. F0.5 ,R1"
-     },
-     {
-      "satir": 8377,
-      "metin": "G98 G84 X35.1 Y20. Z-16. R-1. F0.5 ,R1"
-     },
-     {
-      "satir": 8380,
-      "metin": "G98 G84 X46.1 Y20. Z-16. R-1. F0.5 ,R1"
+      "satir": 8304,
+      "metin": "G99 G84 X31.9 Y30. Z-16. R-1. F0.5 ,R1"
      }
     ],
     "M6": 11,
-    "M8": 29,
-    "M5": 29,
-    "G2G3": 3253,
-    "G1": 3276
+    "M8": 11,
+    "M5": 11,
+    "G2G3": 3263,
+    "G1": 3288
    },
-   "tahmini_sure_s": 2609.778
+   "tahmini_sure_s": 2570.741
   },
   {
    "id": "S2",
@@ -2424,17 +2231,18 @@
      "tur": "pocket",
      "takim": "T22",
      "denemeler": [],
-     "hesap_s": 0.017,
+     "hesap_s": 0.019,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
-     "kesme_mm": 2505.266,
-     "hizli_mm": 592.5,
-     "sure_s": 216.81,
+     "kesme_mm": 2495.266,
+     "hizli_mm": 602.5,
+     "sure_s": 214.96,
      "zMin": -12,
-     "hareket": 681,
-     "passDepth": 1
+     "hareket": 682,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 200
     },
     {
      "id": "o14",
@@ -2443,52 +2251,23 @@
      "tur": "drill",
      "takim": "T24",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 1.284,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
      "kesme_mm": 26,
-     "hizli_mm": 86,
-     "sure_s": 5.415,
+     "hizli_mm": 20,
+     "sure_s": 5.25,
      "zMin": -13.5,
-     "hareket": 10,
+     "hareket": 4,
      "passDepth": 1.5,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "spot",
-        "n": 1,
-        "top": -12,
-        "bottom": -13.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
-        "top": -12,
-        "bottom": -13.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
-        "top": -12,
-        "bottom": -13.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
+        "n": 4,
         "top": -12,
         "bottom": -13.5,
         "retract": -7,
@@ -2506,7 +2285,7 @@
      "tur": "drill",
      "takim": "T37",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 0.001,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -2520,46 +2299,17 @@
       }
      ],
      "kesme_mm": 138,
-     "hizli_mm": 86,
-     "sure_s": 19.929,
+     "hizli_mm": 20,
+     "sure_s": 19.764,
      "zMin": -41.5,
-     "hareket": 10,
+     "hareket": 4,
      "passDepth": 29.5,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "peck",
-        "n": 1,
-        "top": -12,
-        "bottom": -41.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -12,
-        "bottom": -41.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -12,
-        "bottom": -41.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
+        "n": 4,
         "top": -12,
         "bottom": -41.5,
         "retract": -7,
@@ -2574,9 +2324,39 @@
    "gates": [
     {
      "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 22,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
      "code": "cam.gate.travel_abs_unchecked",
      "params": {
       "setup": "P4-S2 Z-"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 24,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 37,
+      "field": "shaftDia"
      },
      "opId": null,
      "moveIndex": null
@@ -2665,16 +2445,17 @@
      79
     ]
    },
-   "hm_s": 0.919,
-   "gates_s": 0.417,
+   "hm_s": 1.157,
+   "gates_s": 0.757,
    "blocked": false,
    "kapi_ozet": {
+    "warn cam.gate.tool_geom_assumed": 3,
     "warn cam.gate.travel_abs_unchecked": 1,
     "warn cam.drill.dia_mismatch": 1,
     "warn cam.gate.a_dir_unverified": 1,
     "warn cam.gate.sim_lateral_tol": 1
    },
-   "sim_s": 0.501,
+   "sim_s": 0.807,
    "sim_issue_say": 0,
    "sim_issue_kod": {},
    "sim_suppressed": 0,
@@ -2708,15 +2489,15 @@
    "sim_issues": [],
    "post": {
     "ok": true,
-    "s": 0.004,
+    "s": 0.005,
     "dosya": "out/P4_S2_Zeksi_mihenk_KARSILASTIRMA_TEZGAHA_GITMEZ.nc",
     "uyarilar": []
    },
    "nc": {
-    "satir": 762,
-    "bayt": 14746,
-    "G81": 4,
-    "G83": 4,
+    "satir": 754,
+    "bayt": 15000,
+    "G81": 1,
+    "G83": 1,
     "G84": 0,
     "G41": 0,
     "G42": 0,
@@ -2727,11 +2508,11 @@
     ],
     "A_satirlari": [
      {
-      "satir": 21,
+      "satir": 24,
       "metin": "G0 A270."
      },
      {
-      "satir": 758,
+      "satir": 750,
       "metin": "G0 A0."
      }
     ],
@@ -2742,7 +2523,7 @@
     "G2G3": 120,
     "G1": 120
    },
-   "tahmini_sure_s": 242.154
+   "tahmini_sure_s": 239.974
   },
   {
    "id": "S3",
@@ -2756,17 +2537,18 @@
      "tur": "pocket",
      "takim": "T22",
      "denemeler": [],
-     "hesap_s": 0.015,
+     "hesap_s": 0.016,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
-     "kesme_mm": 2505.266,
-     "hizli_mm": 592.5,
-     "sure_s": 216.81,
+     "kesme_mm": 2495.266,
+     "hizli_mm": 602.5,
+     "sure_s": 214.96,
      "zMin": -12,
-     "hareket": 681,
-     "passDepth": 1
+     "hareket": 682,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 200
     },
     {
      "id": "o17",
@@ -2775,52 +2557,23 @@
      "tur": "drill",
      "takim": "T24",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 1.457,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
      "kesme_mm": 26,
-     "hizli_mm": 86,
-     "sure_s": 5.415,
+     "hizli_mm": 20,
+     "sure_s": 5.25,
      "zMin": -13.5,
-     "hareket": 10,
+     "hareket": 4,
      "passDepth": 1.5,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "spot",
-        "n": 1,
-        "top": -12,
-        "bottom": -13.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
-        "top": -12,
-        "bottom": -13.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
-        "top": -12,
-        "bottom": -13.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 300,
-        "pitch": null
-       },
-       {
-        "cycle": "spot",
-        "n": 1,
+        "n": 4,
         "top": -12,
         "bottom": -13.5,
         "retract": -7,
@@ -2838,7 +2591,7 @@
      "tur": "drill",
      "takim": "T37",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 0.001,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -2852,46 +2605,17 @@
       }
      ],
      "kesme_mm": 138,
-     "hizli_mm": 86,
-     "sure_s": 19.929,
+     "hizli_mm": 20,
+     "sure_s": 19.764,
      "zMin": -41.5,
-     "hareket": 10,
+     "hareket": 4,
      "passDepth": 29.5,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "peck",
-        "n": 1,
-        "top": -12,
-        "bottom": -41.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -12,
-        "bottom": -41.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -12,
-        "bottom": -41.5,
-        "retract": -7,
-        "clearance": 5,
-        "f": 420,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
+        "n": 4,
         "top": -12,
         "bottom": -41.5,
         "retract": -7,
@@ -2909,7 +2633,7 @@
      "tur": "pocket",
      "takim": "T28",
      "denemeler": [],
-     "hesap_s": 0.028,
+     "hesap_s": 0.039,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -2921,12 +2645,13 @@
        }
       }
      ],
-     "kesme_mm": 489.226,
-     "hizli_mm": 18,
-     "sure_s": 98.787,
+     "kesme_mm": 479.226,
+     "hizli_mm": 28,
+     "sure_s": 92.812,
      "zMin": -3,
-     "hareket": 67,
-     "passDepth": 1
+     "hareket": 68,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "o20",
@@ -2935,7 +2660,7 @@
      "tur": "pocket",
      "takim": "T28",
      "denemeler": [],
-     "hesap_s": 0.014,
+     "hesap_s": 0.018,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -2947,20 +2672,51 @@
        }
       }
      ],
-     "kesme_mm": 560.105,
-     "hizli_mm": 59.218,
-     "sure_s": 123.318,
+     "kesme_mm": 550.105,
+     "hizli_mm": 69.218,
+     "sure_s": 117.343,
      "zMin": -5,
-     "hareket": 73,
-     "passDepth": 1
+     "hareket": 74,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 20
     }
    ],
    "gates": [
     {
      "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 22,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
      "code": "cam.gate.travel_abs_unchecked",
      "params": {
       "setup": "P4-S3 Z+"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 24,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 37,
+      "field": "shaftDia"
      },
      "opId": null,
      "moveIndex": null
@@ -2974,6 +2730,16 @@
       "op": "18 Delme T37 4x O7,1 Zarti G83 Q5 (uc s-2)"
      },
      "opId": "o18",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 28,
+      "field": "shaftDia"
+     },
+     "opId": null,
      "moveIndex": null
     },
     {
@@ -3069,17 +2835,18 @@
      79
     ]
    },
-   "hm_s": 0.924,
-   "gates_s": 0.559,
+   "hm_s": 1.186,
+   "gates_s": 0.724,
    "blocked": false,
    "kapi_ozet": {
+    "warn cam.gate.tool_geom_assumed": 4,
     "warn cam.gate.travel_abs_unchecked": 1,
     "warn cam.drill.dia_mismatch": 1,
     "warn cam.pocket.rest_material": 2,
     "warn cam.gate.a_dir_unverified": 1,
     "warn cam.gate.sim_lateral_tol": 1
    },
-   "sim_s": 0.564,
+   "sim_s": 0.735,
    "sim_issue_say": 0,
    "sim_issue_kod": {},
    "sim_suppressed": 0,
@@ -3145,15 +2912,15 @@
    "sim_issues": [],
    "post": {
     "ok": true,
-    "s": 0.003,
+    "s": 0.014,
     "dosya": "out/P4_S3_Zarti_mihenk_KARSILASTIRMA_TEZGAHA_GITMEZ.nc",
     "uyarilar": []
    },
    "nc": {
-    "satir": 924,
-    "bayt": 16210,
-    "G81": 4,
-    "G83": 4,
+    "satir": 915,
+    "bayt": 16663,
+    "G81": 1,
+    "G83": 1,
     "G84": 0,
     "G41": 0,
     "G42": 0,
@@ -3164,22 +2931,22 @@
     ],
     "A_satirlari": [
      {
-      "satir": 24,
+      "satir": 28,
       "metin": "G0 A90."
      },
      {
-      "satir": 920,
+      "satir": 911,
       "metin": "G0 A0."
      }
     ],
     "G84_satirlari": [],
     "M6": 4,
-    "M8": 5,
-    "M5": 5,
+    "M8": 4,
+    "M5": 4,
     "G2G3": 120,
     "G1": 125
    },
-   "tahmini_sure_s": 464.259
+   "tahmini_sure_s": 450.129
   },
   {
    "id": "S4",
@@ -3193,7 +2960,7 @@
      "tur": "pocket",
      "takim": "T21",
      "denemeler": [],
-     "hesap_s": 0.043,
+     "hesap_s": 0.047,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -3205,12 +2972,13 @@
        }
       }
      ],
-     "kesme_mm": 6940.951,
-     "hizli_mm": 97.314,
-     "sure_s": 234.395,
+     "kesme_mm": 6930.951,
+     "hizli_mm": 107.314,
+     "sure_s": 233.42,
      "zMin": -16.8,
-     "hareket": 328,
-     "passDepth": 5.6000000000000005
+     "hareket": 329,
+     "passDepth": 5.6000000000000005,
+     "hava_ilerleme_mm": 15
     },
     {
      "id": "o22",
@@ -3219,7 +2987,7 @@
      "tur": "pocket",
      "takim": "T21",
      "denemeler": [],
-     "hesap_s": 0.014,
+     "hesap_s": 0.012,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -3231,12 +2999,13 @@
        }
       }
      ],
-     "kesme_mm": 577,
-     "hizli_mm": 34,
-     "sure_s": 21.585,
+     "kesme_mm": 567,
+     "hizli_mm": 44,
+     "sure_s": 20.61,
      "zMin": -19,
-     "hareket": 26,
-     "passDepth": 2.1999999999999993
+     "hareket": 27,
+     "passDepth": 2.1999999999999993,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c23_0",
@@ -3245,17 +3014,18 @@
      "tur": "contour",
      "takim": "T38",
      "denemeler": [],
-     "hesap_s": 0.024,
+     "hesap_s": 0.02,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
-     "kesme_mm": 7746.748,
-     "hizli_mm": 510.5,
-     "sure_s": 1176.946,
+     "kesme_mm": 7736.748,
+     "hizli_mm": 520.5,
+     "sure_s": 1172.971,
      "zMin": -17,
-     "hareket": 301,
-     "passDepth": 0.5
+     "hareket": 302,
+     "passDepth": 0.5,
+     "hava_ilerleme_mm": 150
     },
     {
      "id": "c23_1",
@@ -3264,7 +3034,7 @@
      "tur": "contour",
      "takim": "T38",
      "denemeler": [],
-     "hesap_s": 0.002,
+     "hesap_s": 0.001,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -3277,12 +3047,13 @@
        }
       }
      ],
-     "kesme_mm": 275.154,
-     "hizli_mm": 32.5,
-     "sure_s": 46.17,
+     "kesme_mm": 265.154,
+     "hizli_mm": 42.5,
+     "sure_s": 42.195,
      "zMin": -17.5,
-     "hareket": 11,
-     "passDepth": 0.5
+     "hareket": 12,
+     "passDepth": 0.5,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c23_2",
@@ -3291,7 +3062,7 @@
      "tur": "contour",
      "takim": "T38",
      "denemeler": [],
-     "hesap_s": 0.002,
+     "hesap_s": 0.001,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
@@ -3304,12 +3075,13 @@
        }
       }
      ],
-     "kesme_mm": 274.044,
-     "hizli_mm": 33,
-     "sure_s": 46.152,
+     "kesme_mm": 264.044,
+     "hizli_mm": 43,
+     "sure_s": 42.177,
      "zMin": -18,
-     "hareket": 11,
-     "passDepth": 0.5
+     "hareket": 12,
+     "passDepth": 0.5,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c23_3",
@@ -3331,12 +3103,13 @@
        }
       }
      ],
-     "kesme_mm": 271.315,
-     "hizli_mm": 33.5,
-     "sure_s": 45.913,
+     "kesme_mm": 261.315,
+     "hizli_mm": 43.5,
+     "sure_s": 41.938,
      "zMin": -18.5,
-     "hareket": 11,
-     "passDepth": 0.5
+     "hareket": 12,
+     "passDepth": 0.5,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "c23_4",
@@ -3358,12 +3131,13 @@
        }
       }
      ],
-     "kesme_mm": 262.74,
-     "hizli_mm": 34,
-     "sure_s": 44.877,
+     "kesme_mm": 252.74,
+     "hizli_mm": 44,
+     "sure_s": 40.902,
      "zMin": -19,
-     "hareket": 11,
-     "passDepth": 0.5
+     "hareket": 12,
+     "passDepth": 0.5,
+     "hava_ilerleme_mm": 5
     },
     {
      "id": "o24",
@@ -3372,92 +3146,23 @@
      "tur": "drill",
      "takim": "T39",
      "denemeler": [],
-     "hesap_s": 0,
+     "hesap_s": 1.239,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
      "kesme_mm": 73.48,
-     "hizli_mm": 258.039,
-     "sure_s": 12.892,
+     "hizli_mm": 20,
+     "sure_s": 12.297,
      "zMin": -23.18496279283278,
-     "hareket": 18,
+     "hareket": 4,
      "passDepth": 4.184962792832753,
+     "hava_ilerleme_mm": 0,
      "delme": {
       "cycles": [
        {
         "cycle": "peck",
-        "n": 1,
-        "top": -19,
-        "bottom": -23.185,
-        "retract": -14,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -19,
-        "bottom": -23.185,
-        "retract": -14,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -19,
-        "bottom": -23.185,
-        "retract": -14,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -19,
-        "bottom": -23.185,
-        "retract": -14,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -19,
-        "bottom": -23.185,
-        "retract": -14,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -19,
-        "bottom": -23.185,
-        "retract": -14,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
-        "top": -19,
-        "bottom": -23.185,
-        "retract": -14,
-        "clearance": 5,
-        "f": 360,
-        "pitch": null
-       },
-       {
-        "cycle": "peck",
-        "n": 1,
+        "n": 8,
         "top": -19,
         "bottom": -23.185,
         "retract": -14,
@@ -3475,20 +3180,31 @@
      "tur": "face",
      "takim": "T20",
      "denemeler": [],
-     "hesap_s": 0.002,
+     "hesap_s": 0,
      "ok": true,
      "varyant": 0,
      "varyant_deger": "birincil",
      "uyarilar": [],
-     "kesme_mm": 1476.994,
-     "hizli_mm": 252.993,
-     "sure_s": 41.246,
+     "kesme_mm": 1466.994,
+     "hizli_mm": 262.993,
+     "sure_s": 40.471,
      "zMin": -2,
-     "hareket": 17,
-     "passDepth": 1
+     "hareket": 18,
+     "passDepth": 1,
+     "hava_ilerleme_mm": 10
     }
    ],
    "gates": [
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 21,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
     {
      "level": "warn",
      "code": "cam.gate.travel_abs_unchecked",
@@ -3516,6 +3232,16 @@
       "op": "22 Yatay temizleme karsiligi T21: cep tabani Y17 (tek paso 14,8 -> 17)"
      },
      "opId": "o22",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 38,
+      "field": "shaftDia"
+     },
+     "opId": null,
      "moveIndex": null
     },
     {
@@ -3560,6 +3286,26 @@
       "op": "23 3D kontur karsiligi T38 Y16.5-17 (kesit 16.99) paso 0.5"
      },
      "opId": "c23_4",
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 39,
+      "field": "shaftDia"
+     },
+     "opId": null,
+     "moveIndex": null
+    },
+    {
+     "level": "warn",
+     "code": "cam.gate.tool_geom_assumed",
+     "params": {
+      "tool": 20,
+      "field": "shaftDia"
+     },
+     "opId": null,
      "moveIndex": null
     },
     {
@@ -3626,16 +3372,17 @@
      35
     ]
    },
-   "hm_s": 0.87,
-   "gates_s": 1.351,
+   "hm_s": 1.044,
+   "gates_s": 1.714,
    "blocked": false,
    "kapi_ozet": {
+    "warn cam.gate.tool_geom_assumed": 4,
     "warn cam.gate.travel_abs_unchecked": 1,
     "warn cam.pocket.rest_material": 2,
     "warn cam.contour.rest_corner": 4,
     "warn cam.gate.sim_lateral_tol": 1
    },
-   "sim_s": 1.284,
+   "sim_s": 1.654,
    "sim_issue_say": 0,
    "sim_issue_kod": {},
    "sim_suppressed": 0,
@@ -3796,10 +3543,10 @@
     "uyarilar": []
    },
    "nc": {
-    "satir": 853,
-    "bayt": 10891,
+    "satir": 831,
+    "bayt": 11203,
     "G81": 0,
-    "G83": 8,
+    "G83": 1,
     "G84": 0,
     "G41": 0,
     "G42": 0,
@@ -3809,86 +3556,83 @@
     ],
     "A_satirlari": [
      {
-      "satir": 25,
+      "satir": 29,
       "metin": "G0 A0."
      }
     ],
     "G84_satirlari": [],
     "M6": 4,
-    "M8": 9,
-    "M5": 9,
+    "M8": 4,
+    "M5": 4,
     "G2G3": 71,
     "G1": 77
    },
-   "tahmini_sure_s": 1670.176
+   "tahmini_sure_s": 1646.981
   }
  ],
  "notlar": [],
  "deneyler": {
   "E1_S1_c4_9_ham_kesit_Y15": {
    "aciklama": "duvar konturu gercek govde Y15 kesitiyle (dolgusuz): +X yuzunde X yonlu O5,5 delik (Y12,25..17,75, Z-25) tek kesitte centik -> takim Y9..22 boyunca centige girer",
-   "kesme_mm": 6108.994,
+   "kesme_mm": 6098.994,
    "block": {
-    "cam.gate.body_short 7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 (cep + helis)": 1,
     "cam.sim.gouge c4_9": 13,
+    "cam.sim.holder_contact o7": 1,
     "cam.sim.gouge o9": 4,
     "cam.sim.gouge o11": 3
    },
    "block_say": 21,
-   "warn_say": 31,
-   "s": 2.723
+   "warn_say": 40,
+   "s": 3.508
   },
   "E2_S1_o9_T33_D6.0": {
    "aciklama": "o9 matkap O6,1 -> O6,0 (model deligi O6): gouge kalkar mi",
    "block": {
-    "cam.gate.body_short 7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 (cep + helis)": 1,
-    "cam.sim.gouge o11": 6,
-    "cam.sim.gouge o12": 6
+    "cam.sim.holder_contact o7": 1,
+    "cam.sim.gouge o11": 6
    },
-   "block_say": 13,
-   "warn_say": 29,
-   "s": 2.818
+   "block_say": 7,
+   "warn_say": 38,
+   "s": 3.296
   },
   "E3a_S1_o11_T39_D2.45": {
    "aciklama": "o11 matkap O2,5 -> O2,45 (model M3 kucuk capi O2,459): gouge kalkar mi",
    "block": {
-    "cam.gate.body_short 7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 (cep + helis)": 1,
-    "cam.sim.gouge o9": 4,
-    "cam.sim.gouge o11": 6,
-    "cam.sim.gouge o12": 6
-   },
-   "block_say": 17,
-   "warn_say": 29,
-   "s": 2.459
-  },
-  "E3b_S1_o11_uc_Y14.6": {
-   "aciklama": "o11 uc Y14,3 -> 14,6 (140 derece matkap, modelde 118 derece delik ucu Y14,26): gouge kalkar mi",
-   "block": {
-    "cam.gate.body_short 7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 (cep + helis)": 1,
-    "cam.sim.gouge o9": 4,
-    "cam.sim.gouge o12": 6
-   },
-   "block_say": 11,
-   "warn_say": 30,
-   "s": 2.408
-  },
-  "E6_S1_o12_T40_D2.45": {
-   "aciklama": "o12 kilavuz sim capi O3 -> O2,45 (model deligi dis kucuk capinda O2,459): kilavuz gouge kok nedeni",
-   "block": {
-    "cam.gate.body_short 7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 (cep + helis)": 1,
+    "cam.sim.holder_contact o7": 1,
     "cam.sim.gouge o9": 4,
     "cam.sim.gouge o11": 6
    },
    "block_say": 11,
-   "warn_say": 31,
-   "s": 2.823
+   "warn_say": 38,
+   "s": 3.2
+  },
+  "E3b_S1_o11_uc_Y14.6": {
+   "aciklama": "o11 uc Y14,3 -> 14,6 (140 derece matkap, modelde 118 derece delik ucu Y14,26): gouge kalkar mi",
+   "block": {
+    "cam.sim.holder_contact o7": 1,
+    "cam.sim.gouge o9": 4
+   },
+   "block_say": 5,
+   "warn_say": 39,
+   "s": 3.874
+  },
+  "E6_S1_o12_T40_D2.45": {
+   "aciklama": "o12 kilavuz sim capi O3 -> O2,45 (model deligi dis kucuk capinda O2,459): kilavuz gouge kok nedeni",
+   "block": {
+    "cam.sim.holder_contact o7": 1,
+    "cam.sim.gouge o9": 4,
+    "cam.sim.gouge o11": 6
+   },
+   "block_say": 11,
+   "warn_say": 40,
+   "s": 3.327
   },
   "E4_S1_T22_bodyLen_30": {
    "aciklama": "o7 T22 govde 25 -> 30 (body_short ilk stok ustunu esas alir, T-08)",
    "block": {},
    "block_say": 0,
-   "warn_say": 26,
-   "s": 0.018
+   "warn_say": 35,
+   "s": 0.052
   },
   "E7_S1_o7_T22_bodyLen_24": {
    "aciklama": "Plan uyarisi: T22 tasma 25 ile kulak havsasinda (Y6) tutucu alt kenari Y31 = boss ustu. Govde 24 alinirsa tutucu 1 mm asagida: sim tutucu carpmasini goruyor mu",
@@ -3909,19 +3653,50 @@
      "depth": 0.494
     }
    ],
-   "s": 2.815
+   "s": 3.745
   },
   "E5_S1_res_0.25": {
    "aciklama": "ayni S1 programi, sim res 0,25",
    "block": {
-    "cam.gate.body_short 7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 (cep + helis)": 1,
+    "cam.sim.holder_contact o7": 1,
     "cam.sim.gouge o9": 4,
-    "cam.sim.gouge o11": 6,
-    "cam.sim.gouge o12": 6
+    "cam.sim.gouge o11": 6
    },
-   "block_say": 17,
-   "warn_say": 30,
-   "s": 19.792
+   "block_say": 11,
+   "warn_say": 39,
+   "s": 28.33
+  },
+  "T04_zincir": {
+   "aciklama": "tek program, setup zinciri (sim chain)",
+   "s": 7.746,
+   "setup": {
+    "S1": {
+     "block": 11,
+     "kod": {
+      "block cam.sim.holder_contact": 1,
+      "block cam.sim.gouge": 10,
+      "warn cam.sim.below_stock": 4
+     }
+    },
+    "S2": {
+     "block": 0,
+     "kod": {}
+    },
+    "S3": {
+     "block": 0,
+     "kod": {}
+    },
+    "S4": {
+     "block": 0,
+     "kod": {}
+    },
+    "genel": {
+     "block": 0,
+     "kod": {
+      "warn cam.gate.sim_lateral_tol": 1
+     }
+    }
+   }
   }
  },
  "geometri": {
@@ -4000,13 +3775,13 @@
      -25
     ],
     "mx": [
-     20.000000000000007,
+     20.000000000000004,
      25
     ],
     "w": 78,
     "h": 50,
     "c": [
-     -18.999999999999996,
+     -19,
      0
     ]
    },
@@ -4020,13 +3795,13 @@
        -25
       ],
       "mx": [
-       20.000000000000007,
+       20.000000000000004,
        25
       ],
       "w": 78,
       "h": 50,
       "c": [
-       -18.999999999999996,
+       -19,
        0
       ]
      }
@@ -4077,7 +3852,7 @@
      "bb": {
       "mn": [
        -57.33412892930181,
-       -24.33412892930182
+       -24.334128929301816
       ],
       "mx": [
        19.334128929301826,
@@ -4087,7 +3862,7 @@
       "h": 48.66825785860364,
       "c": [
        -18.999999999999993,
-       1.7763568394002505e-15
+       3.552713678800501e-15
       ]
      }
     },
@@ -4222,18 +3997,90 @@
   },
   "kontur_eskiz_sorun": {}
  },
+ "delik_tanima": {
+  "taninan_kayit": 7,
+  "taninan_konum": 30,
+  "elle_kayit": 7,
+  "elle_konum": 32,
+  "bulunan_konum": 32,
+  "bulunan_kayit": 7,
+  "kayit": [
+   {
+    "feature": "P4kulak",
+    "dia": 6,
+    "konum": 4,
+    "bulunan": 4,
+    "taninan": [
+     "rec:6 cbore D6 thru"
+    ]
+   },
+   {
+    "feature": "P4d35kaide",
+    "dia": 3.5,
+    "konum": 3,
+    "bulunan": 3,
+    "taninan": [
+     "rec:3 simple D3.5 thru"
+    ]
+   },
+   {
+    "feature": "P4d35boss",
+    "dia": 3.5,
+    "konum": 3,
+    "bulunan": 3,
+    "taninan": [
+     "rec:3 simple D3.5 thru"
+    ]
+   },
+   {
+    "feature": "P4m3",
+    "dia": 2.459,
+    "konum": 6,
+    "bulunan": 6,
+    "taninan": [
+     "rec:1 simple D2.459 d12"
+    ]
+   },
+   {
+    "feature": "P4caprazZeksi",
+    "dia": 7,
+    "konum": 4,
+    "bulunan": 4,
+    "taninan": [
+     "rec:7 cbore D7 thru"
+    ]
+   },
+   {
+    "feature": "P4caprazZarti",
+    "dia": 7,
+    "konum": 4,
+    "bulunan": 4,
+    "taninan": [
+     "rec:7 cbore D7 thru"
+    ]
+   },
+   {
+    "feature": "P4taban25",
+    "dia": 2.5,
+    "konum": 8,
+    "bulunan": 8,
+    "taninan": [
+     "rec:2 simple D2.5 thru"
+    ]
+   }
+  ]
+ },
  "sema": "gecerli",
  "deney_silhouette": {
   "ok": false,
   "hata": {
-   "code": "cam.silhouette.multiple",
+   "code": "cam.silhouette.not_prismatic",
    "params": {
-    "n": 5,
-    "z": -13
+    "n": 111
    }
   }
  },
- "sure_s": 125.51,
+ "sure_s": 199.363,
  "fop_ozet": [
   {
    "fop": 1,
@@ -4241,10 +4088,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 41.246,
-   "mihenk_kesme_mm": 1476.994,
-   "mihenk_hizli_mm": 252.993,
-   "mihenk_hesap_s": 0.002,
+   "mihenk_sure_s": 40.471,
+   "mihenk_kesme_mm": 1466.994,
+   "mihenk_hizli_mm": 262.993,
+   "mihenk_hesap_s": 0.003,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4263,10 +4110,10 @@
    "mihenk_islem_say": 6,
    "ok_say": 6,
    "hata_say": 0,
-   "mihenk_sure_s": 1437.73,
-   "mihenk_kesme_mm": 34761.673,
-   "mihenk_hizli_mm": 2662.118,
-   "mihenk_hesap_s": 3.393,
+   "mihenk_sure_s": 1430.545,
+   "mihenk_kesme_mm": 34698.23,
+   "mihenk_hizli_mm": 2723.132,
+   "mihenk_hesap_s": 4.215,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.pocket.rest_material": 6
@@ -4287,10 +4134,10 @@
    "mihenk_islem_say": 3,
    "ok_say": 3,
    "hata_say": 0,
-   "mihenk_sure_s": 206.762,
-   "mihenk_kesme_mm": 4813.985,
-   "mihenk_hizli_mm": 784.895,
-   "mihenk_hesap_s": 0.711,
+   "mihenk_sure_s": 203.237,
+   "mihenk_kesme_mm": 4783.984,
+   "mihenk_hizli_mm": 814.895,
+   "mihenk_hesap_s": 0.897,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.pocket.rest_material": 3
@@ -4311,10 +4158,10 @@
    "mihenk_islem_say": 11,
    "ok_say": 11,
    "hata_say": 0,
-   "mihenk_sure_s": 505.127,
-   "mihenk_kesme_mm": 11400.945,
-   "mihenk_hizli_mm": 819.723,
-   "mihenk_hesap_s": 0.108,
+   "mihenk_sure_s": 492.282,
+   "mihenk_kesme_mm": 11290.945,
+   "mihenk_hizli_mm": 961.731,
+   "mihenk_hesap_s": 0.206,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.contour.rest_corner": 10
@@ -4335,9 +4182,9 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 72.759,
-   "mihenk_kesme_mm": 1629.714,
-   "mihenk_hizli_mm": 103.4,
+   "mihenk_sure_s": 71.584,
+   "mihenk_kesme_mm": 1619.714,
+   "mihenk_hizli_mm": 113.4,
    "mihenk_hesap_s": 0.009,
    "hatalar": [],
    "uyari_kodlari": {
@@ -4359,9 +4206,9 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 210.936,
-   "mihenk_kesme_mm": 425.2,
-   "mihenk_hizli_mm": 94.2,
+   "mihenk_sure_s": 200.961,
+   "mihenk_kesme_mm": 415.2,
+   "mihenk_hizli_mm": 104.2,
    "mihenk_hesap_s": 0.013,
    "hatalar": [],
    "uyari_kodlari": {
@@ -4383,10 +4230,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 74.44,
-   "mihenk_kesme_mm": 661.053,
-   "mihenk_hizli_mm": 549.626,
-   "mihenk_hesap_s": 0.015,
+   "mihenk_sure_s": 72.59,
+   "mihenk_kesme_mm": 651.053,
+   "mihenk_hizli_mm": 559.626,
+   "mihenk_hesap_s": 0.014,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4405,10 +4252,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 5.913,
+   "mihenk_sure_s": 5.25,
    "mihenk_kesme_mm": 26,
-   "mihenk_hizli_mm": 285.159,
-   "mihenk_hesap_s": 0.001,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 1.486,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4427,13 +4274,12 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 8.204,
+   "mihenk_sure_s": 7.541,
    "mihenk_kesme_mm": 52.44,
-   "mihenk_hizli_mm": 285.159,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 0.013,
    "hatalar": [],
    "uyari_kodlari": {
-    "cam.drill.through_to_model_bottom": 1,
     "cam.drill.dia_mismatch": 1
    },
    "fusion": {
@@ -4452,10 +4298,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 17.735,
+   "mihenk_sure_s": 17.68,
    "mihenk_kesme_mm": 102.102,
-   "mihenk_hizli_mm": 92.767,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 70.767,
+   "mihenk_hesap_s": 0.019,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4474,10 +4320,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 17.913,
+   "mihenk_sure_s": 17.75,
    "mihenk_kesme_mm": 106.2,
-   "mihenk_hizli_mm": 85.294,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 0.001,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.drill.dia_mismatch": 1
@@ -4498,10 +4344,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 11.013,
+   "mihenk_sure_s": 10.85,
    "mihenk_kesme_mm": 90,
-   "mihenk_hizli_mm": 85.294,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 0.003,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4520,10 +4366,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 216.81,
-   "mihenk_kesme_mm": 2505.266,
-   "mihenk_hizli_mm": 592.5,
-   "mihenk_hesap_s": 0.017,
+   "mihenk_sure_s": 214.96,
+   "mihenk_kesme_mm": 2495.266,
+   "mihenk_hizli_mm": 602.5,
+   "mihenk_hesap_s": 0.019,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4542,10 +4388,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 5.415,
+   "mihenk_sure_s": 5.25,
    "mihenk_kesme_mm": 26,
-   "mihenk_hizli_mm": 86,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 1.284,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4564,10 +4410,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 19.929,
+   "mihenk_sure_s": 19.764,
    "mihenk_kesme_mm": 138,
-   "mihenk_hizli_mm": 86,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 0.001,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.drill.dia_mismatch": 1
@@ -4588,10 +4434,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 216.81,
-   "mihenk_kesme_mm": 2505.266,
-   "mihenk_hizli_mm": 592.5,
-   "mihenk_hesap_s": 0.015,
+   "mihenk_sure_s": 214.96,
+   "mihenk_kesme_mm": 2495.266,
+   "mihenk_hizli_mm": 602.5,
+   "mihenk_hesap_s": 0.016,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4610,10 +4456,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 5.415,
+   "mihenk_sure_s": 5.25,
    "mihenk_kesme_mm": 26,
-   "mihenk_hizli_mm": 86,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 1.457,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4632,10 +4478,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 19.929,
+   "mihenk_sure_s": 19.764,
    "mihenk_kesme_mm": 138,
-   "mihenk_hizli_mm": 86,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 0.001,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.drill.dia_mismatch": 1
@@ -4656,10 +4502,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 98.787,
-   "mihenk_kesme_mm": 489.226,
-   "mihenk_hizli_mm": 18,
-   "mihenk_hesap_s": 0.028,
+   "mihenk_sure_s": 92.812,
+   "mihenk_kesme_mm": 479.226,
+   "mihenk_hizli_mm": 28,
+   "mihenk_hesap_s": 0.039,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.pocket.rest_material": 1
@@ -4680,10 +4526,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 123.318,
-   "mihenk_kesme_mm": 560.105,
-   "mihenk_hizli_mm": 59.218,
-   "mihenk_hesap_s": 0.014,
+   "mihenk_sure_s": 117.343,
+   "mihenk_kesme_mm": 550.105,
+   "mihenk_hizli_mm": 69.218,
+   "mihenk_hesap_s": 0.018,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.pocket.rest_material": 1
@@ -4704,10 +4550,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 234.395,
-   "mihenk_kesme_mm": 6940.951,
-   "mihenk_hizli_mm": 97.314,
-   "mihenk_hesap_s": 0.043,
+   "mihenk_sure_s": 233.42,
+   "mihenk_kesme_mm": 6930.951,
+   "mihenk_hizli_mm": 107.314,
+   "mihenk_hesap_s": 0.047,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.pocket.rest_material": 1
@@ -4728,10 +4574,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 21.585,
-   "mihenk_kesme_mm": 577,
-   "mihenk_hizli_mm": 34,
-   "mihenk_hesap_s": 0.014,
+   "mihenk_sure_s": 20.61,
+   "mihenk_kesme_mm": 567,
+   "mihenk_hizli_mm": 44,
+   "mihenk_hesap_s": 0.012,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.pocket.rest_material": 1
@@ -4752,10 +4598,10 @@
    "mihenk_islem_say": 5,
    "ok_say": 5,
    "hata_say": 0,
-   "mihenk_sure_s": 1360.058,
-   "mihenk_kesme_mm": 8830.001,
-   "mihenk_hizli_mm": 643.5,
-   "mihenk_hesap_s": 0.03,
+   "mihenk_sure_s": 1340.183,
+   "mihenk_kesme_mm": 8780.001,
+   "mihenk_hizli_mm": 693.5,
+   "mihenk_hesap_s": 0.024,
    "hatalar": [],
    "uyari_kodlari": {
     "cam.contour.rest_corner": 4
@@ -4776,10 +4622,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 12.892,
+   "mihenk_sure_s": 12.297,
    "mihenk_kesme_mm": 73.48,
-   "mihenk_hizli_mm": 258.039,
-   "mihenk_hesap_s": 0,
+   "mihenk_hizli_mm": 20,
+   "mihenk_hesap_s": 1.239,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {
@@ -4798,10 +4644,10 @@
    "mihenk_islem_say": 1,
    "ok_say": 1,
    "hata_say": 0,
-   "mihenk_sure_s": 41.246,
-   "mihenk_kesme_mm": 1476.994,
-   "mihenk_hizli_mm": 252.993,
-   "mihenk_hesap_s": 0.002,
+   "mihenk_sure_s": 40.471,
+   "mihenk_kesme_mm": 1466.994,
+   "mihenk_hizli_mm": 262.993,
+   "mihenk_hesap_s": 0,
    "hatalar": [],
    "uyari_kodlari": {},
    "fusion": {

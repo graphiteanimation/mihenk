@@ -72,7 +72,7 @@ const R = await page.evaluate(async ([PORT, ASSETS]) => {
   return o;
 }, [PORT, ASSETS]);
 check('Node globalleri renderer\'da yok', R.nodeGlobals === 'undefined,undefined,undefined', R.nodeGlobals);
-check('köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler', R.nativeKeys === 'argvFile,docState,getSetting,openFile,openRecent,recentList,recoveryClear,recoveryLoad,recoverySave,saveFile,setDirty,setSetting,setStrings,setTitle,versions', R.nativeKeys);
+check('köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler', R.nativeKeys === 'argvFile,docState,getSetting,openFile,openLogFolder,openRecent,recentList,recoveryClear,recoveryLoad,recoverySave,saveFile,setDirty,setSetting,setStrings,setTitle,versions', R.nativeKeys);
 check('CSP yanıt başlığı = electron/csp.cjs', R.csp === CSP, R.csp);
 check('CSP meta etiketi = başlık', R.cspMeta === CSP);
 check('ana betik de aynı sıkı CSP\'yi alır (unsafe-eval yok)', R.mainJsCsp === CSP && !/'unsafe-eval'/.test(R.mainJsCsp || ''), String(R.mainJsCsp));
@@ -230,6 +230,16 @@ check('DXF dosya türü: kayıt diyaloğu .dxf yazar', typeof dxfRes === 'string
 await stubDialogs(app, { open: dxfOut });
 const dxfIn = await page.evaluate(async () => { const r = await window.native.openFile('dxf'); return r && r.name; });
 check('DXF dosya türü: açma diyaloğu .dxf kabul eder', dxfIn === 'cizim.dxf');
+// WP-07: kurulum foyu (html) yalniz yazilir; .html uzantisi zorlanir, acma reddedilir
+const htmlOut = path.join(TMP, 'foy.html'); await stubDialogs(app, { save: htmlOut });
+const htmlRes = await page.evaluate(async () => { try { return await window.native.saveFile({ saveAs: true, data: new TextEncoder().encode('<!DOCTYPE html><p>x</p>'), defaultName: 'PROG-foy.html', kind: 'html' }); } catch (e) { return 'ERR ' + e.message; } });
+check('html dosya türü (kurulum föyü): kayıt diyaloğu .html yazar', typeof htmlRes === 'string' && !htmlRes.startsWith('ERR') && fs.existsSync(htmlOut) && fs.readFileSync(htmlOut, 'utf8').startsWith('<!DOCTYPE html>'), String(htmlRes));
+await stubDialogs(app, { open: htmlOut });
+const htmlOpen = await page.evaluate(async () => { try { const r = await window.native.openFile('html'); return r ? 'opened' : 'null'; } catch (e) { return 'ERR'; } });
+check('html dosya türü: açma reddedilir (yalnız yazılır)', htmlOpen !== 'opened', htmlOpen);
+const htmlBad = path.join(TMP, 'foy.exe'); await stubDialogs(app, { save: htmlBad });
+const htmlBadRes = await page.evaluate(async () => { try { return await window.native.saveFile({ saveAs: true, data: new Uint8Array([1]), defaultName: 'x.exe', kind: 'html' }); } catch (e) { return 'ERR'; } });
+check('html dosya türü: .exe adı .html olarak yazılır, .exe oluşmaz', !fs.existsSync(htmlBad), String(htmlBadRes));
 await app.close();
 // ---- WP-04 dilim 6: NC ve DXF kaydı GERÇEK pencerede, uygulamanın kendi akışıyla (menü/komut → writeOut → ana süreç diyaloğu → atomik yazım)
 console.log('2c: NC ve DXF kaydı gerçek pencerede (uygulama akışı)');

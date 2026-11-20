@@ -1,0 +1,322 @@
+{
+ "format": "mihenk-altin-taban",
+ "parcalar": {
+  "P1": {
+   "id": "P1",
+   "tur": "compare",
+   "setups": {
+    "S1": {
+     "block": 19,
+     "kodlar": {
+      "cam.sim.gouge": 19
+     },
+     "warn": 10,
+     "temiz": false,
+     "estS": 728.88,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 5,
+     "temiz": true,
+     "estS": 18.519,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S3": {
+     "block": 5,
+     "kodlar": {
+      "cam.gate.body_short": 1,
+      "cam.sim.holder_collision": 2,
+      "cam.sim.rapid_in_stock": 2
+     },
+     "warn": 5,
+     "temiz": false,
+     "estS": 7.3,
+     "G81": 1,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": {
+    "S1": 19,
+    "S2": 0,
+    "S3": 3
+   },
+   "delik": {
+    "elle": 2,
+    "bulunan": 2,
+    "taninan": 5
+   },
+   "hesapS": 5.301
+  },
+  "P2": {
+   "id": "P2",
+   "tur": "compare",
+   "setups": {
+    "S1": {
+     "block": 2,
+     "kodlar": {
+      "cam.sim.gouge": 2
+     },
+     "warn": 13,
+     "temiz": false,
+     "estS": 11206.009,
+     "G81": 1,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 20,
+     "kodlar": {
+      "cam.sim.gouge": 20
+     },
+     "warn": 11,
+     "temiz": false,
+     "estS": 4801.959,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": null,
+   "delik": {
+    "elle": 4,
+    "bulunan": 4,
+    "taninan": 21
+   },
+   "hesapS": 73.409
+  },
+  "P3": {
+   "id": "P3",
+   "tur": "compare",
+   "setups": {
+    "S1": {
+     "block": 5,
+     "kodlar": {
+      "cam.sim.flute_exceeded": 5
+     },
+     "warn": 90,
+     "temiz": false,
+     "estS": 30826.604,
+     "G81": 1,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 1
+    },
+    "S2": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 12,
+     "temiz": true,
+     "estS": 2550.013,
+     "G81": 1,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S3": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 6,
+     "temiz": true,
+     "estS": 524.954,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S4": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 3,
+     "temiz": true,
+     "estS": 169.968,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": {
+    "S1": 5,
+    "S2": 0,
+    "S3": 0,
+    "S4": 0
+   },
+   "delik": {
+    "elle": 8,
+    "bulunan": 8,
+    "taninan": 12
+   },
+   "hesapS": 164.323
+  },
+  "P4": {
+   "id": "P4",
+   "tur": "compare",
+   "setups": {
+    "S1": {
+     "block": 11,
+     "kodlar": {
+      "cam.sim.gouge": 10,
+      "cam.sim.holder_contact": 1
+     },
+     "warn": 39,
+     "temiz": false,
+     "estS": 2570.741,
+     "G81": 1,
+     "G83": 4,
+     "G84": 1,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 7,
+     "temiz": true,
+     "estS": 239.974,
+     "G81": 1,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S3": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 10,
+     "temiz": true,
+     "estS": 450.129,
+     "G81": 1,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S4": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 12,
+     "temiz": true,
+     "estS": 1646.981,
+     "G81": 0,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": {
+    "S1": 11,
+    "S2": 0,
+    "S3": 0,
+    "S4": 0
+   },
+   "delik": {
+    "elle": 32,
+    "bulunan": 32,
+    "taninan": 30
+   },
+   "hesapS": 183.55
+  },
+  "01-Prizmatik-plaka": {
+   "id": "01-Prizmatik-plaka",
+   "tur": "belge",
+   "setups": {
+    "S1": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 9,
+     "temiz": true,
+     "estS": 227.513,
+     "G81": 0,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": null,
+   "delik": null,
+   "hesapS": 1.402
+  },
+  "02-Delikli-iki-setup": {
+   "id": "02-Delikli-iki-setup",
+   "tur": "belge",
+   "setups": {
+    "S1": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 8,
+     "temiz": true,
+     "estS": 90.594,
+     "G81": 0,
+     "G83": 2,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 3,
+     "temiz": true,
+     "estS": 164.033,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": null,
+   "delik": null,
+   "hesapS": 1.253
+  },
+  "03-3p1-blok": {
+   "id": "03-3p1-blok",
+   "tur": "belge",
+   "setups": {
+    "S1": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 4,
+     "temiz": true,
+     "estS": 85.935,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 2,
+     "temiz": true,
+     "estS": 7.581,
+     "G81": 0,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S3": {
+     "block": 0,
+     "kodlar": {},
+     "warn": 1,
+     "temiz": true,
+     "estS": 7.581,
+     "G81": 0,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": null,
+   "delik": null,
+   "hesapS": 0.823
+  }
+ }
+}

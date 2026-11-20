@@ -9,6 +9,7 @@ import * as P from '../geom/path2d.js';
 import * as G from '../../shared/geom2d.js';
 import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3, belowStockAllow, stockToLeave } from './common.js';
 import { rampAlong } from './contour.js';
+import { holeOpen } from './thread.js';
 
 const MAX_RINGS = 5000;
 
@@ -124,9 +125,11 @@ export function computePocket(op, ctx) {
   const dir = op.dir ?? 'climb'; if (!['climb', 'conv'].includes(dir)) throw cerr('cam.op.bad_field', { field: 'dir', expect: 'climb/conv', op: op.name || op.id });
   const entry = op.entry; if (!entry || typeof entry !== 'object') throw cerr('cam.op.missing', { field: 'entry', op: op.name || op.id });
   if (!['helix', 'ramp', 'plunge', 'predrill'].includes(entry.kind)) throw cerr('cam.op.bad_field', { field: 'entry.kind', expect: 'helix/ramp/plunge', op: op.name || op.id });
-  if (entry.kind === 'predrill') throw cerr('cam.op.unsupported', { what: 'entry.predrill' });
+  // on delik girisi (WP-07): takim, dolgusuz/delinmis noktaya dikey iner; noktalar setup XY'sinde. Merkezden kesmeyen takimda delik, stok haritasindan DOGRULANIR.
+  const pre = entry.kind === 'predrill' ? need(op, 'entry.points', (v) => Array.isArray(v) && v.length > 0 && v.every((q) => Array.isArray(q) && q.length === 2 && q.every(Number.isFinite)), 'non-empty [[x,y],...]') : null;
+  const stockMap = ctx.stockMap?.data ? ctx.stockMap : null;
   if (entry.kind === 'plunge' && !tool.centerCutting) throw cerr('cam.entry.plunge_not_center_cutting', { tool: tool.number });
-  const ang = entry.kind === 'plunge' ? null : need(op, 'entry.angle', (v) => v > 0 && v <= 45, '0 < angle <= 45');
+  const ang = entry.kind === 'plunge' || entry.kind === 'predrill' ? null : need(op, 'entry.angle', (v) => v > 0 && v <= 45, '0 < angle <= 45');
   const helixR = entry.kind === 'helix' ? need(op, 'entry.helixDia') / 2 : 0;
   const finish = op.finishPass === true; const fStock = finish ? need(op, 'finishStock') : 0;
   if (finish && !(fStock < so)) throw cerr('cam.pocket.finish_stock_big');
@@ -197,7 +200,7 @@ export function computePocket(op, ctx) {
         }
       };
       const enterLeaf = (bb, node, L, z, zPrev, li) => {
-        const c = node.deep.p;
+        const c = node.deep.p; const c0 = c;
         if (entry.kind === 'helix') {
           const s0 = [c[0] + helixR, c[1]];
           bb.linkTo(s0[0], s0[1], zPrev, cut.feedPlunge, { clear: li > 0 });
@@ -205,6 +208,19 @@ export function computePocket(op, ctx) {
           bb.feed(c[0], c[1], z, cut.feedCut, 'cut');
           const q = P.closestOnLoops(c, [L]).p; const Ls = P.startAt(L, q);
           bb.feed(q[0], q[1], z, cut.feedCut, 'cut'); bb.segs(Ls, z, cut.feedCut, 'cut');
+        } else if (entry.kind === 'predrill') {
+          const reg = { outer: node.outer, holes: node.holes }; const allowedL = [node.outer, ...node.holes];
+          const cand = pre.filter((q) => P.inRegion(q, reg)).sort((a, c) => Math.hypot(a[0] - c0[0], a[1] - c0[1]) - Math.hypot(c[0] - c0[0], c[1] - c0[1]));
+          const q0 = cand.find((q) => { const qq = P.closestOnLoops(q, [L]).p; return segmentOk(q, qq, node, allowedL); });
+          if (!q0) throw cerr('cam.pocket.predrill_none', { x: r3(c0[0]), y: r3(c0[1]) });
+          if (!tool.centerCutting) {
+            if (!stockMap) throw cerr('cam.pocket.predrill_unverified', { x: r3(q0[0]), y: r3(q0[1]) });
+            if (!holeOpen(stockMap, q0[0], q0[1], r, z)) throw cerr('cam.pocket.predrill_closed', { x: r3(q0[0]), y: r3(q0[1]), z: r3(z) });
+          }
+          bb.linkTo(q0[0], q0[1], zPrev, cut.feedPlunge, { clear: li > 0 });
+          bb.feed(q0[0], q0[1], z, cut.feedPlunge, 'plunge', { clear: true });
+          const qq = P.closestOnLoops(q0, [L]).p; const Ls = P.startAt(L, qq);
+          bb.feed(qq[0], qq[1], z, cut.feedCut, 'cut'); bb.segs(Ls, z, cut.feedCut, 'cut');
         } else if (entry.kind === 'ramp') {
           bb.linkTo(L[0].a[0], L[0].a[1], zPrev, cut.feedPlunge, { clear: li > 0 });
           rampAlong(bb, L, zPrev, z, ang, cut.feedRamp);

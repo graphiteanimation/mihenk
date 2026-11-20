@@ -28,6 +28,8 @@ if (location.protocol === 'app:' && location.host === 'mihenk') {
     recoverySave: (data) => ipcRenderer.invoke('native:recoverySave', data),
     recoveryLoad: () => ipcRenderer.invoke('native:recoveryLoad'),
     recoveryClear: () => ipcRenderer.invoke('native:recoveryClear'),
+    // Yardım → günlük klasörünü aç (yerel hata günlüğü; ağa gönderilmez). true: açıldı
+    openLogFolder: () => ipcRenderer.invoke('native:openLogFolder'),
     versions: { electron: process.versions.electron, chrome: process.versions.chrome },
   });
 }

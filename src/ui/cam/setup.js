@@ -2,6 +2,7 @@
 import { h } from '../dom.js';
 import { t, errText, fmtNum } from '../../shared/i18n.js';
 import { resolveSetup } from '../../cam/index.js';
+import { axisPlane } from '../../cam/program.js';
 import { clone, numField, textField, selField, checkField, sec, callout, fld, unitBox, panelShell, okCancel, panelKeys, parseNum } from './util.js';
 
 const DIRS = ['+Z', '-Z', '+X', '-X', '+Y', '-Y'];
@@ -26,10 +27,10 @@ export class SetupPanel {
   open() { this.render(); this.unkeys = panelKeys(document.getElementById('panel'), () => this.ok(), () => this.cancel()); this.check(); }
   relang() { this.render(); this.check(); }
   close() { this.closed = true; this.unkeys?.(); this.cam.panelClosed(this); }
-  cancel() { this.close(); this.cam.view?.showSetup(null); }
+  cancel() { this.endPick(); this.close(); this.cam.view?.showSetup(null); }
   ok() {
     const bad = this.problems(); if (bad) { this.cam.app.toastInfo(bad); return; }
-    const d = clone(this.draft); this.close();
+    const d = clone(this.draft); this.endPick(); this.close();
     this.cam.mut((c) => { const i = c.setups.findIndex((s) => s.id === d.id); if (i >= 0) { const nx = { ...c.setups[i], ...d, ops: c.setups[i].ops }; for (const k of ['stockFrom', 'freePieceBlock']) if (!(k in d)) delete nx[k]; c.setups[i] = nx; } });
   }
   problems() {
@@ -39,12 +40,40 @@ export class SetupPanel {
     return null;
   }
   numErr() { return !!this.bodyEl?.closest('.panel')?.querySelector('.input.err'); }
-  resolve() { try { return { S: resolveSetup(this.draft, this.app.result, this.cam.machine()) }; } catch (e) { return { err: e }; } }
-  check() {
+  async resolve() {
+    try {
+      const planes = {}; for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = this.draft.frame?.[f]; if (ax?.kind === 'face' || ax?.kind === 'edge') planes[k] = await axisPlane((c, a) => this.app.query(c, a), ax); }
+      return { S: resolveSetup(this.draft, this.app.result, this.cam.machine(), { planes }) };
+    } catch (e) { return { err: e }; }
+  }
+  // WP-07: eksen secimi gorunumden (yuz ya da duz kenar)
+  // WP-07: yuvarlak stok onerisi: secili govdelerin X eksenine gore yaricap (orijinden) ve X boyu + 2 mm pay (yalniz oneri; kullanici duzenler)
+  cylGuess() {
+    let R = 0, x0 = Infinity, x1 = -Infinity;
+    for (const b of this.app.result?.bodies || []) { if (!this.draft.bodies.includes(b.id)) continue; const v = b.vertices || []; for (let i = 0; i < v.length; i += 3) { R = Math.max(R, Math.hypot(v[i + 1], v[i + 2])); x0 = Math.min(x0, v[i]); x1 = Math.max(x1, v[i]); } }
+    return R > 0 && x1 > x0 ? { dia: Math.ceil(2 * R + 2), len: Math.ceil(x1 - x0 + 2) } : { dia: 50, len: 100 };
+  }
+  startPick(which) { this.pickAxis = which; const vp = this.app.viewport; vp.setFilter({ face: true, edge: true }); vp.setSelection([]); this.app.setHint(t('cam.su.pick_axis_hint')); this.render(); this.check(); }
+  endPick() { this.pickAxis = null; const vp = this.app.viewport; vp.setFilter({}); vp.setSelection([]); this.app.setHint(''); }
+  async onPick(hit) {
+    if (!this.pickAxis || !hit || (hit.kind !== 'face' && hit.kind !== 'edge')) return;
+    const which = this.pickAxis; const key = which === 'z' ? 'zAxis' : 'xAxis'; const d = this.draft;
+    try {
+      const ref = await this.app.describe(hit, hit.kind); const spec = { kind: hit.kind, ref };
+      const pl = await axisPlane((c, a) => this.app.query(c, a), spec); // yuz duz degilse / kenar dogru degilse hata
+      d.frame[key] = spec;
+      if (which === 'z') { // X ekseni dik degilse en az hizali taban eksenden "otomatik" (izdusum) sec
+        const x = d.frame.xAxis; const dv = (dir) => { const v = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] }[dir[1]]; return v[0] * pl.n[0] + v[1] * pl.n[1] + v[2] * pl.n[2]; };
+        if (x.kind === 'base' && Math.abs(dv(x.dir)) > 1e-9) { const best = ['+X', '+Y', '+Z'].sort((a, b) => Math.abs(dv(a)) - Math.abs(dv(b)))[0]; d.frame.xAxis = { kind: 'base', dir: best, auto: true }; }
+      }
+    } catch (e) { this.app.toastInfo(errText(e)); }
+    this.endPick(); this.render(); this.check();
+  }
+  async check() {
     if (this.closed || !this.sumEl) return;
     const body = this.sumEl; body.replaceChildren();
     if (!this.app.result?.bodies?.length) { body.append(callout('warn', null, t('cam.su.need_model'))); return; }
-    const { S, err } = this.resolve();
+    const { S, err } = await this.resolve();
     if (err) { body.append(callout('err', t('cam.su.unresolved'), errText(err))); this.cam.view?.showSetup(null); return; }
     const sz = S.stockBox.max.map((v, i) => v - S.stockBox.min[i]);
     body.append(callout('info', t('cam.su.resolved'), t('cam.su.summary', { stock: sz.map((v) => fmtNum(v, 3)).join(' × '), top: fmtNum(S.stockTop, 3) })));
@@ -58,18 +87,24 @@ export class SetupPanel {
     this.bodyEl = h('div', { class: 'wcs-grid' }, bodies.length ? bodies : [h('span', { class: 'note', text: t('cam.su.need_model') })]);
     const dirOpts = (list) => list.map((x) => [x, t('cam.dir.' + x)]);
     const zKind = d.frame.zAxis.kind, xKind = d.frame.xAxis.kind;
-    const zSel = selField({ label: t('cam.su.z_axis'), value: zKind === 'base' ? d.frame.zAxis.dir : 'face', f: 'su-z', hint: t('cam.su.z_hint'), opts: [...dirOpts(DIRS), ...(zKind === 'face' ? [['face', t('cam.su.from_face')]] : [])], set: (v) => {
-      if (v === 'face') return; d.frame.zAxis = { kind: 'base', dir: v };
+    const zSel = selField({ label: t('cam.su.z_axis'), value: zKind === 'base' ? d.frame.zAxis.dir : zKind, f: 'su-z', hint: t('cam.su.z_hint'), opts: [...dirOpts(DIRS), ...(zKind !== 'base' ? [[zKind, t(zKind === 'edge' ? 'cam.su.from_edge' : 'cam.su.from_face')]] : [])], set: (v) => {
+      if (v === 'face' || v === 'edge') return; d.frame.zAxis = { kind: 'base', dir: v };
       if (d.frame.xAxis.kind === 'base' && !perp(v, d.frame.xAxis.dir)) d.frame.xAxis = { kind: 'base', dir: DIRS.find((q) => perp(v, q) && q[1] === 'X') || DIRS.find((q) => perp(v, q)) };
       this.render(); upd(); } });
     const xList = DIRS.filter((q) => d.frame.zAxis.kind !== 'base' || perp(d.frame.zAxis.dir, q));
-    const xSel = selField({ label: t('cam.su.x_axis'), value: xKind === 'base' ? d.frame.xAxis.dir : 'face', f: 'su-x', opts: [...dirOpts(xList), ...(xKind === 'face' ? [['face', t('cam.su.from_face')]] : [])], set: (v) => { if (v === 'face') return; d.frame.xAxis = { kind: 'base', dir: v }; upd(); } });
+    const xSel = selField({ label: t('cam.su.x_axis'), value: xKind === 'base' ? d.frame.xAxis.dir : xKind, f: 'su-x', opts: [...dirOpts(xList), ...(xKind !== 'base' ? [[xKind, t(xKind === 'edge' ? 'cam.su.from_edge' : 'cam.su.from_face')]] : [])], set: (v) => { if (v === 'face' || v === 'edge') return; d.frame.xAxis = { kind: 'base', dir: v }; upd(); } });
+    const axisBtns = (w) => {
+      const key = w === 'z' ? 'zAxis' : 'xAxis'; const ax = d.frame[key]; const items = [h('button', { class: 'btn ghost sm', type: 'button', 'data-testid': 'su-' + w + '-pick', 'aria-pressed': String(this.pickAxis === w), onclick: () => (this.pickAxis === w ? (this.endPick(), this.render()) : this.startPick(w)) }, t(this.pickAxis === w ? 'cam.su.pick_axis_cancel' : 'cam.su.pick_axis'))];
+      if (ax.kind !== 'base') { const c = h('input', { type: 'checkbox', 'data-f': 'su-' + w + '-flip', checked: !!ax.flip }); c.addEventListener('change', () => { ax.flip = c.checked; upd(); }); items.push(h('label', { class: 'chk' }, c, h('span', { class: 'nm', text: t('cam.su.axis_flip') }))); }
+      if (w === 'x' && ax.auto) items.push(h('span', { class: 'note', text: t('cam.su.x_auto') }));
+      return h('div', { class: 'op-grow', 'data-testid': 'su-' + w + '-axis-row' }, ...items);
+    };
     const org = d.frame.origin;
     const oSel = selField({ label: t('cam.su.origin'), value: org.kind, f: 'su-origin', opts: [['stockCorner', t('cam.su.o_corner')], ['stockTopCenter', t('cam.su.o_topcenter')], ['model', t('cam.su.o_model')], ['point', t('cam.su.o_point')]], set: (v) => {
       d.frame.origin = v === 'stockCorner' ? { kind: v, corner: 'x-y-z+' } : v === 'point' ? { kind: v, p: [0, 0, 0] } : { kind: v }; this.render(); upd(); } });
     const rows = [fld(t('cam.su.name'), unitBox(h('input', { type: 'text', 'data-f': 'su-name', value: d.name || '', maxlength: 120, oninput: (e) => { d.name = e.target.value; } }))),
       sec(t('cam.su.bodies')), fld(t('cam.su.bodies_l'), this.bodyEl),
-      sec(t('cam.su.frame')), zSel, xSel, oSel];
+      sec(t('cam.su.frame')), zSel, axisBtns('z'), xSel, axisBtns('x'), oSel];
     if (org.kind === 'stockCorner') {
       const cm = /^x([+-])y([+-])z([+-])$/.exec(org.corner || 'x-y-z+') || ['', '-', '-', '+']; const cur = [cm[1], cm[2], cm[3]];
       for (const [i, ax, neg, pos] of [[0, 'X', 'cam.su.c_left', 'cam.su.c_right'], [1, 'Y', 'cam.su.c_front', 'cam.su.c_back'], [2, 'Z', 'cam.su.c_bottom', 'cam.su.c_top']]) {
@@ -89,7 +124,7 @@ export class SetupPanel {
     // stok
     const st = d.stock;
     rows.push(sec(t('cam.su.stock')), selField({ label: t('cam.su.stock_kind'), value: st.kind, f: 'su-stock-kind', opts: [['boxOffset', t('cam.su.s_offset')], ['box', t('cam.su.s_box')], ['cyl', t('cam.su.s_cyl')]], set: (v) => {
-      d.stock = v === 'boxOffset' ? { kind: v, side: 2, top: 2, bottom: 0 } : v === 'box' ? { kind: v, min: [0, 0, 0], max: [100, 100, 20] } : { kind: v, dia: 50, len: 100, axis: 'X' };
+      d.stock = v === 'boxOffset' ? { kind: v, side: 2, top: 2, bottom: 0 } : v === 'box' ? { kind: v, min: [0, 0, 0], max: [100, 100, 20] } : { kind: v, ...this.cylGuess(), axis: 'X' };
       if (v === 'cyl' && !['point', 'model'].includes(d.frame.origin.kind)) d.frame.origin = { kind: 'model' };
       this.render(); upd(); } }));
     const sn = (label, key, o = {}) => numField({ label, value: st[key], unit: 'mm', nullable: false, min: o.min ?? 0, f: 'su-st-' + key, set: (v) => { st[key] = v; upd(); } });

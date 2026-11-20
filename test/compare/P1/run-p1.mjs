@@ -15,14 +15,15 @@ import { validateDoc } from '../../../src/shared/schema.js';
 import { simulate, heightmapFromFn } from '../../../src/cam/sim/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)); const ROOT = path.join(here, '..', '..', '..');
-const OUT = path.join(here, 'out'); fs.mkdirSync(OUT, { recursive: true });
+const OUT = process.env.P1_OUT || path.join(here, 'out'); fs.mkdirSync(OUT, { recursive: true });
 const STEP = process.env.P1_STEP || path.join(here, 'in', 'P1_SK8_mil_destegi.step');
-const FUSION_JSON = process.env.P1_FUSION_JSON || '/mnt/user-data/uploads/Fusion-Klon-Spec/Mihenk/test-fusion-karsilastirma/sonuclar/P1/P1_fusion_rapor.json';
+const FUSION_JSON = process.env.P1_FUSION_JSON || path.join(here, 'in', 'P1_fusion_rapor.json');
 const SUF = '_KARSILASTIRMA_TEZGAHA_GITMEZ';
-const R = { baslangic: new Date().toISOString(), varsayim: [], import: {}, makine: {}, setups: [], notlar: [] };
+const R = { baslangic: new Date().toISOString(), varsayim: [], import: {}, makine: {}, setups: [], notlar: [], deneyler: {} };
 const now = () => Number(process.hrtime.bigint()) / 1e9;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const clone = (x) => JSON.parse(JSON.stringify(x));
+const log = (...a) => console.log(...a);
 const ASSUME = (k, v, why) => R.varsayim.push({ alan: k, deger: v, neden: why });
 
 // ------------------------------------------------------------------ 1. cekirdek + STEP
@@ -209,7 +210,7 @@ for (const rec of progs) {
   let program; try { program = CAM.buildProgram({ name: 'O' + num, number: num, machine: M, sections: [{ setup: S, toolpaths: rec.tps }] }); } catch (e) { rec.build_hata = opError(e); continue; }
   const bb = [S.stockBox.min[0], S.stockBox.min[1], S.stockBox.max[0], S.stockBox.max[1]];
   const ts = now(); let hm; try { hm = K.camHeightmap({ bodies: [bid], frame: S.frame, res: RES, bbox: bb }); } catch (e) { rec.hm_hata = opError(e); }
-  rec.hm_s = r3(now() - ts);
+  rec.hm_s = r3(now() - ts); rec.hm = hm;
   const tg = now();
   const failed = rec.islemler.filter((o) => !o.ok);
   const gl = CAM.gates(program, M, { sim: { res: RES, modelHeightmaps: hm ? { [S.id]: hm } : undefined, tools: simTools } });
@@ -255,6 +256,18 @@ function ncStats(text) {
   return { satir: lines.length, G81: cnt(/\bG81\b/g), G83: cnt(/\bG83\b/g), G84: cnt(/\bG84\b/g), G41: cnt(/\bG41\b/g), G42: cnt(/\bG42\b/g), A: A.length, A_degerleri: [...new Set(A)], M6: cnt(/\bM0?6\b/g), M8: cnt(/\bM0?8\b/g) };
 }
 
+// T-04 zincir deneyi: tum setup'lar tek programda, sim setup n+1 baslangic stogunu setup n'in son stogundan kurar
+// (ana kapi sayilari setup basina ayri program: karsilastirma icin degismez). P_NOCHAIN=1 ile atlanir.
+if (!process.env.P_NOCHAIN) {
+  const okr = progs.filter((r) => r.program && r.hm);
+  try {
+    const tz = now(); const pz = CAM.buildProgram({ name: 'OZ', number: 1, machine: M, sections: okr.map((r) => ({ setup: r.S, toolpaths: r.tps })) });
+    const gz = CAM.gates(pz, M, { sim: { res: RES, modelHeightmaps: Object.fromEntries(okr.map((r) => [r.S.id, r.hm])), tools: simTools } });
+    const by = {}; for (const g of gz) { const id = g.section != null ? pz.sections[g.section].setup.id : 'genel'; const k = `${g.level} ${g.code}`; (by[id] ||= { block: 0, kod: {} }); if (g.level === 'block') by[id].block++; by[id].kod[k] = (by[id].kod[k] || 0) + 1; }
+    R.deneyler.T04_zincir = { aciklama: 'tek program, setup zinciri (sim chain)', s: r3(now() - tz), setup: Object.fromEntries(Object.entries(by).map(([id, v]) => [id, { block: v.block, kod: Object.fromEntries(Object.entries(v.kod).filter(([k]) => k.startsWith('block') || k.includes('sim'))) }])) };
+  } catch (e) { R.deneyler.T04_zincir = { hata: opError(e) }; }
+  log('deney T04_zincir', JSON.stringify(R.deneyler.T04_zincir));
+}
 // ------------------------------------------------------------------ 7. ek: generateProgram dogrudan (API kullanilabilirligi kaydi)
 {
   const gp = {};
@@ -295,7 +308,7 @@ function ncStats(text) {
 
 // ------------------------------------------------------------------ cikti
 R.sure_s = r3(now() - t0);
-for (const rec of R.setups) { delete rec.S; delete rec.tps; if (rec.program) { rec.tahmini_sure_s = r3(rec.islemler.filter((o) => o.ok).reduce((a, o) => a + o.sure_s, 0)); delete rec.program; } else delete rec.program; }
+for (const rec of R.setups) { delete rec.S; delete rec.tps; delete rec.hm; if (rec.program) { rec.tahmini_sure_s = r3(rec.islemler.filter((o) => o.ok).reduce((a, o) => a + o.sure_s, 0)); delete rec.program; } else delete rec.program; }
 R.fusion = fs.existsSync(FUSION_JSON) ? JSON.parse(fs.readFileSync(FUSION_JSON, 'utf8')) : null;
 if (R.fusion) delete R.fusion.nc;
 fs.writeFileSync(path.join(OUT, 'p1-mihenk-sonuc.json'), JSON.stringify(R, null, 1));

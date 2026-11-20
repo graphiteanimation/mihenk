@@ -15,10 +15,11 @@ import { clone, uid, hidePanel } from './util.js';
 import { SetupPanel, defaultSetup } from './setup.js';
 import { openMachineManager } from './machines.js';
 import { openToolManager, protectedHits, toolLabel } from './toolui.js';
+import { openCutData } from './cutdata.js';
 import { CamView } from './view.js';
 import { CamOps } from './ops.js';
 
-const OP_ICON = { face: 'op-face', contour: 'op-contour', pocket: 'op-pocket', drill: 'op-drill', chamfer: 'chamfer' };
+const OP_ICON = { face: 'op-face', contour: 'op-contour', pocket: 'op-pocket', drill: 'op-drill', chamfer: 'chamfer', circular: 'op-drill', threadmill: 'op-thread', slot: 'op-contour', trace: 'op-contour' };
 
 export function hashStr(s) { let x = 2166136261; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 16777619); return (x >>> 0).toString(36); }
 function hashArr(a, seed = 2166136261) { let x = seed; for (let i = 0; i < a.length; i++) x = Math.imul(x ^ ((a[i] * 1000) | 0), 16777619); return x >>> 0; }
@@ -133,10 +134,13 @@ export class CamCtl {
     reg('cam-stock', 'cam.cmd.stock', 'cam-stock', () => this.editStock(), { off: needModel });
     reg('cam-machine', 'cam.cmd.machine', 'cam-machine', () => openMachineManager(this));
     reg('cam-tools', 'cam.cmd.tools', 'cam-tool-library', () => openToolManager(this, 'doc'));
+    reg('cam-sheet', 'cam.cmd.sheet', 'nc-code', () => { this.ops.sheet(); }, { off: needOps, tip: null });
+    reg('cam-cutdata', 'cam.cmd.cutdata', 'cam-tool-library', () => openCutData(this));
     const opcmd = (id, nm, ic, type, cycle) => reg(id, nm, ic, () => this.ops.create(type, cycle), { off: needSetup });
     opcmd('cam-op-face', 'cam.cmd.face', 'op-face', 'face'); opcmd('cam-op-contour', 'cam.cmd.contour', 'op-contour', 'contour'); opcmd('cam-op-pocket', 'cam.cmd.pocket', 'op-pocket', 'pocket'); opcmd('cam-op-chamfer', 'cam.cmd.chamfer', 'chamfer', 'chamfer');
     reg('cam-op-adaptive', 'cam.cmd.adaptive', 'op-adaptive', () => {}, { off: () => t('cam.soon_op') });
-    opcmd('cam-op-drill', 'cam.cmd.drill', 'op-drill', 'drill', 'drill'); opcmd('cam-op-thread', 'cam.cmd.thread', 'op-thread', 'drill', 'tap');
+    opcmd('cam-op-drill', 'cam.cmd.drill', 'op-drill', 'drill', 'drill'); opcmd('cam-op-thread', 'cam.cmd.thread', 'op-thread', 'drill', 'tap'); opcmd('cam-op-circular', 'cam.cmd.circular', 'op-pocket', 'circular'); opcmd('cam-op-threadmill', 'cam.cmd.threadmill', 'op-thread', 'threadmill');
+    opcmd('cam-op-slot', 'cam.cmd.slot', 'op-contour', 'slot'); opcmd('cam-op-trace', 'cam.cmd.trace', 'op-contour', 'trace');
     reg('cam-op-surface', 'cam.cmd.surface', 'op-surface', () => {}, { off: () => t('cam.soon_op') });
     reg('cam-compute', 'cam.cmd.compute', 'cam-compute', () => this.ops.computeAll(), { off: needOps });
     reg('cam-sim', 'cam.cmd.sim', 'simulate', () => this.ops.simulate(), { off: needOps });
@@ -147,8 +151,8 @@ export class CamCtl {
     const { group, toolBtn } = R; const b = (id) => toolBtn(id);
     return [
       group('cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools'].map(b), { items: ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools'] }),
-      group('cam-2d', 'cam.grp.2d', ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-adaptive'].map(b), { items: ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-adaptive'] }),
-      group('cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread'].map(b), { items: ['cam-op-drill', 'cam-op-thread'] }),
+      group('cam-2d', 'cam.grp.2d', ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'].map(b), { items: ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'] }),
+      group('cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'].map(b), { items: ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'] }),
       group('cam-3d', 'cam.grp.3d', [b('cam-op-surface')], { items: ['cam-op-surface'] }),
       group('cam-act', 'cam.grp.actions', ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'].map(b), { cls: 'end', items: ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'] }),
     ];

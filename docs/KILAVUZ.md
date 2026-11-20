@@ -568,6 +568,25 @@ Tamamen delip geçen delikte takım model tabanının altına iner. Programda **
 
 Kılavuz çevrimi: **Diş** komutu Delik delme ile aynı paneli "Kılavuz" çevrimiyle açar. Takım türü **Kılavuz** olmalı ve **Diş adımı** girilmelidir. İlerleme otomatik hesaplanır; M80V şablonunda senkron kılavuzda ilerleme = hatve olarak yazılır. Deliğin diş bilgisi yoksa uyarı verir ("deliklerde diş bilgisi yok"), adım uyuşmuyorsa uyarı verir.
 
+#### Dairesel, diş frezeleme, kanal, iz (WP-07)
+
+- **Dairesel**: delik ya da silindirik çıkıntıyı helisel inişle genişletir; kaba halkalar + bitirme, çap payı. Gaz telafisi (G41/G42) yok, bilgisayar telafisi kullanılır.
+- **Diş frezeleme**: tek noktalı diş frezesiyle iç/dış, sağ/sol diş; hatve ISO kaba tablosundan (ince hatveyi siz girin). İç dişte delik önceden açılmış olmalıdır; açık değilse yol üretilmez.
+- **Kanal**: seçilen eskiz zinciri orta çizgidir; genişlik takım çapına eşitse tek paso, büyükse duvar pasosu eklenir (en çok 3 × çap). **İz**: takım merkezi zinciri izler (oyma).
+- Kontur **helis girişi**, cepte **ön delikten giriş** ve setup'ta **eksenleri yüzden/kenardan seçme**, işlemde **A açısı** (bir setup'ta birden çok açı) ve **yuvarlak stok** için ilgili panel alanlarının ipuçlarına bakın.
+
+#### Kurulum föyü
+
+Atölyeye verilecek kâğıt için **Kurulum föyü** komutunu (komut paleti) ya da NC penceresindeki **Kurulum föyü (HTML)** düğmesini kullanın. Tüm işlemler hesaplanır ve tek bir HTML dosyası indirilir. Dosyayı tarayıcıda açıp **Ctrl+P** ile yazdırın ya da “PDF olarak kaydet” seçin. Föyde şunlar bulunur: parça adı, tarih, tezgâh, malzeme; her kurulum için iş ofseti, A açısı, stok ve parça ölçüleri (iş sıfırına göre), üstten ve yandan resim; takım listesi; işlem listesi (devir, ilerleme, tahmini süre); ham malzeme ölçü listesi. Süreler yalnızca yol uzunluğunun ilerlemeye bölünmesiyle bulunan **tahmindir** (ivmelenme, takım değişimi ve elle işler yoktur). Föy hiçbir dış kaynak yüklemez ve betik içermez; adlarınızdaki özel karakterler olduğu gibi yazılır.
+
+#### Pah: keskin kenar kipi
+
+Modelinizde pah yoksa (düz blok, keskin köşe) pah işleminin panelinde **Keskin kenar (modelde pah yok)** kutusunu işaretleyin. Seçtiğiniz kenar modelin keskin köşesi sayılır; verdiğiniz **Pah genişliği** bu kenardan malzemenin içine doğru ölçülür ve takım pahı bu kenardan keser. Kutu kapalıyken seçilen kenar, modeldeki pahın üst kenarı olmalıdır. Simülasyon yalnızca bu pahın hacmine izin verir; genişlikten fazla kesim (ya da takım ucunun daha derine inmesi) yine oyma olarak engellenir. Kutuyu işaretlediğinizde "model bu kenarda pahlı değil" uyarısı çıkmaz.
+
+#### Kesme verisi önerisi ve hesaplayıcı
+
+**Kesme verisi** komutu (ve işlem panelindeki **Kesme verisi önerisi…** düğmesi) malzeme, takım türü ve çapa göre devir ve ilerleme için **başlangıç önerisi** verir. Yerleşik değerler yalnız tek parça karbür parmak freze için genel ve muhafazakâr değerlerdir (kaynakları kodda yazılıdır); matkap, kılavuz, titan vb. için yerleşik değer yoktur, kendi satırınızı eklersiniz. Satırlar belgede ya da kullanıcı ayarında saklanır. Hesaplayıcı Vc, S, z, fz, F arasında çevirir.
+
 #### Yok olanlar
 
 **Uyarlanır** (adaptif) boşaltma ve **3B yüzey işleme** bu sürümde yoktur; şeritte pasif görünür.

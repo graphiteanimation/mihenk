@@ -17,6 +17,11 @@ export function heightmapFromFn(minXY, maxXY, res, fn) {
   for (let j = 0; j < h.ny; j++) for (let i = 0; i < h.nx; i++) h.data[j * h.nx + i] = fn(h.x0 + (i + 0.5) * res, h.y0 + (j + 0.5) * res);
   return h;
 }
+// Stok baslangic haritasi: kutu (duz ust) ya da silindir (WP-07; eksen X, kesit merkezi (yc, zc), yaricap R: ust z = zc + sqrt(R^2 - (y-yc)^2))
+export function stockHeightmap(box, res, cyl = null) {
+  if (!cyl) return createHeightmap([box.min[0], box.min[1]], [box.max[0], box.max[1]], res, box.max[2]);
+  return heightmapFromFn([box.min[0], box.min[1]], [box.max[0], box.max[1]], res, (x, y) => cyl.zc + Math.sqrt(Math.max(0, cyl.R * cyl.R - (y - cyl.yc) * (y - cyl.yc))));
+}
 // En yakin hucre degeri; harita disinda NaN
 export function sampleHeightmap(h, x, y) {
   const i = Math.floor((x - h.x0) / h.res), j = Math.floor((y - h.y0) / h.res);

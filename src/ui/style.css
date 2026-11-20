@@ -29,6 +29,10 @@
 .drop .mi .kbd, .ctxmenu .mi .kbd { margin-left: auto; }
 .mi.is-disabled, .mi[aria-disabled="true"] { color: var(--text-disabled); cursor: not-allowed; }
 .mi.is-disabled:hover, .mi[aria-disabled="true"]:hover { background: transparent; }
+.subwrap > .sub { display: none; padding-left: var(--sp-4); }
+.subwrap.open > .sub { display: block; }
+.subwrap .sub-toggle .kbd svg { transition: transform .12s; }
+.subwrap.open .sub-toggle .kbd svg { transform: rotate(180deg); }
 .msec { padding: var(--sp-3) var(--sp-4) var(--sp-2); font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-subtle); }
 .titlebar .doc { min-width: 0; }
 .titlebar .cmdsearch { text-align: left; }

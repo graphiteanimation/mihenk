@@ -19,6 +19,7 @@ self.onmessage = async (ev) => {
     }
     else if (cmd === 'repairInfo') result = K.repairInfo(args.id);
     else if (cmd === 'featureFaces') result = K.featureFaces(args.id);
+    else if (cmd === 'tangentChain') result = K.tangentChain(args.ref);
     else if (cmd === 'describe') result = K.describe(args.ref, args.kind);
     else if (cmd === 'facePlane') result = K.facePlane(args.ref);
     else if (cmd === 'measure') result = K.measure(args.a, args.b);
@@ -29,7 +30,7 @@ self.onmessage = async (ev) => {
     else if (cmd === 'camHeightmap') result = K.camHeightmap(args);
     else if (cmd === 'camZLevels') result = K.camZLevels(args);
     else if (cmd === 'camHoleExit') result = K.camHoleExit(args);
-    else if (cmd === 'export') result = await K.exportFile(args.format, args.ids, args.names);
+    else if (cmd === 'export') result = await K.exportFile(args.format, args.ids, args.names, args.opts || null);
     else if (cmd === 'reset') { K.reset(); result = true; }
     else if (cmd === 'ping') result = true;
     else throw new KErr('worker.unknown_cmd', { cmd });

@@ -10,11 +10,17 @@ O2004
 (T35 H35 D35 DIA 12.000 BULLNOSE)
 (T37 H37 D37 DIA 7.100 DRILL)
 (WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING)
-(GATES 0 BLOCK 6 WARN)
+(GATES 0 BLOCK 12 WARN)
+(WARNING: T34: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
 (WARNING: No machine position for "P3-S2 On A": absolute travel could not be checked. Only the toolpath span was checked.)
-(WARNING: 10 Adaptive karsiligi: boss disi s249,65-234,95 T34: About 32.76 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 11a Yatay temizleme karsiligi: on yuz s234,95 T35: About 735.75 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 15 Delme T37 G83 Q5 [4x O7,14, boydan boya +1]: 4 holes differ from the tool diameter [?7.1]. Check the tool.)
+(WARNING: 10 Adaptive karsiligi: boss disi s249,65-234,95 T34: About 32.76 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: T35: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 11a Yatay temizleme karsiligi: on yuz s234,95 T35: About 735.75 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: T21: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: T22: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: T24: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: T37: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 15 Delme T37 G83 Q5 [4x O7,14, boydan boya +1]: 4 holes differ from the tool diameter [D7.1]. Check the tool.)
 (WARNING: A axis direction [profile dir [-1,0,0]] is not verified on the machine. Confirm the A direction with a marked part before cutting.)
 (WARNING: The simulation cannot see side gouges smaller than 0.5 mm [half the grid size]. Wall accuracy comes from the toolpath calculation.)
 G90 G17 G21 G40 G49 G80 G94
@@ -28,6 +34,7 @@ S8000 M3
 G0 G90 G57 X145.372 Y-36.867
 G43 H34 Z15.
 M8
+Z5.
 G1 Z0. F500.
 G3 X135.372 Z-0.823 I-5. J0. F1500.
 X145.372 Z-1.646 I5. J0.
@@ -1331,6 +1338,7 @@ S8000 M3
 G0 G90 G57 X139. Y28.814
 G43 H35 Z15.
 M8
+Z5.
 G1 Z-14.7 F500.
 Y33.895 F1500.
 X132.813
@@ -1428,12 +1436,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G57 X109.81 Y-1.905
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-1. F500.
 G3 X107.36 I-1.225 J0. F1500.
 X109.81 I1.225 J0.
@@ -1557,6 +1562,7 @@ S8000 M3
 G0 G90 G57 X111.585 Y-33.13
 G43 H21 Z15.
 M8
+Z5.
 G1 Z-8.35 F600.
 G3 X108.585 Y-30.13 I-3. J0. F1800.
 G2 X80.36 Y-1.905 I0. J28.225
@@ -1632,6 +1638,7 @@ S8000 M3
 G0 G90 G57 X108.665 Y-1.905
 G43 H22 Z15.
 M8
+Z5.
 G1 Z-2.993 F320.
 G3 X108.505 I-0.08 J0. F960.
 X108.665 I0.08 J0.
@@ -2003,15 +2010,9 @@ G43 H24 Z15.
 M8
 Z5.
 G98 G81 X-108.59 Y-1.905 Z-11.44 R-4.94 F300.
-G80
-G0 X-36.2 Y-1.905 Z5.
-G98 G81 X-36.2 Y-1.905 Z-11.44 R-4.94 F300.
-G80
-G0 X36.2 Y-1.905 Z5.
-G98 G81 X36.2 Y-1.905 Z-11.44 R-4.94 F300.
-G80
-G0 X108.59 Y-1.905 Z5.
-G98 G81 X108.59 Y-1.905 Z-11.44 R-4.94 F300.
+X-36.2
+X36.2
+X108.59
 G80
 G0 X108.59 Y-1.905 Z15.
 (OP 7: 15 Delme T37 G83 Q5 [4x O7,14, boydan boya +1] [drill] SETUP P3-S2 On A)
@@ -2027,15 +2028,9 @@ G43 H37 Z15.
 M8
 Z5.
 G98 G83 X-108.59 Y-1.905 Z-42.392 R-4.94 Q5. F420.
-G80
-G0 X-36.2 Y-1.905 Z5.
-G98 G83 X-36.2 Y-1.905 Z-42.392 R-4.94 Q5. F420.
-G80
-G0 X36.2 Y-1.905 Z5.
-G98 G83 X36.2 Y-1.905 Z-42.392 R-4.94 Q5. F420.
-G80
-G0 X108.59 Y-1.905 Z5.
-G98 G83 X108.59 Y-1.905 Z-42.392 R-4.94 Q5. F420.
+X-36.2
+X36.2
+X108.59
 G80
 G0 X108.59 Y-1.905 Z15.
 (END OF PROGRAM)

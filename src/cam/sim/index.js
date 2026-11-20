@@ -9,12 +9,13 @@
 // yalniz silindir olarak modellenir; kesit disi fikstur yok. Ayrintilar docs/POST.md.
 import { KErr } from '../../shared/errors.js';
 import { validateProgram, validateToolpath, splitRapid, sampleArc } from '../ir.js';
-import { createHeightmap, cloneHeightmap } from './heightmap.js';
+import { createHeightmap, cloneHeightmap, stockHeightmap } from './heightmap.js';
 import { toolGeom } from './tool.js';
 import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './chain.js';
 import { freePieces } from './free.js';
+import { lowerForChamfer } from './chamfer.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
-export { createHeightmap, cloneHeightmap, heightmapFromFn, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
+export { createHeightmap, cloneHeightmap, heightmapFromFn, stockHeightmap, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom } from './tool.js';
 
 const err = (code, params = {}) => new KErr(code, params);
@@ -52,7 +53,7 @@ export function createSim(input, opts = {}) {
     else if (src.length) { // T-04: onceki setup'larin son stogu (yalniz malzeme cikarir; B1)
       const sl = src.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box }));
       hm = stockFromPrevious(sl, { frame, box }, res); chained = prepareSources(sl);
-    } else hm = createHeightmap([box.min[0], box.min[1]], [box.max[0], box.max[1]], res, box.max[2]);
+    } else hm = stockHeightmap(box, res, sset?.stockCyl ?? null);
     let hmax = -Infinity; for (let k = 0; k < hm.data.length; k++) if (hm.data[k] > hmax) hmax = hm.data[k];
     const mh = opts.modelHeightmaps?.[id] ?? (opts.modelHeightmap?.data ? opts.modelHeightmap : null);
     const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies };
@@ -71,7 +72,10 @@ export function createSim(input, opts = {}) {
     const S = setupFor(id, sec.setup), geom = toolGeom(tool);
     // T-08: islem basi stok (yerel stok yuksekligi icin) ve yol izi maskesi; tutucu boslugu
     let preMax = -Infinity; for (let k = 0; k < S.hm.data.length; k++) if (S.hm.data[k] > preMax) preMax = S.hm.data[k];
-    cur = { si, tp, allow, cycAllow, allowNow: allow, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
+    const mhCh = tp.meta?.chamferSharp && S.mh ? lowerForChamfer(S.mh, tp.meta.chamferSharp) : null; // WP-07: keskin kenar pahi - bildirilen hacim
+    // WP-07: model hucresi beyan edilen pah genisliginin 1/10'undan buyukse fazla kesim (hucre capraz toleransi 0,71*res) gizlenebilir -> acik uyari
+    if (mhCh && mhCh.res > tp.meta.chamferSharp.width / 10 + 1e-12) issues.push({ level: 'warn', code: CODE('chamfer_tolerance_coarse'), params: { tol: Math.round(0.71 * mhCh.res * 1000) / 1000, res: mhCh.res, width: tp.meta.chamferSharp.width, op: tp.opName } });
+    cur = { si, tp, mhCh, allow, cycAllow, allowNow: allow, zones: Array.isArray(tp.meta?.threadZones) && tp.meta.threadZones.length ? tp.meta.threadZones : null, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
       pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
   }
   // T-08: islemin yol bandi (takim merkezinin stok yuksekliginin altindaki izi, en buyuk zarf yaricapi kadar kare genisletme:
@@ -126,6 +130,8 @@ export function createSim(input, opts = {}) {
     a.n++; if (depth > a.depth) { a.depth = depth; a.x = px; a.y = py; a.z = pz; }
   }
 
+  // WP-07 dis frezeleme: hucre (x,y) bildirilen halkada (r0 <= uzaklik <= r1) ve takim ucu dis z araliginda ise true
+  function inZone(zs, x, y, z) { for (const q of zs) { if (z < q.z0 || z > q.z1) continue; const d = Math.hypot(x - q.c[0], y - q.c[1]); if (d >= q.r0 && d <= q.r1) return true; } return false; }
   // mode 0: hizli (yalniz denetle), 1: kesme (stoku kaldir)
   function touch(px, py, pz, mode) {
     samples++;
@@ -136,7 +142,7 @@ export function createSim(input, opts = {}) {
     const Rmax = Math.max(R, shaftR, holderR), Rmax2 = Rmax * Rmax, rs = hm.res;
     const i0 = Math.max(0, Math.floor((px - Rmax - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((px + Rmax - hm.x0) / rs));
     const j0 = Math.max(0, Math.floor((py - Rmax - hm.y0) / rs)), j1 = Math.min(ny - 1, Math.floor((py + Rmax - hm.y0) / rs));
-    const zFlute = pz + g.fluteLen + tol, zBody = pz + g.bodyLen + tol, mh = S.mh, gtol = gtolBase + (mh?.err ?? 0);
+    const zFlute = pz + g.fluteLen + tol, zBody = pz + g.bodyLen + tol, mh = cur.mhCh || S.mh, gtol = gtolBase + (mh?.err ?? 0);
     for (let j = j0; j <= j1; j++) {
       const cy = hm.y0 + (j + 0.5) * rs, dy = cy - py;
       for (let i = i0; i <= i1; i++) {
@@ -149,6 +155,10 @@ export function createSim(input, opts = {}) {
         if (r <= holderR) {
           if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); cur.hadHolderHit = true; continue; }
           const cl = pz + g.bodyLen - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
+        }
+        if (cur.zones && r <= R && inZone(cur.zones, cx, cy, pz)) { // WP-07: dis halkasi, yalniz KESICI (flut) boyu icinde kasitli kesimdir; flut boyunu asan malzeme sap yaricapinda engel (flute_exceeded)
+          if (h > zFlute && r <= shaftR) note('flute_exceeded', h - zFlute + tol, px, py, pz);
+          continue;
         }
         if (r <= shaftR && h > zFlute) {
           if (r <= R) note('flute_exceeded', h - zFlute + tol, px, py, pz); else { note('shaft_collision', h - zFlute + tol, px, py, pz); continue; }
@@ -184,9 +194,9 @@ export function createSim(input, opts = {}) {
   let gc = null;
   function finishGouge() {
     const c = gc; gc = null; const a = cur.acc.gouge; if (!c || !a) return;
-    const lim = Math.min(c.v, 2 * c.g.R + cur.setup.mh.res);
+    const lim = Math.min(c.v, 2 * c.g.R + (cur.mhCh || cur.setup.mh).res);
     if (!(lim > a.depth)) return;
-    const lat = Math.min(c.v, lateralFree(cur.setup.mh, c.cx, c.cy, c.zb, lim));
+    const lat = Math.min(c.v, lateralFree(cur.mhCh || cur.setup.mh, c.cx, c.cy, c.zb, lim));
     if (lat > a.depth) { a.depth = lat; a.x = c.px; a.y = c.py; a.z = c.pz; }
   }
   // (x,y) hucresinden, model ustu zb'nin altinda kalan (bos) en yakin hucreye uzaklik - res (alt sinir). Halka halka aranir, ilk

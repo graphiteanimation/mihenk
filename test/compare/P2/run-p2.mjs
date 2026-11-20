@@ -16,9 +16,8 @@ import { findRegions } from '../../../src/shared/profiles.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)); const ROOT = path.join(here, '..', '..', '..');
 const OUT = process.env.P2_OUT || path.join(here, 'out'); fs.mkdirSync(OUT, { recursive: true });
-const BASE = '/mnt/user-data/uploads/Mihenk/test-fusion-karsilastirma';
 const STEP = process.env.P2_STEP || path.join(here, 'in', 'P2_NIST_FTC08_tepsi.stp');
-const FUSION_JSON = process.env.P2_FUSION_JSON || `${BASE}/sonuclar/P2/P2_fusion_rapor.json`;
+const FUSION_JSON = process.env.P2_FUSION_JSON || path.join(here, 'in', 'P2_fusion_rapor.json');
 const RES = Number(process.env.P2_RES || 1.0);
 const SUF = '_KARSILASTIRMA_TEZGAHA_GITMEZ';
 const R = { baslangic: new Date().toISOString(), varsayim: [], import: {}, makine: {}, setups: [], notlar: [], esleme: [] };

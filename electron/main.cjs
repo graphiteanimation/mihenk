@@ -1,12 +1,13 @@
 // Mihenk CAD/CAM Electron ana süreci: tek pencere, app:// protokolü, yerel dosya diyalogları.
 // Güvenlik ilkesi: renderer güvenilmeyen kabul edilir. Dosya yolu yalnız ana süreçte, kullanıcının diyalogla
 // seçtiği ya da açtığı yoldan gelir; tüm IPC işleyicileri göndereni doğrular; ağ tümden kapalıdır.
-const { app, BrowserWindow, Menu, protocol, dialog, ipcMain, session } = require('electron');
+const { app, BrowserWindow, Menu, protocol, dialog, ipcMain, session, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const { atomicWrite, isInside } = require('./safe-write.cjs');
 const { CSP, WORKER_CSP, isWorkerScript } = require('./csp.cjs');
+const { createLogger } = require('./log.cjs');
 
 const DIST = path.join(__dirname, '..', 'dist');
 const DEV = !app.isPackaged;                                  // geliştirme: paketlenmemiş
@@ -20,8 +21,8 @@ const MIME = {
 };
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
 // 'doc' = Mihenk belgesi: okuma ve yazma .mhnk.
-const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'] };
-const SAVE_ONLY = new Set(['nc']);   // NC çıktısı yalnız yazılır; arayüz bu türde dosya açtıramaz
+const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'], html: ['.html'] };
+const SAVE_ONLY = new Set(['nc', 'html']);   // NC çıktısı ve kurulum föyü (WP-07) yalnız yazılır; arayüz bu türde dosya açtıramaz
 const DOC_EXT = '.mhnk';
 
 protocol.registerSchemesAsPrivileged([
@@ -42,6 +43,29 @@ app.commandLine.appendSwitch('host-resolver-rules', 'MAP * ~NOTFOUND');
 // Kendi kullanıcı verisi klasörü (sınama sırasında gerçek ayarları bozmamak için; yalnız geliştirmede)
 if (DEV && process.env.MIHENK_USERDATA) app.setPath('userData', path.resolve(process.env.MIHENK_USERDATA));
 else if (SELFTEST) app.setPath('userData', path.join(os.tmpdir(), 'mihenk-selftest-' + process.pid));
+
+// ---- çökme/hata günlüğü (yerel; ağ yok; kişisel veri maskelenir): userData/logs/mihenk-log.txt, döner (5 × 1 MB)
+let logger = null;
+function log(kind, message, stack) {
+  try { if (!logger) logger = createLogger({ dir: path.join(app.getPath('userData'), 'logs'), version: app.getVersion(), electron: process.versions.electron, platform: process.platform, roots: { appPath: app.getAppPath(), userData: app.getPath('userData'), temp: app.getPath('temp') } }); logger.write(kind, message, stack); } catch (e) { /* günlük hatası uygulamayı etkilemez */ }
+}
+// Yakalanmamış ana süreç hatası: günlüğe yaz, kullanıcıya hata kutusu göster, kontrollü çık (bozuk durumda sürdürme). Kurtarma dosyası
+// (userData/recovery) silinmez; sonraki açılışta kurtarma sorulur.
+const FATAL = {
+  tr: { t: 'Mihenk beklenmedik bir hatayla karşılaştı', m: 'Uygulama kapatılacak. Son otomatik kayıt varsa bir sonraki açılışta size sunulur. Hata, Yardım menüsündeki günlük klasörüne yazıldı.' }, // i18n-ignore: ana süreç hata kutusu, iki dilli
+  en: { t: 'Mihenk hit an unexpected error', m: 'The application will close. If an automatic recovery copy exists it is offered on the next launch. The error was written to the log folder.' },
+};
+let fatalHandled = false;
+process.on('uncaughtException', (e) => {
+  log('main-uncaught', e && e.message, e && e.stack);
+  if (fatalHandled) return; fatalHandled = true;
+  let lang = 'tr'; try { if (settings && settings.lang === 'en') lang = 'en'; } catch (x) { /* ayar henüz yok */ }
+  try { dialog.showErrorBox(FATAL[lang].t, FATAL[lang].m); } catch (x) { /* kutu gösterilemezse de çık */ }
+  app.exit(1);
+});
+process.on('unhandledRejection', (e) => { log('main-rejection', e && e.message ? e.message : String(e), e && e.stack); });
+app.on('render-process-gone', (ev, wc, d) => log('render-gone', 'reason=' + (d && d.reason) + ' exit=' + (d && d.exitCode)));
+app.on('child-process-gone', (ev, d) => log('child-gone', 'type=' + (d && d.type) + ' reason=' + (d && d.reason) + ' exit=' + (d && d.exitCode)));
 
 let win = null;
 let dirty = false;
@@ -174,9 +198,14 @@ function lockdownContents(wc) {
   wc.on('will-redirect', (e, url) => { if (!isOurs(url)) e.preventDefault(); });
   wc.on('will-attach-webview', (e) => e.preventDefault());
   wc.setWindowOpenHandler(() => ({ action: 'deny' }));
+  // çizici ve çekirdek işçisi hataları: konsol 'error' düzeyi (yakalanmamış istisnalar ve app.js'in 'worker hatası' kaydı dahil)
+  wc.on('console-message', (ev) => { try { if (ev.level === 'error' || ev.level === 3) log('console-error', ev.message); } catch (e) { /* yoksay */ } });
+  wc.on('unresponsive', () => log('unresponsive', 'pencere yanit vermiyor'));
 }
 
 function registerIpc() {
+  // Yardım menüsü: günlük klasörünü işletim sistemi dosya yöneticisinde açar (yolu arayüz vermez, görmez)
+  ipcMain.handle('native:openLogFolder', guarded(async () => { const dir = path.join(app.getPath('userData'), 'logs'); fs.mkdirSync(dir, { recursive: true }); const err = await shell.openPath(dir); return err === ''; }));
   ipcMain.handle('native:open', guarded(async (ev, kind) => {
     if (!Object.hasOwn(KINDS, kind) || SAVE_ONLY.has(kind)) throw new Error('bad kind');
     const r = await dialog.showOpenDialog(win, { title: titleFor(kind, true), properties: ['openFile'], filters: safeFilters(null, kind, false) });

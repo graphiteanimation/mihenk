@@ -1,21 +1,15 @@
 (*** BLOKLU: kapilar block verdi -> normalde NC URETILMEZ; yalniz yapi karsilastirmasi icin zorla uretildi ***)
-(BLOCK cam.gate.body_short {"depth":27,"bodyLen":25,"op":"7 Bore T22: 4x O10 kulak havsasi Y8 -> 6 cep + helis"})
-(BLOCK cam.sim.gouge {"x":70,"y":-28.5,"z":-35.110109214511944,"depth":7.010813845392519,"cells":120,"op":"o9"})
-(BLOCK cam.sim.gouge {"x":70,"y":28.5,"z":-35.110109214511944,"depth":7.010813845392519,"cells":120,"op":"o9"})
-(BLOCK cam.sim.gouge {"x":-70,"y":-28.5,"z":-35.110109214511944,"depth":7.010813845392519,"cells":120,"op":"o9"})
-(BLOCK cam.sim.gouge {"x":-70,"y":28.5,"z":-35.110109214511944,"depth":7.010813845392519,"cells":120,"op":"o9"})
-(BLOCK cam.sim.gouge {"x":31.9,"y":30,"z":-18.7,"depth":0.24009078957140062,"cells":18,"op":"o11"})
-(BLOCK cam.sim.gouge {"x":42.9,"y":30,"z":-18.7,"depth":0.24009078957140062,"cells":18,"op":"o11"})
-(BLOCK cam.sim.gouge {"x":53.9,"y":30,"z":-18.7,"depth":0.24009078957140062,"cells":18,"op":"o11"})
-(BLOCK cam.sim.gouge {"x":35.1,"y":20,"z":-18.7,"depth":0.24033019857743199,"cells":18,"op":"o11"})
-(BLOCK cam.sim.gouge {"x":46.1,"y":20,"z":-18.7,"depth":0.24033019857743199,"cells":18,"op":"o11"})
-(BLOCK cam.sim.gouge {"x":57.1,"y":20,"z":-18.7,"depth":0.24033019857743199,"cells":18,"op":"o11"})
-(BLOCK cam.sim.gouge {"x":31.9,"y":30,"z":-16,"depth":10,"cells":200,"op":"o12"})
-(BLOCK cam.sim.gouge {"x":42.9,"y":30,"z":-16,"depth":10,"cells":200,"op":"o12"})
-(BLOCK cam.sim.gouge {"x":53.9,"y":30,"z":-16,"depth":10,"cells":200,"op":"o12"})
-(BLOCK cam.sim.gouge {"x":35.1,"y":20,"z":-16,"depth":10,"cells":200,"op":"o12"})
-(BLOCK cam.sim.gouge {"x":46.1,"y":20,"z":-16,"depth":10,"cells":200,"op":"o12"})
-(BLOCK cam.sim.gouge {"x":57.1,"y":20,"z":-16,"depth":10,"cells":200,"op":"o12"})
+(BLOCK cam.sim.holder_contact {"x":71.48215892927254,"y":-28.26933810809399,"z":-27,"clearance":0,"min":0.01,"op":"o7"})
+(BLOCK cam.sim.gouge {"x":70,"y":-28.5,"z":-28.31227480698722,"depth":0.02971079603334381,"cells":120,"op":"o9","vertical":7.010813845392491,"point":0})
+(BLOCK cam.sim.gouge {"x":70,"y":28.5,"z":-28.31227480698722,"depth":0.02971079603334381,"cells":120,"op":"o9","vertical":7.010813845392491,"point":1})
+(BLOCK cam.sim.gouge {"x":-70,"y":-28.5,"z":-28.31227480698722,"depth":0.02971079603334381,"cells":120,"op":"o9","vertical":7.010813845392491,"point":2})
+(BLOCK cam.sim.gouge {"x":-70,"y":28.5,"z":-28.31227480698722,"depth":0.02971079603334381,"cells":120,"op":"o9","vertical":7.010813845392491,"point":3})
+(BLOCK cam.sim.gouge {"x":31.9,"y":30,"z":-18.7,"depth":0.18466967736328851,"cells":18,"op":"o11","vertical":0.24009078957140062,"point":0})
+(BLOCK cam.sim.gouge {"x":42.9,"y":30,"z":-18.7,"depth":0.18466967736328851,"cells":18,"op":"o11","vertical":0.24009078957140062,"point":1})
+(BLOCK cam.sim.gouge {"x":53.9,"y":30,"z":-18.7,"depth":0.18466967736328851,"cells":18,"op":"o11","vertical":0.24009078957140062,"point":2})
+(BLOCK cam.sim.gouge {"x":35.1,"y":20,"z":-18.7,"depth":0.18525993162989102,"cells":18,"op":"o11","vertical":0.24033019857743199,"point":3})
+(BLOCK cam.sim.gouge {"x":46.1,"y":20,"z":-18.7,"depth":0.18525993162989102,"cells":18,"op":"o11","vertical":0.24033019857743199,"point":4})
+(BLOCK cam.sim.gouge {"x":57.1,"y":20,"z":-18.7,"depth":0.18525993162989102,"cells":18,"op":"o11","vertical":0.24033019857743199,"point":5})
 O2007
 (UNVERIFIED POST - DOGRULANMADI - MIHENK 0.3.0)
 (PROGRAM O2007)
@@ -31,17 +25,20 @@ O2007
 (T39 H39 D39 DIA 2.500 DRILL)
 (T40 H40 D40 DIA 3.000 TAP)
 (T41 H41 D41 DIA 3.500 DRILL)
-(GATES 0 BLOCK 30 WARN)
+(GATES 0 BLOCK 39 WARN)
+(WARNING: T20: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
 (WARNING: No machine position for "P4-S1 Ust": absolute travel could not be checked. Only the toolpath span was checked.)
-(WARNING: 2 Adaptive karsiligi R1: Y31-29.6 [ada kesit Y=29.65] T34: About 35.438 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 2 Adaptive karsiligi R2: Y29.8-29 [ada kesit Y=29.05] T34: About 35.438 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 2 Adaptive karsiligi R3: Y29.2-27 [ada kesit Y=27.05] T34: About 70.313 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 2 Adaptive karsiligi R4: Y27.2-23 [ada kesit Y=23.05] T34: About 130.5 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 2 Adaptive karsiligi R5: Y23.2-8 [ada kesit Y=8.05] T34: About 56.813 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 2 Adaptive karsiligi R6: Y8.2--0.2 [ada kesit Y=0.05] T34: About 73.688 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 3 Yatay temizleme karsiligi Y8 T35: About 48.375 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 3 Yatay temizleme karsiligi Y23 T35: About 74.813 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 3 Yatay temizleme karsiligi Y27 T35: About 64.125 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: T34: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 2 Adaptive karsiligi R1: Y31-29.6 [ada kesit Y=29.65] T34: About 35.438 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 2 Adaptive karsiligi R2: Y29.8-29 [ada kesit Y=29.05] T34: About 35.438 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 2 Adaptive karsiligi R3: Y29.2-27 [ada kesit Y=27.05] T34: About 70.313 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 2 Adaptive karsiligi R4: Y27.2-23 [ada kesit Y=23.05] T34: About 130.5 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 2 Adaptive karsiligi R5: Y23.2-8 [ada kesit Y=8.05] T34: About 56.813 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 2 Adaptive karsiligi R6: Y8.2--0.2 [ada kesit Y=0.05] T34: About 73.688 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: T35: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 3 Yatay temizleme karsiligi Y8 T35: About 48.375 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 3 Yatay temizleme karsiligi Y23 T35: About 74.813 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 3 Yatay temizleme karsiligi Y27 T35: About 64.125 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
 (WARNING: 4 3D kontur karsiligi Y29-30 [kesit 29.05] T35: 6 inside corners or small arcs are tighter than the tool radius [6 mm]: material will remain there. Finish with a smaller tool.)
 (WARNING: 4 3D kontur karsiligi Y28-29 [kesit 28.05] T35: 13 inside corners or small arcs are tighter than the tool radius [6 mm]: material will remain there. Finish with a smaller tool.)
 (WARNING: 4 3D kontur karsiligi Y27-28 [kesit 27.05] T35: 13 inside corners or small arcs are tighter than the tool radius [6 mm]: material will remain there. Finish with a smaller tool.)
@@ -53,10 +50,16 @@ O2007
 (WARNING: 4 3D kontur karsiligi duvar Y9-22 [kesit 15] T35: 4 inside corners or small arcs are tighter than the tool radius [6 mm]: material will remain there. Finish with a smaller tool.)
 (WARNING: 4 3D kontur karsiligi ayak Y8-9 [kesit 8.05] T35: 4 inside corners or small arcs are tighter than the tool radius [6 mm]: material will remain there. Finish with a smaller tool.)
 (WARNING: 5 2D kontur dis siluet T34 [elle siluet: Y0,05 kesiti]: 8 inside corners or small arcs are tighter than the tool radius [6 mm]: material will remain there. Finish with a smaller tool.)
-(WARNING: 6 Kaide kanallari T29 [2D cep, dalma, Y27 -> 25,5, paso 0,5]: About 1.5 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
-(WARNING: 9 Delme T33 O6,1 G83 Q3 boydan boya +1: 4 through holes are drilled to the model bottom [Z -33]. Check the break-through amount.)
-(WARNING: 9 Delme T33 O6,1 G83 Q3 boydan boya +1: 4 holes differ from the tool diameter [?6.1]. Check the tool.)
-(WARNING: 11 Delme T39 6x M3 on delik O2,5 G83 Q3 [uc Y14,3]: 6 holes differ from the tool diameter [?2.5]. Check the tool.)
+(WARNING: T29: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 6 Kaide kanallari T29 [2D cep, dalma, Y27 -> 25,5, paso 0,5]: About 1.5 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: T22: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: T24: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: T33: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 9 Delme T33 O6,1 G83 Q3 boydan boya +1: 4 holes differ from the tool diameter [D6.1]. Check the tool.)
+(WARNING: T41: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: T39: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 11 Delme T39 6x M3 on delik O2,5 G83 Q3 [uc Y14,3]: 6 holes differ from the tool diameter [D2.5]. Check the tool.)
+(WARNING: T40: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
 (WARNING: The simulation cannot see side gouges smaller than 0.25 mm [half the grid size]. Wall accuracy comes from the toolpath calculation.)
 (WARNING: The tool goes below the stock bottom [operation o9, Z -35.11, 0.11 mm]. The table and workholding are not modeled? only an intentional through-cut [bottom offset below the model/stock bottom, or a through hole] is allowed as a warning.)
 (WARNING: The tool goes below the stock bottom [operation o9, Z -35.11, 0.11 mm]. The table and workholding are not modeled? only an intentional through-cut [bottom offset below the model/stock bottom, or a through hole] is allowed as a warning.)
@@ -73,6 +76,7 @@ S4500 M3
 G0 G90 G55 X-107.999 Y-39.5
 G43 H20 Z15.
 M8
+Z5.
 G1 Z-1. F750.
 X107.999 F2250.
 Y0.
@@ -100,6 +104,7 @@ S8000 M3
 G0 G90 G55 X74.9 Y-33.4
 G43 H34 Z15.
 M8
+Z5.
 G1 Z-2. F500.
 Y-32.486 Z-2.048 F1500.
 G2 X74.52 Y-33.4 Z-2.1 I-22.9 J8.986
@@ -1544,12 +1549,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X79.749 Y-33.249
 G43 H34 Z15.
-M8
+Z5.
 G1 Z-3.2 F500.
 G3 X71.457 Y-29.487 Z-3.8 I-5. J0. F1500.
 X78.042 Y-37.012 I3.293 J-3.763
@@ -1650,7 +1652,7 @@ G1 Y16.032
 X73.7
 Y32.2
 X37.534
-Y2.22
+Y2.219
 X37.54 Y2.158
 G2 X37.577 Y1.724 I-18.213 J-1.78
 X43. Y2.3 I5.423 J-25.224
@@ -1660,7 +1662,7 @@ G1 Y16.032
 X74.9
 Y33.4
 X36.334
-Y2.162
+Y2.161
 X36.346 Y2.041
 G2 X36.407 Y1.199 I-17.019 J-1.663
 G1 X36.425 Y0.82
@@ -1688,7 +1690,7 @@ X77.3
 Y35.8
 X33.934
 Y2.044
-G2 X33.937 Y2.012 I-14.627 J-1.462
+G2 X33.937 Y2.012 I-14.627 J-1.461
 G1 X33.957 Y1.808
 G2 X34.01 Y1.084 I-14.63 J-1.43
 G1 X34.028 Y0.705
@@ -1696,9 +1698,9 @@ G2 Y-0.712 I-14.683 J-0.706
 G1 X34.01 Y-1.085
 G2 X33.958 Y-1.798 I-14.683 J0.711
 G1 X33.938 Y-2.004
-G2 X33.934 Y-2.041 I-14.631 J1.424
-G1 Y-3.235
-G2 X43. Y-1.3 I9.066 J-20.265
+G2 X33.934 Y-2.044 I-14.631 J1.424
+G1 Y-3.236
+G2 X43. Y-1.3 I9.066 J-20.264
 G1 X52.
 G2 X70.481 Y-35.8 I0. J-22.2
 G1 X77.3
@@ -1718,7 +1720,7 @@ G1 X32.811 Y-1.027
 G2 X32.764 Y-1.682 I-13.484 J0.653
 G1 X32.744 Y-1.887
 G2 X32.736 Y-1.963 I-13.436 J1.308
-G1 X32.734 Y-1.98
+G1 X32.734 Y-1.983
 Y-5.18
 G2 X43. Y-2.5 I10.266 J-18.32
 G1 X52.
@@ -1731,7 +1733,7 @@ X31.422
 G2 X31.493 Y37.513 I-12.195 J-1.603
 G1 X31.5 Y37.416
 G2 X31.534 Y36.5 I-12.266 J-0.916
-G1 Y1.922
+G1 Y1.921
 X31.542 Y1.847
 G2 X31.549 Y1.779 I-12.235 J-1.264
 G1 X31.569 Y1.574
@@ -1742,7 +1744,7 @@ G1 X31.613 Y-0.969
 G2 X31.569 Y-1.565 I-12.286 J0.595
 G1 X31.549 Y-1.771
 G2 X31.542 Y-1.84 I-12.242 J1.192
-G1 X31.534 Y-1.918
+G1 X31.534 Y-1.921
 Y-7.358
 G2 X43. Y-3.7 I11.466 J-16.142
 G1 X52.
@@ -1757,7 +1759,7 @@ G1 X30.053 Y39.047
 G2 X30.296 Y37.424 I-10.826 J-2.45
 G1 X30.303 Y37.327
 G2 X30.334 Y36.5 I-11.069 J-0.827
-G1 Y1.86
+G1 Y1.859
 X30.348 Y1.723
 G2 X30.354 Y1.662 I-11.041 J-1.141
 G1 X30.374 Y1.458
@@ -1768,7 +1770,7 @@ G1 X30.414 Y-0.911
 G2 X30.375 Y-1.449 I-11.087 J0.537
 G1 X30.355 Y-1.655
 G2 X30.349 Y-1.717 I-11.048 J1.075
-G1 X30.334 Y-1.857
+G1 X30.334 Y-1.859
 Y-9.879
 G2 X43. Y-4.9 I12.666 J-13.621
 G1 X52.
@@ -1785,8 +1787,8 @@ G1 X28.883 Y38.782
 G2 X29.099 Y37.335 I-9.656 J-2.185
 G1 X29.107 Y37.237
 G2 X29.134 Y36.5 I-9.873 J-0.737
-G1 Y1.809
-X29.135 Y1.793
+G1 Y1.808
+X29.135 Y1.792
 X29.155 Y1.6
 G2 X29.16 Y1.546 I-9.848 J-1.017
 G1 X29.18 Y1.341
@@ -1797,8 +1799,8 @@ G1 X29.216 Y-0.853
 G2 X29.181 Y-1.333 I-9.888 J0.479
 G1 X29.161 Y-1.539
 G2 X29.155 Y-1.594 I-9.853 J0.959
-G1 X29.135 Y-1.789
-X29.134 Y-1.807
+G1 X29.135 Y-1.791
+X29.134 Y-1.81
 Y-12.988
 G2 X43. Y-6.1 I13.866 J-10.512
 G1 X52.
@@ -1855,8 +1857,8 @@ G1 X27.712 Y38.517
 G2 X27.903 Y37.245 I-8.486 J-1.92
 G1 X27.91 Y37.148
 G2 X27.934 Y36.5 I-8.676 J-0.648
-G1 Y1.788
-X27.937 Y1.71
+G1 Y1.787
+X27.937 Y1.709
 X27.961 Y1.477
 G2 X27.966 Y1.429 I-8.654 J-0.894
 G1 X27.986 Y1.224
@@ -1867,8 +1869,9 @@ G1 X28.017 Y-0.795
 G2 X27.986 Y-1.217 I-8.69 J0.421
 G1 X27.966 Y-1.422
 G2 X27.961 Y-1.471 I-8.659 J0.843
-G1 X27.937 Y-1.706
-X27.934 Y-1.787
+G1 X27.937 Y-1.708
+Y-1.709
+X27.934 Y-1.789
 Y-17.545
 G2 X43. Y-7.3 I15.066 J-5.955
 G1 X52.
@@ -1906,7 +1909,7 @@ G2 X26.706 Y37.156 I-7.315 J-1.655
 G1 X26.713 Y37.059
 G2 X26.734 Y36.5 I-7.479 J-0.559
 G1 Y1.766
-X26.739 Y1.639
+X26.739 Y1.638
 X26.742 Y1.6
 X26.767 Y1.353
 G2 X26.771 Y1.312 I-7.46 J-0.771
@@ -1919,8 +1922,8 @@ G2 X26.792 Y-1.1 I-7.491 J0.363
 G1 X26.772 Y-1.306
 G2 X26.768 Y-1.348 I-7.465 J0.727
 G1 X26.742 Y-1.597
-X26.739 Y-1.636
-X26.734 Y-1.766
+X26.739 Y-1.638
+X26.734 Y-1.768
 Y-36.5
 G2 X26.713 Y-37.062 I-7.5 J0.
 G1 X26.706 Y-37.16
@@ -2154,7 +2157,7 @@ G2 X25.509 Y37.067 I-6.145 J-1.39
 G1 X25.517 Y36.969
 G2 X25.534 Y36.5 I-6.283 J-0.469
 G1 Y1.745
-X25.54 Y1.569
+X25.54 Y1.568
 X25.547 Y1.489
 X25.574 Y1.23
 G2 X25.577 Y1.196 I-6.267 J-0.647
@@ -2167,8 +2170,8 @@ G2 X25.597 Y-0.984 I-6.293 J0.305
 G1 X25.577 Y-1.19
 G2 X25.574 Y-1.225 I-6.27 J0.61
 G1 X25.547 Y-1.486
-X25.54 Y-1.566
-X25.534 Y-1.745
+X25.54 Y-1.568
+X25.534 Y-1.747
 Y-36.5
 G2 X25.517 Y-36.972 I-6.3 J0.
 G1 X25.509 Y-37.07
@@ -2272,12 +2275,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X79.749 Y-33.249
 G43 H34 Z15.
-M8
+Z5.
 G1 Z-3.8 F500.
 G3 X69.749 Z-4.623 I-5. J0. F1500.
 X79.749 Z-5.446 I5. J0.
@@ -3355,12 +3355,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X76.1 Y-34.6
 G43 H34 Z15.
-M8
+Z5.
 G1 Z-5.8 F500.
 Y-13.792 Z-6.89 F1500.
 G2 X76.031 Y-13.91 Z-6.898 I-13.768 J7.952
@@ -3961,12 +3958,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X82.594 Y-36.082
 G43 H34 Z15.
-M8
+Z5.
 G1 Z-9.8 F500.
 G3 X72.594 Z-10.623 I-5. J0. F1500.
 X82.594 Z-11.446 I5. J0.
@@ -4090,32 +4084,28 @@ G2 X-76.678 Y37. I13.5 J0.
 G1 X-78.5
 Y-37.
 X-76.678
-Y-38.2
-X-75.37
-G2 X-75.488 Y-36.5 I12.182 J1.7
+X-75.479 Y-36.956
+G2 X-75.488 Y-36.5 I12.292 J0.456
 G1 Y36.5
 G2 X-75.37 Y38.2 I12.3 J0.
 G1 X-79.7
 Y-38.2
-X-76.678
-Y-39.4
-X-73.913
-G2 X-74.145 Y-38.277 I10.74 J2.803
-G1 X-74.16 Y-38.18
-G2 X-74.288 Y-36.5 I10.972 J1.68
+X-75.37
+G2 X-75.479 Y-36.956 I12.182 J1.7
+G1 X-74.28 Y-36.911
+G2 X-74.288 Y-36.5 I11.092 J0.411
 G1 Y36.5
 G2 X-74.158 Y38.19 I11.1 J0.
 G1 X-74.143 Y38.288
 G2 X-73.913 Y39.4 I10.971 J-1.69
 G1 X-80.9
 Y-39.4
-X-76.678
-Y-40.6
-X-72.228
-X-72.269 Y-40.504
-G2 X-72.959 Y-38.096 I9.097 J3.907
-G1 X-72.974 Y-37.998
-G2 X-73.088 Y-36.5 I9.786 J1.498
+X-73.913
+G2 X-74.145 Y-38.277 I10.74 J2.803
+G1 X-74.16 Y-38.18
+G2 X-74.28 Y-36.911 I10.972 J1.68
+G1 X-73.081 Y-36.867
+G2 X-73.088 Y-36.5 I9.893 J0.367
 G1 Y36.5
 G2 X-72.972 Y38.007 I9.9 J0.
 G1 X-72.957 Y38.105
@@ -4123,16 +4113,13 @@ G2 X-72.264 Y40.517 I9.785 J-1.507
 G1 X-72.228 Y40.6
 X-82.1
 Y-40.6
-X-76.678
-Y-41.8
-X-70.182
-G2 X-70.382 Y-41.503 I7.112 J5.01
-G1 X-70.444 Y-41.408
-G2 X-71.125 Y-40.127 I7.313 J4.713
-G1 X-71.167 Y-40.03
-G2 X-71.773 Y-37.914 I7.994 J3.433
-G1 X-71.788 Y-37.817
-G2 X-71.888 Y-36.5 I8.6 J1.317
+X-72.228
+X-72.269 Y-40.504
+G2 X-72.959 Y-38.096 I9.097 J3.907
+G1 X-72.974 Y-37.998
+G2 X-73.081 Y-36.867 I9.786 J1.498
+G1 X-71.882 Y-36.822
+G2 X-71.888 Y-36.5 I8.694 J0.322
 G1 Y36.5
 G2 X-71.786 Y37.824 I8.7 J0.
 G1 X-71.771 Y37.922
@@ -4143,21 +4130,16 @@ G1 X-70.377 Y41.511
 G2 X-70.182 Y41.8 I7.308 J-4.721
 G1 X-83.3
 Y-41.8
-X-76.678
-Y-43.
-X-67.393
-X-67.402 Y-42.993
-G2 X-68.095 Y-42.386 I4.582 J5.938
-G1 X-68.27 Y-42.214
-G2 X-68.826 Y-41.599 I5.275 J5.332
-G1 X-68.901 Y-41.506
-G2 X-69.374 Y-40.853 I5.831 J4.717
-G1 X-69.435 Y-40.758
-G2 X-70.023 Y-39.654 I6.304 J4.063
-G1 X-70.064 Y-39.557
-G2 X-70.586 Y-37.732 I6.891 J2.959
-G1 X-70.601 Y-37.635
-G2 X-70.688 Y-36.5 I7.414 J1.135
+X-70.182
+G2 X-70.382 Y-41.503 I7.112 J5.01
+G1 X-70.444 Y-41.408
+G2 X-71.125 Y-40.127 I7.313 J4.713
+G1 X-71.167 Y-40.03
+G2 X-71.773 Y-37.914 I7.994 J3.433
+G1 X-71.788 Y-37.817
+G2 X-71.882 Y-36.822 I8.6 J1.317
+G1 X-70.683 Y-36.778
+G2 X-70.688 Y-36.5 I7.495 J0.278
 G1 Y36.5
 G2 X-70.6 Y37.642 I7.5 J0.
 G1 X-70.585 Y37.74
@@ -4173,19 +4155,21 @@ G2 X-67.398 Y42.996 I5.272 J-5.334
 G1 X-67.393 Y43.
 X-84.5
 Y-43.
-X-76.678
-Y-44.2
-X85.7
-Y44.2
-X-85.7
-Y-44.2
-X-76.678
-X-68.642 Y-39.748
-G2 X-68.92 Y-39.18 I5.511 J3.053
-G1 X-68.962 Y-39.083
-G2 X-69.4 Y-37.551 I5.789 J2.486
-G1 X-69.415 Y-37.453
-G2 X-69.488 Y-36.5 I6.227 J0.953
+X-67.393
+X-67.402 Y-42.993
+G2 X-68.095 Y-42.386 I4.582 J5.938
+G1 X-68.27 Y-42.214
+G2 X-68.826 Y-41.599 I5.275 J5.332
+G1 X-68.901 Y-41.506
+G2 X-69.374 Y-40.853 I5.831 J4.717
+G1 X-69.435 Y-40.758
+G2 X-70.023 Y-39.654 I6.304 J4.063
+G1 X-70.064 Y-39.557
+G2 X-70.586 Y-37.732 I6.891 J2.959
+G1 X-70.601 Y-37.635
+G2 X-70.683 Y-36.778 I7.414 J1.135
+G1 X-69.483 Y-36.733
+G2 X-69.488 Y-36.5 I6.296 J0.233
 G1 Y36.5
 G2 X-69.414 Y37.459 I6.3 J0.
 G1 X-69.399 Y37.557
@@ -4275,7 +4259,17 @@ G2 X-67.893 Y-40.844 I4.431 J4.478
 G1 X-67.968 Y-40.752
 G2 X-68.365 Y-40.203 I4.898 J3.962
 G1 X-68.427 Y-40.108
-G2 X-68.642 Y-39.748 I5.295 J3.413
+G2 X-68.92 Y-39.18 I5.295 J3.413
+G1 X-68.962 Y-39.083
+G2 X-69.4 Y-37.551 I5.789 J2.486
+G1 X-69.415 Y-37.453
+G2 X-69.483 Y-36.733 I6.227 J0.953
+G1 Y-44.2
+X85.7
+Y44.2
+X-85.7
+Y-44.2
+X-69.483
 G0 Z5.
 Z15.
 X82.594 Y-36.082
@@ -4403,32 +4397,28 @@ G2 X-76.678 Y37. I13.5 J0.
 G1 X-78.5
 Y-37.
 X-76.678
-Y-38.2
-X-75.37
-G2 X-75.488 Y-36.5 I12.182 J1.7
+X-75.479 Y-36.956
+G2 X-75.488 Y-36.5 I12.292 J0.456
 G1 Y36.5
 G2 X-75.37 Y38.2 I12.3 J0.
 G1 X-79.7
 Y-38.2
-X-76.678
-Y-39.4
-X-73.913
-G2 X-74.145 Y-38.277 I10.74 J2.803
-G1 X-74.16 Y-38.18
-G2 X-74.288 Y-36.5 I10.972 J1.68
+X-75.37
+G2 X-75.479 Y-36.956 I12.182 J1.7
+G1 X-74.28 Y-36.911
+G2 X-74.288 Y-36.5 I11.092 J0.411
 G1 Y36.5
 G2 X-74.158 Y38.19 I11.1 J0.
 G1 X-74.143 Y38.288
 G2 X-73.913 Y39.4 I10.971 J-1.69
 G1 X-80.9
 Y-39.4
-X-76.678
-Y-40.6
-X-72.228
-X-72.269 Y-40.504
-G2 X-72.959 Y-38.096 I9.097 J3.907
-G1 X-72.974 Y-37.998
-G2 X-73.088 Y-36.5 I9.786 J1.498
+X-73.913
+G2 X-74.145 Y-38.277 I10.74 J2.803
+G1 X-74.16 Y-38.18
+G2 X-74.28 Y-36.911 I10.972 J1.68
+G1 X-73.081 Y-36.867
+G2 X-73.088 Y-36.5 I9.893 J0.367
 G1 Y36.5
 G2 X-72.972 Y38.007 I9.9 J0.
 G1 X-72.957 Y38.105
@@ -4436,16 +4426,13 @@ G2 X-72.264 Y40.517 I9.785 J-1.507
 G1 X-72.228 Y40.6
 X-82.1
 Y-40.6
-X-76.678
-Y-41.8
-X-70.182
-G2 X-70.382 Y-41.503 I7.112 J5.01
-G1 X-70.444 Y-41.408
-G2 X-71.125 Y-40.127 I7.313 J4.713
-G1 X-71.167 Y-40.03
-G2 X-71.773 Y-37.914 I7.994 J3.433
-G1 X-71.788 Y-37.817
-G2 X-71.888 Y-36.5 I8.6 J1.317
+X-72.228
+X-72.269 Y-40.504
+G2 X-72.959 Y-38.096 I9.097 J3.907
+G1 X-72.974 Y-37.998
+G2 X-73.081 Y-36.867 I9.786 J1.498
+G1 X-71.882 Y-36.822
+G2 X-71.888 Y-36.5 I8.694 J0.322
 G1 Y36.5
 G2 X-71.786 Y37.824 I8.7 J0.
 G1 X-71.771 Y37.922
@@ -4456,21 +4443,16 @@ G1 X-70.377 Y41.511
 G2 X-70.182 Y41.8 I7.308 J-4.721
 G1 X-83.3
 Y-41.8
-X-76.678
-Y-43.
-X-67.393
-X-67.402 Y-42.993
-G2 X-68.095 Y-42.386 I4.582 J5.938
-G1 X-68.27 Y-42.214
-G2 X-68.826 Y-41.599 I5.275 J5.332
-G1 X-68.901 Y-41.506
-G2 X-69.374 Y-40.853 I5.831 J4.717
-G1 X-69.435 Y-40.758
-G2 X-70.023 Y-39.654 I6.304 J4.063
-G1 X-70.064 Y-39.557
-G2 X-70.586 Y-37.732 I6.891 J2.959
-G1 X-70.601 Y-37.635
-G2 X-70.688 Y-36.5 I7.414 J1.135
+X-70.182
+G2 X-70.382 Y-41.503 I7.112 J5.01
+G1 X-70.444 Y-41.408
+G2 X-71.125 Y-40.127 I7.313 J4.713
+G1 X-71.167 Y-40.03
+G2 X-71.773 Y-37.914 I7.994 J3.433
+G1 X-71.788 Y-37.817
+G2 X-71.882 Y-36.822 I8.6 J1.317
+G1 X-70.683 Y-36.778
+G2 X-70.688 Y-36.5 I7.495 J0.278
 G1 Y36.5
 G2 X-70.6 Y37.642 I7.5 J0.
 G1 X-70.585 Y37.74
@@ -4486,19 +4468,21 @@ G2 X-67.398 Y42.996 I5.272 J-5.334
 G1 X-67.393 Y43.
 X-84.5
 Y-43.
-X-76.678
-Y-44.2
-X85.7
-Y44.2
-X-85.7
-Y-44.2
-X-76.678
-X-68.642 Y-39.748
-G2 X-68.92 Y-39.18 I5.511 J3.053
-G1 X-68.962 Y-39.083
-G2 X-69.4 Y-37.551 I5.789 J2.486
-G1 X-69.415 Y-37.453
-G2 X-69.488 Y-36.5 I6.227 J0.953
+X-67.393
+X-67.402 Y-42.993
+G2 X-68.095 Y-42.386 I4.582 J5.938
+G1 X-68.27 Y-42.214
+G2 X-68.826 Y-41.599 I5.275 J5.332
+G1 X-68.901 Y-41.506
+G2 X-69.374 Y-40.853 I5.831 J4.717
+G1 X-69.435 Y-40.758
+G2 X-70.023 Y-39.654 I6.304 J4.063
+G1 X-70.064 Y-39.557
+G2 X-70.586 Y-37.732 I6.891 J2.959
+G1 X-70.601 Y-37.635
+G2 X-70.683 Y-36.778 I7.414 J1.135
+G1 X-69.483 Y-36.733
+G2 X-69.488 Y-36.5 I6.296 J0.233
 G1 Y36.5
 G2 X-69.414 Y37.459 I6.3 J0.
 G1 X-69.399 Y37.557
@@ -4588,19 +4572,26 @@ G2 X-67.893 Y-40.844 I4.431 J4.478
 G1 X-67.968 Y-40.752
 G2 X-68.365 Y-40.203 I4.898 J3.962
 G1 X-68.427 Y-40.108
-G2 X-68.642 Y-39.748 I5.295 J3.413
+G2 X-68.92 Y-39.18 I5.295 J3.413
+G1 X-68.962 Y-39.083
+G2 X-69.4 Y-37.551 I5.789 J2.486
+G1 X-69.415 Y-37.453
+G2 X-69.483 Y-36.733 I6.227 J0.953
+G1 Y-44.2
+X85.7
+Y44.2
+X-85.7
+Y-44.2
+X-69.483
 G0 Z5.
 Z15.
 (OP 7: 2 Adaptive karsiligi R6: Y8.2--0.2 [ada kesit Y=0.05] T34 [pocket] SETUP P4-S1 Ust)
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X83.3 Y-41.8
 G43 H34 Z15.
-M8
+Z5.
 G1 Z-24.8 F500.
 Y-40.179 Z-24.885 F1500.
 G2 X81.679 Y-41.8 Z-25.005 I-13.3 J11.679
@@ -5095,6 +5086,7 @@ S8000 M3
 G0 G90 G55 X81. Y-39.5
 G43 H35 Z15.
 M8
+Z5.
 G1 Z-25. F500.
 Y39.5 F1500.
 X73.783
@@ -5228,12 +5220,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X76. Y-34.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-10. F500.
 Y-26.508 F1500.
 G2 X73.542 Y-34.5 I-24. J3.008
@@ -5446,12 +5435,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X76. Y-34.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-6. F500.
 Y-12.137 F1500.
 G2 X75.779 Y-12.496 I-13.727 J8.219
@@ -5801,12 +5787,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-64.781 Y-3.
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-3. F500.
 G3 X-61.781 Y0. I0. J3. F1500.
 G1 Y36.5
@@ -6357,14 +6340,95 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
-G0 G90 G55 X-16. Y-46.5
+G0 G90 G55 X-22. Y46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-4. F500.
-G3 X-19. Y-43.5 I-3. J0. F1500.
+G3 X-19. Y43.5 I3. J0. F1500.
+G1 X17.521
+G2 X17.673 Y43.498 I0. J-6.
+G1 X17.865 Y43.493
+G2 X18.187 Y43.476 I-0.152 J-5.998
+G1 X18.37 Y43.462
+G2 X18.716 Y43.424 I-0.474 J-5.981
+G1 X18.889 Y43.4
+G2 X19.261 Y43.337 I-0.821 J-5.944
+G1 X19.424 Y43.304
+G2 X19.822 Y43.209 I-1.192 J-5.88
+G1 X19.975 Y43.167
+G2 X20.397 Y43.034 I-1.59 J-5.786
+G1 X20.539 Y42.984
+G2 X20.984 Y42.805 I-2.012 J-5.653
+G1 X21.114 Y42.746
+G2 X21.58 Y42.512 I-2.457 J-5.474
+G1 X21.698 Y42.447
+G2 X22.18 Y42.147 I-2.923 J-5.24
+G1 X22.285 Y42.075
+G2 X22.773 Y41.7 I-3.404 J-4.941
+G1 X22.866 Y41.621
+G2 X23.349 Y41.16 I-3.892 J-4.566
+G1 X23.428 Y41.076
+G2 X23.889 Y40.521 I-4.376 J-4.105
+G1 X23.954 Y40.432
+G2 X24.372 Y39.779 I-4.837 J-3.55
+G1 X24.423 Y39.687
+G2 X24.77 Y38.94 I-5.254 J-2.897
+G1 X24.806 Y38.845
+G2 X25.057 Y38.019 I-5.601 J-2.15
+G1 X25.079 Y37.922
+G2 X25.21 Y37.044 I-5.852 J-1.324
+G1 X25.218 Y36.947
+G2 X25.234 Y36.5 I-5.983 J-0.447
+G1 Y1.74
+X25.241 Y1.551
+X25.248 Y1.461
+X25.275 Y1.199
+G2 X25.279 Y1.166 I-5.968 J-0.617
+G1 X25.299 Y0.962
+G2 X25.32 Y0.666 I-5.972 J-0.584
+G1 X25.338 Y0.287
+G2 Y-0.291 I-5.993 J-0.288
+G1 X25.32 Y-0.664
+G2 X25.299 Y-0.955 I-5.993 J0.29
+G1 X25.279 Y-1.161
+G2 X25.275 Y-1.194 I-5.972 J0.581
+G1 X25.248 Y-1.459
+X25.241 Y-1.551
+X25.234 Y-1.742
+Y-36.5
+G2 X25.217 Y-36.949 I-6. J0.
+G1 X25.21 Y-37.047
+G2 X25.078 Y-37.927 I-5.983 J0.449
+G1 X25.056 Y-38.024
+G2 X24.805 Y-38.85 I-5.851 J1.329
+G1 X24.768 Y-38.945
+G2 X24.42 Y-39.692 I-5.6 J2.155
+G1 X24.369 Y-39.784
+G2 X23.952 Y-40.436 I-5.252 J2.901
+G1 X23.886 Y-40.525
+G2 X23.425 Y-41.08 I-4.834 J3.554
+G1 X23.346 Y-41.164
+G2 X22.863 Y-41.624 I-4.373 J4.108
+G1 X22.77 Y-41.703
+G2 X22.282 Y-42.077 I-3.89 J4.568
+G1 X22.176 Y-42.15
+G2 X21.695 Y-42.448 I-3.401 J4.943
+G1 X21.577 Y-42.514
+G2 X21.111 Y-42.748 I-2.92 J5.241
+G1 X20.981 Y-42.806
+G2 X20.535 Y-42.985 I-2.455 J5.475
+G1 X20.393 Y-43.035
+G2 X19.971 Y-43.168 I-2.009 J5.654
+G1 X19.818 Y-43.21
+G2 X19.421 Y-43.305 I-1.587 J5.786
+G1 X19.258 Y-43.338
+G2 X18.886 Y-43.401 I-1.19 J5.881
+G1 X18.713 Y-43.425
+G2 X18.367 Y-43.462 I-0.818 J5.944
+G1 X18.184 Y-43.477
+G2 X17.863 Y-43.493 I-0.472 J5.981
+G1 X17.672 Y-43.498
+G2 X17.521 Y-43.5 I-0.151 J5.998
 G1 X-55.521
 G2 X-55.672 Y-43.498 I0. J6.
 G1 X-55.863 Y-43.493
@@ -6433,92 +6497,8 @@ G1 X-56.187 Y43.476
 G2 X-55.865 Y43.493 I0.474 J-5.981
 G1 X-55.673 Y43.498
 G2 X-55.521 Y43.5 I0.152 J-5.998
-G1 X17.521
-G2 X17.673 Y43.498 I0. J-6.
-G1 X17.865 Y43.493
-G2 X18.187 Y43.476 I-0.152 J-5.998
-G1 X18.37 Y43.462
-G2 X18.716 Y43.424 I-0.474 J-5.981
-G1 X18.889 Y43.4
-G2 X19.261 Y43.337 I-0.821 J-5.944
-G1 X19.424 Y43.304
-G2 X19.822 Y43.209 I-1.192 J-5.88
-G1 X19.975 Y43.167
-G2 X20.397 Y43.034 I-1.59 J-5.786
-G1 X20.539 Y42.984
-G2 X20.984 Y42.805 I-2.012 J-5.653
-G1 X21.114 Y42.746
-G2 X21.58 Y42.512 I-2.457 J-5.474
-G1 X21.698 Y42.447
-G2 X22.18 Y42.147 I-2.923 J-5.24
-G1 X22.285 Y42.075
-G2 X22.773 Y41.7 I-3.404 J-4.941
-G1 X22.866 Y41.621
-G2 X23.349 Y41.16 I-3.892 J-4.566
-G1 X23.428 Y41.076
-G2 X23.889 Y40.521 I-4.376 J-4.105
-G1 X23.954 Y40.432
-G2 X24.372 Y39.779 I-4.837 J-3.55
-G1 X24.423 Y39.687
-G2 X24.77 Y38.94 I-5.254 J-2.897
-G1 X24.806 Y38.845
-G2 X25.057 Y38.019 I-5.601 J-2.15
-G1 X25.079 Y37.922
-G2 X25.21 Y37.044 I-5.852 J-1.324
-G1 X25.218 Y36.947
-G2 X25.234 Y36.5 I-5.983 J-0.447
-G1 Y1.74
-X25.241 Y1.551
-X25.248 Y1.461
-X25.275 Y1.199
-G2 X25.279 Y1.166 I-5.968 J-0.617
-G1 X25.299 Y0.962
-G2 X25.32 Y0.666 I-5.972 J-0.584
-G1 X25.338 Y0.287
-G2 Y-0.291 I-5.993 J-0.288
-G1 X25.32 Y-0.664
-G2 X25.299 Y-0.955 I-5.993 J0.29
-G1 X25.279 Y-1.161
-G2 X25.275 Y-1.194 I-5.972 J0.581
-G1 X25.248 Y-1.459
-X25.241 Y-1.549
-X25.234 Y-1.74
-Y-36.5
-G2 X25.217 Y-36.949 I-6. J0.
-G1 X25.21 Y-37.047
-G2 X25.078 Y-37.927 I-5.983 J0.449
-G1 X25.056 Y-38.024
-G2 X24.805 Y-38.85 I-5.851 J1.329
-G1 X24.768 Y-38.945
-G2 X24.42 Y-39.692 I-5.6 J2.155
-G1 X24.369 Y-39.784
-G2 X23.952 Y-40.436 I-5.252 J2.901
-G1 X23.886 Y-40.525
-G2 X23.425 Y-41.08 I-4.834 J3.554
-G1 X23.346 Y-41.164
-G2 X22.863 Y-41.624 I-4.373 J4.108
-G1 X22.77 Y-41.703
-G2 X22.282 Y-42.077 I-3.89 J4.568
-G1 X22.176 Y-42.15
-G2 X21.695 Y-42.448 I-3.401 J4.943
-G1 X21.577 Y-42.514
-G2 X21.111 Y-42.748 I-2.92 J5.241
-G1 X20.981 Y-42.806
-G2 X20.535 Y-42.985 I-2.455 J5.475
-G1 X20.393 Y-43.035
-G2 X19.971 Y-43.168 I-2.009 J5.654
-G1 X19.818 Y-43.21
-G2 X19.421 Y-43.305 I-1.587 J5.786
-G1 X19.258 Y-43.338
-G2 X18.886 Y-43.401 I-1.19 J5.881
-G1 X18.713 Y-43.425
-G2 X18.367 Y-43.462 I-0.818 J5.944
-G1 X18.184 Y-43.477
-G2 X17.863 Y-43.493 I-0.472 J5.981
-G1 X17.672 Y-43.498
-G2 X17.521 Y-43.5 I-0.151 J5.998
 G1 X-19.
-G3 X-22. Y-46.5 I0. J-3.
+G3 X-16. Y46.5 I0. J3.
 G0 Z5.
 X26.5 Y-26.5
 G1 Z-4. F500.
@@ -6535,12 +6515,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-16. Y-46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-5. F500.
 G3 X-19. Y-43.5 I-3. J0. F1500.
 G1 X-56.847
@@ -6639,7 +6616,7 @@ G1 X26.092 Y37.721
 G2 X26.187 Y36.975 I-5.894 J-1.124
 G1 X26.193 Y36.877
 G2 X26.205 Y36.5 I-5.988 J-0.377
-G1 X26.204 Y9.24
+G1 Y9.24
 X61.5
 G2 X62.034 Y9.216 I0. J-6.
 G1 X62.13 Y9.208
@@ -6746,12 +6723,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-16. Y-46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-6. F500.
 G3 X-19. Y-43.5 I-3. J0. F1500.
 G1 X-57.709
@@ -6949,12 +6923,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-16. Y-46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-7. F500.
 G3 X-19. Y-43.5 I-3. J0. F1500.
 G1 X-58.301
@@ -7135,12 +7106,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-16. Y-46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-8. F500.
 G3 X-19. Y-43.5 I-3. J0. F1500.
 G1 X-58.693
@@ -7265,12 +7233,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-16. Y-46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-9. F500.
 G3 X-19. Y-43.5 I-3. J0. F1500.
 G1 X-58.921
@@ -7387,14 +7352,55 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
-G0 G90 G55 X-22. Y46.5
+G0 G90 G55 X-16. Y-46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-10. F500.
-G3 X-19. Y43.5 I3. J0. F1500.
+G3 X-19. Y-43.5 I-3. J0. F1500.
+G1 X-59.184
+G2 X-59.694 Y-43.478 I0. J6.
+G1 X-59.919 Y-43.459
+G2 X-60.876 Y-43.299 I0.51 J5.978
+G1 X-61.102 Y-43.242
+G2 X-61.951 Y-42.959 I1.466 J5.818
+G1 X-62.172 Y-42.867
+G2 X-62.901 Y-42.501 I2.316 J5.535
+G1 X-63.113 Y-42.377
+G2 X-63.73 Y-41.959 I3.045 J5.17
+G1 X-63.927 Y-41.808
+G2 X-64.481 Y-41.323 I3.663 J4.752
+G1 X-64.656 Y-41.15
+G2 X-65.101 Y-40.66 I4.218 J4.268
+G1 X-65.176 Y-40.567
+G2 X-65.553 Y-40.046 I4.662 J3.777
+G1 X-65.615 Y-39.951
+G2 X-66.085 Y-39.07 I5.04 J3.256
+G1 X-66.127 Y-38.973
+G2 X-66.547 Y-37.511 I5.51 J2.375
+G1 X-66.562 Y-37.413
+G2 X-66.632 Y-36.5 I5.93 J0.913
+G1 Y36.5
+G2 X-66.563 Y37.408 I6. J0.
+G1 X-66.548 Y37.505
+G2 X-66.13 Y38.965 I5.931 J-0.908
+G1 X-66.089 Y39.062
+G2 X-65.619 Y39.945 I5.513 J-2.368
+G1 X-65.557 Y40.04
+G2 X-65.179 Y40.563 I5.043 J-3.251
+G1 X-65.104 Y40.655
+G2 X-64.659 Y41.147 I4.665 J-3.773
+G1 X-64.484 Y41.32
+G2 X-63.93 Y41.805 I4.22 J-4.265
+G1 X-63.734 Y41.957
+G2 X-63.116 Y42.375 I3.666 J-4.75
+G1 X-62.905 Y42.499
+G2 X-62.176 Y42.865 I3.048 J-5.168
+G1 X-61.955 Y42.957
+G2 X-61.105 Y43.241 I2.319 J-5.534
+G1 X-60.88 Y43.298
+G2 X-59.922 Y43.459 I1.469 J-5.817
+G1 X-59.696 Y43.478
+G2 X-59.184 Y43.5 I0.511 J-5.978
 G1 X21.184
 G2 X21.694 Y43.478 I0. J-6.
 G1 X21.919 Y43.459
@@ -7482,64 +7488,17 @@ G1 X22.876 Y-43.299
 G2 X21.919 Y-43.459 I-1.466 J5.818
 G1 X21.694 Y-43.478
 G2 X21.184 Y-43.5 I-0.51 J5.978
-G1 X-59.184
-G2 X-59.694 Y-43.478 I0. J6.
-G1 X-59.919 Y-43.459
-G2 X-60.876 Y-43.299 I0.51 J5.978
-G1 X-61.102 Y-43.242
-G2 X-61.951 Y-42.959 I1.466 J5.818
-G1 X-62.172 Y-42.867
-G2 X-62.901 Y-42.501 I2.316 J5.535
-G1 X-63.113 Y-42.377
-G2 X-63.73 Y-41.959 I3.045 J5.17
-G1 X-63.927 Y-41.808
-G2 X-64.481 Y-41.323 I3.663 J4.752
-G1 X-64.656 Y-41.15
-G2 X-65.101 Y-40.66 I4.218 J4.268
-G1 X-65.176 Y-40.567
-G2 X-65.553 Y-40.046 I4.662 J3.777
-G1 X-65.615 Y-39.951
-G2 X-66.085 Y-39.07 I5.04 J3.256
-G1 X-66.127 Y-38.973
-G2 X-66.547 Y-37.511 I5.51 J2.375
-G1 X-66.562 Y-37.413
-G2 X-66.632 Y-36.5 I5.93 J0.913
-G1 Y36.5
-G2 X-66.563 Y37.408 I6. J0.
-G1 X-66.548 Y37.505
-G2 X-66.13 Y38.965 I5.931 J-0.908
-G1 X-66.089 Y39.062
-G2 X-65.619 Y39.945 I5.513 J-2.368
-G1 X-65.557 Y40.04
-G2 X-65.179 Y40.563 I5.043 J-3.251
-G1 X-65.104 Y40.655
-G2 X-64.659 Y41.147 I4.665 J-3.773
-G1 X-64.484 Y41.32
-G2 X-63.93 Y41.805 I4.22 J-4.265
-G1 X-63.734 Y41.957
-G2 X-63.116 Y42.375 I3.666 J-4.75
-G1 X-62.905 Y42.499
-G2 X-62.176 Y42.865 I3.048 J-5.168
-G1 X-61.955 Y42.957
-G2 X-61.105 Y43.241 I2.319 J-5.534
-G1 X-60.88 Y43.298
-G2 X-59.922 Y43.459 I1.469 J-5.817
-G1 X-59.696 Y43.478
-G2 X-59.184 Y43.5 I0.511 J-5.978
 G1 X-19.
-G3 X-16. Y46.5 I0. J3.
+G3 X-22. Y-46.5 I0. J-3.
 G0 Z5.
 Z15.
 (OP 19: 4 3D kontur karsiligi Y22-23 [kesit 22.05] T35 [contour] SETUP P4-S1 Ust)
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-16. Y-46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-11. F500.
 G3 X-19. Y-43.5 I-3. J0. F1500.
 G1 X-60.5
@@ -7582,12 +7541,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-3. Y46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-12. F500.
 G3 X0. Y43.5 I3. J0. F1500.
 G1 X61.5
@@ -7852,12 +7808,9 @@ Z15.
 G90 G40 G49
 G91 G28 Z0.
 G90
-M5
-M9
-S8000 M3
 G0 G90 G55 X-3. Y46.5
 G43 H35 Z15.
-M8
+Z5.
 G1 Z-25. F500.
 G3 X0. Y43.5 I3. J0. F1500.
 G1 X61.74
@@ -7969,6 +7922,7 @@ S8000 M3
 G0 G90 G55 X-3. Y46.5
 G43 H34 Z15.
 M8
+Z5.
 G1 Z-11.067 F500.
 G3 X0. Y43.5 I3. J0. F1500.
 G1 X70.
@@ -8040,6 +7994,7 @@ S8000 M3
 G0 G90 G55 X39.1 Y18.4
 G43 H29 Z15.
 M8
+Z5.
 G1 Z-6.5 F60.
 Y31.6 F160.
 X38.9
@@ -8129,6 +8084,7 @@ S8000 M3
 G0 G90 G55 X71.5 Y-28.5
 G43 H22 Z15.
 M8
+Z5.
 G1 Z-25. F320.
 G3 X68.5 Z-25.247 I-1.5 J0. F960.
 X71.5 Z-25.494 I1.5 J0.
@@ -8280,15 +8236,9 @@ G43 H24 Z15.
 M8
 Z5.
 G98 G81 X70. Y-28.5 Z-28.5 R-22. F300.
-G80
-G0 X70. Y28.5 Z5.
-G98 G81 X70. Y28.5 Z-28.5 R-22. F300.
-G80
-G0 X-70. Y-28.5 Z5.
-G98 G81 X-70. Y-28.5 Z-28.5 R-22. F300.
-G80
-G0 X-70. Y28.5 Z5.
-G98 G81 X-70. Y28.5 Z-28.5 R-22. F300.
+Y28.5
+X-70. Y-28.5
+Y28.5
 G80
 G0 X-70. Y28.5 Z15.
 (OP 26: 9 Delme T33 O6,1 G83 Q3 boydan boya +1 [drill] SETUP P4-S1 Ust)
@@ -8304,15 +8254,9 @@ G43 H33 Z15.
 M8
 Z5.
 G98 G83 X70. Y-28.5 Z-35.11 R-22. Q3. F420.
-G80
-G0 X70. Y28.5 Z5.
-G98 G83 X70. Y28.5 Z-35.11 R-22. Q3. F420.
-G80
-G0 X-70. Y-28.5 Z5.
-G98 G83 X-70. Y-28.5 Z-35.11 R-22. Q3. F420.
-G80
-G0 X-70. Y28.5 Z5.
-G98 G83 X-70. Y28.5 Z-35.11 R-22. Q3. F420.
+Y28.5
+X-70. Y-28.5
+Y28.5
 G80
 G0 X-70. Y28.5 Z15.
 (OP 27: 10 Delme T41 6x O3,5 G83 Q3 [dip +1] [drill] SETUP P4-S1 Ust)
@@ -8327,13 +8271,9 @@ G0 G90 G55 X33.5 Y25.
 G43 H41 Z15.
 M8
 Z5.
-G98 G83 X33.5 Y25. Z-17.517 R-1. Q3. F350.
-G80
-G0 X44.5 Y25. Z5.
-G98 G83 X44.5 Y25. Z-17.517 R-1. Q3. F350.
-G80
-G0 X55.5 Y25. Z5.
-G98 G83 X55.5 Y25. Z-17.517 R-1. Q3. F350.
+G99 G83 X33.5 Y25. Z-17.517 R-1. Q3. F350.
+X44.5
+G98 X55.5
 G80
 G0 X40.5 Y-23.5 Z5.
 G99 G83 X40.5 Y-23.5 Z-14.517 R3. Q3. F350.
@@ -8353,22 +8293,12 @@ G0 G90 G55 X31.9 Y30.
 G43 H39 Z15.
 M8
 Z5.
-G98 G83 X31.9 Y30. Z-18.7 R-1. Q3. F360.
-G80
-G0 X42.9 Y30. Z5.
-G98 G83 X42.9 Y30. Z-18.7 R-1. Q3. F360.
-G80
-G0 X53.9 Y30. Z5.
-G98 G83 X53.9 Y30. Z-18.7 R-1. Q3. F360.
-G80
-G0 X35.1 Y20. Z5.
-G98 G83 X35.1 Y20. Z-18.7 R-1. Q3. F360.
-G80
-G0 X46.1 Y20. Z5.
-G98 G83 X46.1 Y20. Z-18.7 R-1. Q3. F360.
-G80
-G0 X57.1 Y20. Z5.
-G98 G83 X57.1 Y20. Z-18.7 R-1. Q3. F360.
+G99 G83 X31.9 Y30. Z-18.7 R-1. Q3. F360.
+X42.9
+X53.9
+X35.1 Y20.
+X46.1
+G98 X57.1
 G80
 G0 X57.1 Y20. Z15.
 (OP 29: 12 Kilavuz T40 6x M3x0,5 G84 [Y17] [drill] SETUP P4-S1 Ust)
@@ -8383,22 +8313,12 @@ G0 G90 G55 X31.9 Y30.
 G43 H40 Z15.
 M8
 Z5.
-G98 G84 X31.9 Y30. Z-16. R-1. F0.5 ,R1
-G80
-G0 X42.9 Y30. Z5.
-G98 G84 X42.9 Y30. Z-16. R-1. F0.5 ,R1
-G80
-G0 X53.9 Y30. Z5.
-G98 G84 X53.9 Y30. Z-16. R-1. F0.5 ,R1
-G80
-G0 X35.1 Y20. Z5.
-G98 G84 X35.1 Y20. Z-16. R-1. F0.5 ,R1
-G80
-G0 X46.1 Y20. Z5.
-G98 G84 X46.1 Y20. Z-16. R-1. F0.5 ,R1
-G80
-G0 X57.1 Y20. Z5.
-G98 G84 X57.1 Y20. Z-16. R-1. F0.5 ,R1
+G99 G84 X31.9 Y30. Z-16. R-1. F0.5 ,R1
+X42.9
+X53.9
+X35.1 Y20.
+X46.1
+G98 X57.1
 G80
 G0 X57.1 Y20. Z15.
 (END OF PROGRAM)
