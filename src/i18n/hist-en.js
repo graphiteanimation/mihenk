@@ -65,4 +65,9 @@ export default {
   "ctx.ungroup": "Ungroup",
   "ctx.group_open": "Expand group",
   "ctx.group_close": "Collapse group",
+  "tl.marker_tip": "Rollback marker: drag or press Alt+←/→ (Alt+Home/End: start/end)",
+  "tl.marker_at": "{n}/{total}: after {name}",
+  "tl.marker_start": "At start: no feature computed",
+  "tl.mid_band": "You are in the middle of the history — new features are inserted here",
+  "err.rebuild.cancelled": "Recompute cancelled (a newer change arrived)",
 };

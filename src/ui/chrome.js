@@ -692,6 +692,58 @@ export function initChrome(app) {
     if (r >= U.length - 1) return; return app.moveFeature(i, r + 2 < U.length ? unitA(U[r + 2]) : n);
   };
 
+  // ---------------------------------------------------------------- WP-02 dilim 4: geri sarma işaretçisi (sürüklenir) + orta-geçmiş bandı
+  // İşaretçi kaydırıcıdır: ←/→ bir adım, Home/End başa/sona (genelde Alt+←/→, Alt+Home/End); fareyle sürüklenir.
+  const markerEl = () => {
+    const n = app.doc.features.length; const rb = app.doc.rollback; const v = rb ?? n;
+    const prev = v > 0 ? app.doc.features[v - 1] : null;
+    const el = h('span', { class: 'tl-marker', id: 'tl-marker', 'data-testid': 'tl-marker', 'data-marker': '1', tabindex: '0', role: 'slider', title: t('tl.marker_tip'), 'aria-label': t('tl.marker'),
+      'aria-valuemin': '0', 'aria-valuemax': String(n), 'aria-valuenow': String(v), 'aria-valuetext': prev ? t('tl.marker_at', { n: v, total: n, name: prev.name || featLabel(prev) }) : t('tl.marker_start') });
+    el.addEventListener('keydown', (e) => {
+      if (app.edit || app.sketchSession || modalUp()) return;
+      const k = e.key; let to = null;
+      if (k === 'ArrowLeft' || k === 'ArrowDown') to = v - 1; else if (k === 'ArrowRight' || k === 'ArrowUp') to = v + 1; else if (k === 'Home') to = 0; else if (k === 'End') to = n; else return;
+      e.preventDefault(); e.stopPropagation(); C.stepMarker(to, true);
+    });
+    el.addEventListener('pointerdown', (e) => startMarkerDrag(e, el));
+    return el;
+  };
+  C.stepMarker = async (to, focus) => {
+    const n = app.doc.features.length; to = Math.max(0, Math.min(n, to)); const cur = app.doc.rollback ?? n;
+    if (to === cur) return; await app.rollbackTo(to >= n ? null : to);
+    if (focus) document.querySelector('#timeline [data-marker]')?.focus();
+  };
+  // sürükleme: işaretçi en yakın aralığa (çip ortaları arasına) yerleşir; bırakınca geri sarılır
+  const markerGap = (x) => {
+    const items = [...document.querySelectorAll('#timeline .chip[data-i], #timeline .chip[data-group]')];
+    for (const c of items) { const r = c.getBoundingClientRect(); if (x < r.left + r.width / 2) return { gap: c.dataset.group ? C.hist().groups.find((g) => g.id === c.dataset.group).a : unitA(+c.dataset.i), before: c }; }
+    return { gap: app.doc.features.length, before: null };
+  };
+  const startMarkerDrag = (e, el) => {
+    if (e.button !== 0 || app.edit || app.sketchSession || app.mode !== 'design') return;
+    e.preventDefault(); el.classList.add('dragging'); el.focus({ preventScroll: true });
+    // önizleme: işaretçinin kendisi taşınmaz (işaretçi yakalaması kopmasın), aralığa hayalet işaretçi konur
+    const tl = $('#timeline'); const ghost = h('span', { class: 'tl-marker ghost', 'aria-hidden': 'true' }); let last = null;
+    const move = (ev) => { const g = markerGap(ev.clientX); if (last && last.gap === g.gap) return; last = g; const endBtn = $('#tl-end'); if (g.before) tl.insertBefore(ghost, g.before); else if (endBtn) tl.insertBefore(ghost, endBtn); else tl.append(ghost); };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      ghost.remove(); el.classList.remove('dragging');
+      const g = last || markerGap(ev.clientX); const n = app.doc.features.length;
+      if (g.gap !== (app.doc.rollback ?? n)) C.stepMarker(g.gap, true);
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  };
+  // geçmişin ortasındayken görünüm alanının altında kalıcı bant
+  C.renderBand = () => {
+    const vw = $('#viewwrap'); if (!vw) return; let band = document.getElementById('mid-band');
+    const on = app.mode === 'design' && !app.welcome && app.doc.rollback != null;
+    vw.classList.toggle('mid', on);
+    if (!on) { band?.remove(); return; }
+    if (!band) { band = h('div', { id: 'mid-band', class: 'mid-band', role: 'status', 'data-testid': 'mid-band' }); vw.append(band); }
+    band.replaceChildren(h('span', { html: icon('rollback', 'sm') }), h('span', { class: 'mb-txt', text: t('tl.mid_band') }),
+      h('button', { class: 'btn sm', type: 'button', 'data-testid': 'mid-band-end', onclick: () => app.rollbackTo(null) }, t('tl.end'), h('span', { class: 'kbd', text: 'Alt+End' })));
+  };
+
   // ---------------------------------------------------------------- zaman çizelgesi
   C.renderTimeline = () => {
     const tl = $('#timeline'); const doc = app.doc;
@@ -701,7 +753,7 @@ export function initChrome(app) {
     const kids = [h('div', { class: 'tl-label' }, h('span', { html: icon('clock', 'sm') }), h('span', { text: t('tl.label') }))];
     let first = true;
     doc.features.forEach((f, i) => {
-      if (rb != null && i === rb) kids.push(h('span', { class: 'tl-marker', id: 'tl-marker', title: t('tl.marker'), role: 'separator', 'aria-label': t('tl.marker') }));
+      if (rb != null && i === rb) kids.push(markerEl());
       const G = H.groupBy.get(f.id);
       if (G && G.a === i) { if (!first) kids.push(h('span', { class: 'tl-sep' })); first = false; kids.push(groupEl(G, true)); }
       if (G && !app.groupOpen.has(G.id)) return;
@@ -729,11 +781,12 @@ export function initChrome(app) {
       bindDrag(chip, i, true);
       kids.push(chip);
     });
+    if (rb == null && doc.features.length) kids.push(markerEl());
     if (rb != null) kids.push(h('button', { class: 'btn sm', id: 'tl-end', 'data-testid': 'tl-end', onclick: () => app.rollbackTo(null) }, t('tl.end')));
-    if (rb != null && rb >= doc.features.length) kids.push(h('span', { class: 'tl-marker', id: 'tl-marker' }));
     if (!doc.features.length) kids.push(h('span', { class: 'note', text: t('tl.empty') }));
     roving(kids.filter((c) => c.classList && (c.matches('.chip[data-id]') || c.dataset.group)), (c) => c.dataset.id || c.dataset.group);
     const fk = keepFocus('#timeline'); tl.replaceChildren(...kids); fk();
+    C.renderBand();
     tl.querySelector('.chip.sel')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     C.markDeps();
   };

@@ -65,4 +65,9 @@ export default {
   "ctx.ungroup": "Grubu çöz",
   "ctx.group_open": "Grubu aç",
   "ctx.group_close": "Grubu kapat",
+  "tl.marker_tip": "Geri sarma işaretçisi: sürükleyin ya da Alt+←/→ (Alt+Home/End: başa/sona)",
+  "tl.marker_at": "{n}/{total}: {name} sonrası",
+  "tl.marker_start": "Başta: hiçbir işlem hesaplanmıyor",
+  "tl.mid_band": "Geçmişin ortasındasınız — yeni işlem buraya eklenir",
+  "err.rebuild.cancelled": "Yeniden hesap iptal edildi (yeni değişiklik geldi)",
 };

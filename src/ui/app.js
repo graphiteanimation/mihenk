@@ -848,6 +848,11 @@ class App {
         return;
       }
       if (e.key === 'Escape') { if (this.tool) this.endTool(); else if (this.sectionPanel) this.toggleSection(); return; }
+      // WP-02: geri sarma işaretçisi Alt+←/→ bir adım, Alt+Home/End başa/sona
+      if (e.altKey && !ctrl && !e.shiftKey && !inField && this.mode === 'design' && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+        e.preventDefault(); const n = this.doc.features.length; const v = this.doc.rollback ?? n;
+        this.C.stepMarker(e.key === 'Home' ? 0 : e.key === 'End' ? n : v + (e.key === 'ArrowLeft' ? -1 : 1)); return;
+      }
       if (!inField && !ctrl && k === 'f') this.viewport.fit();
     });
   }
