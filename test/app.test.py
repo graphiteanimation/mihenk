@@ -872,6 +872,10 @@ try:
     check('WP-02 akış: kenarı yok eden değişiklik → özet bildiriminde hata (ad + neden) ve Onar', S and S['e'] == 1 and S['errors'] == ['f'] and '1 hata: Yuvarlat 3 — ' in summ_text() and toast_btn('Onar').count() == 1, summ_text())
     check('WP-02 özet: yeni özet öncekinin yerine geçer (tek özet)', ev('document.querySelectorAll("[data-testid=hist-summary]").length') == 1)
     check('WP-02 akış: hatalı çip kırmızı + neden satırı', chipcls('err') == ['f'] and ev('!!document.querySelector("#browser [data-testid=hist-why][data-for=f]")'))
+    sb = ev("""(() => { const m = document.querySelector('#statusbar-main'); const l = document.querySelector('#st-left');
+      const fixed = [...m.children].filter(e => e !== l && !e.classList.contains('deps') && !e.classList.contains('grow') && e.offsetParent !== null);
+      return { over: m.scrollWidth - m.clientWidth, clipped: fixed.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.dataset.testid || e.className), title: l.title === l.textContent && l.textContent.length > 0, ell: getComputedStyle(l).textOverflow }; })()""")
+    check('WP-02 durum çubuğu: hata varken taşmaz, sabit öğeler ezilmez, uzun metin üç nokta + title', sb['over'] <= 1 and not sb['clipped'] and sb['title'] and sb['ell'] == 'ellipsis', sb)
     toast_btn('Onar').first.click(); page.wait_for_timeout(300)
     check('WP-02 akış: Onar hatalı işlemi düzenlemeye açar (onarım kipi dilim 5)', ev('app.edit && app.edit.draft.id') == 'f')
     page.click('#p-cancel'); idle()

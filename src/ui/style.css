@@ -99,7 +99,11 @@
 .statusbar .sb-main { display: flex; align-items: center; gap: var(--sp-3); flex: 1; min-width: 0; height: 100%; }
 .statusbar .sb-quick { display: none; align-items: center; gap: var(--sp-4); height: 100%; }
 .statusbar .seg-i { overflow: hidden; text-overflow: ellipsis; }
-.statusbar #st-left { flex: none; max-width: 40vw; }
+/* WP-02: sabit öğeler ezilmez; yalnız uzun metinli bölümler (sol durum, bağımlılık özeti) üç noktayla kısalır, tam metin title'da */
+.statusbar .sb-main > * { flex: none; }
+.statusbar .sb-main > .grow { flex: 1 1 0; min-width: 0; }
+.statusbar #st-left, .statusbar .sb-main > .seg-i.deps { flex: 0 1 auto; min-width: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: var(--status-h); }
+.statusbar #st-left { max-width: 40vw; }
 .statusbar .sbtn { flex: none; min-height: 24px; }
 .statusbar .sbtn:focus-visible, .statusbar :focus-visible { outline-color: var(--focus-on-dark); }
 .welcome-on .statusbar .sb-quick { display: flex; }
@@ -283,3 +287,4 @@
 .sb-quick .quick { display: inline-flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-xs); }
 .welcome h1 + .lead { margin-top: var(--sp-3); }
 .input.pick > span[data-k=profiles] { flex: 1; color: var(--text); }
+.statusbar .sb-main > .seg-i.deps[hidden] { display: none; }

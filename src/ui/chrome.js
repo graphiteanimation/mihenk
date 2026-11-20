@@ -426,7 +426,7 @@ export function initChrome(app) {
       if (D && (D.up.has(x) || D.down.has(x))) el.dataset.dep = D.up.has(x) ? 'up' : 'down';
     }
     const seg = document.querySelector('[data-testid="st-deps"]');
-    if (seg) { const txt = C.depText(id, D); seg.textContent = txt; seg.hidden = !txt; }
+    if (seg) { const txt = C.depText(id, D); seg.textContent = txt; seg.title = txt; seg.hidden = !txt; }
   };
   C.depText = (id, D) => {
     const f = id && app.doc.features.find((x) => x.id === id); if (!f || !D) return '';
@@ -498,7 +498,7 @@ export function initChrome(app) {
     $('#statusbar-main').replaceChildren(
       h('span', { class: 'seg-i', 'data-testid': 'st-mode', 'data-mode': camMode ? 'cam' : sk ? 'sketch' : 'model' }, h('span', { html: icon(camMode ? 'workspace-manufacture' : sk ? 'sketch' : 'workspace-design', 'sm') }), h('b', { text: camMode ? t('ui.mode_cam') : t(sk ? 'ui.mode_sketch' : 'ui.mode_model') })), div(),
       h('span', { class: 'seg-i', 'data-testid': 'st-tool' }, h('span', { class: 'muted-od', text: t('ui.tool') }), h('b', { text: toolName })), div(),
-      h('span', { class: 'seg-i', id: 'st-left', 'data-testid': 'st-left', text: keep }), h('span', { class: 'seg-i deps', 'data-testid': 'st-deps', 'aria-live': 'polite', hidden: true }), h('span', { class: 'grow' }),
+      h('span', { class: 'seg-i', id: 'st-left', 'data-testid': 'st-left', text: keep, title: keep || null }), h('span', { class: 'seg-i deps', 'data-testid': 'st-deps', 'aria-live': 'polite', hidden: true }), h('span', { class: 'grow' }),
       ...(app.busy ? [h('span', { class: 'seg-i', 'data-testid': 'st-busy' }, h('span', { class: 'progress indet', role: 'progressbar', 'aria-label': t('ui.busy') }, h('i')), h('span', { text: t('ui.busy') }),
         h('button', { class: 'sbtn', 'data-testid': 'cancel-compute', 'data-cmd': 'cancel-compute', onclick: () => app.cancelCompute() }, h('span', { html: icon('cancel', 'sm') }), h('span', { text: t('ui.cancel_compute') })), div())] : []),
       ...(app.stale ? [h('span', { class: 'seg-i warnc', 'data-testid': 'st-stale' }, h('span', { html: icon('warning', 'sm') }), h('span', { text: t('ui.stale') })), div()] : []),
@@ -511,7 +511,7 @@ export function initChrome(app) {
       h('span', { class: 'seg-i' + (app.lastAutosave ? ' okc' : ''), 'data-testid': 'st-autosave' }, app.lastAutosave ? h('span', { html: icon('check', 'sm') }) : null, h('span', { text: app.lastAutosave ? t('ui.autosaved', { time: hhmm(app.lastAutosave) }) : t('ui.autosave_none') })));
     C.renderTitle(); C.markDeps();
   };
-  C.setLeft = (text) => { const e = $('#st-left'); if (e) e.textContent = text; };
+  C.setLeft = (text) => { const e = $('#st-left'); if (e) { e.textContent = text; e.title = text || ''; } };
 
   // ---------------------------------------------------------------- komut paleti (Ctrl+K / S)
   C.openPalette = () => {
