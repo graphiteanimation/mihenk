@@ -185,11 +185,12 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
       try {
         const tool = tools.find((t) => t.id === op.toolId); if (!tool) throw cerr('cam.op.no_tool', { op: op.name || op.id });
         const geom = {};
-        if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
+        const holeOp = op.type === 'drill' || op.type === 'circular' || op.type === 'threadmill'; // WP-07: delik secimi kullanan islemler
+        if (holeOp) { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
         if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
-        if (op.type === 'drill') chainStock(recs, ri, mres);
-        let maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
+        if (holeOp) chainStock(recs, ri, mres);
+        let maps = holeOp ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
         if (op.type === 'chamfer') maps = await chamferMap(op, S, query);
         const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });

@@ -404,4 +404,7 @@ export default {
   "cam.ppw.coolant.off": "Soğutmayı kapatan M kodu.",
   "cam.cmd.chamfer": "Pah",
   "cam.tip.op-chamfer": "Bir kenarı ya da zinciri konik uçlu takımla pahlar.",
+  "cam.cmd.circular": "Dairesel",
+  "cam.cmd.threadmill": "Diş frez.",
+  "cam.tt.threadmill": "Diş frezesi",
 };

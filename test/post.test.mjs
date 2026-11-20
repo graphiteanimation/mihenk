@@ -409,5 +409,40 @@ console.log('10. WP-06 R altinda cok noktali G98 (returnTo clearance): IR + post
   ok(o2.lines.filter((l) => /^G0 Z20\./.test(l)).length >= 3, 'cannedCycles kapali: her nokta sonrasi Z20 (baslangic duzlemi): ' + o2.lines.filter((l) => /^G0 Z/.test(l)).join(' | '));
 }
 
+console.log('11. WP-07 dilim 1: dis frezeleme ve dairesel frezeleme NC kalibi + geri okuma');
+{
+  const CAM = await import('../src/cam/index.js');
+  const M = S.testMachine();
+  const S0 = { id: 's1', name: 'S1', workOffset: { kind: 'G55' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min: [0, 0, -30], max: [100, 60, 0] }, modelBBox: { min: [0, 0, -30], max: [100, 60, 0] }, clearance: 5, aAngle: null, stockTop: 0, machinePos: null };
+  const tm = { id: 'tm6', number: 7, lengthOffset: 7, diaOffset: 7, type: 'threadmill', dia: 6, fluteLen: 12, bodyLen: 40, flutes: 1, centerCutting: false, shaftDia: 5 };
+  const em = { id: 'em6', number: 3, lengthOffset: 3, diaOffset: 3, type: 'flat', dia: 6, fluteLen: 25, bodyLen: 50, flutes: 3, centerCutting: true };
+  const base = { rpm: 8000, feedCut: 800, feedPlunge: 300, coolant: 'flood', heights: { clearance: 10, retract: 2 } };
+  const hole = { positions: [[50, 30, 0]], dirs: [[0, 0, -1]], dia: 8.5, depth: 20, through: false, feature: 'h1', dir: [0, 0, -1] };
+  const post = (tp) => { const prog = CAM.buildProgram({ name: 'T', machine: M, sections: [{ setup: S0, toolpaths: [tp] }] }); return { prog, res: postProgram(prog, M, OPTS) }; };
+  const rt = (name, tp) => { const { prog, res } = post(tp); const back = readNC(res.text, { machine: M }); const cmp = compareToolpaths(normalizeRapids(prog.sections[0].toolpath), back.program.sections[0].toolpath, 0.001); ok(cmp.equal, `${name}: IR geri okuma esles: ${cmp.diffs.slice(0, 3).join(' | ')}`); return res; };
+  const th = (extra) => CAM.computeOp({ id: 'th', type: 'threadmill', ...base, holes: { kind: 'feature' }, designation: 'M10', length: 15, ...extra }, { setup: S0, tool: tm, geom: { holes: [hole] } });
+  // ic sag tirmanma: alttan uste G3, Z her yarim yayda +0,75 (elle)
+  const r1 = rt('dis ic sag tirmanma', th({}));
+  const L1 = r1.lines; const iG3 = L1.findIndex((l) => /^G3 X52\. I1\. J0\. F160\./.test(l));
+  ok(iG3 > 0 && L1[iG3 + 1] === 'X48. Z-14.25 I-2. J0. F320.' && L1[iG3 + 2] === 'X52. Z-13.5 I2. J0.' && L1[iG3 + 20] === 'X52. Z0. I2. J0.' && L1[iG3 + 21] === 'X50. I-1. J0. F160.', 'dis NC: ic sag tirmanma G3 yari cember giris, 20 yarim yay Z -14.25 ... 0, cikis: ' + L1.slice(iG3, iG3 + 3).join(' / '));
+  ok(!L1.some((l) => /^G2/.test(l)), 'dis NC: ic sag tirmanma G2 icermez');
+  // ic sag zit: ustten alta G2
+  const r2 = rt('dis ic sag zit', th({ dir: 'conv' }));
+  const i2 = r2.lines.findIndex((l) => /^G2 X52\. I1\. J0\./.test(l)); ok(i2 > 0 && r2.lines[i2 + 1] === 'X48. Z-0.75 I-2. J0. F320.' && r2.lines[i2 + 20] === 'X52. Z-15. I2. J0.', 'dis NC: ic sag zit G2, ustten alta Z -0.75 ... -15: ' + r2.lines.slice(i2, i2 + 2).join(' / '));
+  // dis dis sag tirmanma: ustten alta G2; sol dis ic tirmanma: ustten alta G3
+  { const l = rt('dis dis sag tirmanma', th({ external: true })).lines; const g2 = l.filter((x) => /^G2 /.test(x)).length, g3 = l.filter((x) => /^G3 /.test(x)).length; const k = l.findIndex((x) => /^G2 /.test(x));
+    ok(g2 === 1 && g3 === 2 && /Z-0\.75 /.test(l[k]) , 'dis NC: dis dis sag tirmanma helis G2 (ustten alta); giris/cikis S egrileri G3 (zit yonlu yari cember): G2 ' + g2 + ' G3 ' + g3 + ' ' + l[k]); }
+  { const l = rt('dis ic sol tirmanma', th({ hand: 'left' })).lines; const k = l.findIndex((x) => /^G3 X52\./.test(x)); ok(k > 0 && l[k + 1] === 'X48. Z-0.75 I-2. J0. F320.', 'dis NC: ic sol tirmanma G3 ama Z ASAGI (ustten alta)'); }
+  // radyal paso
+  rt('dis 3 paso', th({ radialPasses: 3, springPasses: 1 }));
+  // dairesel
+  const hole2 = { positions: [[50, 30, 0]], dirs: [[0, 0, -1]], dia: 16, depth: null, through: true, feature: 'h2', dir: [0, 0, -1], exits: [30] };
+  const cir = (extra, geom = { holes: [hole2] }) => CAM.computeOp({ id: 'cb', type: 'circular', ...base, holes: { kind: 'feature' }, stepdown: 5, entry: { kind: 'helix', angle: 3 }, depth: { from: 'hole', breakThrough: 1 }, dir: 'climb', ...extra }, { setup: S0, tool: em, geom });
+  const rc = rt('dairesel kaba+bitirme', cir({ roughPasses: { n: 1, stepover: 2 }, finishPass: true, finishStock: 0.3 }));
+  ok(rc.lines.filter((l) => /^G3 /.test(l)).length >= 1 && !rc.lines.some((l) => /^G2 /.test(l)) && rc.lines.some((l) => /Z-31\./.test(l)), 'dairesel NC: tirmanma yalniz G3, dip Z-31.');
+  const rcc = rt('dairesel dis zit', cir({ side: 'outside', dia: 20, holes: { kind: 'points' }, depth: { from: 'abs', z: -10 }, dir: 'conv' }, { points: [{ p: [50, 30, 0] }] }));
+  ok(rcc.lines.some((l) => /^G3 /.test(l)) && !rcc.lines.some((l) => /^G2 /.test(l)), 'dairesel NC: dis zit = G3 (dis tirmanma CW=G2 oldugundan)');
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

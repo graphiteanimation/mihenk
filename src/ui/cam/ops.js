@@ -67,11 +67,12 @@ export class CamOps {
     return resolveSetup(setup, this.app.result, this.cam.machine(), { planes });
   }
   // setup.ops içinden ids hesaplanır; sonuç önbelleğe yazılır. Dönüş: Map(opId → {key,S,tp,error})
-  async computeSetup(setup, ids) {
+  async computeSetup(setup, ids, ctxOps = []) {
     const out = new Map(); const ops = (setup.ops || []).filter((o) => ids.includes(o.id) && !o.suppressed);
+    const gen = [...ctxOps, ...ops]; // ctxOps: yalniz stok zincirine girer (onceki islemler); sonuc ops icin tutulur
     let S = null;
     try { S = await this.resolveS(setup); } catch (e) { for (const o of ops) { const x = { key: this.keyOf(o, setup), error: errObj(e) }; this.cache.set(o.id, x); out.set(o.id, x); } return out; }
-    const sub = { tools: this.cam.tools(), setups: [{ ...setup, ops }] };
+    const sub = { tools: this.cam.tools(), setups: [{ ...setup, ops: gen }] };
     const r = await generateProgram(sub, { rebuild: this.app.result, machine: this.cam.machine(), query: (c, a) => this.app.query(c, a), doc: this.app.doc, name: 'PROG' });
     for (const o of ops) {
       const q = r.ops.find((x) => x.opId === o.id);
@@ -83,7 +84,10 @@ export class CamOps {
   async computeDraft(setup, d) {
     if (!this.cam.machine()) return { error: { code: 'cam.no_machine', params: {} } };
     try {
-      const m = await this.computeSetup({ ...setup, ops: [d] }, [d.id]); const x = m.get(d.id);
+      // dis frezeleme: delik onceki islemle (matkap) acilmis olabilir; taslak, kendinden onceki islemlerle zincirlenir (stok denetimi)
+      const all = setup.ops || []; const at = all.findIndex((o) => o.id === d.id);
+      const prior = d.type === 'threadmill' && at > 0 ? all.slice(0, at).filter((o) => !o.suppressed) : [];
+      const m = await this.computeSetup({ ...setup, ops: [d] }, [d.id], prior); const x = m.get(d.id);
       this.draftPath = x && !x.error ? { opId: d.id, S: x.S, tp: x.tp } : null;
       return x?.error ? { error: x.error } : { tp: x.tp, S: x.S };
     } catch (e) { return { error: errObj(e) }; }

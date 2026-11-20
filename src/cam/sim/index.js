@@ -71,7 +71,7 @@ export function createSim(input, opts = {}) {
     const S = setupFor(id, sec.setup), geom = toolGeom(tool);
     // T-08: islem basi stok (yerel stok yuksekligi icin) ve yol izi maskesi; tutucu boslugu
     let preMax = -Infinity; for (let k = 0; k < S.hm.data.length; k++) if (S.hm.data[k] > preMax) preMax = S.hm.data[k];
-    cur = { si, tp, allow, cycAllow, allowNow: allow, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
+    cur = { si, tp, allow, cycAllow, allowNow: allow, zones: Array.isArray(tp.meta?.threadZones) && tp.meta.threadZones.length ? tp.meta.threadZones : null, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
       pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
   }
   // T-08: islemin yol bandi (takim merkezinin stok yuksekliginin altindaki izi, en buyuk zarf yaricapi kadar kare genisletme:
@@ -126,6 +126,8 @@ export function createSim(input, opts = {}) {
     a.n++; if (depth > a.depth) { a.depth = depth; a.x = px; a.y = py; a.z = pz; }
   }
 
+  // WP-07 dis frezeleme: hucre (x,y) bildirilen halkada (r0 <= uzaklik <= r1) ve takim ucu dis z araliginda ise true
+  function inZone(zs, x, y, z) { for (const q of zs) { if (z < q.z0 || z > q.z1) continue; const d = Math.hypot(x - q.c[0], y - q.c[1]); if (d >= q.r0 && d <= q.r1) return true; } return false; }
   // mode 0: hizli (yalniz denetle), 1: kesme (stoku kaldir)
   function touch(px, py, pz, mode) {
     samples++;
@@ -150,6 +152,7 @@ export function createSim(input, opts = {}) {
           if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); cur.hadHolderHit = true; continue; }
           const cl = pz + g.bodyLen - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
         }
+        if (cur.zones && r <= R && inZone(cur.zones, cx, cy, pz)) continue; // WP-07: dis frezeleme dis halkasi (kucuk cap..nominal cap) kasitli kesimdir: kesici uc yaricapi icinde oyma/boy/hizli denetlenmez (tutucu ve sap R disinda denetlenir)
         if (r <= shaftR && h > zFlute) {
           if (r <= R) note('flute_exceeded', h - zFlute + tol, px, py, pz); else { note('shaft_collision', h - zFlute + tol, px, py, pz); continue; }
         }

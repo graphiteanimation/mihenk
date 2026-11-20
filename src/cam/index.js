@@ -6,6 +6,8 @@ import { computeDrill } from './ops/drill.js';
 import { computeContour } from './ops/contour.js';
 import { computePocket } from './ops/pocket.js';
 import { computeChamfer } from './ops/chamfer.js';
+import { computeCircular } from './ops/circular.js';
+import { computeThread } from './ops/thread.js';
 export { gates } from './gates.js';
 export { buildProgram, generateProgram, freePiecePolicy, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
 export { CamErr } from './geom/err.js';
@@ -117,6 +119,8 @@ export function computeOp(op, ctx) {
     case 'contour': return computeContour(op, c);
     case 'pocket': return computePocket(op, c);
     case 'chamfer': return computeChamfer(op, c);
+    case 'circular': return computeCircular(op, c);
+    case 'threadmill': return computeThread(op, c);
     default: throw cerr('cam.op.unsupported', { what: String(op.type) });
   }
 }

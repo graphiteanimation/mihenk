@@ -404,4 +404,7 @@ export default {
   "cam.ppw.coolant.off": "M code that turns coolant off.",
   "cam.cmd.chamfer": "Chamfer",
   "cam.tip.op-chamfer": "Chamfers an edge or chain with a conical tool.",
+  "cam.cmd.circular": "Circular",
+  "cam.cmd.threadmill": "Thread mill",
+  "cam.tt.threadmill": "Thread mill",
 };
