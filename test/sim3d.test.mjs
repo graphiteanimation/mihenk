@@ -6,6 +6,10 @@ import { normalizeTool } from '../src/cam/tools.js';
 import { resolveSetup } from '../src/cam/index.js';
 import { gates } from '../src/cam/gates.js';
 import * as S from './cam-samples/samples.mjs';
+import { gcodeToProgram } from '../src/cam/sim/gcode.js';
+import { postProgram } from '../src/cam/post/index.js';
+import { resolveProps } from '../src/cam/post/engine.js';
+import { getPost } from '../src/cam/post/registry.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL:', m); } };
@@ -126,6 +130,66 @@ console.log('3. setup fiksturleri: belge bicimi, cerceve, kapi');
   const gl = gates(prog, M, { sim: { res: 0.5, modelHeightmaps: { s1: model } } });
   const g1 = gl.find((g) => g.code === 'cam.sim.fixture_collision');
   ok(g1 && g1.level === 'block' && g1.params.fixture === 'kutu', 'kapi: fikstur carpmasi BLOCK: ' + JSON.stringify(g1?.params));
+}
+
+console.log('4. G-code uzerinden simulasyon');
+{
+  const M = S.testMachine(); const props = resolveProps(getPost(M.control), M);
+  for (const smp of S.ALL()) {
+    const nc = postProgram(smp.program, M, { date: 'x', gates: [] });
+    const tools = {}; for (const sc of smp.program.sections) tools[sc.toolpath.tool.number] = sc.toolpath.tool;
+    const setups = []; for (const sc of smp.program.sections) if (!setups.find((q) => q.id === sc.setup.id)) setups.push(sc.setup);
+    const g = gcodeToProgram(nc.text, { tools, setups, tapMode: props.tapMode });
+    const o = { res: 0.25, stockBox: smp.stockBox };
+    const r1 = simulate(smp.program, o), r2 = simulate(g.program, o);
+    ok(Math.abs(r1.removedVolume - r2.removedVolume) <= 1e-6 * Math.max(1, r1.removedVolume) && r2.issues.length === r1.issues.length, `${smp.name}: NC sim = IR sim (${r1.removedVolume.toFixed(3)} / ${r2.removedVolume.toFixed(3)})`);
+    ok(Object.keys(r2.remainBySetup).sort().join() === Object.keys(r1.remainBySetup).sort().join(), `${smp.name}: setup eslesmesi (WCS + A): ` + Object.keys(r2.remainBySetup));
+  }
+  const T = { 1: { number: 1, H: 1, type: 'flat', dia: 6, fluteLen: 20, bodyLen: 40 } };
+  const run = (txt, o = {}) => gcodeToProgram(txt, { tools: T, ...o });
+  const box = { min: [-30, -30, -20], max: [30, 30, 0] };
+  // tam daire (G17, I): halka hacmi pi (8^2 - 2^2) 2
+  let g = run('T1 M6\nS5000 M3\nG0 G90 G54 X5. Y0.\nZ5.\nG1 Z-2. F100\nG2 X5. Y0. I-5. J0. F300\nG0 Z5.\nM30');
+  let r = simulate(g.program, { stockBox: box, res: 0.1 });
+  ok(Math.abs(r.removedVolume - Math.PI * 60 * 2) / (Math.PI * 120) < 0.02 && r.issues.length === 0, 'tam daire G2 I: halka hacmi ' + r.removedVolume.toFixed(1) + ' ~ ' + (Math.PI * 120).toFixed(1));
+  ok(g.program.sections[0].toolpath.moves.filter((m) => m.t === 'arc').length === 2, 'tam daire iki yarim yaya bolunur');
+  // R bicimi: (0,0) -> (5,5) R5 CW kucuk yay: merkez (5,0)
+  g = run('T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z1 F100\nG2 X5 Y5 R5 F300\nG0 Z5\nM30');
+  let a = g.program.sections[0].toolpath.moves.find((m) => m.t === 'arc');
+  ok(a && Math.abs(a.i - 5) < 1e-9 && Math.abs(a.j) < 1e-9 && a.dir === 'cw', 'R5 CW kucuk yay merkezi (5,0): ' + JSON.stringify(a && [a.i, a.j]));
+  g = run('T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z1 F100\nG2 X5 Y5 R-5 F300\nG0 Z5\nM30'); a = g.program.sections[0].toolpath.moves.find((m) => m.t === 'arc');
+  ok(a && Math.abs(a.i) < 1e-9 && Math.abs(a.j - 5) < 1e-9, 'R-5 buyuk yay merkezi (0,5)');
+  // G18 yay: X0 Z0 -> X10 Z0, merkez X5 (I5): G2 +Y'den bakista saat yonu -> Z -5'ten gecer
+  g = run('T1 M6\nS5000 M3\nG0 X0 Y0\nZ10\nG1 Z0 F100\nG18 G2 X10. Z0. I5. K0. F300\nG17\nG0 Z10\nM30');
+  const fz = g.program.sections[0].toolpath.moves.filter((m) => m.t === 'feed'); const zmin = Math.min(...fz.map((m) => m.z));
+  ok(fz.length > 10 && Math.abs(zmin + 5) < 0.01 && fz.every((m) => Math.abs(Math.hypot(m.x - 5, m.z) - 5) < 0.003 || (m.x === 0 && m.z === 0)), 'G18 G2 XZ yayi dogru parcalara: en dusuk Z ' + zmin.toFixed(3));
+  // G91 artimli + G20 inc
+  g = run('T1 M6\nS5000 M3\nG0 G90 X0 Y0\nZ5\nG1 Z-1 F100\nG91 G1 X10. Y-5.\nG90\nG0 Z5\nM30');
+  ok(g.program.sections[0].toolpath.moves.some((m) => m.t === 'feed' && m.x === 10 && m.y === -5 && m.z === -1), 'G91 artimli dogrusal');
+  g = run('G20\nT1 M6\nS5000 M3\nG0 X1. Y0\nZ0.2\nG1 Z-0.04 F4.\nX2.\nG0 Z0.2\nM30');
+  ok(g.program.sections[0].toolpath.moves.some((m) => m.t === 'feed' && Math.abs(m.x - 50.8) < 1e-9 && Math.abs(m.f - 101.6) < 1e-9), 'G20 inc -> mm (konum ve ilerleme)');
+  // G99: cevrim sonrasi tezgah R duzleminde; sonraki hizli R yuksekliginde
+  g = run('T1 M6\nS5000 M3\nG0 X0 Y0\nZ20\nG99 G81 X0 Y0 Z-5. R2. F100\nX10.\nG80\nG0 X20.\nG0 Z20\nM30');
+  const mv = g.program.sections[0].toolpath.moves; const k = mv.findIndex((m) => m.t === 'rapid' && m.x === 20);
+  ok(k > 0 && mv[k].z === 2 && mv.filter((m) => m.t === 'cycle').length === 2, 'G99: sonraki hizli R=2 yuksekliginde: ' + JSON.stringify(mv[k]));
+  // G98 cevrimi baslangic duzlemine doner
+  g = run('T1 M6\nS5000 M3\nG0 X0 Y0\nZ20\nG98 G81 X0 Y0 Z-5. R2. F100\nX10.\nG80\nG0 X20.\nM30');
+  ok(g.program.sections[0].toolpath.moves.find((m) => m.t === 'rapid' && m.x === 20).z === 20, 'G98: sonraki hizli baslangic Z=20');
+  // G99 cevrimi stok icinde R -> hizli stok icinde yakalanir (yanlis R)
+  r = simulate(run('T1 M6\nS5000 M3\nG0 X0 Y0\nZ20\nG99 G81 X0 Y0 Z-5. R-1. F100\nX10.\nG80\nG0 Z20\nM30').program, { stockBox: box, res: 0.25 });
+  ok(r.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'G-code sim: stok icindeki R yakalanir: ' + codes(r));
+  // satir eslemesi
+  g = run('T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z-1 F100\nX10.\nG0 Z5\nM30');
+  ok(g.lineMap[5]?.section === 0 && g.program.sections[0].toolpath.moves[g.lineMap[5].move].x === 10, 'satir -> hareket eslemesi');
+  // A indeksleme: yeni bolum + setup
+  g = run('T1 M6\nS5000 M3\nG0 A0.\nG0 G90 G58 X0 Y0\nZ5\nG1 Z-1 F100\nX5\nG0 Z5\nG0 A90.\nG0 X0 Y0\nG1 Z-1 F100\nX5\nG0 Z5\nM30');
+  ok(g.program.sections.length === 2 && g.program.sections[1].setup.aAngle === 90 && g.program.sections[1].setup.id === 'G58@A90', 'A indeksleme: ayri bolum/setup: ' + g.program.sections.map((q) => q.setup.id));
+  // hatalar (sessiz atlama yok)
+  const bad = [['T1 M6\nS5000 M3\n#1=5\nM30', 'cam.gcode.unsupported', 'makro'], ['T1 M6\nS5000 M3\nM98 P100\nM30', 'cam.gcode.unsupported', 'alt program'], ['T1 M6\nS5000 M3\nG68 X0 Y0 R45\nM30', 'cam.gcode.unsupported', 'G68'],
+    ['T1 M6\nS5000 M3\nG0 X0 Y0 Z5\nG1 X10 A5 F100\nM30', 'cam.gcode.a_simultaneous', 'eszamanli A'], ['T9 M6\nS5000 M3\nG0 X0 Y0\nM30', 'cam.gcode.tool_unknown', 'bilinmeyen takim'],
+    ['T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z0 F100\nG1 X5 Y0 ,R2\nM30', 'cam.gcode.unsupported', ',R kose'], ['T1 M6\nS5000 M3\nG1 X0 Y0 Z0 F100\nM30', 'cam.gcode.no_position', 'konum bilinmeden G1'],
+    ['T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z0 F100\nG2 X10 Y0 I3 J0\nM30', 'cam.gcode.arc_radius', 'yaricap uyusmazligi'], ['T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z0 F100\nG1 G41 D1 X10\nG0 Z5\nM30', 'cam.gcode.rapid_in_comp', 'telafi acikken hizli']];
+  for (const [txt, code, m] of bad) throwsCode(() => run(txt), code, 'hata: ' + m);
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
