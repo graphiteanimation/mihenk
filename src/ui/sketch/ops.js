@@ -1,5 +1,5 @@
 // Düzenleme işlemleri: ofset, köşe yuvarlat/pah, ayna, desenler, dönüşümler, izdüşüm, pano. Saf işlevler: sk'yi yerinde değiştirir.
-import { G, clone, entPts, conRefs, getEnt, segOf, newId, addPoint, addEnt, addCon, cleanup, findPointAt, usersOf, DIM_TYPES, TAU, measureDim } from './core.js';
+import { G, clone, entPts, conRefs, deleteItems, getEnt, segOf, newId, addPoint, addEnt, addCon, cleanup, findPointAt, usersOf, DIM_TYPES, TAU, measureDim } from './core.js';
 import { ellipseGeom } from '../../shared/profiles.js';
 import { evalExpr } from '../../shared/expr.js';
 
@@ -247,7 +247,7 @@ function fitCircle(p) {
   const uy = ((a[0] ** 2 + a[1] ** 2) * (c[0] - b[0]) + (b[0] ** 2 + b[1] ** 2) * (a[0] - c[0]) + (c[0] ** 2 + c[1] ** 2) * (b[0] - a[0])) / d;
   return { c: [ux, uy], r: Math.hypot(a[0] - ux, a[1] - uy) };
 }
-export function projectPolylines(sk, polylines, tol = 2e-3) {
+function projectCore(sk, polylines, tol = 2e-3) {
   const created = []; let lines = 0, circles = 0, splines = 0;
   const has = (seg) => created.some((x) => x.sig === seg);
   for (const pl of polylines) {
@@ -275,6 +275,168 @@ export function projectPolylines(sk, polylines, tol = 2e-3) {
   return ok({ lines, circles, splines, count: lines + circles + splines });
 }
 
+// ---- ilişkisel izdüşüm: kenar imzası, düzenleme izi, eşleştirme
+// Tasarım kuralı: "emin değilsen dokunma, kullanıcıya söyle". Belirsiz eşleşmede geometri yerinde kalır, grup `lost` olur.
+const r4 = (v) => Math.round(v * 1e4) / 1e4;
+const rp = (p) => [r4(p[0]), r4(p[1])];
+// Kaynak kenarın eskiz düzlemindeki imzası: tür (l: doğru, o: daire, a: yay, s: eğri), uçlar/merkez/yarıçap
+export function edgeSig(pts) {
+  if (!pts || pts.length < 2) return null;
+  const first = pts[0], last = pts[pts.length - 1], closed = G.dist(first, last) < 1e-6;
+  const ln = G.mkLine(first, last);
+  if (!closed && G.length(ln) > 1e-9 && pts.every((p) => G.closestPoint(ln, p).d < 2e-3)) return { k: 'l', a: rp(first), b: rp(last) };
+  const body = closed ? pts.slice(0, -1) : pts;
+  const fc = body.length >= 3 ? fitCircle(body) : null;
+  if (fc && fc.r < 1e6 && body.every((p) => Math.abs(G.dist(p, fc.c) - fc.r) < 2e-3 * Math.max(1, fc.r / 50))) return closed ? { k: 'o', c: rp(fc.c), r: r4(fc.r) } : { k: 'a', c: rp(fc.c), r: r4(fc.r), a: rp(first), b: rp(last) };
+  const cx = body.reduce((q, p) => q + p[0], 0) / body.length, cy = body.reduce((q, p) => q + p[1], 0) / body.length;
+  return { k: 's', a: rp(first), b: rp(last), c: rp([cx, cy]) };
+}
+// İmza ile aday arasındaki uzaklık (mm); tür/doğrultu uyuşmazsa Infinity
+export function sigDist(a, b) {
+  if (!a || !b || a.k !== b.k) return Infinity;
+  const ends = () => Math.min(G.dist(a.a, b.a), G.dist(a.b, b.b), G.dist(a.a, b.b), G.dist(a.b, b.a));
+  if (a.k === 'l') {
+    const da = [a.b[0] - a.a[0], a.b[1] - a.a[1]], db = [b.b[0] - b.a[0], b.b[1] - b.a[1]]; const la = Math.hypot(...da), lb = Math.hypot(...db);
+    if (!la || !lb || Math.abs(da[0] * db[1] - da[1] * db[0]) / (la * lb) > 0.05) return Infinity; // ~3° üstü doğrultu farkı: aynı kenar değil
+    return ends();
+  }
+  const rr = (b.r || 1) / (a.r || 1);
+  if (a.k === 'o') return rr < 0.5 || rr > 2 ? Infinity : G.dist(a.c, b.c);
+  if (a.k === 'a') return rr < 0.5 || rr > 2 ? Infinity : Math.min(G.dist(a.c, b.c), ends());
+  return Math.min(G.dist(a.c, b.c), ends());
+}
+const TOL_A = 25, TOL_B = 1, CLEAR = 1; // (a): aynı indeksli kenar en çok 25 mm oynamış olabilir; // (b): imzaya <=1 mm uyan TEK aday, ikincisinden en az 1 mm daha yakın
+// Eşleştirme. cands: [{idx, pts}] (pts: eskiz yerel noktaları). Döner: eşleşen aday ya da null (belirsiz/uzak → bağlama).
+//  (a) aynı indeksli kenar yalnız "aynı kenarın makul değişimi" ise (aynı tür/doğrultu, en az bir uç/merkez yakın);
+//  (b) değilse imzaya en yakın TEK aday, ikinci adaydan belirgin farklıysa; (c) aksi halde null.
+// İmzasız (eski belge) bağda yalnız (a): aynı indeks.
+export function matchEdge(meta, cands) {
+  const same = cands.find((c) => c.idx === meta.g) || null;
+  const sig = meta.sig; if (!sig) return same;
+  const xs = cands.map((c) => ({ c, d: sigDist(sig, edgeSig(c.pts)) }));
+  const tolA = TOL_A;
+  const sx = xs.find((x) => x.c === same);
+  if (sx && sx.d <= tolA && !xs.some((y) => y !== sx && y.d <= TOL_B && y.d + CLEAR < sx.d)) return same;
+  const near = xs.filter((x) => x.d <= TOL_B).sort((p, q) => p.d - q.d); if (!near.length) return null;
+  const second = xs.filter((x) => x !== near[0]).reduce((m, x) => Math.min(m, x.d), Infinity);
+  return near[0].d + CLEAR <= second ? near[0].c : null;
+}
+
+// Nesnenin geometri parmak izi (düzenleme algılamak için)
+const fpOf = (sk, e) => { const a = []; for (const id of entPts(e)) { const p = sk.points[id]; a.push(p ? +p.x.toFixed(6) : null, p ? +p.y.toFixed(6) : null); } if (e.type === 'circle') a.push(+Number(e.r).toFixed(6)); if (e.rmin !== undefined) a.push(+Number(e.rmin).toFixed(6)); a.push(e.type); return a; };
+const fpSame = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i] || (typeof v === 'number' && typeof b[i] === 'number' && Math.abs(v - b[i]) <= 2e-6));
+const stampProj = (sk, e, base) => { e.proj = { ...base, e: e.id, fp: fpOf(sk, e) }; };
+// Kullanıcı izdüşürülen nesneyi düzenlediyse (geometri değişti ya da kopya/ayna/parça olarak türedi) o nesnenin proj bağı düşer. Döner: bağı düşen nesne sayısı
+export function dropEditedLinks(sk) {
+  let n = 0;
+  for (const e of sk.ents) {
+    const p = e.proj; if (!p) continue;
+    if ((p.e !== undefined && p.e !== e.id) || (p.fp && !fpSame(p.fp, fpOf(sk, e)))) { delete e.proj; n++; }
+  }
+  return n;
+}
+const remapPt = (e, from, to) => { for (const k of ['a', 'b', 'c', 'f', 'p']) if (e[k] === from) e[k] = to; if (e.pts) e.pts = e.pts.map((p) => (p === from ? to : p)); };
+
+// Gövde kenarını eskize izdüşürür; her polyline'a `meta` ({b: gövde, g: kenar grubu, c: ağırlık merkezi}) verilmişse
+// üretilen nesnelere `proj` yazılır (ilişkisel bağ; reprojectLinked ile güncellenir). proj: {b,g,c, sig: kaynak kenar imzası,
+// e: nesne kimliği, fp: geometri parmak izi, pin: izdüşümden önce var olan sabit noktalarla paylaşılan uçlar (taşınmaz)}.
+export function projectPolylines(sk, polylines, tol = 2e-3) {
+  const tot = { lines: 0, circles: 0, splines: 0 };
+  for (const pl of polylines) {
+    const n0 = sk.ents.length; const ptsBefore = new Set(Object.keys(sk.points));
+    const owned = new Set(); for (const e of sk.ents) if (e.proj) entPts(e).forEach((p) => owned.add(p));
+    const r = projectCore(sk, [pl], tol);
+    for (const k of Object.keys(tot)) tot[k] += (r.lines !== undefined ? r[k] : 0) || 0;
+    if (pl.meta) for (const e of sk.ents.slice(n0)) {
+      const pin = [...new Set(entPts(e))].filter((id) => ptsBefore.has(id) && !owned.has(id));
+      stampProj(sk, e, { ...pl.meta, sig: edgeSig(pl.pts), pin });
+    }
+  }
+  return ok({ ...tot, count: tot.lines + tot.circles + tot.splines });
+}
+
+// İlişkisel izdüşümleri yeniden okur. resolve(meta) → yerel nokta dizisi | null (kenar bulunamadı: grup `lost`) | undefined (bilinmiyor, ör. gövde gizli: dokunma).
+// Yapı aynıysa nesneler yerinde taşınır (üzerlerindeki kısıt/ölçü korunur); değiştiyse (çizgi→yay vb.) yeniden kurulur.
+// Sabit noktalar (orijin ve izdüşümden önce var olan sabit noktalar) ASLA taşınmaz: izdüşüm ucu onlarla paylaşılıyorsa o uç için paylaşım çözülür.
+export function reprojectLinked(sk, resolve, tol = 2e-3) {
+  const unlinked = dropEditedLinks(sk);
+  const groups = new Map();
+  for (const e of sk.ents) if (e.proj) { const k = e.proj.b + '|' + e.proj.g; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
+  let updated = 0, rebuilt = 0, lost = 0, lostEnts = 0, skipped = 0, flagged = 0;
+  const res = new Map(); const frozen = new Set(); // kayıp/bilinmeyen grupların noktaları bu geçişte taşınmaz
+  for (const [k, ents] of groups) {
+    const pts = ents.length > 1 && ents.some((e) => !e.proj.fp) ? undefined : resolve(ents[0].proj); // parmak izsiz çok nesneli grup: kullanıcı kopyası/parçası olabilir → dokunma
+    res.set(k, pts);
+    if (!pts) for (const e of ents) entPts(e).forEach((p) => frozen.add(p));
+  }
+  const claimed = new Map();
+  for (const [k, ents] of groups) {
+    const meta = ents[0].proj; const pts = res.get(k);
+    if (pts === undefined) { skipped++; continue; }
+    if (pts === null) { lost++; lostEnts += ents.length; for (const e of ents) if (!e.proj.lost) { e.proj = { ...e.proj, lost: true }; flagged++; } continue; }
+    const nm = { b: meta.b, g: pts.g !== undefined ? pts.g : meta.g, c: pts.c || meta.c, sig: edgeSig(pts) || meta.sig };
+    const scratch = { points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [], seq: 0 };
+    projectCore(scratch, [{ pts }], tol);
+    const nw = scratch.ents;
+    const same = nw.length === ents.length && nw.every((n, i) => n.type === ents[i].type && entPts(n).length === entPts(ents[i]).length);
+    if (same) {
+      let moved = false; const pin = new Set(); for (const e of ents) (e.proj.pin || []).forEach((p) => pin.add(p)); const unshared = new Map();
+      const wasLost = ents.some((e) => e.proj.lost);
+      ents.forEach((e, i) => {
+        for (const [o, nid] of unshared) remapPt(e, o, nid);
+        const n = nw[i], op = entPts(e), np = entPts(n);
+        op.forEach((id, j) => {
+          const a = sk.points[id], b = scratch.points[np[j]]; if (!a || !b || (Math.abs(a.x - b.x) <= 1e-9 && Math.abs(a.y - b.y) <= 1e-9)) return;
+          const cl = claimed.get(id);
+          if (id !== 'O' && !pin.has(id) && !frozen.has(id) && (!cl || (Math.abs(cl[0] - b.x) <= 1e-9 && Math.abs(cl[1] - b.y) <= 1e-9))) { a.x = b.x; a.y = b.y; claimed.set(id, [b.x, b.y]); }
+          else { const nid = addPoint(sk, b.x, b.y, true); unshared.set(id, nid); claimed.set(nid, [b.x, b.y]); remapPt(e, id, nid); }
+          moved = true;
+        });
+        if (e.type === 'circle' && Math.abs(e.r - n.r) > 1e-9) { e.r = n.r; moved = true; }
+        if (e.proj.g !== nm.g) moved = true;
+      });
+      if (wasLost) { moved = true; flagged++; }
+      for (const e of ents) { const keep = new Set(entPts(e)); const base = { ...nm, pin: [...pin].filter((p) => keep.has(p)) }; stampProj(sk, e, base); }
+      if (moved) updated++;
+    } else {
+      deleteItems(sk, ents.map((e) => ({ kind: 'ent', id: e.id })));
+      const map = {}; const pid = (id) => (map[id] || (map[id] = addPoint(sk, scratch.points[id].x, scratch.points[id].y, true)));
+      for (const n of nw) {
+        const e = clone(n); delete e.id;
+        for (const kk of ['a', 'b', 'c', 'f', 'p']) if (e[kk]) e[kk] = pid(e[kk]);
+        if (e.pts) e.pts = e.pts.map(pid);
+        const id = addEnt(sk, e); stampProj(sk, sk.ents.find((x) => x.id === id), { ...nm, pin: [] });
+      }
+      rebuilt++;
+    }
+  }
+  return { updated, rebuilt, lost, lostEnts, skipped, flagged, unlinked, groups: groups.size };
+}
+// Bağı kaldır: nesneler sıradan geometri olur. Döner: bağı kalkan nesne sayısı
+export function unlinkProjection(sk, ids) {
+  let n = 0; for (const id of ids) { const e = getEnt(sk, id); if (e && e.proj) { delete e.proj; n++; } } return n;
+}
+// Yeniden bağla: seçili izdüşümlü nesnelerin grubu verilen kenara (meta + yerel noktalar) bağlanır ve ona göre güncellenir.
+export function relinkProjection(sk, ids, meta, pts) {
+  const ents = ids.map((i) => getEnt(sk, i)).filter((e) => e && e.proj); if (!ents.length) return fail('sk.proj_relink_none');
+  const nk = meta.b + '|' + meta.g; const others = sk.ents.filter((e) => e.proj && !ents.includes(e) && e.proj.b + '|' + e.proj.g === nk);
+  if (others.length) return fail('sk.proj_relink_taken');
+  dropEditedLinks(sk);
+  for (const e of ents) { if (!e.proj) continue; const { sig, ...rest } = e.proj; e.proj = { ...rest, b: meta.b, g: meta.g, c: meta.c, sig: edgeSig(pts) }; delete e.proj.lost; }
+  const r = reprojectLinked(sk, (m) => (m.b === meta.b && m.g === meta.g ? pts : undefined));
+  return ok(r);
+}
+// Referans (sürülen) ölçülerin ifadesini güncel geometriyle eşler. Döner: değişen ölçü sayısı
+export function syncRefs(sk) {
+  let n = 0;
+  for (const c of sk.cons) {
+    if (!c.ref || !DIM_TYPES.has(c.type)) continue;
+    const m = measureDim(sk, c); if (!Number.isFinite(m)) continue;
+    const v = String(+m.toFixed(6)); if (String(c.expr) !== v) { c.expr = v; n++; }
+  }
+  return n;
+}
+
 // ---------------------------------------------------------------- PANO (kes/kopyala/yapıştır)
 export function copySelection(sk, ids) {
   const ents = ids.map((i) => getEnt(sk, i)).filter((e) => e && !(e.type === 'line' && false)); if (!ents.length) return null;
@@ -290,7 +452,7 @@ export function pasteClip(sk, clip, dx = 5, dy = 5) {
   for (const [id, p] of Object.entries(clip.points)) idmap.set(id, addPoint(sk, p.x + dx, p.y + dy));
   const newEnts = [];
   for (const e of clip.ents) {
-    const n = clone(e); delete n.id;
+    const n = clone(e); delete n.id; delete n.proj; // yapıştırılan nesne kaynak kenara bağlı değildir
     for (const k of ['a', 'b', 'c', 'p', 'f']) if (n[k] && idmap.has(n[k]) && e.type !== 'line' ? true : n[k] && idmap.has(n[k])) n[k] = idmap.get(n[k]);
     if (n.pts) n.pts = n.pts.map((i) => idmap.get(i) || i);
     const id = addEnt(sk, n); idmap.set(e.id, id); newEnts.push(id);

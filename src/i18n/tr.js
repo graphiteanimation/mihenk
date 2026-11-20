@@ -1031,5 +1031,8 @@ const base = {
   "w.open_sub": "Mihenk ve STEP dosyaları",
 };
 
+import sketchCf from './sketch-tr.js';
+Object.assign(base, sketchCf); // WP-09: çizim konforu metinleri
+
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
 export default { ...base, ...camCore, ...camPost, ...camUi, ...camUi2, ...hist };

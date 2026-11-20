@@ -2,12 +2,13 @@
 // desenler, taşı/kopyala/döndür/ölçekle, izdüşüm, pano, sağ tık menüsü ve çizerken sayısal giriş.
 import { THREE, COL } from '../viewport.js';
 import { h } from '../dom.js';
-import { G, clone, getEnt, segOf, entPts } from './core.js';
-import { trimAt, extendAt, breakAt, trimSpan, offsetEnts, cornerAt, mirrorEnts, patternRect, patternCirc, transformEnts, projectPolylines, copySelection, pasteClip } from './ops.js';
+import { G, clone, getEnt, segOf, entPts, measureDim } from './core.js';
+import { trimAt, extendAt, breakAt, trimSpan, offsetEnts, cornerAt, mirrorEnts, patternRect, patternCirc, transformEnts, projectPolylines, reprojectLinked, copySelection, pasteClip } from './ops.js';
 import { sketchPolylines } from '../viewport.js';
 import { evalExpr } from '../../shared/expr.js';
 import { t, tk, errText, fmtNum } from '../../shared/i18n.js';
 import { toLocal } from '../../shared/vec.js';
+import { selOn, selClass } from './opts.js';
 
 export const EDIT_TOOLS = ['trim', 'extend', 'break', 'offset', 'fillet', 'chamfer', 'mirror', 'patrect', 'patcirc', 'move', 'copy', 'rotate', 'scale', 'project'];
 const NEEDS_SEL = new Set(['offset', 'mirror', 'patrect', 'patcirc', 'move', 'copy', 'rotate', 'scale']);
@@ -50,7 +51,7 @@ export const EDIT_METHODS = {
   // ------------------------------------------------------------------ pano
   selectAll() {
     if (!this.active) return;
-    this._setSel(this.sk.ents.map((e) => ({ kind: 'ent', id: e.id })));
+    this._setSel(this.sk.ents.filter((e) => selOn(selClass('ent', e))).map((e) => ({ kind: 'ent', id: e.id })));
     this._status('sk.selected_n', { n: this.selection.length });
   },
   copyClip() {
@@ -288,7 +289,8 @@ export const EDIT_METHODS = {
         for (let i = 0; i + 5 < a.length + 0; i += 6) { if (!pts.length) pts.push([a[i], a[i + 1], a[i + 2]]); pts.push([a[i + 3], a[i + 4], a[i + 5]]); }
         if (pts.length < 2) continue;
         if (!sel.length && mode === 'plane' && !pts.every((p) => Math.abs(((p[0] - pl.o[0]) * nrm[0] + (p[1] - pl.o[1]) * nrm[1] + (p[2] - pl.o[2]) * nrm[2]) / nl) < 1e-4)) continue;
-        out.push({ pts: pts.map((p) => toLocal(pl, p)) });
+        const cen = [0, 1, 2].map((k) => Math.round(pts.reduce((q, p) => q + p[k], 0) / pts.length * 1e4) / 1e4);
+        out.push({ pts: pts.map((p) => toLocal(pl, p)), meta: { b: b.id, g: g.idx, c: cen } }); // meta: ilişkisel izdüşüm bağı
       }
     }
     return out;
@@ -372,6 +374,7 @@ export const EDIT_METHODS = {
     const loc = this._loc(ev); const hit = loc ? this._hit(loc) : null;
     if (hit && !this._isSel(hit)) this._setSel([{ kind: hit.kind, id: hit.id }]);
     const hasSel = this.selection.length > 0, hasEnt = this._entsSel().length > 0;
+    const hasProj = this._entsSel().some((id) => { const e = this.sk.ents.find((x) => x.id === id); return e && e.proj; });
     this._menuAt(ev, [
       { id: 'ctx-finish', label: 'ctx.finish', run: () => this.onRequestFinish() },
       hasSel && { id: 'ctx-delete', label: 'ctx.delete', run: () => this.deleteSelection() },
@@ -381,6 +384,8 @@ export const EDIT_METHODS = {
       hasEnt && { id: 'ctx-cut', label: 'ctx.cut', run: () => this.cutClip() },
       CLIP && { id: 'ctx-paste', label: 'ctx.paste', run: () => this.pasteClip() },
       { id: 'ctx-selall', label: 'ctx.selectall', run: () => this.selectAll() },
+      hasProj && { id: 'ctx-unlink', label: 'ctx.proj_unlink', run: () => this.unlinkSelected() },
+      hasProj && { id: 'ctx-relink', label: 'ctx.proj_relink', run: () => this.relinkSelected() },
     ]);
   },
   _dimMenu(ev, c) {
@@ -397,7 +402,8 @@ export const EDIT_METHODS = {
   },
   toggleReference(id) {
     const c = this.sk.cons.find((k) => k.id === id); if (!c) return;
-    return this._apply((sk) => { const k = sk.cons.find((x) => x.id === id); if (k.ref) { delete k.ref; } else k.ref = true; }, { kind: tk('sk.kind.change'), strict: false });
+    // sürücüye çevrilirken ölçü o anki geometri değerini alır (eski/bayat ifade değil); referansa çevrilirken de ifade geometriyle eşlenir
+    return this._apply((sk) => { const k = sk.cons.find((x) => x.id === id); const m = measureDim(sk, k); if (Number.isFinite(m)) k.expr = String(+m.toFixed(6)); if (k.ref) { delete k.ref; } else k.ref = true; }, { kind: tk('sk.kind.change'), strict: false });
   },
 };
 
