@@ -8,6 +8,7 @@ import { evalExpr, resolveParams } from '../shared/expr.js';
 import { LIMITS } from '../shared/schema.js';
 import { basePlane } from '../shared/vec.js';
 import { findRegions, resolveProfiles, selectionFor } from '../shared/profiles.js';
+import { showRepair } from './viewport-hist.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const num = (v) => fmt(v, 4);
@@ -25,8 +26,9 @@ const SEL_KEYS = { edge: [tk('sel.n_edge'), tk('sel.pick_edge')], face: [tk('sel
 
 // ------------------------------------------------------------------ Özellik paneli
 export class FeaturePanel {
-  constructor(app, draft, idx) {
-    this.app = app; this.draft = draft; this.idx = idx; this.isNew = idx == null;
+  // repair: WP-02 dilim 5 onarım kipi — çekirdeğin repairInfo çıktısı ({lost:[{field, index, kind, code, ghost, cands}]})
+  constructor(app, draft, idx, repair = null) {
+    this.app = app; this.draft = draft; this.idx = idx; this.isNew = idx == null; this.repair = repair && repair.lost && repair.lost.length ? repair : null;
     this.at = this.isNew ? (app.doc.rollback ?? app.doc.features.length) : idx;
     this.activeSel = null; this.status = null; this.closed = false; this.firstBody = !(app.result?.bodies.length);
   }
@@ -64,14 +66,34 @@ export class FeaturePanel {
     const app = this.app; app.edit = this;
     // WP-02 "Son hali göster" uyarlamalı: son tam güncelleme 1 sn altındaysa kendiliğinden açık
     app.showFinal = this.hasAfter() && (app.lastFullMs == null || app.lastFullMs < 1000); app.setFinal(null);
+    // onarım kipi: kaybolan başvurular seçimden çıkarılır, ilgili seçim alanı etkinleşir (kullanıcı yeni kenarı/yüzü tıklar)
+    if (this.repair) this.dropLost();
     this.render();
     // ilk seçim alanı boşsa etkin yap
-    const first = this.fields().find((f) => f.t === 'sel');
+    const first = this.repair ? this.fields().find((f) => f.t === 'sel' && f.k === this.repair.lost[0].field) || this.fields().find((f) => f.t === 'sel') : this.fields().find((f) => f.t === 'sel');
     if (first) this.setActive(first.k, true);
     this.updateViewport();
     app.previewSoon(0);
   }
 
+  dropLost() {
+    const by = new Map(); for (const L of this.repair.lost) { if (!by.has(L.field)) by.set(L.field, new Set()); by.get(L.field).add(L.index); }
+    for (const [k, set] of by) { const v = this.draft[k]; if (Array.isArray(v)) this.draft[k] = v.filter((_, j) => !set.has(j)); else if (v && set.has(null)) this.draft[k] = Array.isArray(v) ? [] : ''; }
+  }
+  repairBox() {
+    const R = this.repair; if (!R) return null; const app = this.app;
+    const n = R.lost.length; const kind = R.lost[0].kind;
+    const others = app.badFeatures().filter((f) => f.id !== this.draft.id);
+    const btn = (id, label, run, cls = 'btn sm') => h('button', { class: cls, type: 'button', 'data-testid': id, onclick: run }, label);
+    return h('div', { class: 'callout warn repair', role: 'group', 'data-testid': 'repair', 'aria-label': t('hs.rp_title') },
+      h('div', { class: 'rp-t' }, h('span', { html: icon('warning', 'sm') }), h('strong', { text: t('hs.rp_title') })),
+      h('div', { class: 'rp-b', text: t(kind === 'face' ? 'hs.rp_lost_face' : 'hs.rp_lost_edge', { n }) + ' ' + t('hs.rp_hint') }),
+      h('div', { class: 'rp-a' },
+        btn('repair-reselect', t('hs.rp_reselect'), () => { const k = R.lost[0].field; this.setActive(null, true); this.setActive(k); }),
+        btn('repair-suppress', t('hs.rp_suppress'), () => { const i = this.idx; this.cancel(); app.toggleSuppress(i); }),
+        btn('repair-delete', t('hs.rp_delete'), () => { const i = this.idx; this.cancel(); app.deleteFeature(i); }),
+        others.length ? btn('repair-next', t('hs.rp_next', { n: others.length }), () => { const nx = others[0].id; this.cancel(); app.repairFeature(nx); }) : null));
+  }
   // dil değişince formu yeniden kur (girilen değerler taslakta durur)
   relang() { const k = this.activeSel; this.render(); this.updateViewport(); if (k) this.refreshSels(); }
 
@@ -84,7 +106,7 @@ export class FeaturePanel {
       inp.addEventListener('change', () => this.app.setShowFinal(inp.checked));
       return h('div', { class: 'fld final', title: t('hs.final_tip') }, h('label', { text: t('hs.show_final') }), h('div', { class: 'ctl' }, checkBox(inp)));
     })() : null;
-    shell(this.titleText(), [...rows, this.errEl, this.noteEl, fin],
+    shell(this.titleText(), [this.repairBox(), ...rows, this.errEl, this.noteEl, fin].filter(Boolean),
       [h('button', { class: 'btn primary pri', id: 'p-ok', 'data-testid': 'panel-ok', onclick: () => this.ok() }, t('common.ok'), h('span', { class: 'kbd', text: 'Enter' })), h('button', { class: 'btn', id: 'p-cancel', 'data-testid': 'panel-cancel', onclick: () => this.cancel() }, t('common.cancel'), h('span', { class: 'kbd', text: 'Esc' }))],
       () => this.cancel(), { 'data-title': '' }, featureIcon(this.draft, 'md'));
     this.setStatus(this.status);
@@ -254,7 +276,7 @@ export class FeaturePanel {
     return '';
   }
   // yeni sonuç geldiğinde
-  afterResult() { this.updateViewport(); }
+  afterResult() { this.updateViewport(); if (this.repair) this.app.repairDrawn = showRepair(this.app.viewport, this.repair.lost); }
   setStatus(st) {
     this.status = st;
     if (!this.errEl) return;
@@ -307,6 +329,7 @@ export class FeaturePanel {
     this.closed = true; this.app.edit = null; this.app.setFinal(null);
     $('#panel').classList.add('hidden'); $('#panel').replaceChildren();
     const vp = this.app.viewport; vp.setRegions(null, null); vp.setSelection([]); this.app.setHint('');
+    if (this.repair) { showRepair(vp, []); this.app.repairDrawn = null; }
   }
 }
 

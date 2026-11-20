@@ -70,4 +70,12 @@ export default {
   "tl.marker_start": "Başta: hiçbir işlem hesaplanmıyor",
   "tl.mid_band": "Geçmişin ortasındasınız — yeni işlem buraya eklenir",
   "err.rebuild.cancelled": "Yeniden hesap iptal edildi (yeni değişiklik geldi)",
+  "hs.rp_title": "Onarım",
+  "hs.rp_lost_edge": "Kaybolan kenar: {n}.",
+  "hs.rp_lost_face": "Kaybolan yüz: {n}.",
+  "hs.rp_hint": "Kesik çizgi eski konumu, vurgulu çizgiler yakın adayları gösterir; yenisini görünümde seçin.",
+  "hs.rp_reselect": "Yeniden seç",
+  "hs.rp_suppress": "Bastır",
+  "hs.rp_delete": "Sil",
+  "hs.rp_next": "Sonraki hata ({n})",
 };

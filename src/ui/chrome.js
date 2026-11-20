@@ -399,7 +399,8 @@ export function initChrome(app) {
   // sağdaki işlemler için son model; yoksa son sonuç. "Değişti" düzenleme/süpürme sırasında düzenleme öncesi özetle karşılaştırılır.
   C.featState = (f, i) => {
     const doc = app.doc, res = app.result;
-    const ed = app.edit && !app.edit.closed ? app.edit : null;
+    const SS = app.sketchSession && !app.sketchSession.isNew ? app.sketchSession : null;
+    const ed = app.edit && !app.edit.closed ? app.edit : SS ? { isNew: false, idx: SS.idx, at: SS.idx, draft: SS.draft } : null;
     const editing = !!(ed && !ed.isNew && ed.idx === i);
     const after = !!(ed && (ed.isNew ? i >= ed.at : i > ed.at));
     const SW = app.sweep && i >= app.sweep.at ? app.sweep : null; const P = SW ? SW.done.get(f.id) : null;
@@ -456,7 +457,8 @@ export function initChrome(app) {
       row.addEventListener('click', (e) => { if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); C.extendSel(row); C.focusItem(false, 'hist=' + f.id); } }, true);
       histItem(row); bindDrag(row, i, false);
       rows.push(row);
-      if (S.bad) rows.push(h('div', { class: 'hwhy', role: 'note', 'data-testid': 'hist-why', 'data-for': f.id, text: errText(S.st.error) }));
+      if (S.bad) rows.push(h('div', { class: 'hwhy', role: 'note', 'data-testid': 'hist-why', 'data-for': f.id }, h('span', { text: errText(S.st.error) }),
+        f.type !== 'sketch' && f.type !== 'import' ? h('button', { class: 'btn sm', type: 'button', 'data-testid': 'hist-repair', onclick: () => app.repairFeature(f.id) }, t('hs.repair')) : null));
       if (open) {
         const j = doc.features.indexOf(sk); const SS = C.featState(sk, j);
         const child = h('div', { class: 'trow hrow child' + SS.cls, role: 'listitem', 'data-hist': sk.id, 'data-i': j, 'data-sketch': sk.id, 'data-testid': 'hist-row', title: titleOf(sk, SS),

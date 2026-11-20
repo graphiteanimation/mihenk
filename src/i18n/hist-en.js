@@ -70,4 +70,12 @@ export default {
   "tl.marker_start": "At start: no feature computed",
   "tl.mid_band": "You are in the middle of the history — new features are inserted here",
   "err.rebuild.cancelled": "Recompute cancelled (a newer change arrived)",
+  "hs.rp_title": "Repair",
+  "hs.rp_lost_edge": "Lost edges: {n}.",
+  "hs.rp_lost_face": "Lost faces: {n}.",
+  "hs.rp_hint": "The dashed line shows the old location, highlighted lines are nearby candidates; pick the new one in the view.",
+  "hs.rp_reselect": "Reselect",
+  "hs.rp_suppress": "Suppress",
+  "hs.rp_delete": "Delete",
+  "hs.rp_next": "Next error ({n})",
 };
