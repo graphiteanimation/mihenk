@@ -67,7 +67,7 @@ export function silhouetteFace(zl, sections) {
   if (zl.levels.length < 2 || !sections.length) throw cerr('cam.silhouette.not_prismatic', { n: 0 });
   const outs = [];
   for (const sec of sections) {
-    const loops = sec.loops.map((l) => l.flatMap((it) => P.fromGeom2d(it, it.fwd !== false)));
+    const loops = sec.loops.map((l) => P.closeItemLoop(l).flatMap((it) => P.fromGeom2d(it, it.fwd !== false))); // T-24: zincir acikliklari kapatilir
     const o = loops.filter((l) => P.area(l) > 1e-9);
     // her kesitte tek dis sinir ve o sinirin icinde olmayan baska dis halka olmamali
     const regs = P.regionsFromLoops(loops);

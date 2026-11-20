@@ -49,6 +49,32 @@ export function fromGeom2d(seg, fwd = true, extra) {
   throw cerr('cam.geom.unsupported_curve', { type: String(seg.type) });
 }
 
+// T-24: cekirdek kesit donguleri (geom2d ogeleri + fwd) zincir toleransiyla (1e-5 x olcek) birlestirilir; ardisik uclar arasinda
+// eskiz NODE_TOL'undan (1e-6) buyuk acik kalabilir. closeItemLoop ardisik uclari BIREBIR cakistirir: iki dogru -> orta nokta,
+// dogru-yay -> dogrunun ucu yayin ucuna, iki yay -> araya kisa dogru. maxGap'ten buyuk acikliklara dokunulmaz (gercek acik uc
+// sessizce kapatilmaz; asagidaki kapilar loop_open ile yakalar).
+const itEnd = (g) => (g.fwd === false ? g.p0 : g.p1), itStart = (g) => (g.fwd === false ? g.p1 : g.p0);
+const setEnd = (g, p) => { if (g.fwd === false) g.p0 = p; else g.p1 = p; };
+const setStart = (g, p) => { if (g.fwd === false) g.p1 = p; else g.p0 = p; };
+export const CHAIN_GAP_MAX = 0.02;
+export function closeItemLoop(loop, maxGap = CHAIN_GAP_MAX) {
+  if (!Array.isArray(loop) || loop.length < 2 || loop.some((g) => g.type === 'circle')) return loop;
+  const L = loop.map((g) => ({ ...g, ...(g.p0 ? { p0: g.p0.slice() } : {}), ...(g.p1 ? { p1: g.p1.slice() } : {}) }));
+  const out = [];
+  for (let i = 0; i < L.length; i++) {
+    const g = L[i], h = L[(i + 1) % L.length]; out.push(g);
+    const a = itEnd(g), b = itStart(h); const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (!(d > 0) || d > maxGap) continue;
+    if (g.type === 'line' && h.type === 'line') { const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; setEnd(g, m); setStart(h, m.slice()); }
+    else if (g.type === 'line') setEnd(g, b.slice());
+    else if (h.type === 'line') setStart(h, a.slice());
+    else if (d > 1e-9) out.push({ type: 'line', p0: a.slice(), p1: b.slice(), fwd: true, open: !!(g.open && h.open), edge: null }); // kayan nokta farki icin dogru eklenmez
+  }
+  // ilk ogenin baslangici son dogru tarafindan degistirilmis olabilir (out[0] === L[0], ayni nesne)
+  return out;
+}
+export const closeSectionLoops = (loops, maxGap) => (loops || []).map((l) => closeItemLoop(l, maxGap));
+
 // ------------------------------------------------------------------ temel sorgular
 export function length(s) { return s.k === 'L' ? dist(s.a, s.b) : s.r * Math.abs(s.sw); }
 export function pointAt(s, t) {

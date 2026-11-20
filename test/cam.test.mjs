@@ -511,5 +511,32 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
   const r2b = await CAM.generateProgram(cam, { rebuild: rb, machine: builtinMachines()[0], query, name: 'O1' }); ok(r2b.blocked && r2b.gates.some((g) => g.code === 'cam.gate.missing'), 'sablon makine: eksik veri block');
 }
 
+section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');
+{
+  const ln = (p0, p1, fwd = true) => ({ type: 'line', p0, p1, fwd, open: false, edge: null });
+  const gapOf = (loop) => { let w = 0; const e = (g) => (g.fwd === false ? g.p0 : g.p1), b = (g) => (g.fwd === false ? g.p1 : g.p0); for (let i = 0; i < loop.length; i++) { const a = e(loop[i]), c = b(loop[(i + 1) % loop.length]); w = Math.max(w, Math.hypot(a[0] - c[0], a[1] - c[1])); } return w; };
+  // P4 Y29,05'teki gibi 5,85e-4 mm acik (iki dogru; biri ters yonlu)
+  const sqGap = [ln([0, 0], [10, 0]), ln([10, 0], [10, 10]), ln([0, 10], [9.999415, 10], false), ln([0, 10], [0, 0])];
+  ok(gapOf(sqGap) > 5e-4, 'ham dongu acik (5,85e-4)');
+  const c1 = P.closeItemLoop(sqGap);
+  ok(gapOf(c1) === 0 && c1.length === 4, 'iki dogru: orta noktada birebir kapanir: ' + gapOf(c1));
+  ok(P.isClosedLoop(c1.flatMap((it) => P.fromGeom2d(it, it.fwd !== false)), 1e-9), 'path2d dongusu kapali (1e-9)');
+  ok(sqGap[2].p1[0] === 9.999415, 'girdi degistirilmez');
+  // dogru-yay: dogru ucu yay ucuna
+  const arc = { ...G.mkArc([10, 5], 5, -Math.PI / 2, Math.PI), fwd: true, open: false };
+  const da = [ln([0, 0], [10.0004, 0]), arc, ln([10, 10], [0, 10]), ln([0, 10], [0, 0])];
+  const c2 = P.closeItemLoop(da); ok(gapOf(c2) < 1e-12 && c2.length === 4, 'dogru-yay: dogru ucu yaya tasinir: ' + gapOf(c2));
+  // yay-yay: araya kisa dogru
+  const a1 = { ...G.mkArc([0, 0], 5, 0, Math.PI), fwd: true, open: false }, a2 = { ...G.mkArc([0, 0], 5, Math.PI + 1e-4, Math.PI - 1e-4), fwd: true, open: false };
+  const c3 = P.closeItemLoop([a1, a2]); ok(gapOf(c3) < 1e-12 && c3.length === 3 && c3.some((g) => g.type === 'line'), 'yay-yay: kisa dogru eklenir: ' + c3.length);
+  // buyuk aciklik (gercek acik uc) sessizce kapatilmaz
+  const big = [ln([0, 0], [10, 0]), ln([10, 0.5], [10, 10]), ln([10, 10], [0, 10]), ln([0, 10], [0, 0])];
+  ok(gapOf(P.closeItemLoop(big)) >= 0.5, 'maxGap ustu aciklik birakilir (kapilar yakalar)');
+  // eskiz NODE_TOL ile ada kaybi yok: kapatilmis dongu findRegions'da tek bolge
+  const toSketch = (loop) => { const pts = {}, ents = []; const key = (p) => p[0].toFixed(9) + ',' + p[1].toFixed(9); const id = (p) => { const k = key(p); if (!pts['p' + k]) pts['p' + k] = { x: p[0], y: p[1] }; return 'p' + k; }; loop.forEach((g, i) => ents.push({ id: 'e' + i, type: 'line', a: id(g.p0), b: id(g.p1) })); return { points: pts, ents }; };
+  ok(findRegions(toSketch(sqGap)).regions.length === 0, 'ham acik dongu eskizde bolge vermez (ada kaybi, T-24)');
+  ok(findRegions(toSketch(c1)).regions.length === 1, 'kapatilmis dongu eskizde bir bolge');
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
