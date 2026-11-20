@@ -59,15 +59,16 @@ export function toolGeom(tool) {
   // cutR: kesme (talas kaldirma + oyma) yaricapi. Kilavuzda dis dibi; zarf (hizli/saft/tutucu denetimi) R (majör) kalir.
   const cutR = tool.type === 'tap' ? tapMinorDia(tool) / 2 : R;
   // WP-13 (uc dexel): takim ucundan u yukseklikte kesici yaricapi (profile'in tersi; u >= 0). Ustunde silindir (cutR).
-  const rho = (u) => {
-    if (u < 0) return 0; let r;
-    if (kind === 'flat') r = R;
-    else if (kind === 'ball') r = u >= R ? R : Math.sqrt(Math.max(0, R * R - (R - u) * (R - u)));
-    else if (kind === 'bull') r = u >= cr ? R : (R - cr) + Math.sqrt(Math.max(0, cr * cr - (cr - u) * (cr - u)));
-    else r = Math.min(R, tipR + u * tanHalf);
-    return Math.min(r, cutR);
+  // rhoEnv: zarf (hizli denetimi, majör cap); rho: kesme (cutR ile sinirli)
+  const rhoEnv = (u) => {
+    if (u < 0) return 0;
+    if (kind === 'flat') return R;
+    if (kind === 'ball') return u >= R ? R : Math.sqrt(Math.max(0, R * R - (R - u) * (R - u)));
+    if (kind === 'bull') return u >= cr ? R : (R - cr) + Math.sqrt(Math.max(0, cr * cr - (cr - u) * (cr - u)));
+    return Math.min(R, tipR + u * tanHalf);
   };
-  return { kind, R, cutR, cr, tanHalf, shaftR, holderR, holderLen, holderSegs, holderU, fluteLen: tool.fluteLen, bodyLen: tool.bodyLen, profile, rho, type: tool.type };
+  const rho = (u) => Math.min(rhoEnv(u), cutR);
+  return { kind, R, cutR, cr, tanHalf, shaftR, holderR, holderLen, holderSegs, holderU, fluteLen: tool.fluteLen, bodyLen: tool.bodyLen, profile, rho, rhoEnv, type: tool.type };
 }
 
 // WP-13: tutucu verisini kademeli parcalara cevirir: [{u0, u1, r0, r1}] (u: tutucu tabanindan yukari). Gecersizse null.

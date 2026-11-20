@@ -10,7 +10,8 @@
 // Bolum: takim degisimi, WCS degisimi, A acisi degisimi ve G28/G53 geri cekilmesi yeni bolum baslatir. Bolumun Z'si bilinmeden
 // ilk konumlanma "ev" yuksekligindedir: opts.homeZ, yoksa bolumdeki en yuksek programlanmis Z (muhafazakar degil: ev Z'si bilinmez).
 // opts: { tools: {[T]: takim geometrisi (IR tool alanlari + shaftDia/holder)}, setups?: [{id, workOffset, aAngle, ...}] (WCS + A ile
-//         eslenir; stockBox/frame/fixtures sim'e tasinir), homeZ?, tapMode?: 'feed'|'pitch' (G84 F anlami), name? }
+//         eslenir; stockBox/frame/fixtures sim'e tasinir), homeZ?, tapMode?: 'feed'|'pitch' (G84 F anlami), name?,
+//         belowStock?: mm (NC islem payini tasimaz: boydan boya delik/kontur icin stok alti izinli pay; yoksa stok alti inis engel) }
 // Donus: { program, events: [{line, ev, ...}], lineMap: [{section, move} | null] (satir basina) }.
 import { KErr } from '../../shared/errors.js';
 import { computeStats, ARC_MIN_CHORD } from '../ir.js';
@@ -68,7 +69,7 @@ export function gcodeToProgram(text, opts = {}) {
     for (const m of c.moves) { if (m.z === null) m.z = home; if (m.t === 'cycle' && m.clearance === null) m.clearance = home; }
     const last = c.moves[c.moves.length - 1]; const lp = last.t === 'cycle' ? { x: last.points.at(-1)[0], y: last.points.at(-1)[1], z: last.clearance } : last;
     if (!(lp.z >= home - 1e-9)) { c.moves.push({ t: 'rapid', x: lp.x, y: lp.y, z: home }); }
-    const tp = { opId: 'nc' + sections.length, opName: 'NC ' + (c.lines[0] ?? ''), opType: 'gcode', tool: c.tool, rpm: c.rpm, spindleDir: c.dir, coolant: 'off', comp: c.comp ? 'wear' : 'computer', compSide: c.compSide, clearanceZ: home, retractZ: home, moves: c.moves, meta: { ncLines: c.lines } };
+    const tp = { opId: 'nc' + sections.length, opName: 'NC ' + (c.lines[0] ?? ''), opType: 'gcode', tool: c.tool, rpm: c.rpm, spindleDir: c.dir, coolant: 'off', comp: c.comp ? 'wear' : 'computer', compSide: c.compSide, clearanceZ: home, retractZ: home, moves: c.moves, meta: { ncLines: c.lines, ...(opts.belowStock > 0 ? { belowStock: opts.belowStock } : {}) } };
     if (c.comp) tp.tool = { ...tp.tool, D: c.D };
     tp.stats = computeStats(tp);
     sections.push({ setup: c.setup, toolpath: tp });

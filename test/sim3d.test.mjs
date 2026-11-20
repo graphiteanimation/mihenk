@@ -1,7 +1,7 @@
 // WP-13 sim testleri: baglama govdeleri, tutucu profili, uc yonlu dexel, worker/asenkron sim, G-code uzerinden sim.
 // Calistir: node test/sim3d.test.mjs
 import { mk } from '../src/cam/ir.js';
-import { simulate, createSim, toolGeom, heightmapFromFn, fixtureGrid, resolveFixtures, normalizeFixtures } from '../src/cam/sim/index.js';
+import { simulate, createSim, toolGeom, heightmapFromFn, fixtureGrid, resolveFixtures, normalizeFixtures, triVolume, subRay } from '../src/cam/sim/index.js';
 import { normalizeTool } from '../src/cam/tools.js';
 import { resolveSetup } from '../src/cam/index.js';
 import { gates } from '../src/cam/gates.js';
@@ -190,6 +190,53 @@ console.log('4. G-code uzerinden simulasyon');
     ['T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z0 F100\nG1 X5 Y0 ,R2\nM30', 'cam.gcode.unsupported', ',R kose'], ['T1 M6\nS5000 M3\nG1 X0 Y0 Z0 F100\nM30', 'cam.gcode.no_position', 'konum bilinmeden G1'],
     ['T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z0 F100\nG2 X10 Y0 I3 J0\nM30', 'cam.gcode.arc_radius', 'yaricap uyusmazligi'], ['T1 M6\nS5000 M3\nG0 X0 Y0\nZ5\nG1 Z0 F100\nG1 G41 D1 X10\nG0 Z5\nM30', 'cam.gcode.rapid_in_comp', 'telafi acikken hizli']];
   for (const [txt, code, m] of bad) throwsCode(() => run(txt), code, 'hata: ' + m);
+}
+
+console.log('5. uc yonlu dexel: geriye uyum, yan yuz, alt kesme');
+{
+  // a) geriye uyum: tum orneklerde ayni sorunlar, ayni hacim, birebir ayni ust yuzey; X/Y hacmi Z hacmiyle %0,1 icinde
+  for (const smp of S.ALL()) {
+    const o = { res: 0.25, stockBox: smp.stockBox };
+    const a = simulate(smp.program, o), b = simulate(smp.program, { ...o, dexel: 'tri' });
+    let md = 0; for (const id of Object.keys(a.remainBySetup)) { const A = a.remainBySetup[id].data, B = b.remainBySetup[id].data; for (let k = 0; k < A.length; k++) md = Math.max(md, Math.abs(A[k] - B[k])); }
+    ok(md === 0 && Math.abs(a.removedVolume - b.removedVolume) < 1e-6 * Math.max(1, a.removedVolume) && JSON.stringify(codes(a)) === JSON.stringify(codes(b)) && a.issues.length === b.issues.length, `${smp.name}: tri = yukseklik haritasi (hacim, sorun, ust yuzey; fark ${md})`);
+    const vd = Object.values(b.triBySetup).map((T) => Math.max(Math.abs(triVolume(T, 'x') - triVolume(T, 'z')), Math.abs(triVolume(T, 'y') - triVolume(T, 'z'))) / triVolume(T, 'z'));
+    ok(Math.max(...vd) < 1e-3, `${smp.name}: X/Y/Z dexel hacimleri tutarli (en buyuk bagil fark ${Math.max(...vd).toExponential(2)})`);
+  }
+  // b) yan yuz: D6,2 kanal (Y boyunca, x=0); X isinlari duvari +-3,1'de surekli konumda verir (harita hucreye yuvarlar)
+  const t62 = { number: 3, H: 3, type: 'flat', dia: 6.2, fluteLen: 20, bodyLen: 40 };
+  const slot = TP(t62, [mk.rapid(0, -30, 30), mk.rapid(0, -30, 1), mk.feed(0, -30, -5, 100, 'plunge'), mk.feed(0, 30, -5, 300), mk.rapid(0, 30, 30)]);
+  let r = simulate(slot, { stockBox: BOX, res: 0.5, dexel: 'tri' }); const T = r.triBySetup.default;
+  const k = Math.floor((-2.5 - T.z0) / T.res), j = Math.floor((0 - T.y0) / T.res), ray = T.xr[k * T.ny + j];
+  ok(ray.length === 4 && Math.abs(ray[1] + 3.1) < 1e-6 && Math.abs(ray[2] - 3.1) < 1e-6, 'X isini duvarlari -3,1 / 3,1: ' + JSON.stringify(ray.map((v) => +v.toFixed(4))));
+  // c) V-24: duvar hucre sinirinda (D6 -> +-3,0; res 0,5), ayni takimla 0,2 mm yana kaymis hizli inis: harita gormez, tri yakalar
+  const f6 = { number: 2, H: 2, type: 'flat', dia: 6, fluteLen: 20, bodyLen: 40 };
+  const lat = TP(f6, [mk.rapid(0, -30, 30), mk.rapid(0, -30, 1), mk.feed(0, -30, -5, 100, 'plunge'), mk.feed(0, 30, -5, 300), mk.rapid(0, 30, 30), mk.rapid(0.2, 0, 30), mk.rapid(0.2, 0, -4), mk.rapid(0.2, 0, 30)]);
+  const rh = simulate(lat, { stockBox: BOX, res: 0.5 }), rt = simulate(lat, { stockBox: BOX, res: 0.5, dexel: 'tri' });
+  const hit = rt.issues.find((i) => i.code === 'cam.sim.rapid_in_stock');
+  ok(!codes(rh).includes('cam.sim.rapid_in_stock'), 'yukseklik haritasi 0,2 mm yanal girisi gormez (V-24 siniri, belgeli)');
+  ok(hit && hit.moveIndex === 6 && Math.abs(hit.params.depth - 0.2) < 0.02, 'tri dexel 0,2 mm yanal hizli girisi yakalar: ' + JSON.stringify(hit?.params));
+  const rt2 = simulate(TP(f6, [...lat.moves.slice(0, 5), mk.rapid(0, 0, 30), mk.rapid(0, 0, -4), mk.rapid(0, 0, 30)]), { stockBox: BOX, res: 0.5, dexel: 'tri' });
+  ok(!codes(rt2).includes('cam.sim.rapid_in_stock'), 'kanal ekseninde hizli inis temiz (teget duvar yanlis engel degil): ' + codes(rt2));
+  // d) alt kesme: B (+X yanindan) X 10..20, Z -18..-12 kanal; C (ustten, zincir) Z isininda bosluk; dalma hacmi boslugu atlar
+  const FB = { o: [20, 0, 0], x: [0, 1, 0], y: [0, 0, 1], z: [1, 0, 0] }, FC = { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+  const boxB = { min: [-20, -30, -40], max: [20, 0, 0] }, boxC = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const f6l = { ...f6, fluteLen: 40, bodyLen: 60 };
+  const secB = mk.section({ id: 'B', workOffset: { kind: 'G55' }, aAngle: null, frame: FB, stockBox: boxB }, TP(f6l, [mk.rapid(-30, -15, 30), mk.rapid(-30, -15, -10), mk.feed(30, -15, -10, 300), mk.rapid(30, -15, 30)]));
+  const secC = mk.section({ id: 'C', workOffset: { kind: 'G54' }, aAngle: null, frame: FC, stockBox: boxC }, TP(f6l, [mk.rapid(15, 0, 30), mk.rapid(15, 0, 1), mk.feed(15, 0, -20, 100, 'plunge'), mk.rapid(15, 0, 30)]));
+  const prog = mk.program({ name: 'UC', sections: [secB, secC] });
+  const so = { res: 0.5, stockBoxes: { B: boxB, C: boxC } };
+  const ph = simulate(prog, so), pt = simulate(prog, { ...so, dexel: 'tri' });
+  const TC = pt.triBySetup.C, zc = TC.zr[Math.floor((10 - TC.y0) / TC.res) * TC.nx + Math.floor((15 - TC.x0) / TC.res)];
+  ok(pt.chainedSetups.includes('C') && zc.length === 4 && Math.abs(zc[1] + 18) <= 0.5 && Math.abs(zc[2] + 12) <= 0.5, 'C Z isininda alt kesme boslugu (iki aralik): ' + JSON.stringify(zc));
+  const cH = ph.removedVolume, cT = pt.removedVolume;
+  const bOnly = simulate(mk.program({ name: 'UC', sections: [secB] }), so).removedVolume;
+  const dH = cH - bOnly, dT = cT - bOnly; // C dalmasinin hacmi
+  ok(Math.abs(dH - Math.PI * 9 * 20) / (Math.PI * 9 * 20) < 0.03, 'harita: C dalmasi 20 mm dolu sayilir: ' + dH.toFixed(1));
+  // zincir uyeligi muhafazakar (kaynak isinlari res/2 genisletilir): bosluk en cok 1 res daralir -> 14..15,5 mm
+  ok(dT > Math.PI * 9 * 13.9 && dT < Math.PI * 9 * 15.6, 'tri: C dalmasi boslugu atlar (14..15,5 mm): ' + (dT / (Math.PI * 9)).toFixed(2) + ' mm');
+  // e) isin araligi cikarma
+  const q = [0, 10]; ok(subRay(q, 2, 3) === 1 && JSON.stringify(q) === '[0,2,3,10]' && subRay(q, -5, 2.5) === 2 && JSON.stringify(q) === '[3,10]', 'subRay');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

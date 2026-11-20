@@ -15,10 +15,12 @@ import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './
 import { freePieces } from './free.js';
 import { lowerForChamfer } from './chamfer.js';
 import { fixtureGrid, fixtureHit } from './fixtures.js';
+import { triFromBox, triFromHeightmap, triFromSources, triHeightmap, triCut, triHit, subRay, rayTop } from './tridexel.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, stockHeightmap, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom, holderSegments } from './tool.js';
 export { fixtureGrid, fixtureHit, normalizeFixtures, resolveFixtures, normalizeSolids } from './fixtures.js';
+export { triFromBox, triFromHeightmap, triHeightmap, triVolume, triContains, subRay } from './tridexel.js';
 
 const err = (code, params = {}) => new KErr(code, params);
 // below_stock: islemin bildirdigi bilincli pay (toolpath.meta.belowStock, mm; boydan boya delik/kontur) icindeyse 'warn', disindaysa 'error' (V-12)
@@ -39,6 +41,8 @@ export function createSim(input, opts = {}) {
   // O-035: bosluk <= clrContact = tutucu stoga DEGIYOR -> engel. Varsayilan = dusey oyma toleransi (gougeTol, 0,01 mm): yukseklik
   // haritasi dusey degerleri bu mertebede kayan nokta/ag hatasi tasir; 0,01 mm takim boyu olcme hassasiyetinin de altindadir.
   const clrContact = opts.holderContactTol ?? (opts.gougeTol ?? 0.01);
+  // WP-13: opts.dexel 'tri' = uc yonlu dexel stok (X/Y/Z isin aglari; alt kesme ve yan yuz). Varsayilan 'height' (tek degerli harita).
+  const TRI = opts.dexel === 'tri', latTol = opts.lateralTol ?? 0.01;
   const fixTol = opts.fixtureTol ?? 0.01; // WP-13: baglama govdesine bu kadardan az (dusey/yanal) giris temas sayilmaz (kayan nokta)
   let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts, secStats;
   const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
@@ -52,17 +56,21 @@ export function createSim(input, opts = {}) {
     const init = opts.initialHeightmaps?.[id] ?? (opts.stockHeightmap?.data ? opts.stockHeightmap : null);
     const frame = sset?.frame ?? null; const stockFrom = sset?.stockFrom ?? 'previous', bodies = sset?.bodies ?? null;
     const src = opts.chain !== false && !init ? chainSources([...setups.values()], { frame, box, stockFrom, bodies }) : [];
-    if (init) hm = cloneHeightmap(init);
+    let tri = null;
+    if (init) { hm = cloneHeightmap(init); if (TRI) tri = triFromHeightmap(hm, box.min[2], box.max[2]); }
     else if (src.length) { // T-04: onceki setup'larin son stogu (yalniz malzeme cikarir; B1)
       const sl = src.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box }));
-      hm = stockFromPrevious(sl, { frame, box }, res); chained = prepareSources(sl);
-    } else hm = stockHeightmap(box, res, sset?.stockCyl ?? null);
+      if (TRI && src.every((p) => p.tri)) { // WP-13: uc dexel kaynaklardan (alt kesme/ters yuz korunur)
+        const hm0 = stockHeightmap(box, res); tri = triFromSources(src.map((p) => ({ frame: p.frame, tri: p.tri, box: p.box })), { frame, box, cyl: sset?.stockCyl ?? null }, hm0); hm = triHeightmap(tri, hm0);
+      } else hm = stockFromPrevious(sl, { frame, box }, res);
+      chained = prepareSources(sl);
+    } else { hm = stockHeightmap(box, res, sset?.stockCyl ?? null); if (TRI) tri = triFromBox(box, hm, sset?.stockCyl ?? null); }
     let hmax = -Infinity; for (let k = 0; k < hm.data.length; k++) if (hm.data[k] > hmax) hmax = hm.data[k];
     const mh = opts.modelHeightmaps?.[id] ?? (opts.modelHeightmap?.data ? opts.modelHeightmap : null);
     // WP-13: baglama govdeleri (setup.fixtures ya da opts.fixtures[setupId]; opts.fixtures === false kapatir)
     const fxl = opts.fixtures === false ? null : (sset?.fixtures?.length ? sset.fixtures : opts.fixtures?.[id] ?? null);
     const fix = fxl?.length ? fixtureGrid(fxl, res) : null;
-    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies, fix };
+    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies, fix, tri };
     setups.set(id, s); return s;
   }
 
@@ -139,7 +147,7 @@ export function createSim(input, opts = {}) {
   // WP-07 dis frezeleme: hucre (x,y) bildirilen halkada (r0 <= uzaklik <= r1) ve takim ucu dis z araliginda ise true
   function inZone(zs, x, y, z) { for (const q of zs) { if (z < q.z0 || z > q.z1) continue; const d = Math.hypot(x - q.c[0], y - q.c[1]); if (d >= q.r0 && d <= q.r1) return true; } return false; }
   // mode 0: hizli (yalniz denetle), 1: kesme (stoku kaldir)
-  function touch(px, py, pz, mode) {
+  function touch(px, py, pz, mode, prev = null) {
     samples++;
     const g = cur.geom, S = cur.setup, hm = S.hm, d = hm.data, nx = hm.nx, ny = hm.ny, R = g.R, shaftR = g.shaftR, holderR = g.holderR;
     if (pz < S.zFloor - belowTol) note('below_stock', S.zFloor - pz, px, py, pz);
@@ -183,11 +191,17 @@ export function createSim(input, opts = {}) {
         if (h > zb) {
           if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) noteGouge(g, r, m, zb, pz, px, py, cx, cy); }
           const nz = zb < S.zFloor ? S.zFloor : zb;
-          if (nz < h) { const dv = (h - nz) * rs * rs; S.removed += dv; removedTotal += dv; d[idx2] = nz; }
+          if (S.tri) { const zr = S.tri.zr[idx2]; const rem = subRay(zr, nz, Infinity); if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; } d[idx2] = rayTop(zr, S.zFloor); }
+          else if (nz < h) { const dv = (h - nz) * rs * rs; S.removed += dv; removedTotal += dv; d[idx2] = nz; }
         }
       }
     }
     if (gc) finishGouge();
+    if (S.tri) { // WP-13: X/Y isinlari (ardisik ornek cifti kapsulu): kesmede cikar, hizlida yanal giris
+      const p1 = { x: px, y: py, z: pz };
+      if (mode === 1) triCut(S.tri, g.rho, prev, p1, S.hmax);
+      else { const o = triHit(S.tri, g.rhoEnv, prev, p1, S.hmax); if (o > latTol) note('rapid_in_stock', o, px, py, pz); }
+    }
   }
   // T-17: oyma miktari = model malzemesinin takim zarfina YUZEYE DIK girme derinligi (yan yuzeye R-r, uca normal uzaklik);
   // dusey fark (m - zb) ayrica 'vertical' olarak tutulur. Engel olcutu degismez (dusey fark > tolerans = oyma).
@@ -235,7 +249,8 @@ export function createSim(input, opts = {}) {
     if (!a) { touch(b.x, b.y, b.z, mode); return; }
     const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
     const n = Math.max(1, Math.ceil(len / step));
-    for (let k = 1; k <= n; k++) { const t = k / n; touch(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, mode); }
+    let pv = a;
+    for (let k = 1; k <= n; k++) { const t = k / n; const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t }; touch(q.x, q.y, q.z, mode, pv); pv = q; }
   }
   function rapidTo(to) {
     const parts = rapidSplit ? splitRapid(cur.pos, to) : [to];
@@ -363,7 +378,7 @@ export function createSim(input, opts = {}) {
     },
     result() {
       const remainBySetup = {}; for (const [id, s] of setups) remainBySetup[id] = s.hm;
-      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => !!x.chained).map((x) => x.id) };
+      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, ...(TRI ? { triBySetup: Object.fromEntries([...setups].map(([id, x]) => [id, x.tri])) } : {}), suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => !!x.chained).map((x) => x.id) };
       if (opts.frames > 0) out.frames = frames;
       return out;
     },
