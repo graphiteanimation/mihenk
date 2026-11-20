@@ -302,3 +302,11 @@ export function sketchLines(sk, color) {
   const l = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, depthTest: false })); l.renderOrder = 4; return l;
 }
 export { THREE, COL };
+// WP-09 dilim 5: görüntü modları ve adlandırılmış görünüşler (ayrı modül; var olan işlevler yalnız sarılır)
+import { DISPLAY_METHODS } from './viewport-display.js';
+Object.assign(Viewport.prototype, DISPLAY_METHODS);
+{
+  const setBodies0 = Viewport.prototype.setBodies, view0 = Viewport.prototype.view;
+  Viewport.prototype.setBodies = function (...a) { const r = setBodies0.apply(this, a); this._dispInit(); this.applyDisplayMode(); return r; };
+  Viewport.prototype.view = function (...a) { const r = view0.apply(this, a); this._dispInit(); return r; };
+}

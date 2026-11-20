@@ -849,6 +849,75 @@ try:
     circ = [e for e in s['ents'] if e['type'] == 'circle' and e.get('proj')]
     check('doğru kenar daireye dönünce izdüşüm yeniden kurulur (daire, bağ korunur)', len(circ) == 1 and near(circ[0]['r'], 10, 1e-3) and circ[0]['proj']['g'] == 7, [e for e in s['ents'] if e.get('proj')])
     ev("sk.getBodies = () => []"); fresh()
+    # ---------------------------------------------------------------- WP-09 dilim 5: görüntü modları, adlandırılmış görünüşler
+    print('WP-09 dilim 5: görüntü modları ve adlandırılmış görünüşler')
+    ev("""(() => {
+      window.mkTri = () => ({ id: 'bt', vertices: new Float32Array([-30, -30, 0, 30, -30, 0, 0, 30, 0]), normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), triangles: new Uint16Array([0, 1, 2]),
+        lines: new Float32Array([-30, -30, 0, 30, -30, 0, 30, -30, 0, 0, 30, 0, 0, 30, 0, -30, -30, 0]), edgeGroups: [{ idx: 0, start: 0, count: 6 }], bbox: [[-30, -30, 0], [30, 30, 0]] });
+      window.pix = (x, y) => { const c = vp.renderer.domElement, k = document.createElement('canvas'); k.width = c.width; k.height = c.height; const g = k.getContext('2d'); g.drawImage(c, 0, 0); const r = c.width / c.clientWidth; return Array.from(g.getImageData(Math.round(x * r), Math.round(y * r), 1, 1).data); };
+    })()""")
+    fresh(); ev("sk.cancel()"); ev("vp.setBodies([mkTri()]); vp.view('top', true)"); page.wait_for_timeout(250)
+    def center_pix():
+        pt = ev("(() => { const q = vp.project(new V.THREE_V3 ? 0 : 0); return null; })()") if False else None
+        xy = ev("(() => { const p = vp.project([0, -8, 0]); return p; })()")
+        return ev("(xy) => pix(xy[0], xy[1])", xy)
+    ev("vp.dirty = true"); page.wait_for_timeout(200)
+    px_shaded = center_pix()
+    check('varsayılan mod gölgeli+kenar: yüz çizilir (opak piksel)', ev('vp.displayMode()') == 'shaded' and px_shaded[3] == 255, px_shaded)
+    ev("vp.setDisplayMode('wire')"); page.wait_for_timeout(250)
+    px_wire = center_pix(); ev("vp.setBodies([])"); page.wait_for_timeout(250); px_empty = center_pix(); ev("vp.setBodies([mkTri()])"); page.wait_for_timeout(250)
+    check('tel kafes: yüz çizilmez (piksel gövdesiz görüntüyle aynı), kenarlar kalır', px_wire == px_empty and px_wire != px_shaded and ev("vp.bodies.get('bt').lines.material.depthTest") is False and ev("vp.bodies.get('bt').lines.visible") is True, px_wire)
+    ev("vp.setDisplayMode('ghost')"); page.wait_for_timeout(250)
+    px_ghost = center_pix()
+    check('saydam: yüz yarı saydam çizilir (0 < alfa < 255)', 0 < px_ghost[3] < 255, px_ghost)
+    ev("vp.setBodies([mkTri()])"); page.wait_for_timeout(250); px_re = center_pix()
+    check('gövdeler yeniden kurulunca (setBodies) seçili mod korunur', ev("vp.displayMode()") == 'ghost' and 0 < px_re[3] < 255 and ev("vp.bodies.get('bt').mesh.material.transparent") is True, px_re)
+    ev("vp.setDisplayMode('shaded')"); page.wait_for_timeout(250)
+    check('gölgeli+kenar moduna dönünce yüz yine opak', center_pix()[3] == 255)
+    check('geçersiz mod reddedilir', ev("vp.setDisplayMode('xyz')") is False and ev('vp.displayMode()') == 'shaded')
+    # arayüz: düğmeler, aria-pressed, kalıcılık
+    page.click('.vp-disp [data-vd=mode-wire]'); page.wait_for_timeout(200)
+    check('mod düğmesi tel kafesi seçer ve aria-pressed işaretlenir', ev("vp.displayMode()") == 'wire' and ev("document.querySelector('.vp-disp [data-vd=mode-wire]').getAttribute('aria-pressed')") == 'true' and ev("document.querySelector('.vp-disp [data-vd=mode-shaded]').getAttribute('aria-pressed')") == 'false')
+    check('görüntü modu kalıcı depoya yazıldı', ev("localStorage.getItem('mihenk.vp_display')") == 'wire')
+    page.focus('.vp-disp [data-vd=mode-ghost]'); page.keyboard.press('Enter'); page.wait_for_timeout(100)
+    check('klavye: odaktaki mod düğmesi Enter ile seçilir', ev('vp.displayMode()') == 'ghost')
+    # adlandırılmış görünüşler
+    ev("vp.view('top', true)"); ev("vp.camera.zoom = 2.5; vp.camera.updateProjectionMatrix(); vp.controls.update()")
+    a = ev('vp.viewState()')
+    r = ev("vp.saveNamedView('Üst yakın')")
+    check('görünüş kaydedilir', r['ok'] and r['slot'] == 1 and [v['name'] for v in ev('vp.namedViews()')] == ['Üst yakın'], r)
+    ev("vp.view('front', true)"); b = ev('vp.viewState()')
+    check('önkoşul: görünüş değişti', abs(b['p'][1] - a['p'][1]) > 1 or abs(b['z'] - a['z']) > 0.01, (a, b))
+    check('görünüş çağrılır: kamera konumu, hedef, yukarı yönü ve yakınlaştırma geri gelir', ev("vp.recallNamedView('üst YAKıN')") is True and all(abs(x - y) < 0.01 for x, y in zip(ev('vp.viewState()')['p'] + ev('vp.viewState()')['t'] + ev('vp.viewState()')['u'] + [ev('vp.viewState()')['z'], ev('vp.viewState()')['h']], a['p'] + a['t'] + a['u'] + [a['z'], a['h']])), (a, ev('vp.viewState()')))
+    r2 = ev("vp.saveNamedView('ÜST yakın')")
+    check('aynı ad (büyük/küçük harf farksız) üzerine yazar, yeni yuva açmaz', r2['ok'] and r2['replaced'] and len(ev('vp.namedViews()')) == 1, r2)
+    st = ev("localStorage.getItem('mihenk.nv_1')")
+    check('görünüş kalıcı depoda ve ayar sınırı (200 karakter) içinde', st and len(st) <= 200 and st.startswith('ÜST yakın|'), st)
+    check('boş ad reddedilir', ev("vp.saveNamedView('  ')")['ok'] is False)
+    # arayüzden kaydet / çağır / sil
+    page.click('.vp-disp [data-vd=views]'); page.wait_for_timeout(50)
+    check('görünüşler paneli açılır, kayıtlı görünüş listelenir', ev("[...document.querySelectorAll('.vp-disp .vd-go')].map((b) => b.textContent)") == ['ÜST yakın'])
+    page.fill('.vp-disp [data-vd=name]', 'Ön'); ev("vp.view('front', true)"); page.press('.vp-disp [data-vd=name]', 'Enter'); page.wait_for_timeout(80)
+    check('arayüz: ad yazıp Enter ile kaydedilir', [v['name'] for v in ev('vp.namedViews()')] == ['ÜST yakın', 'Ön'], ev('vp.namedViews()'))
+    ev("vp.view('top', true)"); page.click('.vp-disp .vd-go[data-vd=go-2]'); page.wait_for_timeout(80)
+    check('arayüz: listedeki ada tıklayınca görünüş çağrılır (ön görünüş)', abs(ev('vp.viewState()')['p'][1]) > 100, ev('vp.viewState()'))
+    page.keyboard.press('Escape') if False else None
+    page.focus('.vp-disp [data-vd=name]'); page.keyboard.press('Escape'); page.wait_for_timeout(50)
+    check('Esc paneli kapatır', ev("!document.querySelector('.vp-disp .vd-pop')"))
+    page.click('.vp-disp [data-vd=views]'); page.click('.vp-disp [data-vd=del-2]'); page.wait_for_timeout(50)
+    check('arayüz: × ile görünüş silinir', [v['name'] for v in ev('vp.namedViews()')] == ['ÜST yakın'])
+    for i in range(11): ev("(i) => vp.saveNamedView('v' + i)", i)
+    check('12 görünüşe kadar kaydedilir', len(ev('vp.namedViews()')) == 12)
+    r3 = ev("vp.saveNamedView('fazla')")
+    check('liste dolunca yeni kayıt reddedilir (hata anahtarı döner)', r3['ok'] is False and r3['err'] == 'vd.full', r3)
+    # kalıcılık: sayfa yenilense de mod ve görünüşler kalır
+    page.reload(); page.wait_for_function('window.ready === true', timeout=60000)
+    ev('begin("XY")'); ev("sk.cancel()")
+    check('sayfa yenilenince görüntü modu geri yüklenir', ev('vp.displayMode()') == 'ghost', ev('vp.displayMode()'))
+    check('sayfa yenilenince adlandırılmış görünüşler geri yüklenir', len(ev('vp.namedViews()')) == 12 and ev("vp.recallNamedView('ÜST yakın')") is True)
+    ev("vp.setDisplayMode('shaded'); [...vp.namedViews()].forEach((v) => vp.deleteNamedView(v.name))")
+    check('temizlik: görünüşler silindi', len(ev('vp.namedViews()')) == 0)
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()

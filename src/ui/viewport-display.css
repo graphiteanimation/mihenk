@@ -1,0 +1,17 @@
+/* WP-09 dilim 5: görüntü modu düğmeleri ve adlandırılmış görünüşler */
+.vp-disp { position: absolute; right: 10px; bottom: 10px; z-index: var(--z-viewport-overlay); display: flex; gap: var(--sp-3, 8px); align-items: flex-end; font-size: var(--fs-sm); }
+.vp-disp button { height: var(--ctl-h, 28px); padding: 0 var(--sp-4, 10px); border: var(--bw, 1px) solid var(--line-strong); border-radius: var(--r-sm, 4px); background: var(--bg-surface); color: var(--text); cursor: pointer; }
+.vp-disp button:hover { background: var(--accent-tint); }
+.vp-disp button[aria-pressed="true"], .vp-disp button[aria-expanded="true"] { background: var(--accent-tint); border-color: var(--accent); }
+.vp-disp .vd-modes { display: flex; gap: 0; }
+.vp-disp .vd-modes button { border-radius: 0; margin-left: -1px; }
+.vp-disp .vd-modes button:first-child { border-radius: var(--r-sm, 4px) 0 0 var(--r-sm, 4px); margin-left: 0; }
+.vp-disp .vd-modes button:last-child { border-radius: 0 var(--r-sm, 4px) var(--r-sm, 4px) 0; }
+.vp-disp .vd-pop { position: absolute; right: 0; bottom: calc(var(--ctl-h, 28px) + 6px); background: var(--bg-surface); border: var(--bw, 1px) solid var(--line-strong); border-radius: var(--r-md, 6px); box-shadow: var(--shadow-md); padding: var(--sp-3, 8px); min-width: 220px; }
+.vp-disp .vd-pop ul { list-style: none; margin: 0 0 var(--sp-3, 8px); padding: 0; max-height: 40vh; overflow: auto; }
+.vp-disp .vd-pop li { display: flex; gap: 4px; margin-bottom: 4px; }
+.vp-disp .vd-pop .vd-go { flex: 1; text-align: left; }
+.vp-disp .vd-pop .vd-del { width: 28px; padding: 0; }
+.vp-disp .vd-row { display: flex; gap: 4px; }
+.vp-disp .vd-row input { flex: 1; min-width: 0; height: var(--ctl-h, 28px); padding: 0 var(--sp-3, 8px); border: var(--bw, 1px) solid var(--line-strong); border-radius: var(--r-sm, 4px); background: var(--bg-field); color: var(--text); }
+.vp-disp .vd-empty, .vp-disp .vd-msg { color: var(--text-muted); font-size: var(--fs-xs); margin-bottom: 4px; }
