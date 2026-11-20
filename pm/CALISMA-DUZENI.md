@@ -60,6 +60,7 @@ Tezgâh başı doğrulama bir kalite kapısı değildir (K-026); bir tezgâh pro
 
 ## 8. Kesintisiz yürütme (K-035: 0.6 dahil bitene kadar durmadan)
 Oturumlar saatte bir zamanlanmış görevle açılır (platformun en kısa aralığı); kullanıcı beklenmez. Görev kullanıcının bilgisayarına bağlıdır (K-037): bilgisayar açık ve Claude masaüstü uygulaması çalışır olmalıdır. Kod işleri bulutta yapılır; bilgisayar yalnız sürüm sonrası yerel kurulum ve ekran denemesi için kullanılır.
+**Kendi kendini uyandırma (zamanlanmış görev GitHub'a erişemezse yedek yol).** Depoya erişimi olan etkileşimli bir Mihenk oturumu, her turunun sonunda `send_later` ile kendine 60 dakika sonrasına `Mihenk: devam` mesajı kurar (DURUM `TAMAMLANDI` değilse). Böylece erişimi olan oturum kullanıcı yazmadan sürer. Bağlam iki kez özetlendiyse zincir kurulmaz; kullanıcıya yeni sohbette `Mihenk: devam` yazması söylenir.
 **Kilit (çakışma önleme).** `pm/KILIT.md` tek satır/iş: `WP-NN | dal | başlangıç (UTC) | alan`. Oturum başında:
 1. `git pull`; KILIT'te 3 saatten yeni kayıt varsa o WP ve o **alan** meşguldür. Alanı ayrık başka "Hazır" WP varsa onu al; yoksa hiçbir şey yapmadan çık (tek satır rapor).
 2. 3 saatten eski kayıt = yarım kalmış oturum: dalı (`wp-NN`) al, `pm/wp/WP-NN.md` notundan devam et.
