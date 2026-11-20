@@ -36,7 +36,7 @@ def ph_machine():
         N('tezgâh adı yayılım genişlikleri (px): %s' % names)
     S('c03-tezgah-yoneticisi', mgr)
     def tmpl():
-        # şablon seçili (varsayılan Neway); düzenle düğmesi yok, kopyala var
+        # şablon seçili (varsayılan genel 3 eksen); düzenle düğmesi yok, kopyala var
         N('şablon satırında düzenle/sil: edit=%d del=%d copy=%d' % (G['cnt']('#modal [data-testid=mc-edit]'), G['cnt']('#modal [data-testid=mc-del]'), G['cnt']('#modal [data-testid=mc-copy]')))
         G['click']('#modal .btn.pri'); G['wait'](300)
     S('c04-tezgah-sablon-kapat', tmpl)
@@ -270,7 +270,7 @@ def ph_machine2():
     def copy():
         G['click']('[data-cmd=cam-machine]'); G['wait'](500); G['click']('#modal [data-testid=mc-copy] >> nth=0'); G['wait'](400)
         N('kopyala -> ad sorusu: ' + T('#modal')[:120].replace('\n', ' '))
-        G['fill']('[data-testid=prompt-input]', 'Atölye Neway (kopya)'); G['click']('#modal .btn.pri'); G['wait'](500)
+        G['fill']('[data-testid=prompt-input]', 'Atölye tezgâh (kopya)'); G['click']('#modal .btn.pri'); G['wait'](500)
         N('düzenleyici açık=%d; ad=%s' % (G['cnt']('[data-testid=machine-editor]'), pg().input_value('[data-f=mc-name]')))
     S('c45-tezgah-kopyala', copy)
     def spindle():

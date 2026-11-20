@@ -44,6 +44,11 @@ try:
     load = lambda pg, doc: pg.evaluate('(d) => app.loadDoc(d)', doc)
     txt = lambda pg, sel: pg.evaluate('(s) => document.querySelector(s)?.innerText || ""', sel)
     count = lambda pg, sel: pg.evaluate('(s) => document.querySelectorAll(s).length', sel)
+    # K-026: Neway artık yerleşik değil; kullanıcı profili olarak tohumlanır ve seçilir (dokunulmaz liste, A ekseni gerektiren testler için)
+    NEWAY = json.load(open(os.path.join(ROOT, 'ornekler', 'tezgahlar', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json'), encoding='utf-8'))['machines'][0]
+    def nw_page(doc, **kw):
+        ctx, pg = newpage(**kw); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", NEWAY)
+        load(pg, doc); pg.click('[data-testid=tab-manufacture]'); pg.evaluate("app.cam.setMachine('user-neway-vm1160h-m80v-gsa')"); return ctx, pg
 
     print('sekme geçişi')
     ctx, pg = newpage()
@@ -69,9 +74,24 @@ try:
     print('tezgâh yönetimi')
     ctx, pg = newpage(); load(pg, BLOCK); pg.click('[data-testid=tab-manufacture]')
     pg.click('[data-cmd=cam-machine]')
-    check('yönetici: 2 yerleşik şablon, eksik değer sayısı görünür', count(pg, '#modal [data-testid=mc-row]') == 2 and re.search(r'\d+ alan boş', txt(pg, '#modal')) is not None)
-    check('yerleşik şablonda sil/düzenle yok, kopyala var', count(pg, '#modal [data-testid=mc-del]') == 0 and count(pg, '#modal [data-testid=mc-edit]') == 0 and count(pg, '#modal [data-testid=mc-copy]') == 2)
-    pg.click('#modal [data-testid=mc-copy] >> nth=0')            # Neway kopyası: ad sorusu
+    check('yönetici: 3 genel yerleşik şablon, eksik değer sayısı görünür', count(pg, '#modal [data-testid=mc-row]') == 3 and re.search(r'\d+ alan boş', txt(pg, '#modal')) is not None)
+    check('yerleşik listede tezgâh markası yok', not re.search(r'neway|vm1160', txt(pg, '#modal'), re.I))
+    check('kullanıcı profili yokken boş durum metni', 'Kendi tezgâhınızı eklemek için bir şablonu kopyalayın veya dosyadan içe aktarın.' in txt(pg, '[data-testid=mc-empty]') and count(pg, '#modal [data-testid=mc-import]') == 1)
+    # dosyadan içe aktar (ornekler/ altındaki Neway profili) ve dışa aktar
+    with pg.expect_file_chooser() as fc: pg.click('#modal [data-testid=mc-import]')
+    fc.value.set_files(os.path.join(ROOT, 'ornekler', 'tezgahlar', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json')); pg.wait_for_timeout(500)
+    check('içe aktarma: profil eklendi ve yönetici açık', count(pg, '#modal [data-testid=mc-row]') == 4 and 'Neway VM1160H' in txt(pg, '#modal') and count(pg, '[data-testid=mc-empty]') == 0)
+    check('içe aktarılan profil kullanıcı verisi (yerleşik değil) ve kaydedildi', pg.evaluate("JSON.parse(localStorage.getItem('mihenk.machines')||'[]').map(m => m.id).join()") == 'user-neway-vm1160h-m80v-gsa')
+    with pg.expect_download() as dl: pg.click('#modal [data-testid=mc-row]:nth-child(4) [data-testid=mc-export]')
+    exp = json.loads(open(dl.value.path(), encoding='utf-8').read())
+    check('dışa aktarma: mihenk-machine biçimi', exp['format'] == 'mihenk-machine' and exp['version'] == 1 and len(exp['machines']) == 1 and exp['machines'][0]['id'] == 'user-neway-vm1160h-m80v-gsa')
+    with pg.expect_file_chooser() as fc: pg.click('#modal [data-testid=mc-import]')
+    fc.value.set_files(os.path.join(ROOT, 'ornekler', 'tezgahlar', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json')); pg.wait_for_timeout(500)
+    check('aynı dosya tekrar alınınca kimlik çakışması çözülür (" (2)")', count(pg, '#modal [data-testid=mc-row]') == 5 and 'GSA A (2)' in txt(pg, '#modal'))
+    pg.evaluate("localStorage.setItem('mihenk.machines', JSON.stringify(JSON.parse(localStorage.getItem('mihenk.machines')).slice(0, 1)))")
+    pg.click('#modal .btn.pri'); pg.click('[data-cmd=cam-machine]')
+    check('yerleşik şablonda sil/düzenle yok (yalnız kullanıcı satırında), kopyala ve dışa aktar her satırda', count(pg, '#modal [data-testid=mc-row]:nth-child(-n+3) [data-testid=mc-del]') == 0 and count(pg, '#modal [data-testid=mc-row]:nth-child(-n+3) [data-testid=mc-edit]') == 0 and count(pg, '#modal [data-testid=mc-del]') == 1 and count(pg, '#modal [data-testid=mc-copy]') == 4 and count(pg, '#modal [data-testid=mc-export]') == 4)
+    pg.click('#modal [data-testid=mc-row]:nth-child(4) [data-testid=mc-copy]')   # içe aktarılan profilin kopyası: ad sorusu
     pg.fill('[data-testid=prompt-input]', 'Atölye VMC'); pg.click('#modal .btn.pri')
     check('kopyalama: düzenleyici açıldı', count(pg, '[data-testid=machine-editor]') == 1)
     check('düzenleyici: ad alanı kopya adı', pg.input_value('[data-f=mc-name]') == 'Atölye VMC')
@@ -87,22 +107,34 @@ try:
     pg.select_option('[data-f=pp-dwellAddress]', 'P'); pg.select_option('[data-f=pp-dwellUnit]', 'ms')
     pg.click('[data-testid=mc-ok]')
     saved = pg.evaluate("JSON.parse(localStorage.getItem('mihenk.machines')||'[]')")
-    check('kullanıcı profili kaydedildi (localStorage)', len(saved) == 1 and saved[0]['name'] == 'Atölye VMC' and saved[0]['spindle']['maxRpm'] == 8000 and saved[0]['feed']['maxCut'] == 5000.5 and 20 in saved[0]['protected']['T'], json.dumps(saved)[:200])
-    check('post özelliği kaydedildi', saved[0]['post']['props'].get('dwellAddress') == 'P' and saved[0]['post']['props'].get('dwellUnit') == 'ms')
-    check('yönetici yeniden açıldı, 3 satır', count(pg, '#modal [data-testid=mc-row]') == 3)
-    pg.click('#modal [data-testid=mc-row]:nth-child(3) [data-testid=mc-use]')
-    check('tezgâh seçimi doc.cam.machineId olur', pg.evaluate('app.doc.cam && app.doc.cam.machineId') == saved[0]['id'])
+    check('kullanıcı profili kaydedildi (localStorage)', len(saved) == 2 and saved[-1]['name'] == 'Atölye VMC' and saved[-1]['spindle']['maxRpm'] == 8000 and saved[-1]['feed']['maxCut'] == 5000.5 and 20 in saved[-1]['protected']['T'], json.dumps(saved)[:200])
+    check('post özelliği kaydedildi', saved[-1]['post']['props'].get('dwellAddress') == 'P' and saved[-1]['post']['props'].get('dwellUnit') == 'ms')
+    check('yönetici yeniden açıldı, 5 satır', count(pg, '#modal [data-testid=mc-row]') == 5)
+    pg.click('#modal [data-testid=mc-row]:nth-child(5) [data-testid=mc-use]')
+    check('tezgâh seçimi doc.cam.machineId olur', pg.evaluate('app.doc.cam && app.doc.cam.machineId') == saved[-1]['id'])
     pg.click('#modal .btn.pri')
     check('tarayıcıda seçili tezgâh radyosu', 'Atölye VMC' in txt(pg, '[data-testid=cam-machine-row].sel'))
-    pg.click('[data-cmd=cam-machine]'); pg.click('#modal [data-testid=mc-row]:nth-child(3) [data-testid=mc-del]')
+    pg.click('[data-cmd=cam-machine]'); pg.click('#modal [data-testid=mc-row]:nth-child(5) [data-testid=mc-del]')
     check('silme onayı danger penceresi', 'Atölye VMC' in txt(pg, '#modal'))
     pg.click('#modal .btn.primary, #modal .btn.pri')
-    check('silindi; seçili tezgâh varsayılana döndü', pg.evaluate("JSON.parse(localStorage.getItem('mihenk.machines')||'[]').length") == 0 and pg.evaluate('app.doc.cam.machineId') == 'builtin-neway-vm1160h-m80v-gsa')
+    check('silindi; seçili tezgâh varsayılana döndü', pg.evaluate("JSON.parse(localStorage.getItem('mihenk.machines')||'[]').length") == 1 and pg.evaluate('app.doc.cam.machineId') == 'builtin-generic-3axis-fanuc')
     pg.click('#modal .btn.pri') if count(pg, '#modal:not(.hidden)') else None
     ctx.close()
 
+    # eski belge: doc.cam.machineId yerleşik Neway kimliği (K-026 öncesi)
+    LEG = {**BLOCK, 'cam': {'machineId': 'builtin-neway-vm1160h-m80v-gsa', 'tools': [], 'setups': [], 'verified': None}}
+    ctx, pg = newpage(); load(pg, LEG); pg.click('[data-testid=tab-manufacture]')
+    check('eski Neway belgesi, profil yok: çökmez, "tezgâh bulunamadı" + içe aktarma ipucu', count(pg, '[data-testid=cam-machine-missing]') == 1 and 'içe aktarın' in txt(pg, '[data-testid=cam-machine-missing]') and not pg.errs, pg.errs[:3])
+    ctx.close()
+    ctx, pg = newpage(); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", NEWAY); load(pg, LEG); pg.click('[data-testid=tab-manufacture]')
+    check('eski Neway belgesi, kullanıcı profili var: eşlenir', count(pg, '[data-testid=cam-machine-missing]') == 0 and 'Neway' in txt(pg, '[data-testid=cam-machine-row].sel') and pg.evaluate('app.cam.machine().id') == 'user-neway-vm1160h-m80v-gsa' and not pg.errs, pg.errs[:3])
+    ctx.close()
+    ctx, pg = newpage(); load(pg, BLOCK)
+    check('tasarım kipinde makine çipi yok', count(pg, '[data-testid=machine]') == 0 and 'Neway' not in txt(pg, 'body'))
+    ctx.close()
+
     print('takım kütüphanesi ve dokunulmaz numara')
-    ctx, pg = newpage(); load(pg, BLOCK); pg.click('[data-testid=tab-manufacture]')
+    ctx, pg = nw_page(BLOCK)
     pg.click('[data-cmd=cam-tools]')
     check('takım yöneticisi boş belge listesi', 'Belgede takım yok' in txt(pg, '[data-testid=tool-manager]'))
     pg.click('[data-testid=tl-new]')
@@ -157,7 +189,7 @@ try:
     ctx.close()
 
     print('setup, geri al, kayıt, dil')
-    ctx, pg = newpage(); load(pg, BLOCK); pg.click('[data-testid=tab-manufacture]')
+    ctx, pg = nw_page(BLOCK)
     check('model yokken değil: Yeni setup açık', pg.evaluate("document.querySelector('[data-cmd=cam-setup]').getAttribute('aria-disabled')") is None)
     pg.click('[data-cmd=cam-setup]')
     su = pg.evaluate('app.doc.cam.setups[0]')
@@ -411,9 +443,9 @@ try:
     check('EN: işlem paneli çevrildi', 'Operation' in txt(pg, '[data-testid=panel-title]') and 'Tool' in txt(pg, '[data-testid=op-tab-tool]') and 'Cutting data' in txt(pg, '#panel'), txt(pg, '#panel')[:200])
     check('EN: işlem rozeti ve durum çubuğu', 'Error' in txt(pg, '[data-testid=op-badge]') or 'Stale' in txt(pg, '[data-testid=op-badge]') or 'Done' in txt(pg, '[data-testid=op-badge]') or 'Not computed' in txt(pg, '[data-testid=op-badge]'), txt(pg, '[data-testid=op-badge]'))
     pg.evaluate("app.setLanguage('tr')")
-    # varsayılan Neway şablonu: tezgâh değerleri eksik → kapı 1 engeli
+    # varsayılan genel şablon: tezgâh değerleri eksik → kapı 1 engeli
     pg.keyboard.press('Escape')
-    pg.evaluate("() => app.cam.setMachine('builtin-neway-vm1160h-m80v-gsa')")
+    pg.evaluate("() => app.cam.setMachine('builtin-generic-3axis-fanuc')")
     pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=issue-list]', timeout=40000)
     check('şablon tezgâh: eksik değerler NC üretimini engeller', count(pg, '[data-testid=issue-row][data-level=block]') >= 1 and pg.evaluate('app.cam.ops.nc') is None, txt(pg, '#modal')[:300])
     pg.click('[data-testid=issues-close]')
@@ -526,7 +558,7 @@ try:
     ctx.close()
 
     # U-05/U-06/U-08: tezgâh şablonu ile Post → okunur alan adları, tek listede tüm post özellikleri, gruplanmış satırlar
-    ctx, pg = newpage(); load(pg, PART); pg.click('[data-testid=tab-manufacture]')
+    ctx, pg = nw_page(PART)
     pg.evaluate("(t) => app.cam.setTools(t)", TOOLS)
     pg.click('[data-cmd=cam-setup]'); pg.click('[data-testid=panel-ok]')
     pg.evaluate("""() => { const c = app.cam; c.ops.create('face'); c.closePanel(); c.ops.create('drill', 'drill'); c.closePanel(); }""")

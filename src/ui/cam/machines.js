@@ -3,10 +3,12 @@ import { h } from '../dom.js';
 import { modal, confirmBox, promptText, toast } from '../dom.js';
 import { icon } from '../icons.js';
 import { t, errText, fmtNum } from '../../shared/i18n.js';
-import { checkMachine, copyMachine, builtinMachines } from '../../cam/machines/builtin.js';
+import { checkMachine, copyMachine, builtinMachines, GENERIC_3AXIS_ID } from '../../cam/machines/builtin.js';
+import { exportMachines, importMachines } from '../../cam/machines/io.js';
 import { listPosts, getPost } from '../../cam/post/index.js';
 import { resolveProps } from '../../cam/post/engine.js';
 import { allMachines, saveUserMachines, userMachines, machineName } from './store.js';
+import { pickJson } from './toolui.js';
 import { clone, uid, parseIntList, numField, textField, selField, checkField, sec, callout, fld, unitBox, msgBox, setMsg, blockedByBadField } from './util.js';
 
 const WCS_LIST = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59'];
@@ -45,7 +47,7 @@ export function postMissing(machine) {
 }
 
 export function newMachineTemplate() {
-  const g = builtinMachines().find((m) => m.control === 'fanuc-generic') || builtinMachines()[1];
+  const g = builtinMachines().find((m) => m.id === GENERIC_3AXIS_ID) || builtinMachines()[0];
   const c = copyMachine(g, uid('mc'), t('cam.mc.new_name')); delete c.nameKey; return c;
 }
 
@@ -172,25 +174,38 @@ export async function openMachineManager(cam) {
     const wrap = h('div', { class: 'mc-list', 'data-testid': 'machine-manager' });
     const go = (act, m) => () => { pending = { act, m }; document.querySelector('#modal .actions button[data-v="act"]')?.click(); };
     const draw = () => {
-      const cur = cam.machineId; const list = allMachines();
-      wrap.replaceChildren(h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', { text: t('cam.mc.col_name') }), h('th', { text: t('cam.mc.col_control') }), h('th', { text: t('cam.mc.col_missing') }), h('th', { text: '' }))),
+      const cur = cam.effectiveMachineId; const list = allMachines();
+      const noUser = !userMachines().length;
+      wrap.replaceChildren(noUser ? h('div', { class: 'note', 'data-testid': 'mc-empty', text: t('cam.mc.empty_user') }) : null, h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', { text: t('cam.mc.col_name') }), h('th', { text: t('cam.mc.col_control') }), h('th', { text: t('cam.mc.col_missing') }), h('th', { text: '' }))),
         h('tbody', {}, list.map((m) => {
           const miss = checkMachine(m).missing.length + postMissing(m).length; const act = (label, ic, fn, tid) => h('button', { class: 'btn sm ghost', type: 'button', 'data-testid': tid, 'aria-label': label, title: label, onclick: fn, html: icon(ic, 'sm') });
           return h('tr', { class: m.id === cur ? 'sel' : '', 'data-id': m.id, 'data-testid': 'mc-row' },
             h('td', {}, h('label', { class: 'mc-pick' }, h('input', { type: 'radio', name: 'mc', checked: m.id === cur, 'data-testid': 'mc-use', onchange: () => { cam.setMachine(m.id); draw(); } }), h('span', { text: machineName(m) }), m.builtin ? h('span', { class: 'badge info', text: t('cam.mc.builtin') }) : null)),
             h('td', { class: 'mono', text: m.control }), h('td', { class: miss ? 'err' : '', text: miss ? t('cam.mc.n_missing', { n: miss }) : '—' }),
-            h('td', { class: 'r' }, act(t('cam.mc.copy'), 'duplicate', go('copy', m), 'mc-copy'), m.builtin ? null : act(t('cam.mc.edit'), 'properties', go('edit', m), 'mc-edit'), m.builtin ? null : act(t('cam.mc.delete'), 'trash', go('del', m), 'mc-del')));
+            h('td', { class: 'r' }, act(t('cam.mc.copy'), 'duplicate', go('copy', m), 'mc-copy'), act(t('cam.mc.export'), 'export', go('export', m), 'mc-export'), m.builtin ? null : act(t('cam.mc.edit'), 'properties', go('edit', m), 'mc-edit'), m.builtin ? null : act(t('cam.mc.delete'), 'trash', go('del', m), 'mc-del')));
         }))));
     };
     draw();
     const r = modal({ title: t('cam.mc.manager_title'), width: 720, content: h('div', {}, h('div', { class: 'note', text: t('cam.mc.manager_hint') }), wrap),
-      buttons: [{ label: t('cam.mc.new'), value: 'new', testid: 'mc-new' }, { label: '', value: 'act' }, { label: t('common.close'), cls: 'pri primary', value: 'close' }] });
+      buttons: [{ label: t('cam.mc.new'), value: 'new', testid: 'mc-new' }, { label: t('cam.mc.import'), value: 'import', testid: 'mc-import' }, { label: '', value: 'act' }, { label: t('common.close'), cls: 'pri primary', value: 'close' }] });
     document.querySelector('#modal .actions button[data-v="act"]')?.setAttribute('hidden', '');
     const v = await r;
     if (v === 'new') { const ed = await editMachine(newMachineTemplate(), { isNew: true }); if (ed) { persist([...userMachines(), ed]); cam.touchMachine(ed.id); } continue; }
+    if (v === 'import') {
+      let text; try { text = await pickJson(); } catch (e) { toast(t('cam.mc.import_failed', { msg: errText(e) }), true); continue; } if (text == null) continue;
+      try {
+        const res = importMachines(text, allMachines().map((x) => x.id));
+        if (res.machines.length) { persist([...userMachines(), ...res.machines]); cam.refreshMachines(); }
+        const n = res.machines.length;
+        toast(res.errors.length ? t('cam.mc.imported_some', { n, bad: res.errors.length, first: errText({ code: res.errors[0].code, params: res.errors[0].params }) }) : t('cam.mc.imported', { n }), { kind: res.errors.length ? 'warn' : 'ok' });
+      } catch (e) { toast(t('cam.mc.import_failed', { msg: errText(e) }), true); }
+      continue;
+    }
     if (v !== 'act' || !pending) return;
     const { act, m } = pending;
-    if (act === 'copy') {
+    if (act === 'export') {
+      try { const bytes = new TextEncoder().encode(exportMachines([m])); const p = await cam.app.writeOut(bytes, t('cam.mc.export_name') + '.json', 'json', true); if (p) toast(t('cam.mc.exported', { name: machineName(m) })); } catch (e) { toast(t('cam.mc.export_failed', { msg: errText(e) }), true); }
+    } else if (act === 'copy') {
       const nm = await promptText(t('cam.mc.copy_title'), t('cam.mc.copy_name', { name: machineName(m) })); if (!nm) continue;
       const c = copyMachine(m, uid('mc'), nm); delete c.nameKey; persist([...userMachines(), c]);
       const ed = await editMachine(c); persist(userMachines().map((x) => (x.id === c.id ? (ed || c) : x))); cam.touchMachine(c.id);

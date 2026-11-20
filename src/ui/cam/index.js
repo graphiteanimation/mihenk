@@ -5,7 +5,11 @@ import { h, $, toast, promptText, confirmBox, ctxMenu } from '../dom.js';
 import { icon } from '../icons.js';
 import { t, errText, fmtNum } from '../../shared/i18n.js';
 import { allMachines, machineName } from './store.js';
-import { checkMachine } from '../../cam/machines/builtin.js';
+import { checkMachine, GENERIC_3AXIS_ID } from '../../cam/machines/builtin.js';
+
+// Eski belgeler (K-026): kaldirilan yerlesik profilin kimligi ('builtin-<ad>') ayni adli kullanici profiline ('user-<ad>') eslenir;
+// o da yoksa 'tezgah bulunamadi' yolu calisir.
+const legacyUserId = (id) => (typeof id === 'string' && id.startsWith('builtin-') ? 'user-' + id.slice(8) : null);
 import { resolveSetup } from '../../cam/index.js';
 import { clone, uid, hidePanel } from './util.js';
 import { SetupPanel, defaultSetup } from './setup.js';
@@ -28,10 +32,16 @@ export class CamCtl {
   // ---------------------------------------------------------------- veri
   machineLabel(m) { return machineName(m).split(' · ')[0]; }
   selLabel() { const s = this.sel; if (!s) return '—'; if (s.kind === 'setup') return this.setup(s.id)?.name || '—'; const l = this.opLoc(s.id); return l ? l.op.name : '—'; }
-  defaultMachineId() { return allMachines()[0]?.id || null; }
+  defaultMachineId() { const l = allMachines(); return (l.find((m) => m.id === GENERIC_3AXIS_ID) || l[0])?.id || null; }
   data() { return this.app.doc.cam || { machineId: this.defaultMachineId(), tools: [], setups: [], verified: null }; }
   get machineId() { return this.data().machineId ?? this.defaultMachineId(); }
-  machine() { return allMachines().find((m) => m.id === this.machineId) || null; }
+  machine() {
+    const l = allMachines(); const id = this.machineId;
+    const lu = legacyUserId(id);
+    return l.find((m) => m.id === id) || (lu ? l.find((m) => m.id === lu) : null) || null;
+  }
+  // belgedeki kimlik eski bir kimlikse eslenen profilin gercek kimligi
+  get effectiveMachineId() { return this.machine()?.id ?? this.machineId; }
   protectedLists() { return this.machine()?.protected || null; }
   tools() { return this.data().tools; }
   setups() { return this.data().setups; }
@@ -43,6 +53,7 @@ export class CamCtl {
     this.app.commitMeta((doc) => { if (!doc.cam) doc.cam = { machineId: this.defaultMachineId(), tools: [], setups: [], verified: null }; if (!doc.cam.machineId) doc.cam.machineId = this.defaultMachineId(); fn(doc.cam); });
   }
   setMachine(id) { if (id === this.machineId && this.app.doc.cam) return; this.mut((c) => { c.machineId = id; }); }
+  refreshMachines() { this._res.clear(); this.app.C.renderAll(); }
   touchMachine(id) { if (id === this.machineId) { this._res.clear(); this.app.C.renderAll(); } }
   setTools(list) { this.mut((c) => { c.tools = list; }); }
   nextSetupName() { const n = new Set(this.setups().map((s) => s.name)); let i = this.setups().length + 1; while (n.has(t('cam.su.default_name', { n: i }))) i++; return t('cam.su.default_name', { n: i }); }
@@ -161,7 +172,7 @@ export class CamCtl {
     kids.push(sec(t('cam.br.machines'), h('button', { class: 'btn sm', type: 'button', 'data-testid': 'cam-machines-manage', onclick: () => openMachineManager(this) }, t('cam.br.manage'))));
     if (!mach) kids.push(row({ err: true, kids: [h('span', { class: 'tw', html: icon('error', 'sm') }), nm(t('cam.br.machine_missing'))], testid: 'cam-machine-missing' }));
     for (const m of allMachines()) {
-      const on = m.id === this.machineId; const miss = checkMachine(m).missing.length;
+      const on = m.id === this.effectiveMachineId; const miss = checkMachine(m).missing.length;
       kids.push(row({ id: m.id, testid: 'cam-machine-row', sel: on, click: () => this.setMachine(m.id), kids: [h('span', { class: 'radio' + (on ? ' on' : ''), style: { minHeight: 0 } }, h('span', { class: 'dot' })), h('span', { html: icon(m.axes?.A ? 'axes-4' : 'axes-3', 'sm') }), nm(machineName(m)), miss ? h('span', { class: 'badge warn', title: t('cam.mc.n_missing', { n: miss }), html: icon('warning', 'sm') }) : h('span', { class: 'val', text: m.control === 'mitsubishi-m80v' ? 'M80V' : '' })] }));
     }
     for (const k of ['4', '5']) kids.push(row({ dim: true, kids: [h('span', { class: 'radio', style: { minHeight: 0 } }, h('span', { class: 'dot' })), h('span', { html: icon('axes-' + k, 'sm') }), nm(t('cam.br.axes_n', { n: k })), h('span', { class: 'val', text: t('ui.soon') })] }));
