@@ -239,6 +239,76 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   ok(o.featInfo.b.changed && o.featInfo.b.sum === 'sup' && o.status.b.suppressed, 'bastırma: sonuç değişti');
 }
 
+// --- WP-02 dilim 4: sıra değiştirme (arayüz planı, çekirdekle doğrulama)
+{
+  const { part12 } = await import('./models/part12.mjs');
+  const FS = await import('../src/ui/features.js');
+  const KM = await initKernel(opencascade, () => wasm);
+  const d = part12('30'); const ids = d.features.map((f) => f.id); const r0 = await KM.rebuild(d);
+  const vol = (r) => r.bodies.map((b) => b.volume).reduce((a, b) => a + b, 0);
+  let p = FS.planMove(d, ids.indexOf('k3'), ids.indexOf('bx'), r0.status);
+  ok(p.ok && p.features.map((f) => f.id).join() === 's1,e1,k3,bx,k1,k2,s2,e2,fb,ch,cy,cz' && p.at === 2, 'planMove: k3 Kutu 1 önüne: ' + JSON.stringify(p.why || p.features?.map((f) => f.id)));
+  const r1 = await KM.rebuild({ ...d, features: p.features });
+  ok(Object.values(r1.status).every((s) => s.ok) && Math.abs(vol(r1) - vol(r0)) < 1e-6 * vol(r0), 'taşınan sıra hatasız hesaplanır, toplam hacim aynı');
+  p = FS.planMove(d, ids.indexOf('k3'), 0, r0.status); ok(!p.ok && p.why.feat === 'k3' && p.why.dep === 'e1', 'planMove: k3 Extrude 1 önüne geçemez (k3 → e1): ' + JSON.stringify(p.why));
+  p = FS.planMove(d, ids.indexOf('fb'), ids.indexOf('bx'), r0.status); ok(!p.ok && p.why.dep === 'bx', 'planMove: yuvarlatma kenarını aldığı kutunun önüne geçemez (topolojik ad kökeni)');
+  p = FS.planMove(d, ids.indexOf('e1'), ids.indexOf('k1'), r0.status); ok(p.ok && p.features.map((f) => f.id).slice(0, 3).join() === 'bx,s1,e1', 'planMove: kaynaşmış eskiz tüketicisiyle birlikte taşınır');
+  p = FS.planMove(d, ids.indexOf('e1'), ids.indexOf('k2'), r0.status); ok(!p.ok && p.why.feat === 'k1' && p.why.dep === 'e1', 'planMove: Extrude 1 kendisine dayanan k1 ardına geçemez');
+  ok(FS.planMove(d, ids.indexOf('k3'), ids.indexOf('k3'), r0.status).noop && FS.planMove(d, ids.indexOf('k3'), ids.indexOf('k3') + 1, r0.status).noop, 'planMove: yerinde bırakma değişiklik değil');
+  const dr = { ...d, rollback: 5 };
+  p = FS.planMove(dr, ids.indexOf('k3'), 3, r0.status); ok(p.ok && p.rollback === 6 && p.features[3].id === 'k3', 'planMove: işaretçinin sağından soluna taşınan işlem etkinleşir, işaretçi aynı komşular arasında');
+  p = FS.planMove(dr, ids.indexOf('k1'), 9, r0.status); ok(p.ok && p.rollback === 4, 'planMove: işaretçinin soluna giden işlem sağa taşınınca işaretçi bir geri');
+  p = FS.planMove(dr, ids.indexOf('k3'), 5, r0.status); ok(p.ok && p.rollback === 6 && p.features[5].id === 'k3', 'planMove: işaretçi aralığına bırakma = işaretçinin önü');
+  const dg = { ...d, groups: [{ id: 'g1', name: 'G', first: 'k1', last: 'k3' }, { id: 'g2', name: 'X', first: 'k2', last: 'cz' }, { id: 'g3', first: 'yok', last: 'cz' }, null] };
+  ok(FS.groupRanges(dg).length === 1 && FS.groupRanges(dg)[0].ids.length === 6, 'groupRanges: çakışan / eksik / bozuk grup kayıtları yok sayılır');
+  p = FS.planMove(dg, ids.indexOf('ch'), ids.indexOf('fb'), r0.status); ok(p.ok && p.groups[0].last === 'k3' && p.features.findIndex((f) => f.id === 'ch') < p.features.findIndex((f) => f.id === 'k3'), 'grup aralığına bırakılan işlem gruba girer');
+  p = FS.planMove(dg, ids.indexOf('k3'), ids.indexOf('ch'), r0.status); ok(p.ok && !p.noop && p.groups[0].last === 'fb' && p.features.map((f) => f.id).join() === ids.join(), 'son üyeyi grubun hemen arkasına bırakmak: sıra aynı, üyelikten çıkar');
+  ok(FS.fixGroups(dg, d.features.filter((f) => f.id !== 'k1'))[0].first === 'k2', 'fixGroups: ilk üye silinince grup bir sonrakinden başlar');
+  ok(FS.fixGroups(d, d.features) === undefined, 'fixGroups: grupsuz belgede alan oluşmaz');
+  p = FS.planMove(d, ids.indexOf('k3'), ids.indexOf('k1'), r0.status); ok(p.ok && p.sensitive.join() === 'k1,k2,e2', 'planMove: aynı gövdeyi değiştirenlerin üzerinden atlama sıraya duyarlı: ' + JSON.stringify(p.sensitive));
+  p = FS.planMove(d, ids.indexOf('bx'), ids.indexOf('k2'), r0.status); ok(p.ok && p.sensitive.length === 0, 'planMove: başka gövdeye dokunanlar üzerinden atlama duyarlı değil');
+  const T = FS.dropTargets(d, ids.indexOf('k3'), r0.status); ok(T.length === 13 && !T[0].ok && !T[1].ok && T[2].ok && T[8].noop && T[9].noop, 'dropTargets: her aralık için izin/neden');
+}
+
+// --- WP-02 dilim 5: hesap iptali, onarım bilgisi, işlemin yüzleri
+{
+  const { part12 } = await import('./models/part12.mjs');
+  const KC = await initKernel(opencascade, () => wasm);
+  const sig = (r) => JSON.stringify([Object.values(r.status).map((x) => x.ok), r.bodies.map((x) => [x.id, Math.round(x.volume)])]);
+  const KF = await initKernel(opencascade, () => wasm);
+  const d = part12('30'), d2 = part12('40'); await KC.rebuild(d); let n = 0;
+  let err = null; try { await KC.rebuild(d2, { shouldStop: () => ++n > 6 }); } catch (e) { err = e; }
+  ok(err && err.code === 'rebuild.cancelled', 'iptal: shouldStop → rebuild.cancelled: ' + (err && err.code));
+  ok(KC.last && KC.last.bodies.get('bx') && KC.cache.length === 12, 'iptal: önbellek ve son durum önceki tamamlanmış hesaptaki gibi');
+  const r2 = await KC.rebuild(d2); ok(sig(r2) === sig(await KF.rebuild(d2)) && Object.values(r2.status).every((x) => x.ok), 'iptal sonrası tam hesap, sıfırdan hesapla aynı');
+  ok(r2.featInfo.e1.cached && !r2.featInfo.bx.cached, 'iptal sonrası değişmeyen önek önbellekten');
+  n = 0; try { await KC.rebuild(d, { shouldStop: () => ++n > 3 }); } catch (e) { /* beklenen */ }
+  const r3 = await KC.rebuild(d); ok(sig(r3) === sig(await KF.rebuild(d)), 'ikinci iptal sonrası da doğru');
+  const ff = KC.featureFaces('bx'); ok(ff.length === 1 && ff[0].body === 'bx' && ff[0].faces.length >= 5, 'featureFaces: kutunun yüzleri (' + JSON.stringify(ff) + ')');
+  ok(KC.featureFaces('k1').some((x) => x.body === 'e1' && x.faces.length >= 1), 'featureFaces: delik (kesme) yüzü hedef gövdede ' + JSON.stringify(KC.featureFaces('k1')) + ' ' + JSON.stringify([...KC.last.bodies.keys()]));
+  { // iptal özetleri kirletmez: A → (B iptal) → B tam: düzenlenen kutu yine "değişti"
+    const KS = await initKernel(opencascade, () => wasm); await KS.rebuild(d); let m = 0;
+    try { await KS.rebuild(d2, { shouldStop: () => ++m > 6 }); } catch (e) { /* beklenen */ }
+    const rB = await KS.rebuild(d2); ok(rB.featInfo.bx.changed && !rB.featInfo.e1.changed, 'iptal sonrası featInfo.changed doğru (bx değişti, e1 aynı)');
+    m = 0; try { await KS.rebuild(d, { shouldStop: () => ++m > 6 }); } catch (e) { /* beklenen */ }
+    const rA = await KS.rebuild(d); ok(rA.featInfo.bx.changed, 'geri dönüşte de bx "değişti" (iptal edilen hesap özeti yazmadı)');
+  }
+  // onarım: yuvarlatmanın kenarını yok eden değişiklik
+  const hd = (h) => ({ params: [], features: [
+    { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '40', h: '20', op: 'new' },
+    { id: 'c', type: 'primitive', kind: 'cylinder', x: '20', y: '20', z: '-1', dia: '10', h, axis: 'Z', op: 'cut', targets: ['b'] },
+    { id: 'f', type: 'fillet', edges: [{ body: 'b', kind: 'edge', name: { a: 'b:z+', b: 'c:side' } }], r: '1' }] });
+  const KR = await initKernel(opencascade, () => wasm);
+  await KR.rebuild(hd('100')); const rb = await KR.rebuild(hd('10'));
+  ok(rb.status.f.ok === false, 'onarım öncesi: yuvarlatma hatalı (' + JSON.stringify(rb.status.f.error) + ')');
+  const ri = KR.repairInfo('f');
+  ok(ri.total === 1 && ri.lost.length === 1 && ri.lost[0].field === 'edges' && ri.lost[0].index === 0 && ri.lost[0].kind === 'edge', 'repairInfo: kaybolan kenar (alan, sıra)');
+  const g = ri.lost[0].ghost; let zmax = -1e9; for (let q = 2; q < (g ? g.length : 0); q += 3) zmax = Math.max(zmax, g[q]);
+  ok(g && g.length >= 6 && Math.abs(zmax - 20) < 1e-3, 'repairInfo: hayalet çizgi son başarılı konumda (z=20 delik ağzı)');
+  ok(ri.lost[0].cands.length >= 1 && ri.lost[0].cands.every((c) => c.body === 'b' && c.kind === 'edge'), 'repairInfo: yakın aday kenarlar: ' + JSON.stringify(ri.lost[0].cands) + ' ' + JSON.stringify(Array.from(g || []).slice(0, 6)));
+  ok(KR.repairInfo('b').lost.length === 0 && KR.repairInfo('yok').lost.length === 0, 'repairInfo: sağlam / olmayan işlem → boş');
+}
+
 console.log('T-14 camHoleExit: delik ekseninde son çıkış');
 {
   const KX = await initKernel(opencascade, () => wasm);

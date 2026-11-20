@@ -467,7 +467,18 @@ export class Kernel {
     // WP-02: işlem başına iz (status'tan ayrı; status biçimi ve önbellek eşitliği değişmez)
     // featInfo[id] = {ms, cached, changed, warn:[{code,params}], sum, lastOk:{rev}|null}
     const featInfo = {}; const rev = ++this.rev;
+    // WP-02 dilim 5: iptal edilebilir yeniden hesap (opts.shouldStop). İşlemler arasında olay döngüsüne kısa dönüş
+    // yapılır (yalnız ~8 ms'den uzun süre geçtiyse), böylece işçi "cancel" iletisini işleyebilir. İptalde önbellek ve
+    // son durum (this.last) bir önceki tamamlanmış hesaptaki gibi kalır (iptal edilen hesabın öneki saklanmaz:
+    // yarıda bırakılan durumun OCCT nesneleri sonraki hesapta güvenilir değildi, bkz. kernel.test.mjs).
+    let lastYield = now();
+    // iptalde işlem özetleri (changed karşılaştırması) ve son başarılı sonuçlar iptal öncesine döner
+    const keep = opts.shouldStop ? { sums: new Map(this.sums), lastGood: new Map(this.lastGood), upgrades: new Map(this.upgrades) } : null;
     for (let i = 0; i < end; i++) {
+      if (opts.shouldStop) {
+        if (now() - lastYield > 8) { await fastYield(); lastYield = now(); }
+        if (opts.shouldStop()) { this.sums = keep.sums; this.lastGood = keep.lastGood; this.upgrades = keep.upgrades; throw new KErr('rebuild.cancelled'); }
+      }
       const f = feats[i];
       if (!f || typeof f !== 'object' || typeof f.id !== 'string' || !f.id) { docErrors.push({ code: 'feature.invalid', params: { index: i } }); valid = false; newCache.push(null); continue; }
       const key = pkey + '|' + featKey(f, this.hashes);
@@ -499,7 +510,7 @@ export class Kernel {
     }
     // önbellek: işaretçinin sağındaki kayıtlar, önek hiç değişmediyse saklanır (geri sar → sona git yeniden hesaplamaz)
     if (valid && end < feats.length) for (let i = end; i < this.cache.length; i++) newCache.push(this.cache[i]);
-    this.cache = newCache; this.last = state;
+    this.cache = newCache; this.last = state; this.lastFeats = feats;
     // belgede artık olmayan işlemlerin izi silinir
     const ids = new Set(feats.map((f) => f && f.id));
     for (const m of [this.sums, this.lastGood]) for (const k of [...m.keys()]) if (!ids.has(k)) m.delete(k);
@@ -535,6 +546,59 @@ export class Kernel {
   }
   // son başarılı sonucun girdi durumu (onarım kipi için; dilim 5). Yoksa null.
   lastGoodState(id) { return this.lastGood.get(id)?.input || null; }
+  // WP-02 dilim 5: onarım kipi. Son hesaplanan belgede `id` işleminin seçimlerinden (kenar/yüz Ref) girdi durumunda
+  // çözülemeyenler; her biri için son başarılı hesaptaki konumu (hayalet çizgi) ve yakındaki aynı türden adaylar.
+  repairInfo(id) {
+    const feats = this.lastFeats || []; const i = feats.findIndex((f) => f && f.id === id); if (i < 0) return { lost: [], total: 0 };
+    const f = feats[i]; const input = i === 0 ? { bodies: new Map() } : this.cache[i - 1]?.state; if (!input) return { lost: [], total: 0 };
+    const refs = [];
+    const isRef = (v) => v && typeof v === 'object' && !Array.isArray(v) && typeof v.body === 'string' && (v.kind === 'edge' || v.kind === 'face');
+    for (const [k, v] of Object.entries(f)) {
+      if (Array.isArray(v)) v.forEach((x, j) => { if (isRef(x)) refs.push({ field: k, index: j, ref: x }); });
+      else if (isRef(v)) refs.push({ field: k, index: null, ref: v });
+    }
+    if (f.type === 'sketch' && f.plane?.kind === 'face' && f.plane.ref) refs.push({ field: 'plane.ref', index: null, ref: { kind: 'face', ...f.plane.ref } });
+    const old = this.lastGoodState(id); const lost = [];
+    const linesOf = (body, kind, k) => {
+      const m = this.mesh(body); if (m.error) return null; const out = [];
+      const idxs = kind === 'edge' ? [k] : TP.topoOf(body.shape).faceEdges[k] || [];
+      for (const e of idxs) { const g = m.edgeGroups.find((x) => x.idx === e); if (g) for (let q = g.start * 3; q < (g.start + g.count) * 3; q++) out.push(m.lines[q]); }
+      return out.length ? out : null;
+    };
+    for (const R0 of refs) {
+      const kind = R0.ref.kind;
+      try { this.resolveIdx(R0.ref, input, kind); continue; } catch (e) { R0.code = e.code || 'ref.unnamed'; }
+      let ghost = null;
+      if (old) { try { const { body, i: k } = this.resolveIdx(R0.ref, old, kind); ghost = linesOf(body, kind, k); } catch (e) { ghost = null; } }
+      const cands = [];
+      if (ghost) {
+        // aday uzaklığı: aday noktalarından hayalet çizgiye en kısa uzaklık (seyreltilmiş örnekler)
+        const gp = []; for (let q = 0; q < ghost.length; q += 3 * Math.max(1, Math.floor(ghost.length / 3 / 64))) gp.push([ghost[q], ghost[q + 1], ghost[q + 2]]);
+        const near = (L) => { let m = Infinity; const st = 3 * Math.max(1, Math.floor(L.length / 3 / 32)); for (let q = 0; q < L.length; q += st) for (const p of gp) m = Math.min(m, V.dist([L[q], L[q + 1], L[q + 2]], p)); return m; };
+        let diag = 10;
+        for (const [bid, b] of input.bodies) {
+          const bb = b.shape.boundingBox; diag = Math.max(diag, Math.hypot(bb.width, bb.height, bb.depth));
+          const m = this.mesh(b); if (m.error) continue;
+          if (kind === 'edge') for (const g of m.edgeGroups) { if (g.idx < 0) continue; const L = m.lines.subarray(g.start * 3, (g.start + g.count) * 3); cands.push({ body: bid, idx: g.idx, kind, d: near(L) }); }
+          else { const T = TP.topoOf(b.shape); T.faces.list.forEach((raw, k) => { const ctr = TP.faceWrap(raw).center.toTuple(); cands.push({ body: bid, idx: k, kind, d: Math.min(...gp.map((p) => V.dist(ctr, p))) }); }); }
+        }
+        cands.sort((a, b) => a.d - b.d); const lim = Math.max(2, diag * 0.5);
+        cands.splice(0, cands.length, ...cands.filter((x) => x.d <= lim).slice(0, 3));
+      }
+      lost.push({ field: R0.field, index: R0.index, kind, code: R0.code, ghost: ghost ? new Float32Array(ghost) : null, cands: cands.map(({ body, idx, kind: kk }) => ({ body, idx, kind: kk })) });
+    }
+    return { lost, total: refs.length };
+  }
+  // WP-02 dilim 5: son modelde `id` işleminin ürettiği yüzler (topolojik ad kökeni "id:..."); 3B'de boyamak için
+  featureFaces(id) {
+    const out = []; if (!this.last || typeof id !== 'string') return out;
+    for (const [bid, b] of this.last.bodies) {
+      const set = new Set();
+      for (const [name, idx] of aliasSet(b)) if (name === id || name.startsWith(id + ':')) for (const k of idx) set.add(k);
+      if (set.size) out.push({ body: bid, faces: [...set].sort((a, c) => a - c) });
+    }
+    return out;
+  }
 
   mesh(b) { let m = this.meshCache.get(b.shape); if (!m) { try { m = meshBody(b); } catch (e) { m = { error: errOf(e) }; } this.meshCache.set(b.shape, m); } return m; }
 
@@ -677,6 +741,9 @@ function resultSum(f, before, after) {
 }
 // 32 bit FNV-1a (özet karşılaştırması için; güvenlik amacı yok)
 function fnv(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); }
+const fastYield = () => (typeof MessageChannel === 'function' && typeof setImmediate !== 'function'
+  ? new Promise((res) => { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); res(); }; c.port2.postMessage(0); })
+  : new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0))));
 const yieldTask = () => new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0)));
 // özellik önbellek anahtarı: içe aktarma verisi tam içerik özetiyle (F-02)
 function featKey(f, hashes) { return JSON.stringify(f, (k, v) => (k === 'name' ? undefined : k === 'data' && typeof v === 'string' ? 'sha:' + (hashes.get(v) || '?') : v)); }
