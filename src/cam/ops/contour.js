@@ -176,7 +176,7 @@ export function computeContour(op, ctx) {
     const side = op.side ?? it.defSide; if (!['outside', 'inside', 'on'].includes(side)) throw cerr('cam.op.bad_field', { field: 'side', expect: 'outside/inside/on', op: op.name || op.id });
     const base = it.loop; // CCW, bolge solda
     if (comp === 'wear' && hasChain && side !== 'on') wearLeadCheck();
-    if (side === 'on') { if (comp === 'wear') throw cerr('cam.contour.wear_on'); passes.push({ loops: [[{ loop: dir === 'climb' ? base : P.reverseLoop(base), d: 0 }]], toolSide: null, check: () => true, base }); continue; }
+    if (side === 'on') { if (comp === 'wear') throw cerr('cam.contour.wear_on'); if (ramp.kind === 'helix') throw cerr('cam.contour.helix_side'); passes.push({ loops: [[{ loop: dir === 'climb' ? base : P.reverseLoop(base), d: 0 }]], toolSide: null, check: () => true, base }); continue; }
     const outside = side === 'outside';
     const dFinal = (comp === 'wear' ? 0 : r) + stR; const dCheck = r + stR;
     const ds = []; if (rough) for (let k = rough.n; k >= 1; k--) ds.push(dFinal + k * rough.so); ds.push(dFinal);

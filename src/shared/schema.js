@@ -103,7 +103,7 @@ const camOp = obj({
   stockToLeave: either(camNum(0), obj({ radial: camNum(0), axial: camNum(0) }), 'number/{radial,axial}'),
   // WP-07: dairesel frezeleme (circular) ve dis frezeleme (threadmill)
   dia: camNum(0), diaAdjust: camNum(), predrillDia: camNum(0), external: bool(), hand: oneOf(['right', 'left']), designation: str(40), major: camNum(0), pitch: camNum(0, 100),
-  radialPasses: posInt(20), springPasses: camNum(0, 5), radialAdjust: camNum(), feedAtEdge: bool(), length: camNum(0),
+  radialPasses: posInt(20), springPasses: camNum(0, 5), radialAdjust: camNum(-0.2, 0.2), feedAtEdge: bool(), length: camNum(0),
 });
 const camSetup = obj({
   id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),

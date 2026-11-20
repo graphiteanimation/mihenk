@@ -412,7 +412,8 @@ export class OpPanel {
         this.num(t('cam.op.th_length'), 'length', { min: 0.001, nullable: true, f: 'th-length', hint: t('cam.op.th_length_hint') }),
         this.num(t('cam.op.th_passes'), 'radialPasses', { unit: '', int: true, min: 1, max: 20, f: 'th-passes', hint: t('cam.op.th_passes_hint') }),
         this.num(t('cam.op.th_spring'), 'springPasses', { unit: '', int: true, min: 0, max: 5, f: 'th-spring' }),
-        this.num(t('cam.op.th_adjust'), 'radialAdjust', { min: -10, nullable: true, f: 'th-adjust', hint: t('cam.op.th_adjust_hint') }));
+        this.num(t('cam.op.th_adjust'), 'radialAdjust', { min: -0.2, max: 0.2, nullable: true, f: 'th-adjust', hint: t('cam.op.th_adjust_hint') }),
+        callout('info', null, t('cam.op.th_sim_note')));
     } else if (d.type === 'drill') {
       if (d.cycle === 'peck' || d.cycle === 'chipbreak') rows.push(this.num(t('cam.op.peck'), 'peck', { min: 0.001, f: 'peck', hint: t('cam.op.peck_hint') }));
       rows.push(this.num(t('cam.op.dwell'), 'dwell', { unit: t('cam.u.s'), min: 0, nullable: true, f: 'dwell', hint: t('cam.op.dwell_hint') }),

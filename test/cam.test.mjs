@@ -998,7 +998,7 @@ section('WP-07 dilim 1. dairesel frezeleme (circular) ve dis frezeleme (threadmi
   const { simulate } = await import('../src/cam/sim/index.js');
   const { METRIC_COARSE, coarsePitch, threadDepth, minorDia } = await import('../src/cam/threads.js');
   const { parseThread, threadDirection, holeOpen } = await import('../src/cam/ops/thread.js');
-  const tm = (dia = 6, extra = {}) => ({ id: 'tm' + dia, number: 7, lengthOffset: 7, diaOffset: 7, type: 'threadmill', dia, fluteLen: 12, bodyLen: 40, flutes: 1, centerCutting: false, shaftDia: 5, ...extra });
+  const tm = (dia = 6, extra = {}) => ({ id: 'tm' + dia, number: 7, lengthOffset: 7, diaOffset: 7, type: 'threadmill', dia, fluteLen: 20, bodyLen: 40, flutes: 1, centerCutting: false, shaftDia: 5, ...extra });
   const hole = (extra = {}) => ({ positions: [[50, 30, 0]], dirs: [[0, 0, -1]], dia: 8.5, depth: 20, through: false, feature: 'h1', dir: [0, 0, -1], ...extra });
   const top = { op: 'threadmill', type: 'threadmill' };
   const thop = (extra = {}) => ({ id: 'th', type: 'threadmill', ...base, holes: { kind: 'feature' }, designation: 'M10', length: 15, ...extra });
@@ -1013,8 +1013,9 @@ section('WP-07 dilim 1. dairesel frezeleme (circular) ve dis frezeleme (threadmi
   const ha = helixArcs(tp); const th = tp.meta.thread;
   ok(th.pitch === 1.5 && th.internal && th.hand === 'right' && th.dir === 'climb' && th.ccw === true && th.zUp === true && th.passes === 1, 'ic sag tirmanma: tablodan hatve 1,5; CCW + yukari');
   ok(Math.abs(th.rho - 2) < 1e-9 && Math.abs(th.depth - 0.8119) < 1e-3 && Math.abs(th.turns - 10) < 1e-9, 'ic: merkez yolu yaricapi D/2 - R = 2, dis derinligi 0,812, 10 devir');
-  ok(ha.length === 20 && ha.every((m) => m.dir === 'ccw'), 'ic sag tirmanma: 20 yarim yay hepsi G3 (CCW)');
-  { const from = { x: 52, y: 30, z: -15 }; let okz = true, okr = true, z = -15; for (const m of ha) { okz = okz && Math.abs(m.z - z - 0.75) < 1e-9; z = m.z; okr = okr && Math.abs(Math.hypot(m.x - 50, m.y - 30) - 2) < 1e-9; } ok(okz && okr && Math.abs(z) < 1e-9, 'ic sag tirmanma: her yarim yay +P/2 = 0,75 yukari, yaricap 2, son z = ust (0)'); void from; }
+  // WP-07 duzeltme: giris/cikis yaylari Z'yi helisle yuruttugu icin kesme helisi 2 yarim yay (1 tur) kisaldi: 18 yarim yay
+  ok(ha.length === 18 && ha.every((m) => m.dir === 'ccw'), 'ic sag tirmanma: 18 yarim yay hepsi G3 (CCW)');
+  { const from = { x: 52, y: 30, z: -14.25 }; let okz = true, okr = true, z = -14.25; for (const m of ha) { okz = okz && Math.abs(m.z - z - 0.75) < 1e-9; z = m.z; okr = okr && Math.abs(Math.hypot(m.x - 50, m.y - 30) - 2) < 1e-9; } ok(okz && okr && Math.abs(z + 0.75) < 1e-9, 'ic sag tirmanma: her yarim yay +P/2 = 0,75 yukari, yaricap 2, son z = ust - P/2 (-0,75); son yarim hatve cikis yayinda'); void from; }
   ok(Math.abs(ha[0].f - 800 * 2 / 5) < 1e-9, 'ic: dairesel ilerleme = feedCut * rho / (rho + R) = 600*2/5 = 240: ' + ha[0].f);
   { const lead = arcsOf(tp).filter((m) => m.kind === 'lead'); ok(lead.length === 2 && lead[0].dir === 'ccw' && Math.abs(lead[0].x - 52) < 1e-9 && Math.abs(lead[0].i - 1) < 1e-9 && Math.abs(lead[0].f - 160) < 1e-9, 'ic: giris yari cemberi eksenden (50,30) -> (52,30), merkez (51,30), yari ilerleme'); ok(Math.abs(lead[1].x - 50) < 1e-9 && Math.abs(lead[1].y - 30) < 1e-9 && lead[1].dir === 'ccw', 'ic: cikis yari cemberi eksene doner'); }
   ok(tp.moves[2].t === 'feed' && tp.moves[2].kind === 'plunge' && tp.moves[2].clear === true && Math.abs(tp.moves[2].z + 15) < 1e-9 && Math.abs(tp.moves[2].x - 50) < 1e-9, 'ic: eksende dikey inis (delik acik varsayimi: clear)');
@@ -1030,7 +1031,7 @@ section('WP-07 dilim 1. dairesel frezeleme (circular) ve dis frezeleme (threadmi
     // sag el helisi: CCW giderken yukselir; sol el: alcalir (bagimsiz geometri denetimi)
     const rightHanded = (dir === 'ccw') === (dz > 0); ok(rightHanded === (el === 'right'), `dis yonu: el kuralı (${el}) geometriyle uyumlu`);
     const first = h2[0], last = h2[h2.length - 1]; ok(up ? (first.z < last.z) : (first.z > last.z) && Math.abs(Math.abs(last.z - (up ? -15 : 0)) ) < 1e-9 || true, 'dis yonu: z araligi');
-    const z0 = t2.moves.find((m) => m.t === 'arc' && m.kind === 'lead').z; ok(Math.abs(z0 - (up ? -15 : 0)) < 1e-9, `dis yonu: giris z = ${up ? 'alt' : 'ust'} (${z0})`);
+    const z0 = t2.moves.find((m) => m.t === 'arc' && m.kind === 'lead').z; ok(Math.abs(z0 - (up ? -14.25 : -0.75)) < 1e-9, `dis yonu: giris yayi helisle uyumlu, bitis z = ${up ? 'alt' : 'ust'} -/+ P/2 (${z0})`);
   }
   ok(threadDirection({ internal: true, hand: 'right', dir: 'climb' }).zUp === true && threadDirection({ internal: false, hand: 'left', dir: 'conv' }).ccw === true, 'dis: threadDirection yardimcisi tablo ile ayni');
   // ---- dis dis (elle): d3 = 10 - 1,2269*1,5 = 8,1597; rho = 4,07985 + 3 = 7,07985; ilerleme 600 * rho/(rho-3)
@@ -1044,7 +1045,7 @@ section('WP-07 dilim 1. dairesel frezeleme (circular) ve dis frezeleme (threadmi
   { const t3 = CAM.computeOp(thop({ radialPasses: 3, springPasses: 1 }), { setup: S0, tool: tm(), geom: { holes: [hole()] } });
     const rs = [...new Set(helixArcs(t3).map((m) => Math.round(Math.hypot(m.x - 50, m.y - 30) * 1e4) / 1e4))].sort((a, b) => a - b);
     const d = threadDepth(1.5, true) / 3; ok(t3.meta.thread.passes === 4 && rs.length === 3 && Math.abs(rs[0] - (2 - 2 * d)) < 1e-3 && Math.abs(rs[1] - (2 - d)) < 1e-3 && Math.abs(rs[2] - 2) < 1e-3, 'ic: 3 radyal paso + 1 spring: rho = 2-2d, 2-d, 2, 2 (d=' + d.toFixed(4) + '): ' + rs);
-    ok(helixArcs(t3).length === 80, 'ic: 4 gecis x 20 yarim yay'); validateToolpath(t3); }
+    ok(helixArcs(t3).length === 72, 'ic: 4 gecis x 18 yarim yay'); validateToolpath(t3); }
   { const t4 = CAM.computeOp(thop({ radialAdjust: 0.05 }), { setup: S0, tool: tm(), geom: { holes: [hole()] } }); ok(Math.abs(t4.meta.thread.rho - 2.05) < 1e-9, 'ic: radialAdjust +0,05 -> rho 2,05 (daha derin)'); }
   // ---- hatve ve cap kaynaklari
   ok(CAM.computeOp(thop({ designation: 'M8' }), { setup: S0, tool: tm(5), geom: { holes: [hole({ dia: 6.8 })] } }).meta.thread.pitch === 1.25, 'dis: M8 -> tablodan 1,25');
@@ -1087,6 +1088,30 @@ section('WP-07 dilim 1. dairesel frezeleme (circular) ve dis frezeleme (threadmi
     ok(sim(ex, boss, boss).filter((i) => i.level === 'error').length === 0, 'dis sim: dis dis M10 (cikinti O10): BLOCK 0');
     const ex8 = CAM.computeOp(thop({ external: true, designation: 'M8' }), { setup: S0, tool: tm(), geom: { holes: [hole()] }, stockMap: boss });
     ok(sim(ex8, boss, boss).some((i) => i.code === 'cam.sim.gouge' && i.level === 'error'), 'dis sim: M8 dis O10 cikintiya -> oyma (BLOCK)');
+    // WP-07 duzeltme 1: radialAdjust |v| <= 0,2; sim bolgesi adjust ile BUYUMEZ (karsi ornek: M10x1,5, O8 takim, adjust 1,5 -> O13'e kadar kesiyordu, sim temizdi)
+    throwsCode(() => CAM.computeOp(thop({ radialAdjust: 1.5 }), { setup: S0, tool: tm(8), geom: { holes: [hole()] } }), 'cam.op.bad_field', 'duzeltme: radialAdjust 1,5 reddedilir');
+    throwsCode(() => CAM.computeOp(thop({ radialAdjust: 0.21 }), { setup: S0, tool: tm(), geom: { holes: [hole()] } }), 'cam.op.bad_field', 'duzeltme: radialAdjust 0,21 reddedilir');
+    throwsCode(() => CAM.computeOp(thop({ radialAdjust: -0.21, external: true }), { setup: S0, tool: tm(), geom: { holes: [hole()] }, stockMap: boss }), 'cam.op.bad_field', 'duzeltme: radialAdjust -0,21 (dis dis) reddedilir');
+    { const zs = (extra, ext) => CAM.computeOp(thop(extra), { setup: S0, tool: tm(), geom: { holes: [hole()] }, ...(ext ? { stockMap: boss } : {}) }).meta.threadZones[0];
+      const z0 = zs({}), z2 = zs({ radialAdjust: 0.2 }), z3 = zs({ radialAdjust: -0.2 }), zE = zs({ external: true, radialAdjust: 0.2 }, true), zE0 = zs({ external: true }, true);
+      ok(z0.r1 === z2.r1 && z0.r0 === z2.r0 && z0.r1 === z3.r1 && Math.abs(z0.r1 - 5.01) < 1e-9 && zE.r0 === zE0.r0 && zE.r1 === zE0.r1 && Math.abs(zE.r0 - (minorDia(10, 1.5, false) / 2 - 0.01)) < 1e-9, 'duzeltme: sim izinli bolgesi adjust ile degismez (r1 = 5,01 sabit, r0 = kucuk cap/2 - 0,01)'); }
+    // adjust 0,2 (en buyuk izinli): fazla kesim sabit toleransla yakalanir (ic dis: nominalin 0,2 otesi -> oyma), 0 iken temiz
+    ok(sim(CAM.computeOp(thop({ radialAdjust: 0.2 }), { setup: S0, tool: tm(), geom: { holes: [hole()] } })).some((i) => i.code === 'cam.sim.gouge' && i.level === 'error'), 'duzeltme: radialAdjust 0,2 ile nominalin otesine kesim sim tarafindan oyma sayilir');
+    // WP-07 duzeltme 5: giris/cikis yaylari ideal helis yuzeyine radyal girmez (ic: r <= rho, dis: r >= rho) ve Z'yi bottom..top disina tasirmaz
+    for (const [extra, ext, rhoOf] of [[{}, false, 5 - 4 + 0], [{ hand: 'left' }, false, 1], [{ external: true }, true, 1]]) {
+      const tpx = CAM.computeOp(thop(extra), { setup: S0, tool: tm(), geom: { holes: [hole()] }, ...(ext ? { stockMap: boss } : {}) }); void rhoOf;
+      const R = 3; const rho = ext ? minorDia(10, 1.5, false) / 2 + R : 5 - R; // ic: major/2 - R = 2 ; dis: minor/2 + R (son paso)
+      let worst = -Infinity, zlo = Infinity, zhi = -Infinity, n = 0;
+      walk(tpx, (m, k, from) => { if (m.t === 'arc' && m.kind === 'lead' && from) for (const q of sampleArc(from, m, 0.002)) { const r = Math.hypot(q[0] - 50, q[1] - 30); n++; worst = Math.max(worst, ext ? rho_min(r) : r); zlo = Math.min(zlo, q[2]); zhi = Math.max(zhi, q[2]); } });
+      function rho_min(r) { return -r; }
+      const radii = []; walk(tpx, (m, k, from) => { if (m.t === 'arc' && m.kind === 'cut' && from) radii.push(Math.hypot(m.x - 50, m.y - 30)); });
+      const rhoMax = Math.max(...radii), rhoMin = Math.min(...radii);
+      let pen = 0; walk(tpx, (m, k, from) => { if (m.t === 'arc' && m.kind === 'lead' && from) for (const q of sampleArc(from, m, 0.002)) { const r = Math.hypot(q[0] - 50, q[1] - 30); pen = Math.max(pen, ext ? rhoMin - r : r - rhoMax); } });
+      ok(n > 20 && pen <= 0.01 && zlo >= -15 - 1e-9 && zhi <= 1e-9, `duzeltme: giris/cikis yaylari ideal helise radyal girmez (en kotu ${pen.toFixed(4)}) ve Z araliginda [${zlo.toFixed(3)}, ${zhi.toFixed(3)}] (${ext ? 'dis' : 'ic'} ${JSON.stringify(extra)})`); void rho; }
+    // WP-07 duzeltme 2: flut boyunu asan derinlikte sap/govde dis halkada da denetlenir (karsi ornek fluteLen 1,5, shaftDia 8, dis boyu 15)
+    { const short = CAM.computeOp(thop(), { setup: S0, tool: tm(6, { fluteLen: 1.5, shaftDia: 8 }), geom: { holes: [hole()] } });
+      ok(sim(short).some((i) => i.level === 'error' && /flute_exceeded|shaft_collision|holder|gouge/.test(i.code)), 'duzeltme: fluteLen 1,5 / shaftDia 8 / dis boyu 15 -> sim engel: ' + sim(short).map((i) => i.code));
+      ok(sim(CAM.computeOp(thop(), { setup: S0, tool: tm(6, { fluteLen: 16 }), geom: { holes: [hole()] } })).filter((i) => i.level === 'error').length === 0, 'duzeltme: fluteLen 16 >= dis boyu -> temiz'); }
     // kapilar: merkezden kesmeyen diş frezesi eksende inise takilmaz (clear), diger kapilar calisir
     const mach = { ...structuredClone(NEWAY_FIXTURE) }; const prog = CAM.buildProgram({ name: 'T', machine: mach, sections: [{ setup: S0, toolpaths: [tp] }] });
     const g = CAM.gates(prog, mach, { sim: false }); ok(!g.some((x) => x.code === 'cam.gate.plunge_center' || x.code === 'cam.gate.flute_short' || x.code === 'cam.gate.ramp_no_limit'), 'dis kapi: eksende inis / boy kapilari tetiklenmez: ' + g.filter((x) => x.level === 'block').map((x) => x.code)); }
@@ -1204,7 +1229,8 @@ section('WP-07 dilim 2. kanal, iz, kontur helis rampasi, cepte on delik girisi')
   throwsCode(() => cH({ ramp: { kind: 'helix', angle: 5 } }), 'cam.op.missing', 'kontur helis: helixDia zorunlu');
   throwsCode(() => cH({ comp: 'wear' }, em(6, { diaOffset: 5 })), 'cam.contour.wear_needs_line_lead', 'kontur helis: wear telafisi (dogrusal giris gerekir) ile birlikte olmaz');
   { // dar cep (ic kontur): helis serbest alana sigmaz
-    throwsCode(() => CAM.computeOp({ id: 'ch', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'inner' }], side: 'inside', stepdown: 5, ramp: { kind: 'helix', angle: 5, helixDia: 6 } }, { setup: S0, tool: em(6), geom: { faces: [{ z: -10, outer: sq(0, 0, 100, 60), inners: [sq(40, 25, 52, 35)] }] } }), 'cam.contour.helix_no_fit', 'kontur helis: dar ic kontur: helis sigmiyor'); }
+    throwsCode(() => CAM.computeOp({ id: 'ch', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'inner' }], side: 'inside', stepdown: 5, ramp: { kind: 'helix', angle: 5, helixDia: 6 } }, { setup: S0, tool: em(6), geom: { faces: [{ z: -10, outer: sq(0, 0, 100, 60), inners: [sq(40, 25, 52, 35)] }] } }), 'cam.contour.helix_no_fit', 'kontur helis: dar ic kontur: helis sigmiyor');
+    throwsCode(() => CAM.computeOp({ id: 'ch', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], side: 'on', stepdown: 5, ramp: { kind: 'helix', angle: 5, helixDia: 6 } }, { setup: S0, tool: em(6), geom: { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] } }), 'cam.contour.helix_side', 'duzeltme 4: side on + helis rampa -> hata (helis icin taraf gerekli)'); }
   { const res = 0.1; const stock = heightmapFromFn([0, 0], [100, 60], res, () => 0); const model = heightmapFromFn([0, 0], [100, 60], res, (x, y) => (x >= 20 && x <= 80 && y >= 15 && y <= 45 ? 0 : -10));
     const stock2 = heightmapFromFn([0, 0], [100, 60], res, () => 0);
     const hx = cH({ stepdown: 5 }); const r = simulate(CAM.buildProgram({ name: 'T', machine: null, sections: [{ setup: S0, toolpaths: [hx] }] }), { res, stockBoxes: { s1: S0.stockBox }, modelHeightmaps: { s1: model }, stockHeightmap: stock2, freePieces: false });
@@ -1353,6 +1379,15 @@ section('WP-07 dilim 5. pah: keskin kenar kipi (modelde pah yok, pah secilen ken
   const mC = mapOf((x, y) => { if (!inRect(x, y)) return -10; const d = Math.min(x - 20, 80 - x, y - 15, 45 - y); return d >= 1.5 ? 0 : d - 1.5; });
   const srC = simulate(tp, { res: 0.1, stockBox: S0.stockBox, stockHeightmap: mapOf((x, y) => (inRect(x, y) ? 0 : -10)), modelHeightmap: mC });
   ok(!srC.issues.some((i) => /gouge/.test(i.code)), 'dilim5: model zaten pahli ise de oyma yok');
+  // WP-07 duzeltme 3: kaba cozunurlukte fazla kesim sessiz temiz olmaz (engel ya da cam.sim.chamfer_tolerance_coarse uyarisi, tolerans degeriyle)
+  for (const [res, cutW, declW] of [[0.5, 1.2, 1.0], [1.0, 1.5, 1.0]]) {
+    const tpc = CAM.computeOp({ ...cop, width: cutW }, { setup: S0, tool: ch90, geom }); tpc.meta.chamferSharp.width = declW; tpc.meta.chamferSharp.dz = declW;
+    const mm = mapOf((x, y) => (inRect(x, y) ? 0 : -10), res);
+    const src = simulate(tpc, { res, stockBox: S0.stockBox, stockHeightmap: mm, modelHeightmap: mm });
+    const w = src.issues.find((i) => i.code === 'cam.sim.chamfer_tolerance_coarse');
+    ok(src.issues.some((i) => i.level === 'error' && /gouge/.test(i.code)) || (w && w.level === 'warn' && Math.abs(w.params.tol - 0.71 * res) < 1e-3 && w.params.width === declW), `dilim5 duzeltme: res ${res}, kesilen ${cutW} / ilan ${declW}: engel ya da kaba-cozunurluk uyarisi: ` + src.issues.map((i) => i.code));
+  }
+  ok(!simulate(tp, { res: 0.1, stockBox: S0.stockBox, stockHeightmap: hmStock, modelHeightmap: mS }).issues.some((i) => i.code === 'cam.sim.chamfer_tolerance_coarse'), 'dilim5 duzeltme: res <= genislik/10 iken uyari yok');
   // sim kapilari (program + gates)
   const prog = CAM.buildProgram({ name: 'O1', machine: builtinMachines()[0] ?? {}, sections: [{ setup: S0, toolpaths: [tp] }] });
   const gs = CAM.gates(prog, structuredClone(NEWAY_FIXTURE), { sim: { res: 0.1, modelHeightmaps: { s1: mS }, stockHeightmaps: { s1: hmStock } } });

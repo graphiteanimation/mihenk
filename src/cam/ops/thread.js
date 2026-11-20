@@ -51,6 +51,7 @@ export function holeOpen(hm, x, y, rad, z) {
   return true;
 }
 
+export const ADJUST_MAX = 0.2; // mm: radialAdjust siniri (sim diş bolgesi adjust ile buyumez)
 export function computeThread(op, ctx) {
   const { setup: S, tool, geom, machine } = ctx;
   const nm = op.name || op.id;
@@ -85,7 +86,7 @@ export function computeThread(op, ctx) {
     const pitch = op.pitch != null ? need(op, 'pitch') : des?.pitch ?? hl.thread?.pitch ?? coarsePitch(major);
     if (pitch == null) throw cerr('cam.thread.no_pitch', { major: r3(major) });
     if (tool.pitch != null && Math.abs(tool.pitch - pitch) > 1e-6 && !toolPitchWarned) { toolPitchWarned = true; warnings.push(warn('cam.thread.tool_pitch', { toolPitch: r3(tool.pitch), pitch: r3(pitch) })); }
-    if (Math.abs(adjust) > pitch) throw cerr('cam.op.bad_field', { field: 'radialAdjust', expect: '|v| <= pitch', op: nm });
+    if (Math.abs(adjust) > ADJUST_MAX) throw cerr('cam.op.bad_field', { field: 'radialAdjust', expect: '|v| <= ' + ADJUST_MAX + ' mm', op: nm });
     const depthR = threadDepth(pitch, internal); const minor = minorDia(major, pitch, internal);
     // thread bottom z
     const top = hl.top; let bottom;
@@ -109,7 +110,10 @@ export function computeThread(op, ctx) {
       else unverified++;
     }
     const O = [hl.x, hl.y]; const zA = sg.zUp ? bottom : top, zB = sg.zUp ? top : bottom;
-    const total = (2 * Math.PI * L) / pitch; const aOut = R + 1;
+    // giris/cikis yaylari yarim tur (pi) suruyor: Z'yi helisle uyumlu yurutur (yarim hatve). Ana helis zA2..zB2 arasinda; L >= 2*hatve ise
+    // (kisa dislerde sabit Z'ye dusulur). Tum radyal paslar ayni zA2 ile baslar -> ayni olugu keser (faz sabit).
+    const walk = L >= 2 * pitch - 1e-9; const zDir = zB > zA ? 1 : -1; const dz0 = walk ? zDir * pitch / 2 : 0;
+    const zA2 = zA + dz0, zB2 = zB - dz0; const total = (2 * Math.PI * (L - (walk ? pitch : 0))) / pitch; const aOut = R + 1;
     zMin = Math.min(zMin, bottom); zMax = Math.max(zMax, top);
     let first = true;
     for (const rho of rhos) {
@@ -127,13 +131,14 @@ export function computeThread(op, ctx) {
         if (Math.abs(b.pos[2] - zA) > EPS) b.feed(b.pos[0], b.pos[1], zA, cut.feedPlunge, 'plunge', clearIn ? { clear: true } : undefined);
         if (Math.hypot(b.pos[0] - li.start[0], b.pos[1] - li.start[1]) > EPS) b.feed(li.start[0], li.start[1], zA, Fl, 'lead');
       }
-      b.seg(li.arc, zA, zA, Fl, 'lead');
-      const aEnd = helixArcs(b, O, rho, 0, sgn, zA, zB, total, Fc, 'cut');
+      b.seg(li.arc, zA, zA2, Fl, 'lead');
+      const aEnd = helixArcs(b, O, rho, 0, sgn, zA2, zB2, total, Fc, 'cut');
       const lo = leadOut(O, rho, aEnd, sgn, internal, aOut);
-      b.seg(lo.arc, zB, zB, Fl, 'lead');
+      b.seg(lo.arc, zB2, zB, Fl, 'lead');
     }
     b.up();
-    zones.push({ c: O.map(r3x), r0: internal ? minor / 2 - 0.01 : minor / 2 - Math.max(0, adjust) - 0.01, r1: major / 2 + Math.max(0, adjust) + 0.01, z0: bottom - 1e-6, z1: top + 1e-6 });
+    zones.push({ c: O.map(r3x), r0: minor / 2 - 0.01, r1: major / 2 + 0.01, // adjust bolgeyi BUYUTMEZ: sabit kucuk tolerans (adjust ile fazla kesim oyma olarak gorunur)
+    z0: bottom - 1e-6, z1: top + 1e-6 });
     if (!info) info = { major: r3(major), pitch: r3(pitch), internal, hand, dir, ccw: sg.ccw, zUp: sg.zUp, passes: rhos.length, rho: r3(rhoF), depth: r3(depthR), length: r3(L), turns: r3(L / pitch) };
   }
   if (unverified) warnings.push(warn('cam.thread.predrill_unverified', { n: unverified }));

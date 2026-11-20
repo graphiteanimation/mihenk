@@ -73,6 +73,8 @@ export function createSim(input, opts = {}) {
     // T-08: islem basi stok (yerel stok yuksekligi icin) ve yol izi maskesi; tutucu boslugu
     let preMax = -Infinity; for (let k = 0; k < S.hm.data.length; k++) if (S.hm.data[k] > preMax) preMax = S.hm.data[k];
     const mhCh = tp.meta?.chamferSharp && S.mh ? lowerForChamfer(S.mh, tp.meta.chamferSharp) : null; // WP-07: keskin kenar pahi - bildirilen hacim
+    // WP-07: model hucresi beyan edilen pah genisliginin 1/10'undan buyukse fazla kesim (hucre capraz toleransi 0,71*res) gizlenebilir -> acik uyari
+    if (mhCh && mhCh.res > tp.meta.chamferSharp.width / 10 + 1e-12) issues.push({ level: 'warn', code: CODE('chamfer_tolerance_coarse'), params: { tol: Math.round(0.71 * mhCh.res * 1000) / 1000, res: mhCh.res, width: tp.meta.chamferSharp.width, op: tp.opName } });
     cur = { si, tp, mhCh, allow, cycAllow, allowNow: allow, zones: Array.isArray(tp.meta?.threadZones) && tp.meta.threadZones.length ? tp.meta.threadZones : null, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
       pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
   }
@@ -154,7 +156,10 @@ export function createSim(input, opts = {}) {
           if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); cur.hadHolderHit = true; continue; }
           const cl = pz + g.bodyLen - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
         }
-        if (cur.zones && r <= R && inZone(cur.zones, cx, cy, pz)) continue; // WP-07: dis frezeleme dis halkasi (kucuk cap..nominal cap) kasitli kesimdir: kesici uc yaricapi icinde oyma/boy/hizli denetlenmez (tutucu ve sap R disinda denetlenir)
+        if (cur.zones && r <= R && inZone(cur.zones, cx, cy, pz)) { // WP-07: dis halkasi, yalniz KESICI (flut) boyu icinde kasitli kesimdir; flut boyunu asan malzeme sap yaricapinda engel (flute_exceeded)
+          if (h > zFlute && r <= shaftR) note('flute_exceeded', h - zFlute + tol, px, py, pz);
+          continue;
+        }
         if (r <= shaftR && h > zFlute) {
           if (r <= R) note('flute_exceeded', h - zFlute + tol, px, py, pz); else { note('shaft_collision', h - zFlute + tol, px, py, pz); continue; }
         }
