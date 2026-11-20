@@ -56,6 +56,9 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 | O-032 | Genel 4 eksen şablonunda A yönü varsayılanı ISO 841 sağ el kuralı (`dir [1,0,0]`); her tezgâh kendi profilinde değiştirir. T-21a kodda "tezgâh teyidi bekleyen" madde olmaktan çıkar | WP-01 ile uygulanıyor |
 | O-033 | Geçmiş arayüzü kararları (K-032 devriyle): ana görünüm sol dikey Geçmiş listesi, alt şerit simge düzeyinde özet; tek işlemin kullandığı eskiz o işlemin altına kaynaşır; "Son hali göster" hızlı modellerde otomatik | WP-02; gerekçe `pm/tasarim/GECMIS.md` "Karar" bölümü |
 | O-034 | Sürüm yükünü azaltma (K-033 sorusu): 0.3.1 ayrı sürüm olmaktan çıkar, paketleri 0.4'ün ilk bölümü olur; resmi sürüm kapısı yalnız 0.4, 0.5, 0.6'da çalışır; arada her birleşmeden sonra GitHub Actions Windows'ta testleri koşup deneme kurulumu üretir (WP-20) | Uygulanıyor |
+| O-035 | Tutucu boşluğu ≤ 0,01 mm (sim düşey toleransı) **engel** (`cam.sim.holder_contact`); 0,01–0,5 mm uyarı (`holder_clearance_low`, eşik sim seçeneği) | Uygulandı (WP-03) |
+| O-036 | Kurulu sürüm denetimi: paketli sürümde hata ayıklama girişi kapalı olduğundan Electron testleri kurulu exe'ye karşı koşamaz; yerine `scripts/installed-smoke.mjs` (sessiz kur, aç, kaydet, NC/DXF kaydet, kaldır). Güvenlik sigortaları gevşetilmez | Uygulandı (WP-20); §8 sürüm kapısı bu testi esas alır |
+| O-037 | Post alanları: zorunlu alan boşsa her programda engel ve post durur; yalnız `CONDITIONAL_PROPS` (bekleme, G54.1 aralığı, safeRetractZ, yüksek hız, soğutma, rigidTapM, lineNumberMax) program kullanmıyorsa muaf. Anahtarı hiç yazmayan profil varsayılana düşer | Uygulandı (WP-03, M-03) |
 
 ## Mihenk dışında kalan (bilgi; Mihenk'i bekletmez)
 Kullanıcının Neway profilindeki boş alanlar (maxRpm, ilerleme sınırı, safeRetract, G04 adresi/birimi, G54.1 aralığı), A+ dönüş yönü, O/N sınırları: kullanıcı kendi profil dosyasında doldurur. P1 STEP'indeki Ø4 çubuk sorusu yalnız karşılaştırma testinin yorumunu etkiler.
