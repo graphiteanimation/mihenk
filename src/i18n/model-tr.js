@@ -86,9 +86,9 @@ export default {
   "sk.text_note": "Yazı tipi: Inter Regular (SIL OFL 1.1). Metin çizgi konturlarına çevrilir; sonradan metin olarak düzenlenmez.",
   "sk.text_done": "Metin eklendi ({n} karakter)",
   "sk.text_failed": "Metin eklenemedi",
-  "sk.text_empty": "Metin boş",
+  "sk.text_empty": "Metin boş: eklenecek bir metin yazın",
   "sk.text_height": "Yazı boyu ve konum geçerli bir sayı olmalı",
-  "sk.text_long": "Metin en çok 500 karakter olabilir",
+  "sk.text_long": "Metin en çok {n} karakter olabilir",
   "sk.text_font_failed": "Yazı tipi yüklenemedi",
   "sk.text_no_glyph": "Metindeki karakterler yazı tipinde yok",
   "err.sketch.text_too_long": "Metin çok uzun",
@@ -104,4 +104,5 @@ export default {
   "err.sketch.proj_failed": "İzdüşümler güncellenemedi",
   "fld.sketch_face": "Eskiz yüzü",
   "msg.o044_changed": "Yeni ifade kuralına (tekli eksi üsten sonra: -2^2 = -4) göre değeri değişenler: {list}",
+  "sk.text_max": "En çok {n} karakter.",
 };

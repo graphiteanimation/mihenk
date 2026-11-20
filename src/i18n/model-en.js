@@ -86,9 +86,9 @@ export default {
   "sk.text_note": "Font: Inter Regular (SIL OFL 1.1). Text is converted to line outlines; it cannot be edited as text later.",
   "sk.text_done": "Text added ({n} characters)",
   "sk.text_failed": "The text could not be added",
-  "sk.text_empty": "The text is empty",
+  "sk.text_empty": "The text is empty: type the text to add",
   "sk.text_height": "Text size and position must be valid numbers",
-  "sk.text_long": "Text can be at most 500 characters",
+  "sk.text_long": "Text can be at most {n} characters",
   "sk.text_font_failed": "The font could not be loaded",
   "sk.text_no_glyph": "The font has none of the text's characters",
   "err.sketch.text_too_long": "The text is too long",
@@ -104,4 +104,5 @@ export default {
   "err.sketch.proj_failed": "Projections could not be updated",
   "fld.sketch_face": "Sketch face",
   "msg.o044_changed": "Values changed by the new expression rule (unary minus after power: -2^2 = -4): {list}",
+  "sk.text_max": "At most {n} characters.",
 };

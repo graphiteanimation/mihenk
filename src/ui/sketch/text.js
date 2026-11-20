@@ -181,13 +181,15 @@ export function loadFont() {
   return fontP;
 }
 
+// Arayüz kilitlenmesin: 500 karakter ~27 sn sürüyordu (çözücü + profil taraması); sınır 120 karakter
+export const TEXT_MAX = 120;
 // ---------------------------------------------------------------- Sketcher yöntemleri (Object.assign ile Sketcher.prototype'a)
 export const TEXT_METHODS = {
   // Metni etkin eskize çizgi varlıkları olarak ekler (tek geri alma adımı). Döner {ok, n (kontur), msg?}
   async insertText({ text, height = 10, x = 0, y = 0, angle = 0 } = {}) {
     if (!text || !String(text).trim()) return { ok: false, msg: t('sk.text_empty') };
     if (!(height > 0 && height <= 10000) || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(angle)) return { ok: false, msg: t('sk.text_height') };
-    if (String(text).length > 500) return { ok: false, msg: t('sk.text_long') };
+    if ([...String(text)].length > TEXT_MAX) return { ok: false, msg: t('sk.text_long', { n: TEXT_MAX }) };
     let font; try { font = await loadFont(); } catch (e) { return { ok: false, msg: t('sk.text_font_failed') }; }
     const glyphs = textOutlines(font, text, { height, x, y, angle });
     if (!glyphs.length) return { ok: false, msg: t('sk.text_no_glyph') };

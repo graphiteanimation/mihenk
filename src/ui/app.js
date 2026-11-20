@@ -5,6 +5,7 @@ import pkg from '../../package.json';
 import planegcsWasm from '@salusoft89/planegcs/dist/planegcs_dist/planegcs.wasm?url';
 import { Viewport, THREE, COL } from './viewport.js';
 import { SKO, onSkOptsChange } from './sketch/opts.js';
+import { TEXT_MAX } from './sketch/text.js';
 import { paintFaces } from './viewport-hist.js';
 import { initSolver, solveSketch } from './solver.js';
 import { evalExpr, resolveParams, changedByO044 } from '../shared/expr.js';
@@ -635,9 +636,17 @@ class App {
     const [eT, rT] = inp('text', prev.text, 'sk.text_text'), [eH, rH] = inp('height', prev.height, 'sk.text_size'), [eX, rX] = inp('x', prev.x, 'fld.pos_x'), [eY, rY] = inp('y', prev.y, 'fld.pos_y'), [eA, rA] = inp('angle', prev.angle, 'fld.angle');
     const num = (e) => { try { return Number(evalExpr(e.value, this.vars())); } catch (x) { return NaN; } };
     let vals = null;
+    eT.setAttribute('maxlength', String(TEXT_MAX));
+    const msg = h('div', { class: 'callout err', role: 'alert', 'data-testid': 'sktx-msg', hidden: true });
+    const say = (k, p) => { msg.textContent = t(k, p); msg.hidden = false; return false; };
     const ok = await modal({
-      title: t('sk.text_title'), content: h('div', {}, rT, rH, rX, rY, rA, h('div', { class: 'note', text: t('sk.text_note') })),
-      buttons: [{ label: t('common.ok'), cls: 'pri', value: true, check: () => { vals = { text: eT.value, height: num(eH), x: num(eX), y: num(eY), angle: num(eA) }; return !!vals.text.trim() && vals.height > 0 && [vals.x, vals.y, vals.angle].every(Number.isFinite); } }, { label: t('common.cancel'), value: false }],
+      title: t('sk.text_title'), content: h('div', {}, rT, rH, rX, rY, rA, msg, h('div', { class: 'note', text: t('sk.text_note') + ' ' + t('sk.text_max', { n: TEXT_MAX }) })),
+      buttons: [{ label: t('common.ok'), cls: 'pri', value: true, check: () => {
+        vals = { text: eT.value, height: num(eH), x: num(eX), y: num(eY), angle: num(eA) };
+        if (!vals.text.trim()) return say('sk.text_empty');
+        if ([...vals.text].length > TEXT_MAX) return say('sk.text_long', { n: TEXT_MAX });
+        if (!(vals.height > 0) || ![vals.x, vals.y, vals.angle].every(Number.isFinite)) return say('sk.text_height');
+        return true; } }, { label: t('common.cancel'), value: false }],
     });
     if (!ok || !vals) return;
     this._textOpts = { text: eT.value, height: eH.value, x: eX.value, y: eY.value, angle: eA.value };
