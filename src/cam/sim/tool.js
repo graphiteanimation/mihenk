@@ -2,7 +2,7 @@
 import { KErr } from '../../shared/errors.js';
 const simErr = (code, params = {}) => new KErr(code, params);
 
-const FLAT = new Set(['flat', 'face', 'tap', 'reamer', 'bore']);
+const FLAT = new Set(['flat', 'face', 'tap', 'reamer', 'bore', 'threadmill']);
 // T-22: kilavuz deligin DIS DIBI capina kadar talas kaldirir sayilir; dis (dip..majör arasi) kasitli kesimdir, oyma degildir.
 // Dip capi: takimda minorDia varsa o, yoksa ISO metrik temel ic dis kucuk capi D1 = D - 1,0825 P. Hatve yoksa majör cap (muhafazakar).
 export const ISO_MINOR_K = 1.0825;

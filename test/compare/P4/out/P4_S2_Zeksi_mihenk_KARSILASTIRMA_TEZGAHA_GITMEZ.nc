@@ -7,9 +7,12 @@ O2008
 (T24 H24 D24 DIA 10.000 SPOT)
 (T37 H37 D37 DIA 7.100 DRILL)
 (WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING)
-(GATES 0 BLOCK 4 WARN)
+(GATES 0 BLOCK 7 WARN)
+(WARNING: T22: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
 (WARNING: No machine position for "P4-S2 Z-": absolute travel could not be checked. Only the toolpath span was checked.)
-(WARNING: 15 Delme T37 4x O7,1 Zeksi G83 Q5 [uc s-2]: 4 holes differ from the tool diameter [?7.1]. Check the tool.)
+(WARNING: T24: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: T37: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
+(WARNING: 15 Delme T37 4x O7,1 Zeksi G83 Q5 [uc s-2]: 4 holes differ from the tool diameter [D7.1]. Check the tool.)
 (WARNING: A axis direction [profile dir [-1,0,0]] is not verified on the machine. Confirm the A direction with a marked part before cutting.)
 (WARNING: The simulation cannot see side gouges smaller than 0.25 mm [half the grid size]. Wall accuracy comes from the toolpath calculation.)
 G90 G17 G21 G40 G49 G80 G94
@@ -23,6 +26,7 @@ S8000 M3
 G0 G90 G57 X-50.5 Y-7.5
 G43 H22 Z15.
 M8
+Z5.
 G1 Z-2. F320.
 G3 X-53.5 Z-2.247 I-1.5 J0. F960.
 X-50.5 Z-2.494 I1.5 J0.
@@ -716,15 +720,9 @@ G43 H24 Z15.
 M8
 Z5.
 G98 G81 X-52. Y-7.5 Z-13.5 R-7. F300.
-G80
-G0 X-30. Y-7.5 Z5.
-G98 G81 X-30. Y-7.5 Z-13.5 R-7. F300.
-G80
-G0 X-8. Y-7.5 Z5.
-G98 G81 X-8. Y-7.5 Z-13.5 R-7. F300.
-G80
-G0 X14. Y-7.5 Z5.
-G98 G81 X14. Y-7.5 Z-13.5 R-7. F300.
+X-30.
+X-8.
+X14.
 G80
 G0 X14. Y-7.5 Z15.
 (OP 3: 15 Delme T37 4x O7,1 Zeksi G83 Q5 [uc s-2] [drill] SETUP P4-S2 Z-)
@@ -740,15 +738,9 @@ G43 H37 Z15.
 M8
 Z5.
 G98 G83 X-52. Y-7.5 Z-41.5 R-7. Q5. F420.
-G80
-G0 X-30. Y-7.5 Z5.
-G98 G83 X-30. Y-7.5 Z-41.5 R-7. Q5. F420.
-G80
-G0 X-8. Y-7.5 Z5.
-G98 G83 X-8. Y-7.5 Z-41.5 R-7. Q5. F420.
-G80
-G0 X14. Y-7.5 Z5.
-G98 G83 X14. Y-7.5 Z-41.5 R-7. Q5. F420.
+X-30.
+X-8.
+X14.
 G80
 G0 X14. Y-7.5 Z15.
 (END OF PROGRAM)

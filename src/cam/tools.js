@@ -2,7 +2,7 @@
 // Belgedeki doc.cam.tools kutuphanenin kopyasidir (dosya kendi kendine yeter). Hata: KErr {code, params}.
 import { cerr, issue } from './geom/err.js';
 
-export const TOOL_TYPES = ['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore'];
+export const TOOL_TYPES = ['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore', 'threadmill'];
 export const COOLANTS = ['flood', 'mist', 'air', 'through', 'off'];
 export const LIB_FORMAT = 'mihenk-tool-library';
 export const LIB_LIMITS = { tools: 5000, presets: 100, str: 500, bytes: 20 * 1024 * 1024 };

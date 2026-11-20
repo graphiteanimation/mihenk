@@ -3,7 +3,7 @@ import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
 import { sketchFaces, sketchChain, silhouetteFaces, midLevels } from './geom/select.js';
-import { simulate, createHeightmap, stockFromPrevious, chainSources } from './sim/index.js';
+import { simulate, createHeightmap, stockHeightmap, stockFromPrevious, chainSources } from './sim/index.js';
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
 export function buildProgram({ name, number = null, machine, sections }) {
@@ -11,7 +11,7 @@ export function buildProgram({ name, number = null, machine, sections }) {
   const out = [];
   for (const sec of sections || []) for (const tp of sec.toolpaths || []) {
     const S = sec.setup;
-    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous' }, toolpath: tp });
+    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, stockCyl: S.stockCyl ?? null, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous' }, toolpath: tp });
   }
   if (!out.length) throw cerr('cam.program.empty');
   const p = { name, number, machine: machine ? { id: machine.id, name: machine.name, rev: machine.rev ?? null, control: machine.control } : null, units: 'mm', sections: out };
@@ -30,7 +30,7 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
       const plane = rebuild?.sketches?.[sel.sketch]?.plane;
       for (const f of sketchFaces(sel, sk, plane, S.frame)) { sels.push({ ...sel, kind: 'face' }); faces.push(f); }
     } else if (sel.kind === 'chain') { // T-02: eskiz ogelerinden acik/kapali zincir (yalniz kontur)
-      if (op.type !== 'contour' && op.type !== 'chamfer') throw cerr('cam.geom.sel_unsupported', { kind: 'chain' });
+      if (!['contour', 'chamfer', 'slot', 'trace'].includes(op.type)) throw cerr('cam.geom.sel_unsupported', { kind: 'chain' });
       const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
       const plane = rebuild?.sketches?.[sel.sketch]?.plane;
       sels.push(sel); faces.push(sketchChain(sel, sk, plane, S.frame));
@@ -88,7 +88,7 @@ export async function annotateHoleExits(holes, query, fallbackBodies = []) {
 export function advanceStock(st, tps, S, res) {
   if (st.failed) return null;
   try {
-    for (; st.done < tps.length; st.done++) st.hm = simulate(tps[st.done], { res, stockBox: S.stockBox, freePieces: false, ...(st.hm ? { stockHeightmap: st.hm } : {}) }).remainHeightmap;
+    for (; st.done < tps.length; st.done++) st.hm = simulate(tps[st.done], { res, stockBox: S.stockBox, freePieces: false, ...(st.hm ? { stockHeightmap: st.hm } : S.stockCyl ? { stockHeightmap: stockHeightmap(S.stockBox, res, S.stockCyl) } : {}) }).remainHeightmap;
     return st.hm;
   } catch (e) { st.failed = true; return null; }
 }
@@ -121,7 +121,7 @@ export async function chamferMap(op, S, query) {
 }
 export async function drillMaps(st, tps, S, { res, model, query }) {
   let hm = st.hm && st.done === tps.length ? st.hm : advanceStock(st, tps, S, res);
-  if (!hm) { if (st.failed) return {}; const b = S.stockBox; hm = st.hm0 || (st.hm0 = createHeightmap([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, b.max[2])); }
+  if (!hm) { if (st.failed) return {}; const b = S.stockBox; hm = st.hm0 || (st.hm0 = stockHeightmap(b, res, S.stockCyl ?? null)); }
   let mm = (model?.conservative ? model : null) || st.model || null;
   if (!mm && query && !st.modelFailed) {
     const b = S.stockBox, W = b.max[0] - b.min[0], D = b.max[1] - b.min[1];
@@ -146,7 +146,7 @@ export function chainStock(recs, idx, res) {
   for (let k = 0; k < idx; k++) {
     const p = recs[k]; chainStock(recs, k, res);
     let hm = advanceStock(p.stk, p.tps, p.S, res);
-    if (!hm && !p.stk.failed) { const b = p.S.stockBox; hm = createHeightmap([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, b.max[2]); }
+    if (!hm && !p.stk.failed) { const b = p.S.stockBox; hm = stockHeightmap(b, res, p.S.stockCyl ?? null); }
     if (!hm) return; // bilinmeyen onceki stok: zincir yok (ham kutu: daha cok malzeme)
     prev.push({ frame: p.S.frame, hm, box: p.S.stockBox, bodies: p.S.bodies, stockFrom: p.S.stockFrom ?? 'previous' });
   }
@@ -163,17 +163,44 @@ export const freePiecePolicy = (gates, blockSetups) => gates.map((x) => (String(
 //   query(cmd, args) -> Promise: cekirdek worker komutu ('camFaceLoops', 'facePlane')
 //   sim: gates(...) opts.sim (yoksa kapi 5 'sim_not_run' uyarisi)
 // -> { program|null, ops:[{opId, setupId, ok, error?, toolpath?}], gates:[...], blocked }
+// WP-07: bir setup'ta cok A acisi (3+1). Islem `aAngle` (sayi) tasirsa o aciyla calisir; yoksa setup.rotary.aAngle (kapaliysa A yok).
+// Ardisik ayni-acili islemler bir grup; birden cok grup varsa setup, ayni WCS/stok zincirli (stockFrom 'previous') alt setup'lara bolunur ->
+// her grup kendi bolumu (cerceve, A) olur; bolumler arasi guvenli geri cekilme post'un bolum gecisidir.
+// eksen yuzden (duzlem normali) ya da kenardan (dogru kenar yonu, baslangic -> bitis; `flip` ters cevirir; axisDir flip'i uygular)
+export async function axisPlane(query, ax) {
+  if (ax.kind === 'face') return query('facePlane', { ref: ax.ref });
+  const d = await query('describe', { ref: ax.ref, kind: 'edge' });
+  if (d.geom !== 'LINE' || !Array.isArray(d.start) || !Array.isArray(d.end)) throw cerr('cam.setup.edge_axis_not_line', {});
+  const v = [d.end[0] - d.start[0], d.end[1] - d.start[1], d.end[2] - d.start[2]]; const l = Math.hypot(...v);
+  if (!(l > 1e-9)) throw cerr('cam.setup.edge_axis_not_line', {});
+  return { n: v.map((x) => x / l), o: d.start };
+}
+export function expandAngles(setups) {
+  const out = [];
+  for (const su of setups || []) {
+    const ops = su.ops || []; const base = su.rotary?.enabled ? su.rotary.aAngle : null;
+    const eff = (o) => (Number.isFinite(o.aAngle) ? o.aAngle : base);
+    const groups = [];
+    for (const o of ops) { const a = eff(o); const g = groups.at(-1); if (g && g.a === a) g.ops.push(o); else groups.push({ a, ops: [o] }); }
+    if (groups.length <= 1 && !ops.some((o) => Number.isFinite(o.aAngle))) { out.push(su); continue; }
+    if (groups.length <= 1) { out.push({ ...su, rotary: { enabled: groups[0].a !== null, aAngle: groups[0].a ?? 0 } }); continue; }
+    groups.forEach((g, k) => out.push({ ...su, id: su.id + '@A' + k, name: (su.name ?? su.id) + (g.a === null ? '' : ' A' + g.a), rotary: { enabled: g.a !== null, aAngle: g.a ?? 0 }, ops: g.ops, stockFrom: k ? 'previous' : su.stockFrom, parentId: su.id }));
+  }
+  return out;
+}
+
 export async function generateProgram(cam, { rebuild, machine, query, doc = null, name, number = null, sim = null, onlyOps = null }) {
   const { resolveSetup, computeOp } = await import('./index.js');
   const ops = []; const sections = []; const pre = [];
   const tools = cam?.tools || [];
   const recs = []; // T-04: setup stok zinciri (drill gecis haritalari icin)
   let holesX = null; // T-14: delik cikislari bir kez (tum setup'lar icin ayni model uzayi verisi)
-  for (const setup of cam?.setups || []) {
+  const allSetups = expandAngles(cam?.setups);
+  for (const setup of allSetups) {
     let S;
     try {
       const planes = {};
-      for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face') { const pl = await query('facePlane', { ref: ax.ref }); planes[k] = pl; } }
+      for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face' || ax?.kind === 'edge') planes[k] = await axisPlane(query, ax); }
       S = resolveSetup(setup, rebuild, machine, { planes });
       // T-04: setup.stockFrom 'previous' (varsayilan) | 'blank' (zincir yok, ham stok). Gecersiz deger: muhafazakar 'blank'.
       S = { ...S, stockFrom: setup.stockFrom == null ? 'previous' : setup.stockFrom === 'previous' ? 'previous' : 'blank' };
@@ -185,11 +212,13 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
       try {
         const tool = tools.find((t) => t.id === op.toolId); if (!tool) throw cerr('cam.op.no_tool', { op: op.name || op.id });
         const geom = {};
-        if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
+        const holeOp = op.type === 'drill' || op.type === 'circular' || op.type === 'threadmill'; // WP-07: delik secimi kullanan islemler
+        if (holeOp) { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
-        if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
-        if (op.type === 'drill') chainStock(recs, ri, mres);
-        let maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
+        if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer' || op.type === 'slot' || op.type === 'trace') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
+        const preOp = op.type === 'pocket' && op.entry?.kind === 'predrill'; // on delik girisi: stok haritasiyla dogrulanir
+        if (holeOp || preOp) chainStock(recs, ri, mres);
+        let maps = holeOp || preOp ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
         if (op.type === 'chamfer') maps = await chamferMap(op, S, query);
         const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
@@ -202,7 +231,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
   else pre.push(issue('cam.program.empty', {}, { level: 'block' }));
   // WP-06 (WP-05 devri): serbest parca (free_piece) varsayilan UYARI; setup.freePieceBlock:true olan setup'ta ENGEL. Sim secenegi tek (genel):
   // en az bir setup istiyorsa engel olarak calistirilir, istemeyen setup'larin bulgulari asagida uyariya indirilir.
-  const fpb = new Set((cam?.setups || []).filter((x) => x.freePieceBlock === true).map((x) => x.id));
+  const fpb = new Set(allSetups.filter((x) => x.freePieceBlock === true).map((x) => x.id));
   const simOpt = sim && fpb.size ? { ...sim, freePieceBlock: true } : sim;
   const g = freePiecePolicy([...pre, ...(program ? runGates(program, machine, { sim: simOpt }) : [])], fpb);
   return { program, ops, gates: g, blocked: blocked(g) };

@@ -21,8 +21,8 @@ const MIME = {
 };
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
 // 'doc' = Mihenk belgesi: okuma ve yazma .mhnk.
-const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'] };
-const SAVE_ONLY = new Set(['nc']);   // NC çıktısı yalnız yazılır; arayüz bu türde dosya açtıramaz
+const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'], html: ['.html'] };
+const SAVE_ONLY = new Set(['nc', 'html']);   // NC çıktısı ve kurulum föyü (WP-07) yalnız yazılır; arayüz bu türde dosya açtıramaz
 const DOC_EXT = '.mhnk';
 
 protocol.registerSchemesAsPrivileged([

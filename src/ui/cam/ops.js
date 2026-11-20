@@ -4,6 +4,7 @@ import { h, toast } from '../dom.js';
 import { icon } from '../icons.js';
 import { t, tLang, errText } from '../../shared/i18n.js';
 import { resolveSetup, buildProgram, generateProgram, gates as runGates } from '../../cam/index.js';
+import { axisPlane } from '../../cam/program.js';
 import { blocked } from '../../cam/gates.js';
 import { postProgram, postPropsMissing } from '../../cam/post/index.js';
 import { openMachineManager } from './machines.js';
@@ -11,6 +12,9 @@ import { uid, hashStr } from './util.js';
 import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
 import { SimRun } from './simbar.js';
 import { showIssueList, showNc as showNcModal, openVerify as openVerifyDlg } from './postui.js';
+import { buildSetupSheet } from '../../cam/report/setupsheet.js';
+import { MATERIALS } from '../../cam/cutdata.js';
+import { machineName } from './store.js';
 import pkg from '../../../package.json';
 
 const errObj = (e) => ({ code: e?.code || 'internal', params: e?.params || { message: String(e?.message ?? e) } });
@@ -63,19 +67,21 @@ export class CamOps {
   // ---------------------------------------------------------------- hesap
   async resolveS(setup) {
     const planes = {};
-    for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face') planes[k] = await this.app.query('facePlane', { ref: ax.ref }); }
+    for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face' || ax?.kind === 'edge') planes[k] = await axisPlane((c, a) => this.app.query(c, a), ax); }
     return resolveSetup(setup, this.app.result, this.cam.machine(), { planes });
   }
   // setup.ops içinden ids hesaplanır; sonuç önbelleğe yazılır. Dönüş: Map(opId → {key,S,tp,error})
-  async computeSetup(setup, ids) {
+  async computeSetup(setup, ids, ctxOps = []) {
     const out = new Map(); const ops = (setup.ops || []).filter((o) => ids.includes(o.id) && !o.suppressed);
+    const gen = [...ctxOps, ...ops]; // ctxOps: yalniz stok zincirine girer (onceki islemler); sonuc ops icin tutulur
     let S = null;
     try { S = await this.resolveS(setup); } catch (e) { for (const o of ops) { const x = { key: this.keyOf(o, setup), error: errObj(e) }; this.cache.set(o.id, x); out.set(o.id, x); } return out; }
-    const sub = { tools: this.cam.tools(), setups: [{ ...setup, ops }] };
+    const sub = { tools: this.cam.tools(), setups: [{ ...setup, ops: gen }] };
     const r = await generateProgram(sub, { rebuild: this.app.result, machine: this.cam.machine(), query: (c, a) => this.app.query(c, a), doc: this.app.doc, name: 'PROG' });
     for (const o of ops) {
       const q = r.ops.find((x) => x.opId === o.id);
-      const x = { key: this.keyOf(o, setup), S, tp: q?.toolpath || null, error: q ? (q.ok ? null : q.error) : errObj({ code: 'cam.gate.op_failed', params: { op: o.name, code: 'internal' } }) };
+      let So = S; if (Number.isFinite(o.aAngle) && o.aAngle !== setup.rotary?.aAngle) { try { So = await this.resolveS({ ...setup, rotary: { enabled: true, aAngle: o.aAngle } }); } catch (e) { So = S; } } // WP-07: islem basina A acisi
+      const x = { key: this.keyOf(o, setup), S: So, tp: q?.toolpath || null, error: q ? (q.ok ? null : q.error) : errObj({ code: 'cam.gate.op_failed', params: { op: o.name, code: 'internal' } }) };
       this.cache.set(o.id, x); out.set(o.id, x);
     }
     return out;
@@ -83,7 +89,10 @@ export class CamOps {
   async computeDraft(setup, d) {
     if (!this.cam.machine()) return { error: { code: 'cam.no_machine', params: {} } };
     try {
-      const m = await this.computeSetup({ ...setup, ops: [d] }, [d.id]); const x = m.get(d.id);
+      // dis frezeleme: delik onceki islemle (matkap) acilmis olabilir; taslak, kendinden onceki islemlerle zincirlenir (stok denetimi)
+      const all = setup.ops || []; const at = all.findIndex((o) => o.id === d.id);
+      const prior = d.type === 'threadmill' && at > 0 ? all.slice(0, at).filter((o) => !o.suppressed) : [];
+      const m = await this.computeSetup({ ...setup, ops: [d] }, [d.id], prior); const x = m.get(d.id);
       this.draftPath = x && !x.error ? { opId: d.id, S: x.S, tp: x.tp } : null;
       return x?.error ? { error: x.error } : { tp: x.tp, S: x.S };
     } catch (e) { return { error: errObj(e) }; }
@@ -238,6 +247,20 @@ export class CamOps {
     let res; try { res = this.runPost(r.program, r.gates); } catch (e) { this.nc = null; this.app.C.renderAll(); await showIssueList(this, { title: t('cam.post.fail_title'), intro: t('cam.post.fail_intro'), rows: [{ level: 'block', op: '', text: errText(e) }], kind: 'err' }); return; }
     this.nc = { ...res, items: r.items, program: r.program, gates: r.gates, docSig: r.docSig, name: this.progName() };
     this.app.C.renderAll(); await this.showNc();
+  }
+  // WP-07 dilim 6: kurulum foyu - belge verisinden (hesaplanmis islemler) tek dosya HTML; tarayicidan PDF'e yazdirilir
+  buildSheet(r) {
+    const cam = this.cam; const toolNames = {}; for (const x of cam.tools()) if (x.name) toolNames[x.number] = x.name;
+    const mat = cam.data().material; const material = mat ? (MATERIALS.includes(mat) ? t('cam.cd.m.' + mat) : mat) : '';
+    const title = String(this.app.fileName || '').replace(/\.[^.]*$/, '');
+    return buildSetupSheet({ title, date: new Date().toISOString().slice(0, 10), machineName: machineName(cam.machine()), material, programName: this.progName(), toolNames, tr: (k, p) => t(k, p), lang: document.documentElement.lang === 'en' ? 'en' : 'tr',
+      items: r.items.map((x) => ({ setupName: x.setup.name, stockFrom: x.setup.stockFrom, S: x.S, opName: x.op.name, opType: x.op.type, tp: x.tp })) });
+  }
+  async sheet() {
+    const r = await this.prepare(); if (!r) return null;
+    const html = this.buildSheet(r); const name = this.progName() + '-foy.html';
+    try { const p = await this.app.writeOut(new TextEncoder().encode(html), name, 'html', true); if (p) toast(t('cam.sheet.saved', { name: typeof p === 'string' ? p : name }), { kind: 'ok' }); return html; }
+    catch (e) { toast(t('cam.sheet.save_failed', { msg: errText(e) }), { kind: 'err' }); return null; }
   }
   async showNc() { if (!this.nc) { toast(t('cam.need_post'), { kind: 'warn' }); return; } await showNcModal(this); this.cam.view?.hideMove(); }
 }

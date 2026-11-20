@@ -84,29 +84,34 @@ const idStr = str(LIMITS.shortStr);
 const COOL = ['flood', 'mist', 'air', 'through', 'off'];
 const camTool = obj({
   id: idStr, number: posInt(), lengthOffset: posInt(), diaOffset: nullable(posInt()),
-  type: oneOf(['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore']),
+  type: oneOf(['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore', 'threadmill']),
   dia: camNum(0, 2000), cornerR: camNum(0, 1000), tipAngle: camNum(0, 180), fluteLen: camNum(0), bodyLen: camNum(0), shaftDia: camNum(0, 2000), tipDia: camNum(0, 2000),
   flutes: posInt(100), centerCutting: bool(), pitch: camNum(0, 100), holder: nullable(obj({ dia: camNum(0), len: camNum(0) })),
   material: str(LIMITS.shortStr), note: str(), name: str(LIMITS.shortStr),
   presets: arrOf(obj({ name: str(LIMITS.shortStr), rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), stepdown: camNum(0), stepover: camNum(0), coolant: oneOf(COOL) }), CAM_LIMITS.presets),
 });
-const axisSpec = obj({ kind: oneOf(['base', 'face']), dir: oneOf(['+X', '-X', '+Y', '-Y', '+Z', '-Z']), ref: obj(), flip: bool() });
+const axisSpec = obj({ kind: oneOf(['base', 'face', 'edge']), dir: oneOf(['+X', '-X', '+Y', '-Y', '+Z', '-Z']), ref: obj(), flip: bool(), auto: bool() });
 const heightRef = obj({ from: oneOf(['stockTop', 'stockBottom', 'modelTop', 'modelBottom', 'selection', 'abs']), off: camNum() });
 const camOp = obj({
-  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
+  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer', 'circular', 'threadmill', 'slot', 'trace']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
   rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), coolant: oneOf(COOL), suppressed: bool(),
   heights: obj({ clearance: camNum(), retract: camNum(), top: heightRef, bottom: heightRef }),
   geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr, ents: strArr(), reverse: bool() }), CAM_LIMITS.geom),
   stepover: camNum(0), stepdown: camNum(0), finishStepdown: camNum(0), finishStock: camNum(0), direction: camNum(), extend: camNum(0),
   side: oneOf(['outside', 'inside', 'on', 'left', 'right']), extendStart: camNum(0), extendEnd: camNum(0), width: camNum(0), tipClearance: camNum(0), dir: oneOf(['climb', 'conv']), comp: oneOf(['computer', 'wear']), finishPass: bool(),
   cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
+  aAngle: camNum(-36000, 36000),
+  sharp: bool(),
   holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr }), sketch: idStr, ents: strArr(), rec: strArr(), acceptThread: strArr() }),
   depth: obj({ from: oneOf(['hole', 'abs']), tipComp: bool(), breakThrough: camNum(0), z: camNum() }),
-  entry: obj({ kind: oneOf(['helix', 'ramp', 'plunge', 'predrill']), angle: camNum(0, 90), helixDia: camNum(0) }),
+  entry: obj({ kind: oneOf(['helix', 'ramp', 'plunge', 'predrill']), angle: camNum(0, 90), helixDia: camNum(0), points: arrOf(arrOf(camNum(), 2), 500) }),
   leadIn: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }), leadOut: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }),
-  tabs: obj({ n: posInt(100), width: camNum(0), height: camNum(0) }), ramp: obj({ kind: oneOf(['plunge', 'ramp', 'helix']), angle: camNum(0, 90) }),
+  tabs: obj({ n: posInt(100), width: camNum(0), height: camNum(0) }), ramp: obj({ kind: oneOf(['plunge', 'ramp', 'helix']), angle: camNum(0, 90), helixDia: camNum(0) }),
   roughPasses: obj({ n: posInt(100), stepover: camNum(0) }),
   stockToLeave: either(camNum(0), obj({ radial: camNum(0), axial: camNum(0) }), 'number/{radial,axial}'),
+  // WP-07: dairesel frezeleme (circular) ve dis frezeleme (threadmill)
+  dia: camNum(0), diaAdjust: camNum(), predrillDia: camNum(0), external: bool(), hand: oneOf(['right', 'left']), designation: str(40), major: camNum(0), pitch: camNum(0, 100),
+  radialPasses: posInt(20), springPasses: camNum(0, 5), radialAdjust: camNum(-0.2, 0.2), feedAtEdge: bool(), length: camNum(0),
 });
 const camSetup = obj({
   id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),
@@ -122,6 +127,9 @@ export function validateCam(cam) {
   if (cam.machineId !== undefined && cam.machineId !== null) str(LIMITS.shortStr)(cam.machineId, CP + '.machineId');
   if (cam.tools !== undefined) arrOf(camTool, CAM_LIMITS.tools)(cam.tools, CP + '.tools');
   if (cam.setups !== undefined) arrOf(camSetup, CAM_LIMITS.setups)(cam.setups, CP + '.setups');
+  // WP-07: belgeye ozel kesme verisi satirlari ve varsayilan malzeme
+  if (cam.cutLib !== undefined) arrOf(obj({ id: idStr, material: str(60), type: oneOf(['endmill', 'drill', 'tap', 'chamfer', 'other']), diaMin: camNum(0), diaMax: camNum(0), vc: camNum(0), fz: camNum(0), note: str(200) }), 500)(cam.cutLib, CP + '.cutLib');
+  if (cam.material !== undefined) str(60)(cam.material, CP + '.material');
   if (cam.verified !== undefined && cam.verified !== null) obj({ by: str(LIMITS.shortStr), date: str(40), note: str(), hash: str(LIMITS.shortStr) })(cam.verified, CP + '.verified');
   const ids = new Set();
   for (const [i, t] of (cam.tools || []).entries()) { if (!t.id) fail('schema.bad_field', { path: `${CP}.tools[${i}].id`, expect: 'text' }); if (ids.has(t.id)) fail('schema.dup_id', { id: t.id }); ids.add(t.id); }

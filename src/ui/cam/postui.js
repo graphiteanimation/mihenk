@@ -59,7 +59,7 @@ export async function showNc(ops) {
   draw();
   const content = h('div', { class: 'nc-wrap' }, info, fld(t('cam.nc.progno'), h('div', { class: 'row-inline' }, unitBox(num), regen), { f: 'nc-progno' }), h('div', { class: 'note', text: t('cam.nc.click_hint') }), pre);
   setTimeout(() => draw(), 0);
-  await modal({ title: t('cam.nc.title'), width: 760, cls: 'nc-modal', icon: 'nc-code', content, buttons: [{ label: t('cam.nc.save'), cls: 'primary', value: 'save', testid: 'nc-save', onClick: save }, { label: t('common.close'), cls: 'pri', value: 'close', testid: 'nc-close' }] });
+  await modal({ title: t('cam.nc.title'), width: 760, cls: 'nc-modal', icon: 'nc-code', content, buttons: [{ label: t('cam.nc.save'), cls: 'primary', value: 'save', testid: 'nc-save', onClick: save }, { label: t('cam.sheet.save'), value: 'sheet', testid: 'nc-sheet', onClick: () => { ops.sheet(); } }, { label: t('common.close'), cls: 'pri', value: 'close', testid: 'nc-close' }] });
 }
 
 // Kullanıcı beyanı: ad + tarih + not → doc.cam.verified (belge değişince düşer)
