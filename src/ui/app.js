@@ -500,7 +500,12 @@ class App {
       const ok = await confirmBox(t('dlg.del_title'), t('dlg.del_body', { name: f.name || f.id, list: deps.map((x) => x.name || x.id).join('\n• ') }), t('dlg.del_yes'));
       if (!ok) return;
     }
-    await this.commit((d) => { d.features.splice(i, 1); if (d.rollback != null) { if (i < d.rollback) d.rollback--; if (d.rollback >= d.features.length) d.rollback = null; } if (Array.isArray(d.groups)) d.groups = fixGroups(d, d.features); });
+    await this.commit((d) => {
+      const before = { ...d, features: d.features.slice() }; // grup aralığı silme öncesi sıraya göre çözülür
+      d.features.splice(i, 1); if (d.rollback != null) { if (i < d.rollback) d.rollback--; if (d.rollback >= d.features.length) d.rollback = null; }
+      // grup kalan üyelerle sürer (sınır komşu üyeye kayar); tek üyesi silinen grup düşer; grup kalmazsa alan kaldırılır
+      if (Array.isArray(d.groups)) { const g = fixGroups(before, d.features); if (g && g.length) d.groups = g; else delete d.groups; }
+    });
     if (this.selFeature === f.id) this.selFeature = null;
     this.C.renderAll();
   }

@@ -1072,6 +1072,20 @@ try:
     ok(); idle()
     check('WP-02 iptal: Tamam sonrası parça hatasız, iptal hata bildirimi üretmez', allok() and 'iptal' not in ev('document.querySelector("#toast").textContent'))
 
+    # ---------------------------------------------------------------- WP-02 doğrulama: grup üyesi silme
+    order = lambda: ev('app.doc.features.map(f => f.id)')
+    print('WP-02 doğrulama: grup üyesi silme')
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', dict(P12, groups=[{'id': 'g1', 'name': 'Delikler', 'first': 'k1', 'last': 'k2'}, {'id': 'g2', 'name': 'Tek', 'first': 'cz', 'last': 'cz'}])); idle()
+    gr = lambda: ev('app.doc.groups === undefined ? "yok" : app.doc.groups')
+    ev('app.deleteFeature(app.doc.features.findIndex(f => f.id === "k1"))'); idle()
+    check('WP-02 grup silme: ilk üye silinince grup kalan üyeyle sürer', gr() == [{'id': 'g1', 'name': 'Delikler', 'first': 'k2', 'last': 'k2'}, {'id': 'g2', 'name': 'Tek', 'first': 'cz', 'last': 'cz'}], gr())
+    ev('app.deleteFeature(app.doc.features.findIndex(f => f.id === "cz"))'); idle()
+    check('WP-02 grup silme: tek üyeli grubun üyesi silinince grup düşer', gr() == [{'id': 'g1', 'name': 'Delikler', 'first': 'k2', 'last': 'k2'}], gr())
+    ev('app.deleteFeature(app.doc.features.findIndex(f => f.id === "k2"))'); idle()
+    check('WP-02 grup silme: son grup düşünce groups alanı kaldırılır', gr() == 'yok' and 'groups' not in json.loads(ev('new TextDecoder().decode(app.fileBytes())'))['doc'], gr())
+    ev('document.activeElement && document.activeElement.blur()'); page.keyboard.press('Control+z'); idle()
+    check('WP-02 grup silme: geri al grubu geri getirir', gr() == [{'id': 'g1', 'name': 'Delikler', 'first': 'k2', 'last': 'k2'}] and 'k2' in order(), gr())
+
     print('WP-04 dilim 3: görünüm küpü, sol tuş, panel açıkken görünüm, C-04')
     def vdir(): return ev('(() => { const c = app.viewport.camera.position.clone().sub(app.viewport.controls.target).normalize(); return [c.x, c.y, c.z].map((v) => Math.round(v * 1000) / 1000); })()')
     def cube_center(sel):
