@@ -102,6 +102,8 @@ export class SetupPanel {
     if (!A) rows.push(h('div', { class: 'note', text: t('cam.su.no_a_axis') }));
     else {
       rows.push(checkField({ label: t('cam.su.a_on'), value: !!d.rotary.enabled, f: 'su-a-on', hint: t('cam.su.a_hint'), set: (v) => { d.rotary.enabled = v; this.render(); upd(); } }));
+      // M-02: 3+1'de orijin A=0 çerçevesinde tanımlıdır; döndürülen stok üstü Z=0 olmaz, Mutlak Z buna göre girilir
+      if (d.rotary.enabled) rows.push(h('div', { class: 'help', 'data-testid': 'su-a-origin-note', text: t('cam.su.a_origin_note') }));
       if (d.rotary.enabled) rows.push(numField({ label: t('cam.su.a_angle'), value: d.rotary.aAngle, unit: '°', nullable: false, min: -1e5, f: 'su-a-angle', warn: (v) => (v !== null && A.limits && (v < A.limits[0] || v > A.limits[1]) ? t('cam.su.a_limits', { min: A.limits[0], max: A.limits[1] }) : null), set: (v) => { d.rotary.aAngle = v; upd(); } }));
     }
     rows.push(sec(t('cam.su.heights')), numField({ label: t('cam.su.clearance'), value: d.clearanceZ ?? 10, unit: 'mm', nullable: false, min: 0, f: 'su-clearance', hint: t('cam.su.clearance_hint'), set: (v) => { d.clearanceZ = v; upd(); } }));

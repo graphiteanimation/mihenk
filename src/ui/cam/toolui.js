@@ -147,10 +147,16 @@ export async function openToolManager(cam, scope = 'doc') {
     if (v === 'import') {
       let text; try { text = await pickJson(); } catch (e) { toast(t('cam.tl.import_failed', { msg: errText(e) }), true); continue; } if (text == null) continue;
       try {
-        const res = importLibrary(text); const cur = list(); const have = new Set(cur.map((x) => x.id)); const add = [];
-        for (const x of res.tools) add.push(have.has(x.id) ? { ...x, id: uid('tool') } : x);
-        setList([...cur, ...add]);
-        toast(res.errors.length ? t('cam.tl.imported_some', { n: add.length, bad: res.errors.length, first: errText({ code: res.errors[0].code, params: res.errors[0].params }) }) : t('cam.tl.imported', { n: add.length }), { kind: res.errors.length ? 'warn' : 'ok' });
+        const res = importLibrary(text); const cur = list(); const have = new Set(cur.map((x) => x.id)); const add = []; const skip = [];
+        // C-09: belge kapsamında aynı numaralı takım kopyalanmaz (T20 iki kez olmaz); kütüphanede içeriği aynı takım ikinci kez eklenmez
+        const sig = (x) => JSON.stringify({ ...x, id: undefined }); const nums = new Set(cur.map((x) => x.number)); const sigs = new Set(cur.map(sig));
+        for (const x of res.tools) {
+          if (scope === 'doc' ? nums.has(x.number) : sigs.has(sig(x))) { skip.push(x); continue; }
+          add.push(have.has(x.id) ? { ...x, id: uid('tool') } : x); nums.add(x.number); sigs.add(sig(x));
+        }
+        if (add.length) setList([...cur, ...add]);
+        const skipNote = skip.length ? ' ' + t('cam.tl.import_skipped', { k: skip.length, why: scope === 'doc' ? t('cam.tl.skip_number', { nums: [...new Set(skip.map((x) => 'T' + x.number))].join(', ') }) : t('cam.tl.skip_same') }) : '';
+        toast((res.errors.length ? t('cam.tl.imported_some', { n: add.length, bad: res.errors.length, first: errText({ code: res.errors[0].code, params: res.errors[0].params }) }) : t('cam.tl.imported', { n: add.length })) + skipNote, { kind: res.errors.length || skip.length ? 'warn' : 'ok' });
       } catch (e) { toast(t('cam.tl.import_failed', { msg: errText(e) }), true); }
       continue;
     }
@@ -165,7 +171,7 @@ export async function openToolManager(cam, scope = 'doc') {
     } else if (act === 'todoc') {
       const cur = cam.tools(); const c = { ...clone(tool), id: uid('tool') };
       if (cur.some((x) => x.number === c.number)) { toast(t('cam.tl.number_taken', { n: c.number }), { kind: 'warn' }); const nt = await editTool(c, { isNew: true, prot, others: cur, strictNumber: true }); if (nt) cam.setTools([...cur, nt]); } else { cam.setTools([...cur, c]); toast(t('cam.tl.added_to_doc', { name: c.name || 'T' + c.number }), { kind: 'ok' }); }
-      scope = 'doc';
+      // C-09: kapsam sekmesi kendiliğinden "Bu belge"ye geçmez (kullanıcının seçtiği sekme korunur)
     } else if (act === 'tolib') { const lib = toolLibrary(); saveToolLibrary([...lib, { ...clone(tool), id: uid('tool') }]); toast(t('cam.tl.saved_to_lib', { name: tool.name || 'T' + tool.number }), { kind: 'ok' }); }
   }
 }
