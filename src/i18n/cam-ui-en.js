@@ -395,6 +395,8 @@ export default {
   "cam.ppw.programNumberDigits": "Program number digits is required.",
   "cam.pp.percentLeader": "% at file start/end",
   "cam.ppw.percentLeader": "% at file start/end is required.",
+  "cam.pp.modelSummary": "Model summary in NC header",
+  "cam.ppw.modelSummary": "Writes document name, part/stock sizes, setup list and generation time as header comments.",
   "cam.pp.decimals": "Decimal places",
   "cam.ppw.decimals": "Decimal places written for XYZ and I/J values.",
   "cam.ppw.coolant.flood": "Flood coolant M code.",

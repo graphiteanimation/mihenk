@@ -395,6 +395,8 @@ export default {
   "cam.ppw.programNumberDigits": "Program numarası hane sayısı gerekli.",
   "cam.pp.percentLeader": "Dosya başı/sonu %",
   "cam.ppw.percentLeader": "Dosya başı/sonu % gerekli.",
+  "cam.pp.modelSummary": "NC başlığında model özeti",
+  "cam.ppw.modelSummary": "Başlığa belge adı, parça/stok ölçüleri, setup listesi ve üretim zamanı yorum olarak yazılır.",
   "cam.pp.decimals": "Ondalık sayısı",
   "cam.ppw.decimals": "XYZ ve I/J değerlerinde yazılan ondalık basamak.",
   "cam.ppw.coolant.flood": "Bol soğutma M kodu.",

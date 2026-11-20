@@ -7,24 +7,13 @@ import { checkMachine, copyMachine, builtinMachines, GENERIC_3AXIS_ID } from '..
 import { exportMachines, importMachines } from '../../cam/machines/io.js';
 import { listPosts, getPost } from '../../cam/post/index.js';
 import { resolveProps, CONDITIONAL_PROPS } from '../../cam/post/engine.js';
+import { PP, PP_ORDER } from './postopts.js';
 import { allMachines, saveUserMachines, userMachines, machineName } from './store.js';
 import { pickJson } from './toolui.js';
 import { clone, uid, parseIntList, numField, textField, selField, checkField, sec, callout, fld, unitBox, msgBox, setMsg, blockedByBadField } from './util.js';
 
 const WCS_LIST = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59'];
-// post özelliği tanımları: tür, seçenekler, birim. Etiket 'cam.pp.<ad>', neden gerekli 'cam.ppw.<ad>'.
-const PP = {
-  safeRetract: { kind: 'sel', opts: ['G28', 'G53'] }, safeRetractZ: { kind: 'num', unit: 'mm' },
-  dwellAddress: { kind: 'sel', opts: ['P', 'X'] }, dwellUnit: { kind: 'sel', opts: ['ms', 's'] },
-  cycleDwellAddress: { kind: 'sel', opts: ['P'] }, cycleDwellUnit: { kind: 'sel', opts: ['ms', 's'] },
-  coolantCodes: { kind: 'codes', keys: ['flood', 'mist', 'air', 'through', 'off'] },
-  tapMode: { kind: 'sel', opts: ['feed', 'pitch'] }, rigidTapM: { kind: 'text' }, tapR1: { kind: 'bool' },
-  rotaryMode: { kind: 'sel', opts: ['6a', '6b'] }, aReturnZero: { kind: 'bool' }, aSplit180: { kind: 'bool' },
-  g541Range: { kind: 'range' }, highSpeedOn: { kind: 'text' }, highSpeedOff: { kind: 'text' },
-  toolChangeCode: { kind: 'text' }, endCode: { kind: 'text' }, optionalStop: { kind: 'bool' }, rapidSplit: { kind: 'bool' }, cannedCycles: { kind: 'bool' },
-  lineNumbers: { kind: 'bool' }, lineNumberStart: { kind: 'num', int: true }, lineNumberStep: { kind: 'num', int: true }, programNumberDigits: { kind: 'num', int: true }, percentLeader: { kind: 'bool' }, decimals: { kind: 'num', int: true },
-};
-const PP_ORDER = ['safeRetract', 'safeRetractZ', 'dwellAddress', 'dwellUnit', 'cycleDwellAddress', 'cycleDwellUnit', 'coolantCodes', 'tapMode', 'rigidTapM', 'tapR1', 'rotaryMode', 'aReturnZero', 'aSplit180', 'g541Range', 'highSpeedOn', 'highSpeedOff', 'toolChangeCode', 'endCode', 'optionalStop', 'rapidSplit', 'cannedCycles', 'lineNumbers', 'lineNumberStart', 'lineNumberStep', 'programNumberDigits', 'percentLeader', 'decimals'];
+// post özelliği tanımları ve sırası: ./postopts.js (saf modül, node testli)
 const isNull = (v) => v === null || v === undefined || v === '';
 // "doldurulmalı" vurgusu: alan boşken satır işaretlenir ve neden gerektiği yazılır
 function needMark(row, whyText, empty) {
