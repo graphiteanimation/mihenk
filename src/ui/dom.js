@@ -36,7 +36,8 @@ export function toast(msg, opt = false) {
   const close = () => { clearTimeout(el._t); el.remove(); if (!root.children.length) root.classList.add('hidden'); };
   const body = h('div', {}, o.title ? h('div', { class: 'tt', text: o.title }) : null, h('div', o.title ? { class: 'tb', text } : { class: 'tt', text }));
   el.append(h('span', { html: icon(TOAST_ICON[kind], 'sm') }), body, h('button', { class: 'x', 'data-testid': 'toast-close', 'aria-label': t('common.close'), onclick: close, html: icon('close', 'sm') }));
-  if (o.action) el.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: () => { close(); o.action.run(); } }, o.action.label)));
+  const acts = o.actions || (o.action ? [o.action] : []); // actions: birden çok düğme (ör. Geri al + Onar)
+  if (acts.length) el.append(h('div', { class: 'acts' }, ...acts.map((a) => h('button', { class: 'btn sm', onclick: () => { close(); a.run(); } }, a.label))));
   const arm = () => { const ms = o.ms ?? TOAST_MS[kind]; if (ms) el._t = setTimeout(close, ms); };
   el.addEventListener('mouseenter', () => clearTimeout(el._t)); el.addEventListener('mouseleave', arm);
   root.append(el); root.classList.remove('hidden'); arm();

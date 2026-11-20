@@ -323,7 +323,8 @@ class App {
     sum.text = text() + (mv ? ' · ' + t('hs.move_changed', { a: fmt(mv.a, 1), b: fmt(mv.b, 1) }) : ''); this.lastSummary = sum;
     // tek özet: yenisi öncekinin yerine geçer
     this._sumToast?.querySelector('[data-testid=toast-close]')?.click();
-    const act = mv ? { action: { label: t('hs.undo_move'), run: () => this.undo() } } : first ? { action: { label: t('hs.repair'), run: () => this.repairFeature(first.id) } } : {};
+    const acts = []; if (mv) acts.push({ label: t('hs.undo_move'), run: () => this.undo() }); if (first) acts.push({ label: t('hs.repair'), run: () => this.repairFeature(first.id) }); // ikisi birlikte: sıra değişimi hem modeli değiştirdi hem hata verdiyse ikisi de çıkar
+    const act = acts.length ? { actions: acts } : {};
     this._sumToast = toast(sum.text, { kind: errs.length ? 'err' : warns.length || mv ? 'warn' : 'ok', title: t('hs.summary_title'), ...(mv ? { ms: 0 } : {}), ...act });
     this._sumToast.setAttribute('data-testid', 'hist-summary');
     let host = document.getElementById('hist-summary-host');

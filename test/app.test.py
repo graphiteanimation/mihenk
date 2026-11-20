@@ -1100,6 +1100,12 @@ try:
     page.click('#browser .hrow[data-hist="h1"] .hn'); page.keyboard.press('Alt+Shift+ArrowUp'); idle()
     S = ev('app.lastSummary')
     check('WP-02 sıraya duyarlı: yuvarlat ↔ delik (hacim aynı) uyarı üretmez', order() == ['b', 'h1', 'f1'] and allok() and S and not S['moveChanged'] and 'Sıra değişince' not in summ_text(), [order(), summ_text()])
+    # entegre: sıra değişimi hem modeli değiştirir hem hata verirse "Geri al" ve "Onar" birlikte çıkar
+    vcut = {'id': 'h2', 'type': 'primitive', 'name': 'Silindir 2', 'kind': 'cylinder', 'x': '40', 'y': '40', 'z': '-1', 'dia': '4', 'h': '100', 'axis': 'Z', 'op': 'cut', 'targets': ['b']}
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', {'params': [], 'features': [vbox, vfil, vcut]}); idle()
+    page.click('#browser .hrow[data-hist="h2"] .hn'); page.keyboard.press('Alt+Shift+ArrowUp'); idle()
+    S = ev('app.lastSummary')
+    check('WP-02 sıraya duyarlı: kesen silindir yuvarlatmadan önceye alınınca hata + "Geri al" ve "Onar" birlikte', order() == ['b', 'h2', 'f1'] and S and S['e'] >= 1 and S['moveChanged'] and toast_btn('Geri al').count() == 1 and toast_btn('Onar').count() == 1, [order(), summ_text(), S and S['e'], S and S['moveChanged']])
     print('WP-02 doğrulama: grup üyesi silme')
     ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', dict(P12, groups=[{'id': 'g1', 'name': 'Delikler', 'first': 'k1', 'last': 'k2'}, {'id': 'g2', 'name': 'Tek', 'first': 'cz', 'last': 'cz'}])); idle()
     gr = lambda: ev('app.doc.groups === undefined ? "yok" : app.doc.groups')
