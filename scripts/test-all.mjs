@@ -57,6 +57,9 @@ function summary(out) {
   return { line: lines.length ? lines[lines.length - 1].slice(0, 160) : '(çıktı yok)' };
 }
 
+// WP-10: test:all izlenen (ya da yeni, yok sayılmayan) dosya bırakmamalı. Koşu öncesi ve sonrası `git status --porcelain` karşılaştırılır.
+const gitState = () => { const r = spawnSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }); return r.status === 0 ? new Set(r.stdout.split(/\r?\n/).filter(Boolean)) : null; };
+const gitBefore = gitState();
 const results = []; let buildOk = true;
 console.log(`test:all — ${steps.length} adım (${process.platform}, node ${process.version})`);
 for (const [i, step] of steps.entries()) {
@@ -79,6 +82,8 @@ for (const [i, step] of steps.entries()) {
 console.log('\n==== ÖZET ====');
 let tp = 0, tf = 0;
 for (const r of results) { if (r.pass != null) { tp += r.pass; tf += r.fail; } console.log(`${r.status.padEnd(7)} ${r.name}${r.pass != null ? `  (${r.pass} geçti, ${r.fail} kaldı)` : ''}${r.attempts > 1 ? '  [yeniden denendi]' : ''}`); }
+const gitAfter = gitState();
+if (gitBefore && gitAfter) { const dirty = [...gitAfter].filter((l) => !gitBefore.has(l)); results.push({ name: 'izlenen dosya değişmedi (git status)', status: dirty.length ? 'KALDI' : 'GEÇTİ' }); if (dirty.length) console.log('test:all şu dosyaları değiştirdi/oluşturdu:\n  ' + dirty.join('\n  ')); }
 const bad = results.filter((r) => r.status !== 'GEÇTİ');
 console.log(`${results.length - bad.length}/${results.length} adım geçti; sayılan denetim: ${tp} geçti, ${tf} kaldı`);
 if (bad.length) console.log('KALAN/ATLANAN: ' + bad.map((r) => r.name + ' (' + r.status + ')').join(', '));
