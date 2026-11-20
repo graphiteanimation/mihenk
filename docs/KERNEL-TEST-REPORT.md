@@ -1,11 +1,11 @@
-# AtolyeCAD çekirdek — bağımsız test raporu
+# Mihenk çekirdek — bağımsız test raporu
 
 Kapsam: `src/kernel/kernel.js` (OCCT/replicad), `src/shared/profiles.js`, `src/shared/expr.js`, `src/shared/vec.js`.
 Kaynak koduna dokunulmadı; yalnız `test/models/` ve bu rapor yazıldı. Testler yalnız `status.ok` ve geometrik sonuçlara bakar, hata metnine bağlı değildir.
 
-**Hangi kaynak sınandı:** Başka bir ajan `src/` üzerinde çalıştığı için testler `git archive HEAD` ile alınan sabit bir kopya (`/tmp/snap/src`, `ATOLYE_SRC` ile seçilir) üzerinde koşturuldu. **Bu rapordaki satır numaraları HEAD'deki `src/kernel/kernel.js`, `src/shared/*.js` içindir.** Çalışma ağacındaki (değişmekte olan) kaynakta da `part-a/g`, `state-bugs`, `ref-adversarial`, `profiles`, `feature-geo`, `measure` dosyaları koşturuldu ve aynı sonuçlar alındı (kalan sayıları birebir aynı).
+**Hangi kaynak sınandı:** Başka bir ajan `src/` üzerinde çalıştığı için testler `git archive HEAD` ile alınan sabit bir kopya (`/tmp/snap/src`, `MIHENK_SRC` ile seçilir) üzerinde koşturuldu. **Bu rapordaki satır numaraları HEAD'deki `src/kernel/kernel.js`, `src/shared/*.js` içindir.** Çalışma ağacındaki (değişmekte olan) kaynakta da `part-a/g`, `state-bugs`, `ref-adversarial`, `profiles`, `feature-geo`, `measure` dosyaları koşturuldu ve aynı sonuçlar alındı (kalan sayıları birebir aynı).
 
-Çalıştırma: `node test/models/run-all.mjs [dosya-filtresi]` (ayrıntılar `test/models/results.json`). Tek dosya: `node test/models/part-a.mjs`. Farklı kaynak ağacı: `ATOLYE_SRC=/yol/src node test/models/run-all.mjs`.
+Çalıştırma: `node test/models/run-all.mjs [dosya-filtresi]` (ayrıntılar `test/models/results.json`). Tek dosya: `node test/models/part-a.mjs`. Farklı kaynak ağacı: `MIHENK_SRC=/yol/src node test/models/run-all.mjs`.
 
 ## 1. Özet
 
@@ -196,7 +196,7 @@ Makine: konteyner, Node 22, tek iş parçacığı, WASM (replicad-opencascadejs 
 
 - **Arayüz ve worker mesaj protokolü** (`worker.js`, `app.js`, `loadDoc`) çalıştırılmadı: F-02'nin uygulama içi uçtan uca doğrulaması, F-09'un arayüzde nasıl göründüğü ve `die()` ile worker yeniden başlatma yolu denenmedi (kernel düzeyinde kanıtlı; app davranışı koddan çıkarım).
 - **Sketch çözücü** (`solver.js`, kısıt çözümü) ve ölçü ifadeli sketch'lerin parametre değişiminde yeniden çözümü: sketch noktaları elle (çözülmüş) verildi, bu yüzden "çözücü yakınsamazsa/kayan nokta artığı" etkisi (F-05/F-24 tetikleyicileri) gerçek akışta ölçülemedi.
-- **Başka CAD'den gelen gerçek STEP/IGES/STL** (B-spline, NURBS, montaj, renk/isim) yok; yalnız AtolyeCAD'in kendi ürettiği STEP ve elle bozulmuş dosyalar denendi. STEP 20 MB doldurulmuş dosya geçti; 100 MB+ denenmedi.
+- **Başka CAD'den gelen gerçek STEP/IGES/STL** (B-spline, NURBS, montaj, renk/isim) yok; yalnız Mihenk'in kendi ürettiği STEP ve elle bozulmuş dosyalar denendi. STEP 20 MB doldurulmuş dosya geçti; 100 MB+ denenmedi.
 - **Diş verisi** (`thread`), 4/5 eksen/makine verisi, CAM çıktısı, G-kodu bu kapsamda değil. `holes[]` yalnız kaynağıyla karşılaştırıldı.
 - **Görüntüleme ağı** (faceGroups/edgeGroups indeksleri, normaller, WebGL) ve seçim eşlemesi (`hashCode` → indeks) test edilmedi; yalnız hacim/ağın sonlu olması denetlendi.
 - **Loft/sweep/helis** yok (çekirdekte yok). Eğrisel (serbest biçimli) yüzeyde fillet/shell denenmedi.
