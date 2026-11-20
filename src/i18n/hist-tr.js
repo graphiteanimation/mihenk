@@ -28,7 +28,7 @@ export default {
   "hs.show_final": "Son hali göster",
   "hs.final_tip": "Değişikliğin sona kadar etkisini yarı saydam göster; kırılacak işlemler şeritte önceden işaretlenir",
   "hs.summary_title": "Geçmiş güncellendi",
-  "hs.summary": "{n} işlem güncellendi · {c} değişti · {w} uyarı · {e} hata",
+  "hs.summary": "{n}\u00a0işlem güncellendi · {c}\u00a0değişti · {w}\u00a0uyarı · {e}\u00a0hata",
   "hs.summary_err": ": {name} — {msg}",
   "hs.repair": "Onar",
 };

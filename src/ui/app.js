@@ -297,7 +297,13 @@ class App {
     const first = errs[0];
     const text = () => t('hs.summary', { n: sum.n, c: sum.c, w: sum.w, e: sum.e }) + (first ? t('hs.summary_err', { name: first.name || first.id, msg: errText(res.status[first.id].error) }) : '');
     sum.text = text(); this.lastSummary = sum;
-    toast(sum.text, { kind: errs.length ? 'err' : warns.length ? 'warn' : 'ok', title: t('hs.summary_title'), ...(first ? { action: { label: t('hs.repair'), run: () => this.repairFeature(first.id) } } : {}) });
+    // tek özet: yenisi öncekinin yerine geçer
+    this._sumToast?.querySelector('[data-testid=toast-close]')?.click();
+    this._sumToast = toast(sum.text, { kind: errs.length ? 'err' : warns.length ? 'warn' : 'ok', title: t('hs.summary_title'), ...(first ? { action: { label: t('hs.repair'), run: () => this.repairFeature(first.id) } } : {}) });
+    this._sumToast.setAttribute('data-testid', 'hist-summary');
+    let host = document.getElementById('hist-summary-host');
+    if (!host) { host = h('div', { id: 'hist-summary-host', class: 'toasts', 'aria-live': 'polite' }); document.getElementById('viewwrap').append(host); }
+    host.append(this._sumToast); const root = document.getElementById('toast'); if (root && !root.children.length) root.classList.add('hidden');
   }
   // Onarım kipi dilim 5'te; şimdilik hatalı işlem seçilir ve düzenleme paneli açılır
   repairFeature(id) { const i = this.doc.features.findIndex((f) => f.id === id); if (i < 0) return; this.selectFeature(id); this.editFeature(i); }

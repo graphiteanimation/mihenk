@@ -28,7 +28,7 @@ export default {
   "hs.show_final": "Show final result",
   "hs.final_tip": "Preview the effect of the change up to the end (translucent); features that will fail are marked in the timeline beforehand",
   "hs.summary_title": "History updated",
-  "hs.summary": "{n} features updated · {c} changed · {w} warnings · {e} errors",
+  "hs.summary": "{n}\u00a0features updated · {c}\u00a0changed · {w}\u00a0warnings · {e}\u00a0errors",
   "hs.summary_err": ": {name} — {msg}",
   "hs.repair": "Repair",
 };

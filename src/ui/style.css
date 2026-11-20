@@ -257,6 +257,9 @@
 .btn.pri:disabled { background: var(--bg-disabled); border-color: var(--line); color: var(--text-disabled); }
 /* Bildirim sütunu: sol altta (sağ panelin Tamam/İptal düğmelerini örtmesin); kalıcı hata bildirimi çalışmayı engellemez. */
 .toasts { right: auto; left: var(--sp-5); bottom: calc(var(--status-h) + var(--timeline-h) + var(--sp-5)); max-width: calc(var(--browser-w) - var(--sp-5) * 2 + 80px); }
+/* WP-02 geçmiş özeti: görünüm alanının sağ altında ayrı yer (sol Geçmiş listesini, şeridi ve açık pencereleri örtmez; UI-SPEC §11 sağ alt) */
+#hist-summary-host { position: absolute; left: auto; right: var(--sp-4); bottom: var(--sp-4); z-index: var(--z-dock); max-width: calc(100% - 2 * var(--sp-4)); }
+#hist-summary-host:empty { display: none; }
 /* tıklama hedefi: en az 32 px (Büyük yoğunlukta 40 px = --ctl-h) */
 .trow .tw { min-width: var(--ctl-h); width: var(--ctl-h); height: var(--ctl-h); margin: 0 calc(-1 * (var(--ctl-h) - 20px) / 2); }
 .bsec .btn { height: var(--ctl-h); }
