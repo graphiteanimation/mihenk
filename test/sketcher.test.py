@@ -1002,6 +1002,8 @@ try:
     check('[görünüş] okunamayan kayıt ok:true dönmez ve liste değişmez', r['ok'] is False and r.get('err') == 'vd.save_failed' and len(ev('vp.namedViews()')) == n_nv, r)
     ra = ev("vp.saveNamedView('x'.repeat(30) + 'A')"); rb = ev("vp.saveNamedView('x'.repeat(30) + 'B')"); names = [v['name'] for v in ev('vp.namedViews()')]
     check('[görünüş] ilk 24 karakteri aynı adlar birbirini ezmez: ikincisi reddedilir (mesaj anahtarı)', ra['ok'] is True and rb['ok'] is False and rb['err'] == 'vd.name_clash' and len([n for n in names if n.startswith('xxxx')]) == 1, (ra, rb, names))
+    rc = ev("vp.saveNamedView('x'.repeat(30) + 'A')"); n2 = [v['name'] for v in ev('vp.namedViews()')]
+    check('[görünüş] 24 karakterden uzun adı AYNI adla yeniden kaydetmek üzerine yazar (kendi kendisiyle çakışmaz)', rc['ok'] is True and rc.get('replaced') is True and len([n for n in n2 if n.startswith('xxxx')]) == 1, (rc, n2))
     ev("[...vp.namedViews()].forEach((v) => vp.deleteNamedView(v.name))")
     # 7) komut tekrarı yalnız gövde/tuval odağında
     fresh(); tool('line'); click(0, 0); click(30, 0); key('Escape'); key('Escape')

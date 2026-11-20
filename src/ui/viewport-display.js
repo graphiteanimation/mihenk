@@ -15,17 +15,19 @@ const MAX_LEN = 200; // Electron ayar değeri sınırı
 const NAME_MAX = 24;
 
 // Kodlama: ad|px,py,pz|tx,ty,tz|ux,uy,uz|zoom|yarıYükseklik
-export function encodeView(name, s) {
+// fh (isteğe bağlı 7. alan): kısaltılmış adın TAM adının özeti; aynı tam adla yeniden kayıt üzerine yazar, farklı tam adlar çakışır
+export function encodeView(name, s, fh) {
   const j = (a) => a.map(r3).join(',');
-  return [String(name).replace(/[|]/g, ' ').slice(0, 24), j(s.p), j(s.t), j(s.u), sg(s.z), sg(s.h)].join('|');
+  return [String(name).replace(/[|]/g, ' ').slice(0, 24), j(s.p), j(s.t), j(s.u), sg(s.z), sg(s.h), ...(fh ? [fh] : [])].join('|');
 }
+export const nameHash = (raw) => { let x = 5381; for (const ch of String(raw).toLowerCase()) x = (Math.imul(x, 33) + ch.codePointAt(0)) >>> 0; return x.toString(36); };
 export function decodeView(str) {
   if (typeof str !== 'string') return null;
-  const a = str.split('|'); if (a.length !== 6) return null;
+  const a = str.split('|'); if (a.length !== 6 && a.length !== 7) return null;
   const v = (x, n) => { const p = x.split(',').map(Number); return p.length === n && p.every(Number.isFinite) ? p : null; };
   const p = v(a[1], 3), tg = v(a[2], 3), u = v(a[3], 3), z = Number(a[4]), hh = Number(a[5]);
   if (!p || !tg || !u || !Number.isFinite(z) || !(z > 0) || !(hh > 0) || !a[0]) return null;
-  return { name: a[0], s: { p, t: tg, u, z, h: hh } };
+  return { name: a[0], s: { p, t: tg, u, z, h: hh }, fh: a[6] || null };
 }
 
 export const DISPLAY_METHODS = {
@@ -52,18 +54,19 @@ export const DISPLAY_METHODS = {
     c.top = s.h; c.bottom = -s.h; c.left = -s.h * asp; c.right = s.h * asp; c.lookAt(this.controls.target); c.updateProjectionMatrix(); this.controls.update();
     this.dirty = true; this.onCamera && this.onCamera(); this.onView && this.onView();
   },
-  namedViews() { const out = []; for (let i = 1; i <= MAX_VIEWS; i++) { const d = decodeView(getStr(slotKey(i))); if (d) out.push({ slot: i, name: d.name, s: d.s }); } return out; },
-  // Kaydet: ad >24 karakterse "…" ile kısaltılır; kısaltılmış biçimi başka bir kayıtla aynıysa REDDEDİLİR (birbirini ezmez).
+  namedViews() { const out = []; for (let i = 1; i <= MAX_VIEWS; i++) { const d = decodeView(getStr(slotKey(i))); if (d) out.push({ slot: i, name: d.name, s: d.s, fh: d.fh }); } return out; },
+  // Kaydet: ad >24 karakterse "…" ile kısaltılır; kısaltılmış biçimi FARKLI tam adlı başka bir kayıtla aynıysa REDDEDİLİR (birbirini ezmez); aynı tam ad üzerine yazar.
   // Kayıt geri okunup doğrulanmadan ok:true dönmez; okunamıyorsa önceki değer geri konur.
   saveNamedView(name) {
     const raw = String(name || '').replace(/[|]/g, ' ').trim(); if (!raw) return { ok: false, err: 'vd.name_empty' };
     const nm = raw.length > NAME_MAX ? raw.slice(0, NAME_MAX - 1) + '…' : raw, cut = raw.length > NAME_MAX;
     const list = this.namedViews(); const same = list.find((v) => v.name.toLowerCase() === nm.toLowerCase());
-    if (same && cut) return { ok: false, err: 'vd.name_clash' };
+    const fh = cut ? nameHash(raw) : null;
+    if (same && (cut || same.fh) && same.fh !== fh) return { ok: false, err: 'vd.name_clash' }; // aynı tam ad = üzerine yaz; farklı tam adların kısaltması çakışırsa reddet
     let slot = same ? same.slot : null;
     if (!slot) { const used = new Set(list.map((v) => v.slot)); for (let i = 1; i <= MAX_VIEWS; i++) if (!used.has(i)) { slot = i; break; } }
     if (!slot) return { ok: false, err: 'vd.full' };
-    const st = this.viewState(), enc = encodeView(nm, st), key = slotKey(slot), prev = getStr(key);
+    const st = this.viewState(), enc = encodeView(nm, st, fh), key = slotKey(slot), prev = getStr(key);
     const good = () => { const d = decodeView(getStr(key)); return !!d && d.name === nm && Math.abs(d.s.z - st.z) <= Math.abs(st.z) * 1e-5 && Math.abs(d.s.h - st.h) <= Math.abs(st.h) * 1e-5; };
     if (enc.length > MAX_LEN) return { ok: false, err: 'vd.save_failed' };
     setStr(key, enc);
