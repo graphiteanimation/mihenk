@@ -832,7 +832,7 @@ try:
     check('WP-02 akış: süpürme soldan sağa her işlemi bildirdi', S and S['order'] == IDS, S and S['order'])
     check('WP-02 akış: tek özet bildirimi (10 güncellendi · 4 değişti · 0 hata)', S and S['n'] == 10 and S['c'] == 4 and S['e'] == 0 and '10 işlem güncellendi · 4 değişti · 0 uyarı · 0 hata' in toast_text(), toast_text())
     check('WP-02 akış: işaretçi sonda kaldı, son hal görüntüsü kalktı', ev('app.doc.rollback') is None and ev('app._ghost') is None and ev('app.finalResult') is None)
-    ev('app.undo()'); idle()
+    ev('document.activeElement && document.activeElement.blur()'); page.keyboard.press('Control+z'); page.wait_for_timeout(100); idle()
     check('WP-02 akış: Ctrl+Z tüm düzenlemeyi tek adımda geri alır', ev('app.doc.features[2].h') == '30' and ev('app.undoStack.length') == undo0 and near(ev('app.result.bodies.find(b => b.id === "bx").bbox[1][2]'), 30))
     ev('app.redo()'); idle()
     page.locator('#timeline .chip[data-id="bx"]').dblclick(); page.wait_for_selector('#panel [data-k="h"]'); fill('h', 55); idle()

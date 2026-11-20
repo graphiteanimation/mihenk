@@ -121,6 +121,22 @@ try:
     check('tıklama hedefleri >= 40 px (büyük yoğunluk)', not sm, sm[:8])
     ctx.close()
 
+    print('geçmiş: hedef boyutu, erişilebilir ad (WP-02)')
+    ctx, pg = newpage("localStorage.setItem('mihenk.welcome', 'off');")
+    p12 = subprocess.run(['node', '--input-type=module', '-e', "import('./test/models/part12.mjs').then(m => console.log(JSON.stringify(m.part12('30'))))"], capture_output=True, text=True, cwd=ROOT).stdout
+    pg.evaluate('(d) => app.loadDoc(JSON.parse(d))', p12); pg.evaluate('app.whenIdle()')
+    def hsmall(minpx):
+        return pg.evaluate("""(m) => { const out = []; for (const e of document.querySelectorAll('#timeline .chip, #browser .hrow, #browser .hrow button')) {
+          if (e.offsetParent === null) continue; const r = e.getBoundingClientRect(); if (r.height < m - 0.5 || r.width < m - 0.5) out.push((e.dataset.id || e.dataset.hist || e.className) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height)); } return out; }""", minpx)
+    sm = hsmall(32); check('geçmiş: çip/satır/düğme hedefleri >= 32 px (normal)', not sm, sm[:6])
+    pg.evaluate("document.documentElement.setAttribute('data-density', 'large')"); pg.wait_for_timeout(100)
+    sm = hsmall(40); check('geçmiş: çip/satır/düğme hedefleri >= 40 px (büyük yoğunluk)', not sm, sm[:6])
+    pg.evaluate("document.documentElement.setAttribute('data-density', 'normal')")
+    names = pg.evaluate('[...document.querySelectorAll("#timeline .chip")].map(c => c.textContent.trim())')
+    check('geçmiş: her çipin metin adı var (adsız şerit ekran okuyucuda adlı)', len(names) == 10 and all(len(n) > 2 for n in names), names[:3])
+    check('geçmiş: eskiz rozetinin erişilebilir adı', pg.evaluate('[...document.querySelectorAll("#browser [data-testid=hist-sketch-badge]")].every(b => (b.getAttribute("aria-label") || "").length > 3)'))
+    ctx.close()
+
     print('marka')
     ctx, pg = newpage("localStorage.setItem('mihenk.welcome', 'off');")
     txt = pg.evaluate('document.body.innerText')

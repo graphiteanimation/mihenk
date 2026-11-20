@@ -88,7 +88,7 @@
 
 /* ---- zaman çizelgesi ---- */
 .timeline { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
-.timeline .chip { flex: none; font: inherit; color: var(--text); cursor: pointer; }
+.timeline .chip { flex: none; font: inherit; color: var(--text); cursor: pointer; min-width: var(--ctl-h); justify-content: center; }
 .timeline .chip .ic.sm { color: var(--text-muted); }
 .timeline .chip.err .ic.sm { color: var(--err-fg); }
 .timeline .tl-label, .timeline .note { flex: none; white-space: nowrap; }
