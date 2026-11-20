@@ -596,6 +596,27 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
     ok(rQ.ops[0]?.ok && rQ.ops[0].toolpath.warnings.some((w) => w.code === 'cam.drill.through_to_model_bottom' && w.params.n === 2), 'T-14: cekirdek sorgusu basarisiz -> tum delikler eski kural + uyari');
     await K.rebuild(doc);
   }
+  // T-23/5: cozunurlukten ince kanat (0,3 mm @ res 0,5) G99 gecis kararinda gorulmeli
+  {
+    const dK = { params: [], features: [{ id: 'kb', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '40', h: '10', op: 'new' }, { id: 'kf', type: 'primitive', kind: 'box', x: '50.3', y: '0', z: '10', w: '0.3', d: '40', h: '20', op: 'join', targets: ['kb'] }] };
+    const rK = await K.rebuild(dK); const kid = rK.bodies[0].id;
+    const SK = CAM.resolveSetup({ id: 'K1', name: 'K', bodies: [kid], frame: { origin: { kind: 'model' }, zAxis: { kind: 'base', dir: '+Z' }, xAxis: { kind: 'base', dir: '+X' } }, workOffset: { kind: 'G54' }, stock: { kind: 'boxOffset', side: 0, top: 0, bottom: 0 } }, rK, M);
+    const hp = [{ feature: 'k', dia: 6.8, depth: 5, through: false, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: [[30, 20, 10], [70, 20, 10]], dirs: [[0, 0, -1], [0, 0, -1]] }];
+    const bb = [SK.stockBox.min[0], SK.stockBox.min[1], SK.stockBox.max[0], SK.stockBox.max[1]];
+    const center = K.camHeightmap({ bodies: [kid], frame: SK.frame, res: 0.5, bbox: bb });
+    const finSeen = (m) => { let mx = -Infinity; for (let i = 0; i < m.nx; i++) { const x = m.x0 + (i + 0.5) * m.res; if (x > 49.5 && x < 51.5) mx = Math.max(mx, m.data[Math.floor((20 - m.y0) / m.res) * m.nx + i]); } return mx; };
+    ok(finSeen(center) < 10.5, 'kontrol: merkez ornekli model haritasi 0,3 mm kanadi gormez (dogrulayici fin.mjs): ' + finSeen(center));
+    const stockMap = { ...center, data: new Float32Array(center.data) }; // stok = model (islenmis), kanat yine gorunmez
+    const qK = async (cmd, a) => K[cmd](a);
+    const maps = await CAM.drillMaps({ hm: stockMap, done: 0 }, [], SK, { res: 0.5, query: qK });
+    ok(maps.modelMap?.conservative && finSeen(maps.modelMap) > 29.9, 'drillMaps: hucre ici en yuksek (res/4 + havuz) kanadi gorur: ' + finSeen(maps.modelMap || center));
+    const opK = { id: 'dk', type: 'drill', ...base, toolId: 'dr', heights: { clearance: 30, retract: 3 }, holes: { kind: 'feature' }, cycle: 'drill', depth: { from: 'hole', tipComp: false }, order: 'asis' };
+    const toolK = tools.find((t) => t.id === 'dr');
+    const nOld = CAM.computeOp(opK, { setup: SK, tool: toolK, geom: { holes: hp }, stockMap, modelMap: center }).moves.filter((m) => m.t === 'cycle').length;
+    const nNew = CAM.computeOp(opK, { setup: SK, tool: toolK, geom: { holes: hp }, ...maps }).moves.filter((m) => m.t === 'cycle').length;
+    ok(nOld === 1 && nNew === 2, 'T-23: merkez ornekli haritayla kanadi R13\'te gecen tek cevrim (eski) -> yeni haritayla ayri cevrim: ' + nOld + ' -> ' + nNew);
+    await K.rebuild(doc);
+  }
   // T-04: setup n'in son stogu setup n+1'in baslangic stogu (P1 S3 hayalet stok durumunu kuran sentetik cok-setup testi)
   {
     const dP = { params: [], features: [{ id: 'pb', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '60', d: '40', h: '20', op: 'new' }, ...[15, 45].map((x, i) => ({ id: 'pc' + i, type: 'primitive', kind: 'cylinder', x, y: 0, z: 10, dia: 6.8, h: 10, axis: 'Y', op: 'cut', targets: ['pb'] }))] };
@@ -631,6 +652,10 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
     const cY = mkCam(yan); cY.setups[0].ops = [S1o[0]];
     const rY = await CAM.generateProgram(cY, { rebuild: rbP, machine: MA, query: async (c, a) => K[c](a), doc: dP, name: 'O1005', sim: { res: 0.5, modelHeightmaps: hmFor(cY) } });
     ok(ghost(rY.gates).length > 0, 'T-04: S1 yan stogu kaldirmadiysa S2 engel kalir (yanlis temiz yok)');
+    const cB = mkCam(yan); cB.setups[1].stockFrom = 'blank';
+    const rB = await CAM.generateProgram(cB, { rebuild: rbP, machine: MA, query: async (c, a) => K[c](a), doc: dP, name: 'O1006', sim: { res: 0.5, modelHeightmaps: hmFor(cB) } });
+    ok(rB.program.sections.find((x) => x.setup.id === 'T2').setup.stockFrom === 'blank' && ghost(rB.gates).length > 0, "T-04: setup stockFrom 'blank' -> zincir yok, S2 ham stokla (engel)");
+    ok(rY.program.sections.every((x) => x.setup.stockFrom === 'previous' && Array.isArray(x.setup.bodies)), "T-04: program setup'inda stockFrom (varsayilan 'previous') ve bodies");
     await K.rebuild(doc);
   }
 }

@@ -3,7 +3,7 @@ import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
 import { sketchFaces, silhouetteFace, midLevels } from './geom/select.js';
-import { simulate, createHeightmap, stockFromPrevious } from './sim/index.js';
+import { simulate, createHeightmap, stockFromPrevious, chainSources } from './sim/index.js';
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
 export function buildProgram({ name, number = null, machine, sections }) {
@@ -11,7 +11,7 @@ export function buildProgram({ name, number = null, machine, sections }) {
   const out = [];
   for (const sec of sections || []) for (const tp of sec.toolpaths || []) {
     const S = sec.setup;
-    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, machinePos: S.machinePos ?? null, frame: S.frame ?? null }, toolpath: tp });
+    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous' }, toolpath: tp });
   }
   if (!out.length) throw cerr('cam.program.empty');
   const p = { name, number, machine: machine ? { id: machine.id, name: machine.name, rev: machine.rev ?? null, control: machine.control } : null, units: 'mm', sections: out };
@@ -88,12 +88,34 @@ export function advanceStock(st, tps, S, res) {
   } catch (e) { st.failed = true; return null; }
 }
 // T-23: drill baglami icin harita cifti: stok (sim) + model ust haritasi (ince duvar guvencesi). Biri yoksa ikisi de null.
+// Model haritasi HUCRE ICI EN YUKSEK degere yakin olmali (merkez orneklemesi cozunurlukten ince kanadi kacirir): cekirdekten
+// res/4 (hucre siniri <= 3,5 M) ile alinip res hucrelerine komsu ince hucrelerle birlikte en buyukle indirgenir. res/4'ten ince
+// oge yine kacabilir (SINIR; G99 bosluk payi TRANSIT_GAP). Ince harita alinamazsa harita yok: eski muhafazakar gruplama.
+export function poolMax(fine, x0, y0, res, nx, ny) {
+  const out = { x0, y0, res, nx, ny, data: new Float32Array(nx * ny).fill(-Infinity) };
+  for (let J = 0; J < fine.ny; J++) for (let I = 0; I < fine.nx; I++) {
+    const v = fine.data[J * fine.nx + I]; if (!(v > -Infinity)) continue;
+    const fx0 = fine.x0 + I * fine.res, fy0 = fine.y0 + J * fine.res; // ince hucre [fx0, fx0+fres] (bir ince hucre tasma payi)
+    const i0 = Math.max(0, Math.floor((fx0 - fine.res - x0) / res)), i1 = Math.min(nx - 1, Math.floor((fx0 + 2 * fine.res - x0) / res));
+    const j0 = Math.max(0, Math.floor((fy0 - fine.res - y0) / res)), j1 = Math.min(ny - 1, Math.floor((fy0 + 2 * fine.res - y0) / res));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * nx + i; if (v > out.data[k]) out.data[k] = v; }
+  }
+  return out;
+}
 export async function drillMaps(st, tps, S, { res, model, query }) {
   let hm = st.hm && st.done === tps.length ? st.hm : advanceStock(st, tps, S, res);
   if (!hm) { if (st.failed) return {}; const b = S.stockBox; hm = st.hm0 || (st.hm0 = createHeightmap([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, b.max[2])); }
-  let mm = model || st.model || null;
+  let mm = (model?.conservative ? model : null) || st.model || null;
   if (!mm && query && !st.modelFailed) {
-    try { mm = st.model = await query('camHeightmap', { bodies: S.bodies, frame: S.frame, res, bbox: [S.stockBox.min[0], S.stockBox.min[1], S.stockBox.max[0], S.stockBox.max[1]] }); } catch (e) { st.modelFailed = true; mm = null; }
+    const b = S.stockBox, W = b.max[0] - b.min[0], D = b.max[1] - b.min[1];
+    let fr = res / 4; if ((W / fr) * (D / fr) > 3.5e6) fr = Math.sqrt((W * D) / 3.5e6);
+    if (fr > res / 2 + 1e-12) st.modelFailed = true;
+    else {
+      try {
+        const fine = await query('camHeightmap', { bodies: S.bodies, frame: S.frame, res: fr, bbox: [b.min[0], b.min[1], b.max[0], b.max[1]] });
+        mm = st.model = { ...poolMax(fine, hm.x0, hm.y0, hm.res, hm.nx, hm.ny), conservative: true, fineRes: fr };
+      } catch (e) { st.modelFailed = true; mm = null; }
+    }
   }
   return hm && mm ? { stockMap: hm, modelMap: mm } : {};
 }
@@ -108,10 +130,13 @@ export function chainStock(recs, idx, res) {
     const p = recs[k]; chainStock(recs, k, res);
     let hm = advanceStock(p.stk, p.tps, p.S, res);
     if (!hm && !p.stk.failed) { const b = p.S.stockBox; hm = createHeightmap([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, b.max[2]); }
-    if (!hm) return;
-    prev.push({ frame: p.S.frame, hm, box: p.S.stockBox });
+    if (!hm) return; // bilinmeyen onceki stok: zincir yok (ham kutu: daha cok malzeme)
+    prev.push({ frame: p.S.frame, hm, box: p.S.stockBox, bodies: p.S.bodies, stockFrom: p.S.stockFrom ?? 'previous' });
   }
-  try { rec.stk.hm = stockFromPrevious(prev, { frame: rec.S.frame, box: rec.S.stockBox }, res); } catch (e) { rec.stk.hm = null; }
+  // sim ile ayni kaynak kurali (ayni govde, ortusen kutu, 'blank' kesimi; B1)
+  const src = chainSources(prev, { frame: rec.S.frame, box: rec.S.stockBox, bodies: rec.S.bodies, stockFrom: rec.S.stockFrom ?? 'previous' });
+  if (!src.length) return;
+  try { rec.stk.hm = stockFromPrevious(src, { frame: rec.S.frame, box: rec.S.stockBox }, res); } catch (e) { rec.stk.hm = null; }
 }
 
 // generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
@@ -131,6 +156,8 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
       const planes = {};
       for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face') { const pl = await query('facePlane', { ref: ax.ref }); planes[k] = pl; } }
       S = resolveSetup(setup, rebuild, machine, { planes });
+      // T-04: setup.stockFrom 'previous' (varsayilan) | 'blank' (zincir yok, ham stok). Gecersiz deger: muhafazakar 'blank'.
+      S = { ...S, stockFrom: setup.stockFrom == null ? 'previous' : setup.stockFrom === 'previous' ? 'previous' : 'blank' };
     } catch (e) { pre.push({ level: 'block', code: e.code || 'internal', params: e.params || {}, setupId: setup.id }); continue; }
     const tps = []; const stk = { hm: null, done: 0 }; const mres = Math.min(sim?.res > 0 ? sim.res : 0.5, 0.5);
     const ri = recs.push({ S, tps, stk }) - 1;
@@ -143,7 +170,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         let opx = op;
         if (op.type === 'contour' || op.type === 'pocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
         if (op.type === 'drill') chainStock(recs, ri, mres);
-        const maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, model: sim?.modelHeightmaps?.[S.id]?.res <= mres ? sim.modelHeightmaps[S.id] : null, query }) : {};
+        const maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
         const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
       } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }

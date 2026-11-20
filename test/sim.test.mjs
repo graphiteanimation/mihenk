@@ -113,7 +113,7 @@ console.log('3. kasitli hatali yollar');
     const rA = simulate(tpA, { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
     ok(rA.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'warn') && !rA.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'error'), 'V-12: bildirilmis boydan boya pay icinde yalniz uyari');
     tpA.meta = { belowStock: 0.5 }; const rB = simulate(tpA, { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
-    ok(rB.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'error'), 'V-12: payi asan inis engel'); }
+    ok(rB.issues.some((i) => i.code === 'cam.sim.below_stock_excess' && i.level === 'error'), 'V-12: payi asan inis engel (B2: ayri kod below_stock_excess)'); }
   // V-13: tabana kadar delinmis hucreye geri cekilme/hizli 'stok icinde' sayilmaz
   { const rC = simulate(TP(flat6, [mk.rapid(0, 0, 10), mk.rapid(0, 0, 1), mk.feed(0, 0, -31, 100, 'plunge'), mk.rapid(0, 0, -30.5), mk.rapid(0, 0, 10)]), { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
     ok(!codes(rC).includes('cam.sim.rapid_in_stock'), 'V-13: delinmis (h=taban) hucrede hizli temiz: ' + codes(rC)); }
@@ -365,6 +365,28 @@ console.log('9. T-04 setup zinciri: onceki setup stogu (cerceve donusumu, alt ke
   r = run(p, { initialHeightmaps: { B: full } }); ok(rin(r, 1).length === 1 && !r.chainedSetups.includes('B'), 'initialHeightmaps zinciri ezer');
   // cerceve yoksa zincir yok (eski programlar)
   r = run(prog(sec('A', null, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-5, -10)))); ok(rin(r, 1).length === 1 && !r.chainedSetups.length, 'onceki setup cercevesiz -> zincir yok (muhafazakar)');
+  // B1 karsi-ornekleri: zincir yalniz malzeme cikarir; onceki stogun bilgi vermedigi yer bu setup'in ham stogu
+  {
+    const nop = tp([mk.rapid(0, 0, 10)]);
+    const bigB = { min: [-40, -30, -30], max: [40, 30, 0] }; // A'dan 20 mm genis
+    const sB = tp([mk.rapid(-35, 0, 10), mk.rapid(-35, 0, -10), mk.rapid(-25, 0, -10), mk.rapid(-25, 0, 10)]);
+    r = simulate(prog(sec('A', FA, boxA, nop), sec('B', FA, bigB, sB)), { res: 0.5, stockBoxes: { A: boxA, B: bigB } });
+    ok(r.issues.some((i) => i.code === 'cam.sim.rapid_in_stock' && i.section === 1), 'B1-B: 20 mm genis kutu, A kutusu disinda hizli -> zincirli sim de rapid_in_stock');
+    const FF = { o: [200, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+    r = simulate(prog(sec('A', FA, boxA, tp(mA)), sec('F', FF, boxA, tp([mk.rapid(-15, 0, 10), mk.rapid(-15, 0, -10), mk.rapid(15, 0, -10), mk.rapid(15, 0, 10)]))), { res: 0.5, stockBoxes: { A: boxA, F: boxA } });
+    ok(r.issues.some((i) => i.code === 'cam.sim.rapid_in_stock' && i.section === 1) && !r.chainedSetups.includes('F'), 'B1-A: 200 mm uzak setup (kutular ortusmez) zincirlenmez -> rapid_in_stock');
+    const secX = (id, frame, stockBox, toolpath, extra) => ({ setup: { id, name: id, workOffset: { kind: 'G54' }, aAngle: null, stockBox, frame, ...extra }, toolpath });
+    r = simulate(prog(secX('A', FA, boxA, tp(mA)), secX('B', FB, boxB, rapidY(-5, -10), { stockFrom: 'blank' })), { res: 0.5, stockBoxes });
+    ok(rin(r, 1).length === 1 && !r.chainedSetups.length, "setup stockFrom 'blank' -> zincir yok (ham stok)");
+    r = simulate(prog(secX('A', FA, boxA, tp(mA), { bodies: ['g1'] }), secX('B', FB, boxB, rapidY(-5, -10), { bodies: ['g2'] })), { res: 0.5, stockBoxes });
+    ok(rin(r, 1).length === 1 && !r.chainedSetups.length, 'farkli govdeli setup zincirlenmez');
+    r = simulate(prog(secX('A', FA, boxA, tp(mA), { bodies: ['g1'] }), secX('B', FB, boxB, rapidY(-5, -10), { bodies: ['g1'] })), { res: 0.5, stockBoxes });
+    ok(!rin(r, 1).length && r.chainedSetups.includes('B'), 'ayni govde: zincir (kontrol)');
+    // zincirli harita hicbir hucrede bu setup'in ham stogundan yuksek degil ve yalniz onceki kesimin oldugu yerde dusuk
+    const hB = simulate(prog(sec('A', FA, boxA, tp(mA)), sec('B', FA, bigB, nop)), { res: 0.5, stockBoxes: { A: boxA, B: bigB } }).remainBySetup.B;
+    let hi = 0, lowOut = 0; for (let j = 0; j < hB.ny; j++) for (let i = 0; i < hB.nx; i++) { const v = hB.data[j * hB.nx + i], x = hB.x0 + (i + 0.5) * 0.5, y = hB.y0 + (j + 0.5) * 0.5; if (v > 1e-6) hi++; if ((Math.abs(x) > 20 || Math.abs(y) > 20) && v < -1e-6) lowOut++; }
+    ok(hi === 0 && lowOut === 0, 'zincir uydurmaz: ham stoktan yuksek hucre 0, onceki kutu disinda alcaltilmis hucre 0: ' + hi + '/' + lowOut);
+  }
 }
 
 console.log('10. T-15 serbest/kopmus parca');
@@ -383,6 +405,36 @@ console.log('10. T-15 serbest/kopmus parca');
   // gates: uyari olarak gelir, engel degil
   const gl = gates(S.wrapProgram ? S.wrapProgram(ring(-30)) : { name: 'F', units: 'mm', number: null, machine: null, sections: [{ setup: { id: 'A', name: 'A', workOffset: { kind: 'G54' }, aAngle: null, stockBox: bx }, toolpath: ring(-30) }] }, S.testMachine(), { sim: { res: 0.25, modelHeightmaps: { A: heightmapFromFn([-20, -20], [20, 20], 0.25, () => -Infinity) } } });
   const gf = gl.filter((g) => g.code === 'cam.sim.free_piece'); ok(gf.length === 1 && gf[0].level === 'warn', 'kapilarda serbest parca uyari (engel degil): ' + gf.map((g) => g.level));
+}
+
+console.log('11. B2 delme stok alti payi: breakThrough + uc boyu ile sinirli');
+{
+  const dr = { number: 7, H: 7, type: 'drill', dia: 6, tipAngle: 118, fluteLen: 60, bodyLen: 80 };
+  const bx = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const run = (under, meta) => simulate(mk.toolpath({ tool: dr, rpm: 3000, spindleDir: 'cw', coolant: 'off', clearanceZ: 10, retractZ: 5, meta, moves: [mk.rapid(0, 0, 10), mk.cycle({ cycle: 'drill', points: [[0, 0]], top: 0, bottom: -30 - under, retract: 5, clearance: 10, f: 200 }), mk.rapid(0, 0, 10)] }), { stockBox: bx, res: 0.5 }).issues.filter((i) => i.code.startsWith('cam.sim.below_stock'));
+  let b = run(1, { belowStock: 1 }); ok(b.length === 1 && b[0].level === 'warn' && b[0].code === 'cam.sim.below_stock', 'meta 1 mm, inis 1 (uc boyu 1,8 icinde): uyari');
+  b = run(25, { belowStock: 25 }); ok(b.length === 1 && b[0].level === 'error' && b[0].code === 'cam.sim.below_stock_excess' && Math.abs(b[0].params.allow - 3 / Math.tan(59 * Math.PI / 180)) < 1e-3, 'dogrulayici karsi-ornegi: meta 25 mm ama drillAllow yok -> pay = uc boyu, 25 mm engel: ' + JSON.stringify(b.map((i) => [i.code, i.params.allow])));
+  b = run(2.5, { belowStock: 2.8, drillAllow: 2.8 }); ok(b.length === 1 && b[0].level === 'warn', 'drillAllow 2,8 (brk 1 + uc 1,8) icinde 2,5: uyari');
+  b = run(4, { belowStock: 2.8, drillAllow: 2.8 }); ok(b.length === 1 && b[0].level === 'error' && b[0].code === 'cam.sim.below_stock_excess', 'drillAllow asan 4 mm: engel (below_stock_excess)');
+}
+
+console.log('12. T-15 zincirde tabandan serbest kalan ada (ust cep + alttan halka)');
+{
+  const tl = { number: 4, H: 4, D: 4, type: 'flat', dia: 4, cornerR: 0, tipAngle: null, fluteLen: 40, bodyLen: 50, centerCutting: true, pitch: null };
+  const T = (moves) => TP(tl, moves);
+  const FA = { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, FC = { o: [0, 0, -30], x: [1, 0, 0], y: [0, -1, 0], z: [0, 0, -1] };
+  const box = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const m1 = []; for (let y = -13; y <= 13; y += 3) { m1.push(mk.rapid(-13, y, 10)); m1.push(mk.feed(-13, y, -29.5, 500, 'plunge')); m1.push(mk.feed(13, y, -29.5, 500)); m1.push(mk.rapid(13, y, 10)); }
+  const ring = (z) => T([mk.rapid(-8, -8, 10), mk.feed(-8, -8, z, 100, 'plunge'), mk.feed(8, -8, z, 500), mk.feed(8, 8, z, 500), mk.feed(-8, 8, z, 500), mk.feed(-8, -8, z, 500), mk.rapid(-8, -8, 10)]);
+  const sec = (id, frame, toolpath) => ({ setup: { id, name: id, workOffset: { kind: 'G54' }, aAngle: null, stockBox: box, frame }, toolpath });
+  const run = (z, o = {}) => simulate({ name: 'T', number: null, units: 'mm', machine: null, sections: [sec('A', FA, T(m1)), sec('C', FC, ring(z))] }, { res: 0.5, stockBoxes: { A: box, C: box }, ...o }).issues.filter((i) => i.code === 'cam.sim.free_piece');
+  let f = run(-1); ok(f.length === 1 && f[0].params.setup === 'C' && Math.abs(f[0].params.area - 144) <= 12, 'dogrulayici ornegi: ust cep 0,5 mm taban + alttan 1 mm halka -> ada serbest (C, ~144 mm2): ' + JSON.stringify(f.map((i) => [i.params.setup, i.params.area])));
+  f = run(-0.4); ok(!f.length, 'halka tabani (0,5) delmiyor (0,4): serbest parca yok (yanlis pozitif yok)');
+  f = run(-1, { chain: false }); ok(!f.length, 'zincirsiz: alttan 1 mm halka tek basina parcayi ayirmaz');
+  // egik (45 derece) kaynak: sutun bos sayilmaz -> uyari yok (sinir, yanlis pozitif yok)
+  const c = Math.SQRT1_2; const FD = { o: [0, 0, 0], x: [1, 0, 0], y: [0, c, -c], z: [0, c, c] }; const boxD = { min: [-30, -30, -30], max: [30, 30, 30] };
+  const rD = simulate({ name: 'T', number: null, units: 'mm', machine: null, sections: [sec('A', FA, T(m1)), { setup: { id: 'D', name: 'D', workOffset: { kind: 'G54' }, aAngle: null, stockBox: boxD, frame: FD }, toolpath: T([mk.rapid(0, 0, 10), mk.rapid(1, 0, 10)]) }] }, { res: 1, stockBoxes: { A: box, D: boxD } });
+  ok(!rD.issues.some((i) => i.code === 'cam.sim.free_piece' && i.params.setup === 'D'), 'egik zincir kaynagi: ek bos olcutu kullanilmaz (yanlis pozitif yok)');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

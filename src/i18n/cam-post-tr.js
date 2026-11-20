@@ -64,6 +64,7 @@ export default {
   "err.cam.sim.shaft_collision": "Takım şaftı stoğa çarpıyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.holder_collision": "Tutucu stoğa çarpıyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.free_piece": "Serbest kalan parça: setup {setup} sonunda bağlı gövdeden ayrılmış {area} mm² malzeme (X {x} Y {y}, {n} parça). Parça fırlayabilir ya da takımı kırabilir; köprü bırakın ya da bağlamayı kontrol edin.",
+  "err.cam.sim.below_stock_excess": "Takım stok tabanının altına bildirilen paydan fazla iniyor (işlem {op}, Z {z}: {depth} mm > izin {allow} mm = delip geçme + uç boyu). Tabla/bağlama riski: derinliği ya da delip geçme payını düzeltin.",
   "err.cam.sim.below_stock": "Takım ham parçanın tabanının altına iniyor (işlem {op}, Z {z}, {depth} mm). Tabla ya da bağlama aparatı modellenmez; yalnız bilinçli boydan boya kesim (taban model/stok tabanının altına ofsetli ya da boydan boya delik) uyarı olarak kabul edilir.",
   "err.cam.sim.holder_clearance_low": "Tutucu stoğa çok yakın geçiyor (işlem {op}, X {x} Y {y} Z {z}): en küçük boşluk {clearance} mm, sınır {min} mm.",
   "err.cam.sim.holder_contact": "Tutucu stoğa değiyor (işlem {op}, X {x} Y {y} Z {z}): boşluk {clearance} mm (temas sınırı {min} mm altı). Takım boyu artırılmalı ya da yol değiştirilmeli.",

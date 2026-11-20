@@ -157,5 +157,5 @@ export function computeDrill(op, ctx) {
   }
   const passDepth = Math.max(...pts.map((p) => p.top - p.bottom));
   const hh = { zClr, zRet: zCyc, zTop: Math.max(...pts.map((p) => p.top)), zBot: Math.min(...pts.map((p) => p.bottom)), stockTop };
-  return finishToolpath(op, tool, { ...cut }, hh, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { holes: pts.length, cycles: groups.length, belowStock: pts.some((p) => p.through || p.depth == null) ? Math.max(0, S.stockBox.min[2] - Math.min(...pts.filter((p) => p.through || p.depth == null).map((p) => p.bottom))) : 0 } });
+  return finishToolpath(op, tool, { ...cut }, hh, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { holes: pts.length, cycles: groups.length, drillAllow: brk + tipL, belowStock: pts.some((p) => p.through || p.depth == null) ? Math.min(brk + tipL, Math.max(0, S.stockBox.min[2] - Math.min(...pts.filter((p) => p.through || p.depth == null).map((p) => p.bottom)))) : 0 } });
 }

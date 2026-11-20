@@ -24,7 +24,7 @@ function rayTri(p, d, A, B, C) {
   const t = f * dot(e2, q); return t > 1e-9 ? t : null;
 }
 // gorunum agi (kapali) icinde mi: uc egik isinda parite, cogunluk
-function insideMesh(mesh, p) {
+export function insideMesh(mesh, p) {
   const V3 = mesh.vertices, T = mesh.triangles; const P = (i) => [V3[3 * i], V3[3 * i + 1], V3[3 * i + 2]];
   const dirs = [unit([0.5773, 0.5774, 0.5775]), unit([-0.6, 0.3, 0.74]), unit([0.21, -0.83, -0.52])];
   let ins = 0;
@@ -73,20 +73,27 @@ export function recognizeBody(b, mesh) {
     g.faces.push(c);
   }
   const out = [];
+  const coverOk = (bins) => { let n = 0; for (const x of bins) n += x; return n * 360 / BINS >= MIN_COVER; };
   for (const g of G) {
     const ax = g.axis; const [u, v] = basis(ax.d);
-    // yaricapa gore kapsam ve acisal doluluk
-    const byR = [];
-    for (const c of g.faces) {
-      let e = byR.find((x) => Math.abs(x.r - c.r) < Math.max(1e-6, 1e-4 * c.r)); if (!e) { e = { r: c.r, bins: new Uint8Array(BINS), t0: Infinity, t1: -Infinity }; byR.push(e); }
-      for (const p of c.verts) { const q = axisCoords(ax, p); e.t0 = Math.min(e.t0, q.t); e.t1 = Math.max(e.t1, q.t); }
-      // ucgen orta noktalari aci kutulari (kenar koseleri degil: kismi yuzun komsu kutuyu doldurmamasi icin)
-      for (let k = 0; k + 2 < c.verts.length; k += 3) { const m = [0, 1, 2].map((i) => (c.verts[k][i] + c.verts[k + 1][i] + c.verts[k + 2][i]) / 3); const q = axisCoords(ax, m); const a = Math.atan2(dot(q.rv, v), dot(q.rv, u)); const bi = Math.floor(((a + Math.PI) / (2 * Math.PI)) * BINS) % BINS; e.bins[bi] = 1; }
+    // H1 duzeltmesi: her yuz ayri parca (r, t araligi, acisal kutular). Ayni yaricapli parcalar YALNIZ t araliklari
+    // bitisik/ortusuyorsa birlesir (eksen boyunca araya malzeme giren ayni capli iki delik tek delik sayilmaz).
+    const pcs = g.faces.map((c) => {
+      const bins = new Uint8Array(BINS); let t0 = Infinity, t1 = -Infinity;
+      for (const p of c.verts) { const q = axisCoords(ax, p); t0 = Math.min(t0, q.t); t1 = Math.max(t1, q.t); }
+      for (let k = 0; k + 2 < c.verts.length; k += 3) { const m = [0, 1, 2].map((i) => (c.verts[k][i] + c.verts[k + 1][i] + c.verts[k + 2][i]) / 3); const q = axisCoords(ax, m); const a = Math.atan2(dot(q.rv, v), dot(q.rv, u)); bins[Math.floor(((a + Math.PI) / (2 * Math.PI)) * BINS) % BINS] = 1; }
+      return { r: c.r, t0, t1, bins };
+    }).sort((p, q) => p.t0 - q.t0);
+    const sameR = (a, c) => Math.abs(a - c) < Math.max(1e-6, 1e-4 * c);
+    const segsR = [];
+    for (const pc of pcs) {
+      const e = segsR.find((x) => sameR(x.r, pc.r) && pc.t0 <= x.t1 + 1e-3 && pc.t1 >= x.t0 - 1e-3);
+      if (e) { e.t0 = Math.min(e.t0, pc.t0); e.t1 = Math.max(e.t1, pc.t1); for (let k = 0; k < BINS; k++) e.bins[k] |= pc.bins[k]; } else segsR.push({ ...pc, bins: new Uint8Array(pc.bins) });
     }
-    const segs = [];
-    for (const e of byR) { let n = 0; for (const x of e.bins) n += x; if (n * 360 / BINS >= MIN_COVER) segs.push({ kind: 'cyl', r0: e.r, r1: e.r, t0: e.t0, t1: e.t1 }); }
-    if (!segs.length) continue;
-    // eksene oturan koniler: koseler r = a + b t (dogrusal) ve cevre boyunca dolu
+    const cyls = segsR.filter((e) => coverOk(e.bins)).map((e) => ({ kind: 'cyl', r0: e.r, r1: e.r, t0: e.t0, t1: e.t1 }));
+    if (!cyls.length) continue;
+    // eksene oturan koniler: koseler r = a + b t (dogrusal) ve bir silindir ucuna bitisik
+    const cones = [];
     for (const c of cone) {
       if (!c.verts.length) continue;
       const qs = c.verts.map((p) => axisCoords(ax, p));
@@ -95,23 +102,38 @@ export function recognizeBody(b, mesh) {
       const bk = (n * str - st * sr) / den, ak = (sr - bk * st) / n;
       if (!qs.every((q) => Math.abs(ak + bk * q.t - q.r) < Math.max(ptol, 1e-3))) continue;
       const tmin = Math.min(...qs.map((q) => q.t)), tmax = Math.max(...qs.map((q) => q.t));
-      // grubun silindirlerine bitisik olmali (uzak bir ayni eksenli koni baska bir ozellik)
-      if (!segs.some((s) => s.kind === 'cyl' && (Math.abs(s.t0 - tmax) < 1e-3 || Math.abs(s.t1 - tmin) < 1e-3 || Math.abs(s.t0 - tmin) < 1e-3 || Math.abs(s.t1 - tmax) < 1e-3))) continue;
-      segs.push({ kind: 'cone', r0: ak + bk * tmin, r1: ak + bk * tmax, t0: tmin, t1: tmax });
+      if (!cyls.some((s) => Math.abs(s.t0 - tmax) < 1e-3 || Math.abs(s.t1 - tmin) < 1e-3 || Math.abs(s.t0 - tmin) < 1e-3 || Math.abs(s.t1 - tmax) < 1e-3)) continue;
+      cones.push({ kind: 'cone', r0: ak + bk * tmin, r1: ak + bk * tmax, t0: tmin, t1: tmax });
     }
-    segs.sort((a, c) => a.t0 - c.t0);
-    const t0 = Math.min(...segs.map((s) => s.t0)), t1 = Math.max(...segs.map((s) => s.t1));
-    const rEnd = (t) => Math.max(...segs.filter((s) => Math.abs(s.t0 - t) < 1e-6 || Math.abs(s.t1 - t) < 1e-6).map((s) => (Math.abs(s.t0 - t) < 1e-6 ? s.r0 : s.r1)));
-    const dl = Math.max(0.05, 0.02 * Math.max(...segs.map((s) => Math.max(s.r0, s.r1))));
-    const open0 = !insideMesh(mesh, add(ax.o, ax.d, t0 - dl)), open1 = !insideMesh(mesh, add(ax.o, ax.d, t1 + dl));
-    out.push({ axis: ax, segs, t0, t1, r0: rEnd(t0), r1: rEnd(t1), open0, open1 });
+    // eksen boyunca kumeler: ortusen/bitisik parcalar bir kume; iki kume arasindaki bosluk eksen uzerinde ornekleniyor:
+    // her ornek govde disindaysa (capraz delik, ic bosluk) kumeler birlesir, bir ornek bile malzemedeyse AYRI delikler.
+    const all = [...cyls, ...cones].sort((p, q) => p.t0 - q.t0);
+    const clusters = [];
+    for (const sg of all) {
+      const c = clusters[clusters.length - 1];
+      if (c && sg.t0 <= c.t1 + 1e-3) { c.segs.push(sg); c.t1 = Math.max(c.t1, sg.t1); continue; }
+      if (c) {
+        let air = true; for (let k = 1; k <= 9 && air; k++) if (insideMesh(mesh, add(ax.o, ax.d, c.t1 + (sg.t0 - c.t1) * k / 10))) air = false;
+        if (air) { c.segs.push(sg); c.t1 = Math.max(c.t1, sg.t1); continue; }
+      }
+      clusters.push({ segs: [sg], t0: sg.t0, t1: sg.t1 });
+    }
+    for (const cl of clusters) {
+      const segs = cl.segs; if (!segs.some((x) => x.kind === 'cyl')) continue;
+      const t0 = cl.t0, t1 = cl.t1;
+      const rEnd = (t) => Math.max(...segs.filter((x) => Math.abs(x.t0 - t) < 1e-6 || Math.abs(x.t1 - t) < 1e-6).map((x) => (Math.abs(x.t0 - t) < 1e-6 ? x.r0 : x.r1)));
+      const dl = Math.max(0.05, 0.02 * Math.max(...segs.map((x) => Math.max(x.r0, x.r1))));
+      const open0 = !insideMesh(mesh, add(ax.o, ax.d, t0 - dl)), open1 = !insideMesh(mesh, add(ax.o, ax.d, t1 + dl));
+      out.push({ axis: ax, segs, t0, t1, r0: rEnd(t0), r1: rEnd(t1), open0, open1 });
+    }
   }
   CACHE.set(b.shape, out); return out;
 }
 
 // holeExit(groups, p, d, r) -> { t, through } | null : (p, d) eksenli delik (yaricap ~ r) grubunun d yonunde p'den en derin ucu
 // (son cikis). Eksen + yaricap eslesmezse null (cagiran eski muhafazakar kurala doner).
-export function holeExit(groups, p, d, r, scale = 1) {
+// air(a, b): a..b dogru parcasi govde disinda mi (giris ile delik arasinda hava; verilmezse yalniz max(1, r) mm tolerans)
+export function holeExit(groups, p, d, r, scale = 1, air = null) {
   const ptol = Math.max(1e-3, 1e-4 * scale); const dd = unit(d);
   let best = null;
   for (const g of groups) {
@@ -119,11 +141,16 @@ export function holeExit(groups, p, d, r, scale = 1) {
     // eslesme: grupta delik capina yakin (en cok +0,5 mm / %10 genis, en az %50) bir silindir olmali
     if (r != null && !g.segs.some((s) => s.kind === 'cyl' && s.r0 <= r + Math.max(0.5, 0.1 * r) && s.r0 >= 0.5 * r)) continue;
     const sgn = dot(ax.d, dd) > 0 ? 1 : -1; const tp = dot(sub(p, ax.o), ax.d);
-    const ends = [g.t0, g.t1].map((t) => (t - tp) * sgn); const t = Math.max(...ends);
-    if (!(t > 0)) continue;
+    // H1: giris p bu kumenin icinde (ya da giris ucunun en cok max(1, r) mm onunde, havada) olmali; cikis = kumenin uzak ucu
+    // (kume icinde eksen boyunca malzeme yok). Ayni eksendeki baska (malzemeyle ayrilmis) kume cikis sayilmaz.
+    const near = sgn > 0 ? g.t0 : g.t1, far = sgn > 0 ? g.t1 : g.t0;
+    const s0 = (tp - near) * sgn, t = (far - tp) * sgn, entTol = Math.max(1, r ?? 1);
+    if (!(t > 0) || tp * sgn > far * sgn) continue;
+    if (s0 < -entTol && !(air && air(p, add(ax.o, ax.d, near)))) continue;
     const deepOpen = sgn > 0 ? g.open1 : g.open0; const through = g.open0 && g.open1;
-    if (!best || t > best.t) best = { t, through, deepOpen };
+    if (!best || Math.abs(s0) < Math.abs(best.s0)) best = { t, through, deepOpen, s0 };
   }
+  if (best) delete best.s0;
   return best;
 }
 
@@ -165,6 +192,8 @@ export function holeOfGroup(g) {
   if (v.kind === 'cbore') { h.cboreDia = r4(v.cboreDia); h.cboreDepth = r4(v.cboreDepth); }
   if (v.kind === 'csink') { h.csinkDia = r4(v.csinkDia); h.csinkAngle = r4(v.csinkAngle); }
   const th = threadHint(h.dia); if (th) h.threadHint = th;
+  // cep benzeri (genis/sig: cap >= 2 x derinlik ya da boy) silindirik oyuk: silinmez, delme paneli suzebilsin diye isaretlenir
+  if (h.dia >= 2 * (h.through ? h.length : h.depth)) h.pocketLike = true;
   return h;
 }
 
@@ -179,7 +208,7 @@ export function recognizedHoles(list, skip = () => false) {
     let r = recs.get(key);
     if (!r) {
       r = { feature: 'rec:' + (recs.size + 1), kind: h.kind, dia: h.dia, depth: h.depth, through: h.through, tipAngle: h.tipAngle, thread: null, dir: dk, positions: [], dirs: [], bodies: [], count: 0, lost: 0, recognized: true, exits: [] };
-      for (const k of ['cboreDia', 'cboreDepth', 'csinkDia', 'csinkAngle', 'threadHint']) if (h[k] != null) r[k] = h[k];
+      for (const k of ['cboreDia', 'cboreDepth', 'csinkDia', 'csinkAngle', 'threadHint', 'pocketLike']) if (h[k] != null) r[k] = h[k];
       recs.set(key, r);
     }
     r.positions.push(h.p.map((x) => Math.round(x * 1e6) / 1e6)); r.dirs.push(dk); r.bodies.push([id]); r.exits.push(h.through ? h.length : null); r.count++;
