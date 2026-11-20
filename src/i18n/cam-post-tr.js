@@ -81,7 +81,6 @@ export default {
   "err.cam.gcode.empty": "NC dosyasında simüle edilecek hareket yok.",
   "err.cam.gcode.arc_bad": "NC satırı {line}: R ile verilen yay bu uç noktalarla kurulamıyor.",
   "err.cam.gcode.arc_radius": "NC satırı {line}: yay başlangıç ve bitiş yarıçapı uyuşmuyor ({r0} / {r1} mm).",
-  "err.cam.sim.cancelled": "Simülasyon iptal edildi.",
   "err.cam.sim.worker_failed": "Simülasyon iş parçacığı başarısız: {message}",
   "err.cam.sim.internal": "Simülasyon iç hatası: {message}",
   "err.cam.sim.fixture_collision": "Bağlama gövdesine çarpma: kesici '{fixture}' gövdesine giriyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",

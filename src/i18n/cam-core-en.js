@@ -101,6 +101,7 @@ export default {
   "err.cam.setup.axes_not_perpendicular": "The setup X and Z axes are not perpendicular.",
   "err.cam.setup.bad_field": "Invalid setup value: {field}.",
   "err.cam.setup.fixture_is_part": "The body chosen as workholding is a machined part of the setup: {body}.",
+  "err.cam.sim.cancelled": "The simulation was cancelled.",
   "err.cam.setup.body_missing": "A setup body is not in the model: {body}.",
   "err.cam.setup.cyl_origin": "With cylinder stock the work origin must be a point on the rotary axis (point or model origin).",
   "err.cam.setup.face_axis_unresolved": "A setup axis refers to a face that could not be read. Select the face again.",

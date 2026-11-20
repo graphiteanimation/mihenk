@@ -81,7 +81,6 @@ export default {
   "err.cam.gcode.empty": "The NC file has no motion to simulate.",
   "err.cam.gcode.arc_bad": "NC line {line}: the R-format arc cannot be built with these end points.",
   "err.cam.gcode.arc_radius": "NC line {line}: arc start and end radii differ ({r0} / {r1} mm).",
-  "err.cam.sim.cancelled": "The simulation was cancelled.",
   "err.cam.sim.worker_failed": "The simulation worker failed: {message}",
   "err.cam.sim.internal": "Internal simulation error: {message}",
   "err.cam.sim.fixture_collision": "Workholding collision: the cutter enters '{fixture}' (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
