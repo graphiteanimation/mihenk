@@ -305,22 +305,33 @@ export function sigDist(a, b) {
   if (a.k === 'a') return rr < 0.5 || rr > 2 ? Infinity : Math.min(G.dist(a.c, b.c), ends());
   return Math.min(G.dist(a.c, b.c), ends());
 }
-const TOL_A = 25, TOL_B = 1, CLEAR = 1; // (a): aynı indeksli kenar en çok 25 mm oynamış olabilir; // (b): imzaya <=1 mm uyan TEK aday, ikincisinden en az 1 mm daha yakın
-// Eşleştirme. cands: [{idx, pts}] (pts: eskiz yerel noktaları). Döner: eşleşen aday ya da null (belirsiz/uzak → bağlama).
-//  (a) aynı indeksli kenar yalnız "aynı kenarın makul değişimi" ise (aynı tür/doğrultu, en az bir uç/merkez yakın);
-//  (b) değilse imzaya en yakın TEK aday, ikinci adaydan belirgin farklıysa; (c) aksi halde null.
-// İmzasız (eski belge) bağda yalnız (a): aynı indeks.
-export function matchEdge(meta, cands) {
-  const same = cands.find((c) => c.idx === meta.g) || null;
-  const sig = meta.sig; if (!sig) return same;
-  const xs = cands.map((c) => ({ c, d: sigDist(sig, edgeSig(c.pts)) }));
-  const tolA = TOL_A;
-  const sx = xs.find((x) => x.c === same);
-  if (sx && sx.d <= tolA && !xs.some((y) => y !== sx && y.d <= TOL_B && y.d + CLEAR < sx.d)) return same;
-  const near = xs.filter((x) => x.d <= TOL_B).sort((p, q) => p.d - q.d); if (!near.length) return null;
-  const second = xs.filter((x) => x !== near[0]).reduce((m, x) => Math.min(m, x.d), Infinity);
-  return near[0].d + CLEAR <= second ? near[0].c : null;
+const TOL_A = 25, TOL_B = 1, CLEAR = 1; // (ii): aynı indeksli kenar en çok 25 mm oynamış olabilir; (i): imzaya <=1 mm uyan aday, ikincisinden en az 1 mm daha yakın
+// İmza ile aday arasındaki kenar-kenar uzaklığı (mm): uçlar (en iyi eşleme, ikisi birlikte) / merkez+yarıçap birlikte. Tür/doğrultu uyuşmazsa Infinity.
+export function edgeDist(a, b) {
+  if (!isFinite(sigDist(a, b))) return Infinity;
+  const pair = () => Math.min(Math.max(G.dist(a.a, b.a), G.dist(a.b, b.b)), Math.max(G.dist(a.a, b.b), G.dist(a.b, b.a)));
+  if (a.k === 'l') return pair();
+  if (a.k === 'o') return Math.max(G.dist(a.c, b.c), Math.abs(a.r - b.r));
+  if (a.k === 'a') return Math.max(G.dist(a.c, b.c), Math.abs(a.r - b.r), pair());
+  return Math.max(G.dist(a.c, b.c), pair());
 }
+// Eşleştirme. cands: [{idx, pts}] (pts: eskiz yerel noktaları). Döner: {c: aday, d: kayma mm} ya da null (belirsiz/uzak → bağlama).
+// Aynı tür + doğrultudaki TÜM adaylar imzaya kenar-kenar uzaklığıyla sıralanır; en yakın seçilir:
+//  (i) en yakın <= 1 mm ve ikinci ondan >= 1 mm uzak → kabul;
+//  (ii) en yakın aynı indeksli kenar, <= 25 mm ve ikinci >= 2 katı ve >= 1 mm uzak → kabul (parametrik değişim);
+//  (iii) aksi halde null. Aynı indeks yalnız "makul değişim" izni verir, daha yakın bir adayı asla ezmez.
+// İmzasız (eski belge) bağda yalnız aynı indeks (d: 0).
+export function matchEdgeD(meta, cands) {
+  const sig = meta.sig;
+  if (!sig) { const same = cands.find((c) => c.idx === meta.g); return same ? { c: same, d: 0 } : null; }
+  const xs = cands.map((c) => ({ c, d: edgeDist(sig, edgeSig(c.pts)) })).filter((x) => isFinite(x.d)).sort((p, q) => p.d - q.d);
+  if (!xs.length) return null;
+  const best = xs[0], second = xs.length > 1 ? xs[1].d : Infinity;
+  if (best.d <= TOL_B && second - best.d >= CLEAR) return best;
+  if (best.c.idx === meta.g && best.d <= TOL_A && second >= 2 * best.d && second - best.d >= CLEAR) return best;
+  return null;
+}
+export function matchEdge(meta, cands) { const m = matchEdgeD(meta, cands); return m ? m.c : null; }
 
 // Nesnenin geometri parmak izi (düzenleme algılamak için)
 const fpOf = (sk, e) => { const a = []; for (const id of entPts(e)) { const p = sk.points[id]; a.push(p ? +p.x.toFixed(6) : null, p ? +p.y.toFixed(6) : null); } if (e.type === 'circle') a.push(+Number(e.r).toFixed(6)); if (e.rmin !== undefined) a.push(+Number(e.rmin).toFixed(6)); a.push(e.type); return a; };
@@ -362,7 +373,7 @@ export function reprojectLinked(sk, resolve, tol = 2e-3) {
   const unlinked = dropEditedLinks(sk);
   const groups = new Map();
   for (const e of sk.ents) if (e.proj) { const k = e.proj.b + '|' + e.proj.g; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
-  let updated = 0, rebuilt = 0, lost = 0, lostEnts = 0, skipped = 0, flagged = 0;
+  let updated = 0, rebuilt = 0, lost = 0, lostEnts = 0, skipped = 0, flagged = 0, maxShift = 0;
   const res = new Map(); const frozen = new Set(); // kayıp/bilinmeyen grupların noktaları bu geçişte taşınmaz
   for (const [k, ents] of groups) {
     const pts = ents.length > 1 && ents.some((e) => !e.proj.fp) ? undefined : resolve(ents[0].proj); // parmak izsiz çok nesneli grup: kullanıcı kopyası/parçası olabilir → dokunma
@@ -374,6 +385,7 @@ export function reprojectLinked(sk, resolve, tol = 2e-3) {
     const meta = ents[0].proj; const pts = res.get(k);
     if (pts === undefined) { skipped++; continue; }
     if (pts === null) { lost++; lostEnts += ents.length; for (const e of ents) if (!e.proj.lost) { e.proj = { ...e.proj, lost: true }; flagged++; } continue; }
+    if (pts.shift > maxShift) maxShift = pts.shift;
     const nm = { b: meta.b, g: pts.g !== undefined ? pts.g : meta.g, c: pts.c || meta.c, sig: edgeSig(pts) || meta.sig };
     const scratch = { points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [], seq: 0 };
     projectCore(scratch, [{ pts }], tol);
@@ -410,7 +422,7 @@ export function reprojectLinked(sk, resolve, tol = 2e-3) {
       rebuilt++;
     }
   }
-  return { updated, rebuilt, lost, lostEnts, skipped, flagged, unlinked, groups: groups.size };
+  return { updated, rebuilt, lost, lostEnts, skipped, flagged, unlinked, maxShift, groups: groups.size };
 }
 // Bağı kaldır: nesneler sıradan geometri olur. Döner: bağı kalkan nesne sayısı
 export function unlinkProjection(sk, ids) {

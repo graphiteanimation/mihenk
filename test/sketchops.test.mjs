@@ -144,6 +144,15 @@ const area = (sk) => findRegions(sk).regions.reduce((s, r) => s + r.net, 0);
   ok(O.matchEdge(meta, [L(7, [0, 0.2], [100, 0.2]), L(8, [0, -0.2], [100, -0.2])]) === null, 'iki yakın aday ayırt edilemiyorsa bağlanmaz');
   ok(O.matchEdge(meta, [L(7, [0, 0.1], [100, 0.1]), L(8, [0, 30], [100, 30])]).idx === 7, 'tek yakın aday, ikincisi belirgin uzak: kabul');
   ok(O.matchEdge({ g: 1 }, [L(1, [0, 0], [100, 0])]).idx === 1 && O.matchEdge({ g: 1 }, [L(2, [0, 0], [100, 0])]) === null, 'imzasız eski bağ: yalnız aynı indeks');
+  { // en yakın aday kazanır; aynı indeks yalnız makul değişim izni verir (doğrulayıcı karşı-örnekleri)
+    const M = (g, y) => ({ g, sig: O.edgeSig([[0, y], [100, y]]) }), Y = (idx, y) => L(idx, [0, y], [100, y]);
+    ok(O.matchEdge(M(5, 0), [Y(5, 20), Y(7, 2)]) === null, 'kaynak 2 mm kaydı + indeks değişti; eski indekse 20 mm ötede paralel kenar geldi → 20 mm ötedeki SEÇİLMEZ (lost)');
+    ok(O.matchEdge(M(5, 0), [Y(5, 20), Y(7, 0)]).idx === 7, 'kontrol: tam eşleşen yeni indeks, uzak eski indekse tercih edilir');
+    ok(O.matchEdge(M(5, 0), [Y(5, 0.5), Y(7, 0)]) === null, '0,5 mm ötedeki eski indeks, tam eşleşen yeni indeksi ezmez; ayırt edilemiyorsa lost');
+    const r = O.matchEdgeD(M(5, 0), [Y(5, 20)]); ok(r && r.c.idx === 5 && Math.abs(r.d - 20) < 1e-9, 'tek aday, aynı indeks, 20 mm: parametrik değişim kabul, kayma 20 mm bildirilir');
+    ok(O.matchEdgeD(M(5, 0), [Y(5, 5), Y(7, 8)]) === null, 'aynı indeks ama ikinci aday yeterince uzak değil (<2 kat) → lost');
+    ok(O.matchEdge(M(5, 0), [L(5, [30, 0], [130, 0])]) === null && O.matchEdge(M(5, 0), [Y(5, 5)]).idx === 5, 'iki uç birlikte: 30 mm kayan kenar lost, 5 mm kayan kabul');
+  }
   // reprojectLinked: imza ilk başarılı güncellemede yazılır, uyuşmazlıkta nesne yerinde kalır
   const sk = empty(); O.projectPolylines(sk, [{ pts: [[0, 0], [100, 0]], meta: { b: 'B', g: 1, c: [0, 0, 0] } }]); const e0 = sk.ents[0]; delete e0.proj.sig;
   O.reprojectLinked(sk, () => { const p = [[0, 5], [100, 5]]; return p; }); ok(e0.proj.sig && e0.proj.sig.a[1] === 5, 'imzasız bağa ilk başarılı güncellemede imza yazılır');

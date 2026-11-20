@@ -6,7 +6,7 @@ import { t, tk } from '../../shared/i18n.js';
 import { SNAP_LABEL } from './snap.js';
 import { DEFS } from './tools.js';
 import { findPointAt } from './core.js';
-import { reprojectLinked, matchEdge, edgeSig, unlinkProjection, relinkProjection } from './ops.js';
+import { reprojectLinked, matchEdgeD, edgeSig, unlinkProjection, relinkProjection } from './ops.js';
 import { toLocal } from '../../shared/vec.js';
 import { evalExpr } from '../../shared/expr.js';
 import { fmtNum, errText } from '../../shared/i18n.js';
@@ -180,13 +180,14 @@ export const COMFORT_METHODS = {
     const pl = this.plane, groups = b.edgeGroups || [];
     const ptsOf = (g) => { const a = b.lines.subarray(g.start * 3, (g.start + g.count) * 3), pts = []; for (let i = 0; i + 5 < a.length; i += 6) { if (!pts.length) pts.push([a[i], a[i + 1], a[i + 2]]); pts.push([a[i + 3], a[i + 4], a[i + 5]]); } return pts; };
     const cands = []; for (const g of groups) { const p3 = ptsOf(g); if (p3.length >= 2) cands.push({ idx: g.idx, p3, pts: p3.map((p) => toLocal(pl, p)) }); }
-    const m = matchEdge(meta, cands); if (!m) return null;
-    const out = m.pts; out.g = m.idx; out.c = [0, 1, 2].map((k) => Math.round(m.p3.reduce((q, p) => q + p[k], 0) / m.p3.length * 1e4) / 1e4); out.sig = edgeSig(out); return out;
+    const md = matchEdgeD(meta, cands); if (!md) return null; const m = md.c;
+    const out = m.pts; out.shift = md.d; out.g = m.idx; out.c = [0, 1, 2].map((k) => Math.round(m.p3.reduce((q, p) => q + p[k], 0) / m.p3.length * 1e4) / 1e4); out.sig = edgeSig(out); return out;
   },
   // izdüşüm sonucunun durum metni: güncellenen ve kaybolan AYRI sayılır
   _projSummary(r) {
     const u = r.updated + r.rebuilt;
-    const tail = r.unlinked ? '  ·  ' + t('sk.proj_unlinked', { n: r.unlinked }) : '';
+    const sh = r.maxShift > 1 ? ' ' + t('sk.proj_shift', { mm: Math.round(r.maxShift * 10) / 10 }) : '';
+    const tail = sh + (r.unlinked ? '  ·  ' + t('sk.proj_unlinked', { n: r.unlinked }) : '');
     if (u && r.lost) return t('sk.proj_both', { u, l: r.lost }) + tail;
     if (u) return t('sk.proj_updated', { n: u }) + tail;
     if (r.lost) return t('sk.proj_lost', { n: r.lost }) + tail;

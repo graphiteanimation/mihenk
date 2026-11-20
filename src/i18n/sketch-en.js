@@ -38,6 +38,7 @@ export default {
   "sk.proj_lost": "The source edge of {n} projection(s) was not found; left as is (drawn red dashed).",
   "sk.proj_none": "This sketch has no body-linked projections.",
   "sk.proj_same": "Projections are already up to date.",
+  "sk.proj_shift": "(moved up to {mm} mm)",
   "vd.title": "Display",
   "vd.mode": "Display mode",
   "vd.shaded": "Shaded + edges",

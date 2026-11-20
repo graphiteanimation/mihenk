@@ -38,6 +38,7 @@ export default {
   "sk.proj_lost": "{n} izdüşümün kaynak kenarı bulunamadı; olduğu gibi bırakıldı (kırmızı kesikli çizilir).",
   "sk.proj_none": "Bu eskizde gövdeye bağlı izdüşüm yok.",
   "sk.proj_same": "İzdüşümler zaten güncel.",
+  "sk.proj_shift": "(en çok {mm} mm kaydı)",
   "vd.title": "Görüntü",
   "vd.mode": "Görüntü modu",
   "vd.shaded": "Gölgeli + kenar",
