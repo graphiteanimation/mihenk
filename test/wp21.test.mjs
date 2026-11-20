@@ -11,6 +11,7 @@ import { tLang } from '../src/shared/i18n.js';
 import { alignTraceCons, hvSame, autoHvRedundantAfterFix } from '../src/ui/sketch/autoalign.js';
 import { solveSketch } from '../src/ui/solver.js';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 import opencascade from 'replicad-opencascadejs';
 import { initKernel } from '../src/kernel/kernel.js';
 import { parseFont, textOutlines, cleanSegments, writeText, pruneTexts, textOfEnt } from '../src/ui/sketch/text.js';
@@ -23,6 +24,7 @@ import { exampleEntries, wrapExample } from '../src/ui/examples.js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const src = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 let pass = 0, fail = 0; const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL ' + m); } };
+const r3 = (v) => Math.round(v * 1000) / 1000;
 const only = process.argv.find((a) => a.startsWith('--madde='))?.slice(8);
 const madde = (n, title, fn) => { if (only && only !== String(n)) return; console.log(n + '. ' + title); return fn(); };
 
@@ -234,6 +236,26 @@ await madde(6, 'eskiz metnini metin olarak yeniden düzenleme', () => {
   ok(/const editing = this\.sketcher\.selectedText\(\)/.test(app) && /replace: editing \? editing\.id : null/.test(app), 'Metin komutu seçili metni düzenleme kipinde açar');
   ok(/if \(f\.texts\) merged\.texts = f\.texts/.test(app) && /out\.texts = clone\(this\.sk\.texts\)/.test(skr) && /texts: this\.sk\.texts/.test(skr), 'metin kayıtları belgeye ve geri alma anlık görüntüsüne girer');
   ok(/writeText\(sk, segs, \{ text, height, x, y, angle \}, \(pre\) => this\._id\(pre\), snap, replace\)/.test(txs), 'insertText tek geri alma adımında yerine yazar');
+});
+
+await madde(7, 'P1 S3 holder_collision ×2 sınıflaması', () => {
+  const out = path.join(ROOT, 'test', 'tmp', 'wp21-p1'); fs.mkdirSync(out, { recursive: true });
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'test/compare/P1/run-p1.mjs')], { cwd: ROOT, env: { ...process.env, P1_OUT: out }, encoding: 'utf8', maxBuffer: 256 << 20 });
+  ok(r.status === 0, 'run-p1 koştu: ' + (r.stderr || '').slice(-300));
+  if (r.status !== 0) return;
+  const R = JSON.parse(fs.readFileSync(path.join(out, 'p1-mihenk-sonuc.json'), 'utf8'));
+  const s3 = R.setups.find((s) => s.id === 'S3'); const hc = s3.gates.filter((g) => g.code === 'cam.sim.holder_collision');
+  ok(hc.length === 2 && hc.every((g) => g.opId === 'o10'), 'ana kapı (ayrı setup): o10 iki delikte holder_collision');
+  const D = R.deneyler.WP21_S3_tutucu; ok(D && D.delik, 'deney sonucu var: ' + JSON.stringify(D?.hata));
+  if (!D?.delik) return;
+  for (const hx of ['16', '-16']) {
+    const d = D.delik[hx];
+    ok(hc.some((g) => Math.abs(g.params.depth - (-d.ayri.bosluk)) < 0.01), `${hx}: kapı derinliği = ham kutu stoğuyla boşluk açığı (${-d.ayri.bosluk}); çarpılan malzeme stok kutusunun üstü (z=${d.ayri.en_yuksek})`);
+    ok(d.zincir.bosluk < 0 && d.zincir.en_yuksek > d.model.en_yuksek, `${hx}: zincirde de çarpışma (${d.zincir.bosluk}) ama zincir stoğu modelin ${r3(d.zincir.en_yuksek - d.model.en_yuksek)} mm üstünde (genişletme + yukarı yuvarlama)`);
+    ok(d.zincir_genisletmesiz.bosluk > 0 && Math.abs(d.zincir_genisletmesiz.en_yuksek - d.model.en_yuksek) < 0.06, `${hx}: önceki setup'ların gerçekte bıraktığı malzeme = model kule üstü; boşluk ${d.zincir_genisletmesiz.bosluk} mm > 0 (çarpışma yok)`);
+  }
+  ok(s3.gates.some((g) => g.code === 'cam.gate.body_short' && g.level === 'block'), 'asıl gerçek bulgu ayrıca duruyor: T30 taşma boyu kısa (body_short)');
+  ok(fs.existsSync(path.join(ROOT, 'test/altin/SINIFLAMA.md')) && /holder_collision/.test(src('test/altin/SINIFLAMA.md')), 'sınıflama raporu test/altin/SINIFLAMA.md');
 });
 
 console.log(`${pass} geçti, ${fail} kaldı`);
