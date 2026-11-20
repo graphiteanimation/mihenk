@@ -1,0 +1,102 @@
+# Mihenk otomatik derleme ve sürüm kapısı (WP-20, O-034, CALISMA-DUZENI §8).
+# test  : Windows'ta `npm run test:all` (adım adım rapor: scripts/test-all.mjs)
+# paket : `npm run dist` → kurulumu sessiz kur → kurulu exe'ye karşı duman testi (aç, kaydet, NC/DXF kaydet) → sessiz kaldır
+# yayin : ikisi de yeşilse kurulum + SHA-256 resmi çıktı olarak yüklenir (yalnız master'da 30 gün, dallarda 5 gün)
+name: ci
+on:
+  push:
+    branches: [master, 'wp-**']
+  workflow_dispatch:
+  workflow_call:
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+env:
+  RETENTION: ${{ github.ref == 'refs/heads/master' && 30 || 5 }}
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Python playwright
+        run: python -m pip install --disable-pip-version-check playwright
+      - name: Chrome (Python testleri channel='chrome' kullanır)
+        shell: pwsh
+        run: |
+          $c = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+          if (-not (Test-Path $c)) { $c = "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe" }
+          if (Test-Path $c) { "Chrome hazır: " + (Get-Item $c).VersionInfo.ProductVersion }
+          else { "Chrome yok, kuruluyor"; python -m playwright install chrome }
+      - run: npm ci
+      - name: npm run test:all
+        run: npm run test:all
+      - name: Test günlükleri
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-gunlukleri
+          path: |
+            release/test-logs
+            test/shots
+          if-no-files-found: ignore
+          retention-days: 5
+
+  paket:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: NSIS (makensis) hazırla
+        shell: pwsh
+        run: |
+          $found = (Get-Command makensis -ErrorAction SilentlyContinue) -or (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe") -or (Test-Path "$env:ProgramFiles\NSIS\makensis.exe")
+          if ($found) { "NSIS hazır" } else { "NSIS yok, choco ile kuruluyor"; choco install nsis --no-progress -y; if ($LASTEXITCODE -ne 0) { exit 1 } }
+      - name: npm run dist
+        run: npm run dist
+      - name: Kurulum dosyası ve SHA-256
+        shell: pwsh
+        run: |
+          Get-ChildItem release/Mihenk-Kurulum-*.exe | ForEach-Object { "{0}  {1:N0} bayt" -f $_.Name, $_.Length }
+          Get-Content release/SHA256SUMS.txt
+      - name: Kurulu sürüm duman testi (sessiz kur, aç, kaydet, NC/DXF kaydet, kaldır)
+        run: npm run test:installed
+      - name: Kurulum + SHA-256 (ham, yalnız yayin işi için)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kurulum-ham
+          path: |
+            release/Mihenk-Kurulum-*.exe
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 1
+
+  yayin:
+    needs: [test, paket]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: kurulum-ham, path: kurulum }
+      - name: SHA-256 doğrula
+        working-directory: kurulum
+        run: |
+          sha256sum -c SHA256SUMS.txt
+          ls -l
+          { echo '### Kurulum çıktısı'; echo '```'; cat SHA256SUMS.txt; ls -l Mihenk-Kurulum-*.exe; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mihenk-Kurulum
+          path: |
+            kurulum/Mihenk-Kurulum-*.exe
+            kurulum/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: ${{ fromJSON(env.RETENTION) }}
