@@ -36,6 +36,11 @@ const profilesChk = (v, p) => {
   v.forEach((x, i) => { if (typeof x === 'number') num()(x, p + '[' + i + ']'); else obj({ ents: arrOf(str(LIMITS.shortStr), LIMITS.refs), hint: arrOf(num(), 2) })(x, p + '[' + i + ']'); });
 };
 const OPS = ['new', 'join', 'cut', 'intersect'];
+// WP-08 devir (a): ilişkisel izdüşüm bağı (WP-09) ent.proj = {b, g, c, sig, e, fp, pin, lost}; hepsi isteğe bağlı
+const sigPt = arrOf(num(), 2);
+const projChk = obj({ b: str(LIMITS.shortStr), g: num(), c: arrOf(num(), 3), e: str(LIMITS.shortStr), pin: arrOf(str(LIMITS.shortStr), 64), lost: bool(),
+  fp: arrOf((v, p) => { if (v !== null && typeof v !== 'string') num()(v, p); else if (typeof v === 'string') str(40)(v, p); }, 64),
+  sig: nullable(obj({ k: oneOf(['l', 'a', 'o', 's']), a: sigPt, b: sigPt, c: sigPt, r: num() })) });
 const AX = ['X', 'Y', 'Z'];
 const sourceChk = obj({ kind: oneOf(['feature', 'body']), id: str(LIMITS.shortStr), bodies: strArr() });
 const sketchChk = {
@@ -46,7 +51,7 @@ const sketchChk = {
     const ks = Object.keys(v); if (ks.length > LIMITS.sketchItems) fail('schema.too_many', { what: p, max: LIMITS.sketchItems });
     for (const k of ks) { str(LIMITS.shortStr)(k, p + '{key}'); obj({ x: num(), y: num(), fixed: bool() })(v[k], p + '.' + k); }
   },
-  ents: arrOf(obj({ id: str(LIMITS.shortStr), type: oneOf(['line', 'circle', 'arc', 'point', 'ellipse', 'ellarc', 'spline']), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), p: str(LIMITS.shortStr), f: str(LIMITS.shortStr), r: expr(), rmin: num(), pts: arrOf(str(LIMITS.shortStr), LIMITS.sketchItems), closed: bool(), cons: bool() }), LIMITS.sketchItems),
+  ents: arrOf(obj({ id: str(LIMITS.shortStr), type: oneOf(['line', 'circle', 'arc', 'point', 'ellipse', 'ellarc', 'spline']), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), p: str(LIMITS.shortStr), f: str(LIMITS.shortStr), r: expr(), rmin: num(), pts: arrOf(str(LIMITS.shortStr), LIMITS.sketchItems), closed: bool(), cons: bool(), proj: projChk }), LIMITS.sketchItems),
   cons: arrOf(obj({ id: str(LIMITS.shortStr), type: str(40), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), expr: expr(), ref: bool(), lo: arrOf(num(), 2) }), LIMITS.sketchItems),
 };
 // Özellik türü → alan denetleyicileri. Listede olmayan alanlar genel denetimden (derinlik/uzunluk/boyut) geçer.
@@ -166,6 +171,13 @@ export function validateDoc(doc, { byteLength } = {}) {
     for (const k of ks) str(LIMITS.shortStr)(doc.bodyNames[k], 'bodyNames.' + k);
   }
   if (doc.cam !== undefined && doc.cam !== null) validateCam(doc.cam);
+  // WP-08 devir (a): WP-02 grupları [{id, name, first, last}] (ardışık aralık; aralık geçerliliğini arayüz denetler)
+  if (doc.groups !== undefined) {
+    arrOf(obj({ id: str(LIMITS.shortStr), name: str(LIMITS.shortStr), first: str(LIMITS.shortStr), last: str(LIMITS.shortStr) }), LIMITS.features)(doc.groups, 'groups');
+    doc.groups.forEach((g, i) => { for (const k of ['id', 'first', 'last']) if (typeof g[k] !== 'string' || !g[k]) fail('schema.bad_field', { path: `groups[${i}].${k}`, expect: 'text' }); });
+  }
+  // WP-08 devir (c): belgeyle saklanan adlandırılmış görünüşler (en çok 12 yuva; kodlu metin, boş = boş yuva)
+  if (doc.views !== undefined) arrOf(str(200), 12)(doc.views, 'views');
   const feats = doc.features === undefined ? [] : doc.features;
   if (!Array.isArray(feats)) fail('schema.bad_field', { path: 'features', expect: 'list' });
   if (feats.length > LIMITS.features) fail('schema.too_many_features', { max: LIMITS.features });

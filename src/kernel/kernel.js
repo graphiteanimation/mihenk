@@ -11,6 +11,7 @@ import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
 import * as DE from './direct.js';
+import { reprojectLinked, matchEdge, edgeSig } from '../ui/sketch/ops.js'; // saf eskiz işlevleri (DOM yok)
 
 export { KErr };
 export const LIMITS = { minDim: 1e-3, maxDim: 1e5, maxPattern: 2000, maxStlTris: 50000 };
@@ -152,7 +153,18 @@ export class Kernel {
         if (spec?.kind === 'base') spec = { ...spec, offsetVal: this.coord(N(spec.offset ?? 0, tk('ef.offset')), tk('ef.offset')) };
         const plane = this.resolvePlane(spec, state, { ...ctx, field: 'plane' });
         if (!Array.isArray(f.ents) || !f.points || typeof f.points !== 'object') throw new KErr('sketch.no_profile');
-        state.sketches.set(f.id, { plane, sk: { points: f.points, ents: f.ents } });
+        let sk = { points: f.points, ents: f.ents };
+        // WP-08 devir (b): ilişkisel izdüşümler (ent.proj) bu andaki gövdelerden yeniden okunur (eskiz açık olmasa da);
+        // kaynak kenar bulunamazsa geometri yerinde kalır ve işlem uyarı taşır. Belge değişmez (kopya üzerinde).
+        if (f.ents.some((e) => e && e.proj)) {
+          const c = JSON.parse(JSON.stringify({ points: f.points, ents: f.ents, cons: f.cons || [] }));
+          try {
+            const r = reprojectLinked(c, (meta) => this.projEdge(meta, state, plane));
+            sk = { points: c.points, ents: c.ents };
+            if (r.lost) ctx?.warn?.push({ code: 'sketch.proj_lost', params: { n: r.lost } });
+          } catch (e) { ctx?.warn?.push({ code: 'sketch.proj_failed', params: {} }); }
+        }
+        state.sketches.set(f.id, { plane, sk });
         return [];
       }
       case 'extrude': {
@@ -377,6 +389,15 @@ export class Kernel {
     return { d: t, trim: null };
   }
 
+  // WP-08 devir (b): izdüşüm bağının (gövde, kenar grubu, imza) bu andaki yerel noktaları (sketcher._edgeByMeta ile aynı eşleme)
+  projEdge(meta, state, pl) {
+    const b = state.bodies.get(meta?.b); if (!b) return null;
+    const m = this.mesh(b); if (m.error) return undefined;
+    const cands = [];
+    for (const g of m.edgeGroups) { const a = m.lines.subarray(g.start * 3, (g.start + g.count) * 3), p3 = []; for (let i = 0; i + 5 < a.length; i += 6) { if (!p3.length) p3.push([a[i], a[i + 1], a[i + 2]]); p3.push([a[i + 3], a[i + 4], a[i + 5]]); } if (p3.length >= 2) cands.push({ idx: g.idx, p3, pts: p3.map((p) => V.toLocal(pl, p)) }); }
+    const mm = matchEdge(meta, cands); if (!mm) return null;
+    const out = mm.pts; out.g = mm.idx; out.c = [0, 1, 2].map((k) => Math.round(mm.p3.reduce((q, p) => q + p[k], 0) / mm.p3.length * 1e4) / 1e4); out.sig = edgeSig(out); return out;
+  }
   // WP-08: kenardan eksen: doğru kenar → kenar doğrultusu; dairesel kenar → dairenin ekseni (merkez + normal)
   edgeAxis(ref, state, ctx) {
     if (!ref || typeof ref !== 'object') throw new KErr('pattern.no_axis');
@@ -592,12 +613,12 @@ export class Kernel {
       const key = pkey + '|' + featKey(f, this.hashes);
       const c = this.cache[i];
       if (valid && c && c.key === key) { state = cloneState(c.state); status[f.id] = c.status; upgrades.push(...c.upgrades); newCache.push(c); featInfo[f.id] = this.info(f.id, c, true); report(opts, f.id, i, end, status[f.id], featInfo[f.id]); continue; }
-      valid = false; const fu = []; const t0 = now(); let sum;
+      valid = false; const fu = [], fw = []; const t0 = now(); let sum;
       if (f.suppressed === true) { status[f.id] = { ok: true, suppressed: true }; sum = 'sup'; }
       else {
         const snap = cloneState(state);
         try {
-          const made = this.runFeature(f, state, vars, { feature: f.id, upgrades: fu }) || [];
+          const made = this.runFeature(f, state, vars, { feature: f.id, upgrades: fu, warn: fw }) || [];
           // geçerlilik kapısı (F-05)
           for (const id of made) {
             const b = state.bodies.get(id); if (!b) continue; const why = TP.validity(b.shape); if (why) throw new KErr('geom.invalid', { body: id, reason: why });
@@ -607,10 +628,10 @@ export class Kernel {
           status[f.id] = { ok: true, bodies: made };
           sum = resultSum(f, snap, state);
           this.lastGood.set(f.id, { rev, input: snap, sum });
-        } catch (e) { state = snap; status[f.id] = { ok: false, error: errOf(e) }; fu.length = 0; sum = 'err:' + status[f.id].error.code; }
+        } catch (e) { state = snap; status[f.id] = { ok: false, error: errOf(e) }; fu.length = 0; fw.length = 0; sum = 'err:' + status[f.id].error.code; }
       }
       upgrades.push(...fu);
-      const warn = fu.length ? [{ code: 'ref.remapped', params: { n: fu.length } }] : [];
+      const warn = [...(fu.length ? [{ code: 'ref.remapped', params: { n: fu.length } }] : []), ...fw];
       const ce = { key, state: cloneState(state), status: status[f.id], upgrades: fu, ms: now() - t0, sum, warn };
       newCache.push(ce); featInfo[f.id] = this.info(f.id, ce, false);
       this.sums.set(f.id, sum);

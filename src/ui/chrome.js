@@ -4,7 +4,7 @@
 // Test ve erişilebilirlik sözleşmesi: her komut düğmesi `data-cmd`, önemli parçalar `data-testid` taşır; metne bağlı seçici gerekmez.
 import { h, $, ctxMenu, fmt, tip, hideTip, modal, modalOpen as modalUp } from './dom.js';
 import { icon, featureIcon } from './icons.js';
-import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn, moveUnit, dropTargets, groupRanges } from './features.js';
+import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn, moveUnit, dropTargets, groupRanges, groupUnit } from './features.js';
 import { t, tk, errText, getLang, LANGS, tLang } from '../shared/i18n.js';
 import { getStr, setStr, prefs, setPref } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
@@ -63,6 +63,11 @@ export function initChrome(app) {
   reg('view-right', 'view.right', 'view-right', () => app.viewport.view('right'));
   reg('view-iso', 'menu.iso', 'view-iso', () => app.viewport.view('iso'));
   reg('planes', 'menu.planes', 'planes', () => app.togglePlanes());
+  // WP-08 devir (c): görüntü modları, görünüş kaydet/çağır, çizim ayarları (komut paleti + Görünüm menüsü)
+  for (const m of ['shaded', 'wire', 'ghost']) reg('vd-' + m, 'vd.' + m, m === 'wire' ? 'view-iso' : 'view-iso', () => app.viewport?.setDisplayMode(m));
+  reg('view-save', 'cmd.view_save', 'view-iso', () => app.saveViewPrompt());
+  reg('view-list', 'cmd.view_list', 'view-iso', () => app.showSettings('draw'));
+  reg('draw-settings', 'cmd.draw_settings', 'settings', () => app.showSettings('draw'));
   reg('settings', 'menu.settings', 'settings', () => app.showSettings(), { kbd: 'Ctrl+,', tip: 'tip.settings' });
   reg('shortcuts', 'menu.shortcuts', 'keyboard', () => app.showShortcuts());
   reg('about', 'menu.about', 'info', () => app.showAbout());
@@ -126,6 +131,7 @@ export function initChrome(app) {
     'new', 'open', ['recent'], 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-stl-fine', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
   ];
   const helpItems = () => ['shortcuts', 'about'];
+  const viewItems = () => ['fit', 'view-front', 'view-top', 'view-right', 'view-iso', { sep: 1 }, 'vd-shaded', 'vd-wire', 'vd-ghost', { sep: 1 }, 'view-save', 'view-list', 'planes', { sep: 1 }, 'draw-settings'];
   const menuBtn = (c) => { const why = reason(c); const b = h('button', { class: 'mi', role: 'menuitem', 'data-cmd': c.id, 'aria-disabled': why ? 'true' : null, onclick: (e) => { e.stopPropagation(); closeMenus(); C.run(c.id); } },
     h('span', { html: icon(c.icon, 'sm') }), h('span', { text: label(c) }), c.kbd ? h('span', { class: 'kbd', text: c.kbd }) : null); if (why) b.classList.add('is-disabled'); return b; };
   const dropdown = (id, nameKey, ic, items, testid, iconOnly) => {
@@ -163,7 +169,7 @@ export function initChrome(app) {
     const helpMenu = dropdown('help', 'menu.help', 'help', helpItems(), 'menu-help', true); helpMenu.classList.add('right');
     bar.replaceChildren(
       h('div', { class: 'brand' }, h('img', { src: logoReverse, height: 22, alt: 'Mihenk', 'data-testid': 'brand' })),
-      dropdown('file', 'menu.file', 'file-open', fileItems(), 'menu-file'), h('span', { class: 'sep' }),
+      dropdown('file', 'menu.file', 'file-open', fileItems(), 'menu-file'), dropdown('view', 'menu.view', 'view-iso', viewItems(), 'menu-view'), h('span', { class: 'sep' }),
       tbtn('undo', 'undo'), tbtn('redo', 'redo'), tbtn('save', 'file-save'), doc, h('span', { class: 'grow' }), search, ...(machine ? [machine] : []), tbtn('settings', 'settings'), helpMenu);
     if (openId) bar.querySelector(`[data-menu="${openId}"]`)?.click();
     C.renderRecentMenu();
@@ -514,6 +520,16 @@ export function initChrome(app) {
     if (!horiz) el.addEventListener('dblclick', () => app.renameGroup(r.id));
     el.addEventListener('contextmenu', (e) => groupMenu(e, r));
     el.addEventListener('keydown', (e) => C.groupKey(e, r, horiz));
+    // WP-08 devir (e): grup bütün olarak sürüklenir (bırakma aralıkları işlem satırları/çipleri üzerinde, aynı kurallarla)
+    el.draggable = true;
+    el.addEventListener('dragstart', (e) => {
+      if (app.edit || app.sketchSession || app.mode !== 'design' || app.welcome) { e.preventDefault(); return; }
+      const unit = groupUnit(app.doc, r.id); if (!unit.length) { e.preventDefault(); return; }
+      app.drag = { i: unit[0], id: app.doc.features[unit[0]].id, group: r.id, unit, targets: dropTargets(app.doc, unit[0], app.result?.status || {}, unit) };
+      e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.id);
+      document.body.classList.add('hist-dragging'); markGaps();
+    });
+    el.addEventListener('dragend', endDrag);
     return el;
   };
   const groupRow = (r) => groupEl(r, false);
@@ -631,7 +647,7 @@ export function initChrome(app) {
     el.addEventListener('drop', (e) => {
       const D = app.drag; if (!D) return; e.preventDefault();
       const g = gapAt(el, e, horiz); const P = D.targets[g.gap]; endDrag();
-      if (P && P.ok && !P.noop) app.moveFeature(D.i, g.gap);
+      if (P && P.ok && !P.noop) app.moveFeature(D.i, g.gap, D.unit || null);
     });
     el.addEventListener('dragend', endDrag);
   };
@@ -874,7 +890,7 @@ export function initChrome(app) {
     $('#app').append(root); draw(); inp.focus();
   };
 
-  C.renderAll = () => { C.renderMenu(); C.renderTabs(); C.renderToolbar(); C.renderBrowser(); C.renderTimeline(); C.renderStatus(); C.renderEmpty(); };
+  C.renderAll = () => { C.renderMenu(); C.renderTabs(); C.renderToolbar(); C.renderBrowser(); C.renderTimeline(); C.renderStatus(); C.renderEmpty(); app.viewport?._dispRender?.(); };
   // boş durum: simge + bir cümle + tek eylem
   C.renderEmpty = () => {
     const el = $('#empty'); if (!el) return;

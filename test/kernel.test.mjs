@@ -644,4 +644,41 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
     const r = await K8.rebuild({ features: [{ id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '-5', w: '20', d: '20', h: '5', op: 'new' }, { id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '0' }, points: pts, ents }, { id: 'e', type: 'extrude', sketch: 's', profiles: ink.map(selectionFor), dist: '0.5', flip: true, op: 'cut' }] });
     near(r.bodies[0]?.volume, 2000 - 0.5 * nzArea(glyphs[0]), 'WP-08 metin kazıma "Ş" 0,5 mm: hacim', 1e-6); }
 }
+
+// ------------------------------------------------------------------ WP-08 dilim 7(b): ilişkisel izdüşüm yeniden hesapta güncellenir (eskiz açık değil)
+{
+  const { projectPolylines } = await import('../src/ui/sketch/ops.js');
+  const V8 = await import('../src/shared/vec.js');
+  const K8 = await initKernel(opencascade, () => wasm);
+  const docP = { params: [{ name: 'W', expr: '40' }], features: [{ id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: 'W', d: '20', h: '10', op: 'new' }] };
+  let r = await K8.rebuild(docP); const pl = V8.basePlane('XY', 10);
+  const mb = r.bodies[0]; const polys = [];
+  for (const g of mb.edgeGroups) { const a = mb.lines.subarray(g.start * 3, (g.start + g.count) * 3); const p3 = []; for (let i = 0; i + 5 < a.length; i += 6) { if (!p3.length) p3.push([a[i], a[i + 1], a[i + 2]]); p3.push([a[i + 3], a[i + 4], a[i + 5]]); } if (p3.every((p) => Math.abs(p[2] - 10) < 1e-6)) polys.push({ pts: p3.map((p) => V8.toLocal(pl, p)), meta: { b: 'b', g: g.idx, c: [0, 1, 2].map((k) => p3.reduce((q, p) => q + p[k], 0) / p3.length) } }); }
+  const sk = { points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [], seq: 0 };
+  projectPolylines(sk, polys); for (const e of sk.ents) delete e.cons; // izdüşüm yardımcı çizgidir; profil için normale çevrilir (kullanıcı da yapar)
+  ok(polys.length === 4 && sk.ents.length === 4 && sk.ents.every((e) => e.proj), 'WP-08 7b: üst yüzün 4 kenarı ilişkisel izdüşüldü');
+  docP.features.push({ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '10' }, ...sk }, { id: 'e', type: 'extrude', sketch: 's', profiles: 'all', dist: '5', op: 'new' });
+  r = await K8.rebuild(docP); near(r.bodies.find((b) => b.id === 'e')?.volume, 40 * 20 * 5, 'WP-08 7b: başlangıç W=40 ' + JSON.stringify([r.status, r.bodies.map((b) => b.id)]), 1e-9);
+  docP.params[0].expr = '60'; r = await K8.rebuild(docP);
+  near(r.bodies.find((b) => b.id === 'e')?.volume, 60 * 20 * 5, 'WP-08 7b: W=60 → kapalı eskizdeki izdüşüm gövdeyle güncellenir (60×20×5)', 1e-9);
+  ok(!(r.featInfo.s.warn || []).length, 'WP-08 7b: güncellemede uyarı yok');
+  ok(docP.features[1].points && Object.values(docP.features[1].points).every((p) => p.x <= 40 + 1e-9), 'WP-08 7b: belge değişmez (izdüşüm kopya üzerinde güncellenir)');
+  docP.features[0].id = 'b2'; r = await K8.rebuild(docP);
+  ok(r.status.s.ok && (r.featInfo.s.warn || []).some((w) => w.code === 'sketch.proj_lost'), 'WP-08 7b: kaynak gövde/kenar kaybolursa eskiz işleminde uyarı: ' + JSON.stringify(r.featInfo.s.warn));
+  near(r.bodies.find((b) => b.id === 'e')?.volume, 40 * 20 * 5, 'WP-08 7b: kayıpta geometri yerinde kalır', 1e-9);
+}
+
+// ------------------------------------------------------------------ WP-08 dilim 7(a,c): şema — groups, ent.proj, views (isteğe bağlı)
+{
+  const { validateDoc } = await import('../src/shared/schema.js');
+  const v = (d) => { try { validateDoc(d); return 'ok'; } catch (e) { return e.code; } };
+  const sk = (ents) => ({ features: [{ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY' }, points: { a: { x: 0, y: 0 }, b: { x: 1, y: 0 } }, ents }] });
+  ok(v({ features: [] }) === 'ok' && v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b' }])) === 'ok', 'WP-08 şema: alanı olmayan eski belge geçer');
+  ok(v({ features: [], groups: [{ id: 'g1', name: 'Delikler', first: 'a', last: 'b' }] }) === 'ok', 'WP-08 şema: geçerli groups');
+  ok(v({ features: [], groups: [{ id: 'g1', name: 'x', first: 5, last: 'b' }] }) === 'schema.bad_field' && v({ features: [], groups: { id: 'g' } }) === 'schema.bad_field' && v({ features: [], groups: [{ name: 'x', first: 'a', last: 'b' }] }) === 'schema.bad_field', 'WP-08 şema: bozuk groups reddedilir (tür, liste, eksik kimlik)');
+  const proj = { b: 'b', g: 3, c: [1, 2, 3], sig: { k: 'l', a: [0, 0], b: [1, 0] }, e: 'l', fp: [0, 0, 1, 0, 'line'], pin: ['O'] };
+  ok(v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b', cons: true, proj }])) === 'ok' && v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b', proj: { ...proj, lost: true, sig: null } }])) === 'ok', 'WP-08 şema: geçerli ent.proj (kayıp, imzasız)');
+  ok(v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b', proj: { ...proj, g: 'x' } }])) === 'schema.bad_field' && v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b', proj: { ...proj, c: [1, 2, 'z'] } }])) === 'schema.bad_field' && v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b', proj: { ...proj, sig: { k: 'q' } } }])) === 'schema.bad_field', 'WP-08 şema: bozuk ent.proj reddedilir');
+  ok(v({ features: [], views: ['Üst|0,0,1|0,0,0|0,1,0|1|50', ''] }) === 'ok' && v({ features: [], views: new Array(13).fill('') }) === 'schema.too_many' && v({ features: [], views: [3] }) === 'schema.bad_field', 'WP-08 şema: views (≤12 yuva, metin)');
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

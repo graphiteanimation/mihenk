@@ -153,6 +153,8 @@ export function fieldsFor(f, ctx) {
         { t: 'expr', k: 'count2', label: tk('fld.count2') }, { t: 'expr', k: 'step2', label: tk('fld.step2'), unit: 'mm' }, { t: 'select', k: 'dir2', label: tk('fld.dir2'), opts: AXES });
       if (f.source?.kind === 'body') F.push({ t: 'check', k: 'join', label: tk('fld.join_body') });
       break;
+    // WP-08 devir (f): yüz üzerine kurulu eskizin düzlem yüzü (yalnız onarım kipinde panelle açılır)
+    case 'sketch': if (f.plane?.kind === 'face') F.push({ t: 'sel', k: 'sketchFace', label: tk('fld.sketch_face'), kind: 'face', single: true }); break;
     case 'split': F.push({ t: 'sel', k: 'body', label: tk('fld.body'), kind: 'body', single: true }, { t: 'tool', k: 'tool', label: tk('fld.split_tool') }); break;
     case 'splitface': F.push({ t: 'sel', k: 'faces', label: tk('fld.faces'), kind: 'face' }, { t: 'tool', k: 'tool', label: tk('fld.split_tool') }); break;
     case 'faceop':
@@ -294,8 +296,9 @@ export function moveUnit(doc, i) {
 // i. işlemi (birimini) özgün dizideki `to` aralığına (to. elemanın önüne; to = n → sona) taşı.
 // Geri sarma işaretçisi aynı iki komşu arasında kalır; to === rollback → işaretçinin önüne.
 // Döner: {ok, noop, features, rollback, groups, at} ya da {ok:false, why:{feat, dep}}.
-export function planMove(doc, i, to, status = {}, refs = null) {
-  const feats = doc.features; const unit = moveUnit(doc, i); if (!unit.length) return { ok: false, noop: true };
+// WP-08 devir (e): unitIdx verilirse (ör. bir grubun bütün işlemleri) o ardışık dizinler birlikte taşınır.
+export function planMove(doc, i, to, status = {}, refs = null, unitIdx = null) {
+  const feats = doc.features; const unit = Array.isArray(unitIdx) && unitIdx.length ? unitIdx.slice().sort((a, b) => a - b) : moveUnit(doc, i); if (!unit.length) return { ok: false, noop: true };
   const uset = new Set(unit.map((k) => feats[k].id)); const MARK = { mark: true };
   const rb = doc.rollback; const arr = feats.slice(); if (rb != null) arr.splice(rb, 0, MARK);
   let target = null;
@@ -324,15 +327,17 @@ export function planMove(doc, i, to, status = {}, refs = null) {
   return { ok: true, noop: false, features: rest, rollback: nrb, groups, at: at < 0 ? Math.min(...unit) : at, sensitive };
 }
 // sürükleme sırasında her aralığın durumu (bırakılabilir mi, değilse neden)
-export function dropTargets(doc, i, status = {}) {
+export function dropTargets(doc, i, status = {}, unitIdx = null) {
   const refs = refsMap(doc, status); const out = [];
-  for (let to = 0; to <= doc.features.length; to++) out.push(planMove(doc, i, to, status, refs));
+  for (let to = 0; to <= doc.features.length; to++) out.push(planMove(doc, i, to, status, refs, unitIdx));
   return out;
 }
 
 // ------------------------------------------------------------------ WP-02 dilim 4: gruplar
 // Belge şeması yalnız isteğe bağlı `groups` alanı kazanır: [{id, name, first, last}] (ardışık aralık, ilk/son işlem kimliği).
 // Aralığın içine eklenen işlem gruba girer. Grup iç içe olmaz, çakışmaz.
+// grubun işlem dizinleri (bütün olarak taşımak için)
+export const groupUnit = (doc, gid) => { const r = groupRanges(doc).find((x) => x.id === gid); return r ? Array.from({ length: r.b - r.a + 1 }, (_, k) => r.a + k) : []; };
 export function groupRanges(doc) {
   const pos = new Map(doc.features.map((f, i) => [f.id, i])); const out = [];
   for (const g of Array.isArray(doc.groups) ? doc.groups : []) {

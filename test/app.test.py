@@ -1349,6 +1349,45 @@ try:
     ev('(i) => app.editFeature(i)', 1); page.wait_for_selector('#panel [data-k="dist"]'); fill('dist', 3); idle(); ok()
     check('WP-08 metin extrude: düzenle 2 → 3 mm (hacim × 1,5)', near(ev('app.result.bodies.reduce((a, b) => a + b.volume, 0)'), v2 * 1.5, 1e-9))
     w8_roundtrip(xid8, 'metin extrude', lambda: ev('app.result.bodies.reduce((a, b) => a + b.volume, 0)'), v2 * 1.5)
+    # dilim 7 (devirler): (c) görünüşler belgeyle + Ayarlar/palet/Görünüm menüsü, (d) ızgara, (e) grup sürükleme, (f) eskiz yüzü onarımı
+    w8_load([bx8]); ev('app.viewport.view("top")')
+    check('WP-08 7c: eski belge görünüşsüz açılır (views alanı eklenmez)', 'views' not in json.loads(ev('new TextDecoder().decode(app.fileBytes())'))['doc'])
+    ev('(() => { app.showSettings("draw"); return true; })()'); page.wait_for_selector('[data-testid=set-view-name]')
+    page.fill('[data-testid=set-view-name]', 'Üstten'); page.click('[data-testid=set-view-save]'); page.wait_for_timeout(150)
+    docv = json.loads(ev('new TextDecoder().decode(app.fileBytes())'))['doc']
+    check('WP-08 7c: Ayarlar → Çizim ve görünüm: görünüş belgeye kaydedilir', docv.get('views') and docv['views'][0].startswith('Üstten|') and ev('app.dirty'), docv.get('views'))
+    page.click('[data-testid=set-display-wire]'); page.wait_for_timeout(100)
+    check('WP-08 7c: Ayarlarda görüntü modu', ev('app.viewport.displayMode()') == 'wire')
+    page.select_option('[data-testid=set-grid]', '2'); page.wait_for_timeout(100)
+    check('WP-08 7d: ızgara görüntüsü yakalama aralığına uyar (2 mm)', ev('app.viewport.gridSpacing()') == 2 and ev('app.viewport.snapGrid && app.viewport.snapGrid.visible !== false'), ev('app.viewport.gridSpacing()'))
+    page.select_option('[data-testid=set-grid]', '1'); page.keyboard.press('Escape'); page.wait_for_timeout(150); accept_modal()
+    ev('document.activeElement && document.activeElement.blur()'); page.keyboard.press('Control+z'); page.wait_for_timeout(150)
+    check('WP-08 7c: görünüş kaydı geri alınabilir', not ev('app.doc.views'), ev('app.doc.views'))
+    page.keyboard.press('Control+y'); page.wait_for_timeout(150)
+    ev('app.viewport.view("iso")'); ev('app.markDirty(false)'); ev('(async () => { const b = app.fileBytes(); await app.openBytes(b, "v.mhnk", null); })()'); accept_modal(); idle()
+    check('WP-08 7c: kaydet-aç: görünüş belgeyle gelir ve çağrılır', [v['name'] for v in ev('app.viewport.namedViews()')] == ['Üstten'] and ev('app.viewport.recallNamedView("Üstten")'))
+    page.keyboard.press('Control+k'); page.wait_for_selector('[data-testid=palette-input]'); page.fill('[data-testid=palette-input]', 'Gölgeli'); page.wait_for_timeout(150); page.keyboard.press('Enter'); page.wait_for_timeout(150)
+    check('WP-08 7c: komut paletinden görüntü modu (Gölgeli + kenar)', ev('app.viewport.displayMode()') == 'shaded')
+    page.click('#menubar button[data-menu="view"]'); page.wait_for_timeout(100)
+    check('WP-08 7c: Görünüm menüsü: modlar, görünüş kaydet, çizim ayarları', all(page.locator(f'#menubar .drop [data-cmd="{c}"]').count() == 1 for c in ['vd-wire', 'view-save', 'view-list', 'draw-settings', 'fit']))
+    page.keyboard.press('Escape'); page.click('#menubar button[data-menu="view"]') if ev('!!document.querySelector("#menubar .menu.open")') else None
+    # (e) grup bütün olarak taşınır
+    g3 = [bx8, {'id': 'c1', 'type': 'primitive', 'name': 'Silindir 1', 'kind': 'cylinder', 'x': '10', 'y': '10', 'z': '-1', 'dia': '4', 'h': '30', 'axis': 'Z', 'op': 'cut'}, {'id': 'c2', 'type': 'primitive', 'name': 'Silindir 2', 'kind': 'cylinder', 'x': '30', 'y': '10', 'z': '-1', 'dia': '4', 'h': '30', 'axis': 'Z', 'op': 'cut'}, {'id': 'k3', 'type': 'primitive', 'name': 'Kutu 2', 'kind': 'box', 'x': '100', 'y': '0', 'z': '0', 'w': '10', 'd': '10', 'h': '10', 'op': 'new'}]
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', {'params': [], 'features': g3, 'groups': [{'id': 'g1', 'name': 'Delikler', 'first': 'c1', 'last': 'c2'}]}); idle()
+    ev('(async () => app.moveGroup("g1", 4))()'); idle()
+    check('WP-08 7e: grup bütün olarak taşındı (sona), grup korunur', feats() == ['b8', 'k3', 'c1', 'c2'] and ev('app.doc.groups') == [{'id': 'g1', 'name': 'Delikler', 'first': 'c1', 'last': 'c2'}], [feats(), ev('app.doc.groups')])
+    page.keyboard.press('Control+z'); idle()
+    src = page.locator('#browser [data-group="g1"]').first; dst = page.locator('#browser .hrow[data-hist="b8"]').first
+    if src.count() and dst.count():
+        bb = dst.bounding_box(); src.drag_to(dst, target_position={'x': bb['width'] / 2, 'y': 2}); page.wait_for_timeout(200); idle()
+    check('WP-08 7e: grup satırı sürüklenince bağımlılık kuralı uygulanır (kutunun önüne bırakılamaz, sıra değişmez)', feats() == ['b8', 'c1', 'c2', 'k3'], feats())
+    # (f) yüz üzerine kurulu eskizin kayıp başvurusu onarım kipinde yeniden seçilir
+    skf = {'id': 'sf', 'type': 'sketch', 'name': 'Eskiz 1', 'plane': {'kind': 'face', 'ref': {'body': 'b8', 'kind': 'face', 'name': {'k': 'b8:zz'}}}, 'points': {'q1': {'x': 5, 'y': 5}, 'q2': {'x': 15, 'y': 5}, 'q3': {'x': 15, 'y': 15}, 'q4': {'x': 5, 'y': 15}}, 'ents': [{'id': f'm{i}', 'type': 'line', 'a': f'q{i}', 'b': f'q{i % 4 + 1}'} for i in range(1, 5)], 'cons': []}
+    w8_load([bx8, skf]); bad0 = ev('app.result.status.sf.ok')
+    ev('(async () => app.repairFeature("sf"))()'); page.wait_for_timeout(300); idle()
+    check('WP-08 7f: kayıp eskiz yüzü → onarım paneli, yüz seçimi etkin', bad0 is False and ev('app.edit && app.edit.activeSel') == 'sketchFace' and page.locator('[data-testid=repair]').count() == 1, [bad0, ev('app.edit && app.edit.activeSel')])
+    w8_pick('b8', w8_face('b8', 'd => d.normal && d.normal[2] > 0.99')); idle(); ok()
+    check('WP-08 7f: yeni yüz seçildi, eskiz geçerli (yüz düzlemi z=20)', ev('app.result.status.sf.ok') and abs(ev('app.result.sketches.sf.plane.o[2]') - 20) < 1e-9, ev('app.result.status.sf'))
     check('CSP: dil değiştirme dahil son aşamada da ihlal yok', ev('window.__csp.length') == 0, str(ev('window.__csp')[:3]))
     print('\nkonsol hataları:', [e for e in errs if 'GL Driver' not in e][:5])
     check('konsolda sayfa hatası yok', not [e for e in errs if e.startswith('pageerror')], str([e for e in errs if e.startswith('pageerror')][:3]))

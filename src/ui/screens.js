@@ -6,6 +6,10 @@ import { prefs, setPref, resetPrefs, getStr, setStr } from './prefs.js';
 import logoLight from '../../brand/logo/logo-horizontal.svg?url';
 import logoDark from '../../brand/logo/logo-horizontal-reverse.svg?url';
 import pkg from '../../package.json';
+import { SKO, SNAP_KINDS, GRID_STEPS, AUTO_KINDS, snapOn, setSnapKind, setGridStep, setAuto, setAutoKind } from './sketch/opts.js';
+import { SNAP_LABEL } from './sketch/snap.js';
+import { DISPLAY_MODES } from './viewport-display.js';
+const AUTO_LABEL = { hv: 'cf.auto_hv', tan: 'cf.auto_tan', perp: 'cf.auto_perp', coin: 'cf.auto_coin', on: 'cf.auto_on', mid: 'cf.auto_mid' };
 
 // Bölmeli (segmented) seçici: seçenekler [değer, etiket]; seçilen aria-pressed=true.
 function seg(testid, options, current, onPick) {
@@ -17,7 +21,28 @@ const field = (label, ctl, help) => h('div', { class: 'fld' }, h('label', { text
 
 export function showSettings(app, tab = 'general') {
   let cur = tab; const pane = h('div', { class: 'pane', role: 'tabpanel' }); const nav = h('nav', { role: 'tablist', 'aria-orientation': 'vertical' });
-  const TABS = [['general', 'set.general', 'settings'], ['about', 'set.about', 'info']];
+  const TABS = [['general', 'set.general', 'settings'], ['draw', 'set.draw', 'view-iso'], ['about', 'set.about', 'info']];
+  // WP-08 devir (c): görüntü modu, adlandırılmış görünüşler (belgeyle saklanır) ve eskiz çizim ayarları ana Ayarlar penceresinde
+  const drawTab = () => {
+    const vp = app.viewport; const box = (id, on, set, label) => { const c = h('input', { type: 'checkbox', 'data-testid': 'set-' + id, checked: on ? true : null }); c.checked = !!on; c.addEventListener('change', () => set(c.checked)); return h('label', { class: 'check' }, c, h('span', { text: t(label) })); };
+    const mode = vp ? seg('set-display', DISPLAY_MODES.map((m) => [m, t('vd.' + m)]), vp.displayMode(), (v) => vp.setDisplayMode(v)) : null;
+    const list = vp ? vp.namedViews() : [];
+    const views = h('div', { class: 'set-views', 'data-testid': 'set-views' }, ...(list.length ? list.map((v) => h('div', { class: 'row' },
+      h('button', { type: 'button', class: 'btn sm', 'data-testid': 'set-view-go-' + v.slot, onclick: () => vp.applyViewState(v.s) }, v.name),
+      h('button', { type: 'button', class: 'btn sm ghost', 'data-testid': 'set-view-del-' + v.slot, 'aria-label': t('vd.delete', { name: v.name }), onclick: () => { vp.deleteNamedView(v.name); draw(); } }, '×'))) : [h('div', { class: 'note', text: t('vd.none') })]));
+    const nm = h('input', { type: 'text', maxlength: '24', 'data-testid': 'set-view-name', placeholder: t('vd.name'), 'aria-label': t('vd.name') });
+    const msg = h('div', { class: 'note', role: 'status', 'aria-live': 'polite' });
+    const save = () => { const r = vp.saveNamedView(nm.value); if (r.ok) draw(); else msg.textContent = t(r.err); };
+    nm.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); save(); } });
+    const grid = h('select', { 'data-testid': 'set-grid' }, ...[...new Set([...GRID_STEPS, SKO.grid])].sort((a, b) => a - b).map((v) => h('option', { value: String(v), selected: v === SKO.grid }, v + ' mm')));
+    grid.addEventListener('change', () => setGridStep(grid.value));
+    return [h('div', { class: 'sec', text: t('vd.title') }), mode ? field(t('vd.mode'), mode) : null,
+      field(t('vd.views'), h('div', {}, views, h('div', { class: 'row' }, nm, h('button', { type: 'button', class: 'btn sm', 'data-testid': 'set-view-save', onclick: save }, t('vd.save'))), msg), t('set.views_doc')),
+      h('div', { class: 'sec', text: t('cf.open') }),
+      field(t('cf.snap_title'), h('div', { class: 'checks' }, ...SNAP_KINDS.map((k) => box('snap-' + k, snapOn(k), (v) => setSnapKind(k, v), SNAP_LABEL[k])))),
+      field(t('cf.grid_step'), grid),
+      field(t('cf.auto_title'), h('div', { class: 'checks' }, box('auto-all', SKO.auto, (v) => setAuto(v), 'cf.auto_all'), ...AUTO_KINDS.map((k) => box('auto-' + k, !SKO.autoOff.has(k), (v) => setAutoKind(k, v), AUTO_LABEL[k]))))].filter(Boolean);
+  };
   const general = () => {
     const lang = seg('set-lang', [['tr', 'Türkçe'], ['en', 'English']], getLang(), (v) => app.setLanguage(v)); // i18n-ignore: dil adları kendi dilindedir
     const theme = seg('set-theme', [['light', t('set.theme_light')], ['dark', t('set.theme_dark')], ['system', t('set.theme_system')]], prefs.theme, (v) => setPref('theme', v));
@@ -36,7 +61,7 @@ export function showSettings(app, tab = 'general') {
     h('div', { class: 'note', text: t('set.about_note') }), h('div', { class: 'note', text: t('set.offline') })];
   const draw = () => {
     nav.replaceChildren(...TABS.map(([id, key, ic]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(id === cur), 'data-testid': 'set-tab-' + id, onclick: () => { cur = id; draw(); } }, h('span', { html: icon(ic, 'sm') }), t(key))));
-    pane.replaceChildren(...(cur === 'about' ? about() : general()));
+    pane.replaceChildren(...(cur === 'about' ? about() : cur === 'draw' ? drawTab() : general()));
   };
   draw();
   return modal({ title: t('set.title'), content: h('div', { class: 'settings', 'data-testid': 'settings' }, nav, pane), buttons: [{ label: t('set.reset'), cls: 'ghost', testid: 'set-reset', onClick: () => { resetPrefs(); setStr('leftRotate', 'off'); app.viewport?.setLeftRotate(false); app.setLanguage('tr'); draw(); } }, { label: t('common.close'), cls: 'pri primary', value: true }], note: t('set.applied'), width: 720, icon: 'settings' });

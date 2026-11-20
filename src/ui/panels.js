@@ -78,7 +78,7 @@ export class FeaturePanel {
 
   dropLost() {
     const by = new Map(); for (const L of this.repair.lost) { if (!by.has(L.field)) by.set(L.field, new Set()); by.get(L.field).add(L.index); }
-    for (const [k, set] of by) { const v = this.draft[k]; if (Array.isArray(v)) this.draft[k] = v.filter((_, j) => !set.has(j)); else if (v && set.has(null)) this.draft[k] = Array.isArray(v) ? [] : ''; }
+    for (const [k, set] of by) { if (k.startsWith('plane')) { if (this.draft.plane) delete this.draft.plane.ref; continue; } const v = this.draft[k]; if (Array.isArray(v)) this.draft[k] = v.filter((_, j) => !set.has(j)); else if (v && set.has(null)) this.draft[k] = Array.isArray(v) ? [] : ''; }
   }
   repairBox() {
     const R = this.repair; if (!R) return null; const app = this.app;
@@ -238,11 +238,11 @@ export class FeaturePanel {
   changed() { this.app.previewSoon(); }
 
   // --- seçim alanları
-  selKind(k) { if (k === 'source.bodies') return 'body'; if (k === 'tool.ref') return 'face'; return this.fields().find((f) => f.k === k)?.kind; }
-  getSel(k) { if (k === 'source.bodies') return this.draft.source?.bodies || []; if (k === 'tool.ref') return this.draft.tool?.ref ? [this.draft.tool.ref] : []; const v = this.draft[k]; return Array.isArray(v) ? v : v ? [v] : []; }
+  selKind(k) { if (k === 'source.bodies') return 'body'; if (k === 'tool.ref' || k === 'sketchFace') return 'face'; return this.fields().find((f) => f.k === k)?.kind; }
+  getSel(k) { if (k === 'source.bodies') return this.draft.source?.bodies || []; if (k === 'tool.ref') return this.draft.tool?.ref ? [this.draft.tool.ref] : []; if (k === 'sketchFace') return this.draft.plane?.ref ? [this.draft.plane.ref] : []; const v = this.draft[k]; return Array.isArray(v) ? v : v ? [v] : []; }
   setSelList(k, list) {
     const f = this.fields().find((x) => x.k === k);
-    if (k === 'source.bodies') this.draft.source.bodies = list; else if (k === 'tool.ref') { if (list.length) this.draft.tool.ref = list[list.length - 1]; else delete this.draft.tool.ref; } else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
+    if (k === 'source.bodies') this.draft.source.bodies = list; else if (k === 'sketchFace') { if (list.length) this.draft.plane = { ...this.draft.plane, kind: 'face', ref: list[list.length - 1] }; else if (this.draft.plane) delete this.draft.plane.ref; } else if (k === 'tool.ref') { if (list.length) this.draft.tool.ref = list[list.length - 1]; else delete this.draft.tool.ref; } else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
   }
   // C-04: × seçimi temizler ve alanı etkinleştirir (× tıklaması kutunun kendi tıklamasını durdurduğu için alan pasif kalıp kenar tıklamaları boşa gidiyordu)
   clearSel(k) { this.setSelList(k, []); this.setActive(k, true); this.refreshSels(); this.updateViewport(); this.changed(); }

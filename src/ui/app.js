@@ -4,6 +4,7 @@ import './style.css';
 import pkg from '../../package.json';
 import planegcsWasm from '@salusoft89/planegcs/dist/planegcs_dist/planegcs.wasm?url';
 import { Viewport, THREE, COL } from './viewport.js';
+import { SKO, onSkOptsChange } from './sketch/opts.js';
 import { paintFaces } from './viewport-hist.js';
 import { initSolver, solveSketch } from './solver.js';
 import { evalExpr, resolveParams } from '../shared/expr.js';
@@ -15,7 +16,7 @@ import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../s
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
-import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups, groupRanges, groupOf, moveUnit } from './features.js';
+import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups, groupRanges, groupOf, moveUnit, groupUnit } from './features.js';
 import { initChrome } from './chrome.js';
 import { initCam } from './cam/index.js';
 import { onPrefsChange, getStr, setStr } from './prefs.js';
@@ -62,7 +63,7 @@ class App {
     onLangChange(() => this.relang());
     onPrefsChange(() => this.retheme());
     this.pushNativeStrings();
-    try { this.viewport = new Viewport($('#viewport')); }
+    try { this.viewport = new Viewport($('#viewport')); this.installViewStore(); this.viewport.setGridStep(SKO.grid); onSkOptsChange(() => this.viewport?.setGridStep(SKO.grid)); }
     catch (e) { this.loadFail(t('ld.webgl', { detail: e.message }), 420); this._readyRej(e); return; }
     this.viewport.onPick = (hit, ev) => this.onPick(hit, ev);
     this.viewport.onCamera = () => {}; this.viewport.setLeftRotate(getStr('leftRotate') === 'on');
@@ -101,7 +102,7 @@ class App {
   setLanguage(l) { setLang(l); }
   // Tema/yoğunluk değişince 3B görünüm ve eskiz katmanı renkleri CSS değişkenlerinden yeniden okunur.
   retheme() {
-    try { this.viewport?.applyTheme(); this.refreshSketches(); this.sketcher?.retheme?.(); this.cam?.view?.retheme(); } catch (e) { console.error(e); }
+    try { this.viewport?.applyTheme(); if (this.viewport) { this.viewport.snapGrid = null; this.viewport.setGridStep(SKO.grid); } this.refreshSketches(); this.sketcher?.retheme?.(); this.cam?.view?.retheme(); } catch (e) { console.error(e); }
     this.C?.renderAll?.();
   }
   showSettings(tab) { return showSettings(this, tab); }
@@ -170,6 +171,18 @@ class App {
   // ------------------------------------------------------------ belge
   cloneDoc(d) { return clone(d); }
   vars() { try { return resolveParams(this.doc.params).vars; } catch (e) { return {}; } }
+  async saveViewPrompt() {
+    const nm = await promptText(t('vd.name'), ''); if (!nm) return;
+    const r = this.viewport.saveNamedView(nm); toast(r.ok ? t('cmd.view_saved', { name: r.name }) : t(r.err), !r.ok);
+  }
+  // WP-08 devir (c): adlandırılmış görünüşler belgenin isteğe bağlı `views` alanında (12 yuva, kodlu metin); kaydet/sil geri alınabilir adımdır
+  installViewStore() {
+    const vp = this.viewport; if (!vp) return;
+    vp.viewStore = {
+      get: (i) => (Array.isArray(this.doc?.views) ? this.doc.views[i - 1] || '' : ''),
+      set: (i, v) => this.commitMeta((d) => { const a = Array.isArray(d.views) ? d.views.slice() : []; while (a.length < i) a.push(''); a[i - 1] = v || ''; while (a.length && !a[a.length - 1]) a.pop(); if (a.length) d.views = a; else delete d.views; }),
+    };
+  }
   normalize(d) {
     d = clone(d || {}); d.params = Array.isArray(d.params) ? d.params : []; d.features = Array.isArray(d.features) ? d.features : [];
     if (d.rollback === undefined || (typeof d.rollback === 'number' && d.rollback >= d.features.length)) d.rollback = null;
@@ -335,8 +348,10 @@ class App {
   async repairFeature(id) {
     const i = this.doc.features.findIndex((f) => f.id === id); if (i < 0 || this.guard()) return;
     const f = this.doc.features[i]; this.selectFeature(id);
-    if (f.type === 'sketch' || f.type === 'import') return this.editFeature(i);
+    if (f.type === 'import') return this.editFeature(i);
     let info = null; try { info = await this.query('repairInfo', { id }); } catch (e) { console.error(e); }
+    // WP-08 devir (f): yüz üzerine kurulu eskizin kayıp yüz başvurusu onarım kipinde yeniden seçilir; başka sorunda eskiz düzenleyici açılır
+    if (f.type === 'sketch' && !(f.plane?.kind === 'face' && info?.lost?.some((L) => String(L.field).startsWith('plane')))) return this.editFeature(i);
     if (this.guard()) return; this.endTool(true);
     new FeaturePanel(this, clone(f), i, info).open(); this.C.renderAll();
   }
@@ -529,9 +544,9 @@ class App {
   modelSig(res) { const B = res?.bodies || []; return { vol: B.reduce((a, b) => a + (b.volume || 0), 0), faces: B.reduce((a, b) => a + (b.nFaces || 0), 0), n: B.length }; }
   sensWhy(ids) { const nm = ids.map((id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }); return t('hs.move_sensitive', { list: nm.join(', ') }); }
   moveWhy(why) { const nm = (id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }; return t('hs.move_blocked', { a: nm(why.feat), b: nm(why.dep) }); }
-  async moveFeature(i, to) {
+  async moveFeature(i, to, unit = null) {
     if (this.guard()) return false; const f = this.doc.features[i]; if (!f) return false;
-    const p = planMove(this.doc, i, to, this.result?.status || {});
+    const p = planMove(this.doc, i, to, this.result?.status || {}, null, unit);
     if (!p.ok) { this.histNote(this.moveWhy(p.why)); return false; }
     if (p.noop) return true;
     this._sweepNext = { at: p.at }; this._moveCheck = this.modelSig(this.result);
@@ -544,6 +559,8 @@ class App {
 
   // ------------------------------------------------------------ WP-02 dilim 4: gruplar (belgede isteğe bağlı `groups`)
   toggleGroup(gid) { if (this.groupOpen.has(gid)) this.groupOpen.delete(gid); else this.groupOpen.add(gid); this.C.renderTimeline(); this.C.renderBrowser(); }
+  // WP-08 devir (e): grup bütün olarak taşınır (to: özgün dizideki aralık)
+  async moveGroup(gid, to) { const u = groupUnit(this.doc, gid); if (!u.length) return false; return this.moveFeature(u[0], to, u); }
   async createGroup(ids) {
     if (this.guard()) return null; const F = this.doc.features; const pos = ids.map((id) => F.findIndex((f) => f.id === id)).filter((i) => i >= 0); if (!pos.length) return null;
     const a = Math.min(...pos.flatMap((i) => moveUnit(this.doc, i))), b = Math.max(...pos);
