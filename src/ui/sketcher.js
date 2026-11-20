@@ -10,7 +10,7 @@ import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
 import { TEXT_METHODS, pruneTexts } from './sketch/text.js';
 import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
-import { alignTraceCons, hvSame, autoHvRedundantAfterFix } from './sketch/autoalign.js';
+import { alignTraceCons, hvSame, autoHvRedundantAfterFix, autoYield } from './sketch/autoalign.js';
 import { dropEditedLinks, syncRefs } from './sketch/ops.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
@@ -215,7 +215,9 @@ export class Sketcher {
     const sid = this._sid;
     const run = async () => {
       if (this._sid !== sid || !this.active) return { ok: false };
-      const prev = this._badSet(); let r, mk = null, over = false;
+      const prev = this._badSet(); let yielded = 0;
+      for (let attempt = 0; ; attempt++) {
+      let r, mk = null, over = false;
       try { r = await solveSketch(this.sk, this.getVars()); } catch (e) { r = { ok: false, errors: [toErr(e)] }; }
       if (this._sid !== sid || !this.active) return { ok: false };
       const newBad = [...(r.conflicting || []), ...(r.redundant || [])].map(normId).filter((id) => !prev.has(id));
@@ -228,11 +230,19 @@ export class Sketcher {
         const conflict = (r.conflicting || []).map(normId).some((id) => !prev.has(id));
         mk = conflict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.redundant_con', K()) + lst();
       }
+      // WP-21 (7g): kullanıcının kısıtı/ölçüsü/Sabitle'si OTOMATİK yatay/dikey kısıtlarla çatışırsa (fazla kısıt) o otomatik kısıtlar
+      // (yalnız ilgili noktalara dokunanlar) kaldırılıp bir kez yeniden çözülür; yine olmazsa eskisi gibi reddedilir.
+      if (mk && over && attempt === 0) {
+        const drop = autoYield(JSON.parse(before), this.sk);
+        if (drop.length) { this.sk.cons = this.sk.cons.filter((c) => !drop.includes(c.id)); yielded = drop.length; continue; }
+      }
       if (mk) {
         this._restore(before); const i = this._undo.indexOf(entry); if (i >= 0) this._undo.splice(i, 1);
         this._resetDraw(); this._status(mk); this._refresh(); return { ok: false, msg: mk(), over };
       }
+      if (yielded) { const n0 = note, n = yielded; note = () => [n0 && n0(), t('sk.auto_yield', { n })].filter(Boolean).join('  ·  '); }
       this.lastSolve = r; syncRefs(this.sk); this._statusDof(r, note); this._probeSoon(); this._refresh(); return { ok: true };
+      }
     };
     const p = this._q.then(run, run); this._q = p.catch(() => {}); return p;
   }
@@ -258,11 +268,11 @@ export class Sketcher {
   _addEnt(ent) { const id = this._id({ line: 'l', circle: 'c', arc: 'a', point: 'n', ellipse: 'e', ellarc: 'e', spline: 's' }[ent.type] || 'x'); const e = { id, ...ent }; if (this.consMode && ent.type !== 'point') e.cons = true; this.sk.ents.push(e); if (this._addedLog) this._addedLog.push(id); return id; }
   _addCon(type, a, b, extra = {}) { const id = this._id(DIM_TYPES.has(type) ? 'd' : 'k'); const c = { id, type, a }; if (b !== undefined) c.b = b; Object.assign(c, extra); this.sk.cons.push(c); return id; }
   _addEntCons(ent) { const id = this._id({ line: 'l', circle: 'c', arc: 'a', ellipse: 'e', ellarc: 'e' }[ent.type] || 'x'); this.sk.ents.push({ id, ...ent, cons: true }); return id; }
-  _ptFor(s) { // yakalama sonucundan nokta kimliği (gerekirse oluşturur, uygun kısıtları ekler)
+  _ptFor(s, skipRef = null) { // yakalama sonucundan nokta kimliği (gerekirse oluşturur, uygun kısıtları ekler); skipRef: hizalama izinde atlanacak nokta
     if (s.pid) return s.pid;
     const id = this._newPt(s.x, s.y);
     const okOn = (eid) => { const e = this.sk.ents.find((x) => x.id === eid); return e && e.type !== 'spline' && e.type !== 'ellarc' && e.type !== 'point'; };
-    if (s.kind === 'align') { if (autoOn('hv')) for (const [ty, a, b] of alignTraceCons(this.sk, id, s)) this._addCon(ty, a, b, { auto: true }); return id; } // WP-21: hizalama izinden otomatik yatay/dikey
+    if (s.kind === 'align') { if (autoOn('hv')) for (const [ty, a, b] of alignTraceCons(this.sk, id, s, skipRef)) this._addCon(ty, a, b, { auto: true }); return id; } // WP-21: hizalama izinden otomatik yatay/dikey
     if (!autoOn('on') && s.kind !== 'mid') return id; // otomatik "nesne üstünde" kapalı: yalnız nokta konur
     if (s.kind === 'int' && s.ents) { for (const e of s.ents) if (okOn(e)) this._addCon('pointOn', id, e); }
     else if (s.kind === 'quad' && s.ent) { // çeyrek nokta: daire/yayın üstünde ve merkezle yatay/dikey hizada
@@ -493,7 +503,7 @@ export class Sketcher {
     const res = this._apply((sk) => {
       aId = this._ptFor(st.start);
       if (!st.firstPid) st.firstPid = aId;
-      bId = this._ptFor(s);
+      bId = this._ptFor(s, aId); // çizginin kendi başlangıcıyla hiza: çizginin yatay/dikey kısıtı yeter (nokta-nokta eklenmez)
       const l = this._addEnt({ type: 'line', a: aId, b: bId });
       // otomatik yatay/dikey (auto: Sabitle ile gereksizleşirse kaldırılır); hizalama izi zaten belirlediyse eklenmez
       if (s.align === 'h' && !hvSame(sk, aId, bId, 'h')) this._addCon('horizontal', l, undefined, { auto: true }); else if (s.align === 'v' && !hvSame(sk, aId, bId, 'v')) this._addCon('vertical', l, undefined, { auto: true });

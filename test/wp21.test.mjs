@@ -8,7 +8,7 @@ import { postProgram, getPost, listPosts } from '../src/cam/post/index.js';
 import { PP, PP_ORDER, postRunOpts, modelBBoxOf } from '../src/ui/cam/postopts.js';
 import { CAM_RIBBON } from '../src/ui/cam/ribbon.js';
 import { tLang } from '../src/shared/i18n.js';
-import { alignTraceCons, hvSame, autoHvRedundantAfterFix } from '../src/ui/sketch/autoalign.js';
+import { alignTraceCons, hvSame, autoHvRedundantAfterFix, autoYield } from '../src/ui/sketch/autoalign.js';
 import { solveSketch } from '../src/ui/solver.js';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
@@ -131,7 +131,18 @@ await madde(3, 'hizalama izinden otomatik H/V kısıtı; Sabitle ile fazla kıs�
   { const s2 = fixCase(); s2.cons[0].auto = undefined; ok(autoHvRedundantAfterFix(s2, new Set(['B'])).length === 0, 'kullanıcının elle eklediği kısıta dokunulmaz'); }
   { const s2 = JSON.parse(JSON.stringify(sk)); ok(autoHvRedundantAfterFix(s2, new Set(['B'])).length === 0, 'yalnız bir ucu sabitlenen kısıt kalır (gereksiz değil)'); }
   { const s3 = base(); s3.cons.push({ id: 'k2', type: 'horizontal', a: 'l1', auto: true }); ok(JSON.stringify(autoHvRedundantAfterFix(s3, new Set(['B', 'C']))) === '["k2"]', 'çizginin otomatik yatay kısıtı: iki ucu birden sabitlenince düşer'); }
+  ok(alignTraceCons(base(), 'B', { kind: 'align', refs: [{ id: 'A', axis: 'v' }] }, 'A').length === 0, 'çizginin kendi başlangıcıyla hiza atlanır (skipRef: çizginin H/V kısıtı yeter)');
+  // genel çatışma: kullanıcının katı kısıtı otomatik kısıtla fazla kısıt verirse ilgili otomatik kısıtlar geri çekilir (eş merkez senaryosu)
+  { const before = { points: { O: { x: 0, y: 0, fixed: true }, c1: { x: -20, y: 0 }, c2: { x: 20, y: 0 }, z: { x: 5, y: 9 }, w: { x: 50, y: 9 } }, ents: [{ id: 'ci1', type: 'circle', c: 'c1', r: 10 }, { id: 'ci2', type: 'circle', c: 'c2', r: 10 }], cons: [{ id: 'k1', type: 'horizontal_pp', a: 'c1', b: 'O', auto: true }, { id: 'k2', type: 'horizontal_pp', a: 'c2', b: 'c1', auto: true }, { id: 'k3', type: 'horizontal_pp', a: 'w', b: 'z', auto: true }] };
+    const after = JSON.parse(JSON.stringify(before)); after.cons.push({ id: 'k9', type: 'coincident', a: 'c1', b: 'c2' });
+    let r0 = await solveSketch(JSON.parse(JSON.stringify(after)), {}); ok(!r0.ok || r0.redundant.length || r0.conflicting.length, 'kök: eş merkez otomatik hizalarla fazla kısıt (' + JSON.stringify({ red: r0.redundant, con: r0.conflicting }) + ')');
+    const drop = autoYield(before, after); ok(JSON.stringify(drop.sort()) === '["k1","k2"]', 'yalnız ilgili noktalara (c1, c2) dokunan otomatik kısıtlar geri çekilir: ' + JSON.stringify(drop));
+    after.cons = after.cons.filter((c) => !drop.includes(c.id)); r0 = await solveSketch(after, {}); ok(r0.ok && !r0.redundant.length && !r0.conflicting.length, 'geri çekince eş merkez temiz çözülür');
+    const fx = JSON.parse(JSON.stringify(before)); fx.points.c2.fixed = true; ok(JSON.stringify(autoYield(before, fx).sort()) === '["k2"]', 'Sabitle: sabitlik durumu değişen noktanın otomatik kısıtları adaydır');
+    const usr = JSON.parse(JSON.stringify(before)); usr.cons[0].auto = undefined; usr.cons[1].auto = undefined; const ua = JSON.parse(JSON.stringify(usr)); ua.cons.push({ id: 'k9', type: 'coincident', a: 'c1', b: 'c2' }); ok(autoYield(usr, ua).length === 0, 'kullanıcı kısıtları geri çekilmez (eskisi gibi reddedilir)'); }
   const skSrc = src('src/ui/sketcher.js');
+  ok(/const drop = autoYield\(JSON\.parse\(before\), this\.sk\)/.test(skSrc) && /sk\.auto_yield/.test(skSrc), 'sketcher katı uygulamada otomatik kısıtları bir kez geri çekip yeniden çözer');
+  ok(/bId = this\._ptFor\(s, aId\)/.test(skSrc), 'çizgi ucu kendi başlangıcına hizalanınca nokta-nokta kısıtı eklenmez');
   ok(/s\.kind === 'align'\) \{ if \(autoOn\('hv'\)\) for \(const \[ty, a, b\] of alignTraceCons/.test(skSrc), 'sketcher _ptFor hizalama izinden kısıt ekler (otomatik H/V ayarına bağlı)');
   ok(/autoHvRedundantAfterFix\(s, ids\)/.test(skSrc) && /sk\.fix_auto_dropped/.test(skSrc), 'sketcher Sabitle otomatik kısıtları düşürür ve bildirir');
   for (const l of ['tr', 'en']) ok(tLang(l, 'sk.fix_auto_dropped') !== 'sk.fix_auto_dropped', `${l}: sk.fix_auto_dropped`);

@@ -395,6 +395,7 @@ const base = {
   "sk.c_symmetric": "For a symmetric constraint, select two points and a line to act as the axis.",
   "sk.c_pointOn": "For a point-on-object constraint, select a point and a line, circle or arc.",
   "sk.fix_auto_dropped": "Removed {n} automatic horizontal/vertical constraint(s) (already defined by the fixed points).",
+  "sk.auto_yield": "Removed {n} automatic horizontal/vertical constraint(s) to make room for the new one.",
   "sk.c_fix": "To fix, select at least one point (or a line, circle or arc).",
   "sk.c_unknown": "Unknown constraint: {type}",
   "sk.c_exists": "This constraint already exists.",
