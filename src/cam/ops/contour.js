@@ -124,7 +124,8 @@ export function computeContour(op, ctx) {
   const cut = cutting(op); const r = tool.dia / 2; const warnings = [];
   const comp = op.comp ?? 'computer'; if (!['computer', 'wear'].includes(comp)) throw cerr('cam.op.bad_field', { field: 'comp', expect: 'computer/wear', op: op.name || op.id });
   const dir = op.dir ?? 'climb'; if (!['climb', 'conv'].includes(dir)) throw cerr('cam.op.bad_field', { field: 'dir', expect: 'climb/conv', op: op.name || op.id });
-  const sd = need(op, 'stepdown'); const fsd = opt(op, 'finishStepdown', posNum, 'number > 0', null);
+  const thin = op.thinWall?.enabled === true; // WP-12
+  const sd = thin && op.thinWall.axialStep != null ? need(op, 'thinWall.axialStep') : need(op, 'stepdown'); const fsd = opt(op, 'finishStepdown', posNum, 'number > 0', null);
   const { radial: stR, axial: stA } = stockToLeave(op);
   const rough = op.roughPasses && op.roughPasses.n > 0 ? { n: need(op, 'roughPasses.n', (v) => Number.isInteger(v) && v >= 1 && v <= 100, 'integer 1..100'), so: need(op, 'roughPasses.stepover') } : null;
   if (rough && rough.so >= tool.dia) throw cerr('cam.op.stepover_too_big', { stepover: rough.so, dia: tool.dia });
@@ -206,9 +207,12 @@ export function computeContour(op, ctx) {
   if (restN) warnings.push(warn('cam.contour.rest_corner', { n: restN, r: r3(r) }));
 
   const zTabTop = tabs ? zBot + tabs.height : null;
-  for (const ps of passes) {
+  // WP-12 ince duvar: once derinlik (seviye), sonra butun donguler ve yan pasolari (duvarin iki yani her kademede sirayla)
+  const order = []; passes.forEach((ps, pi) => levels.forEach((z, li) => order.push([pi, li]))); if (thin) order.sort((a, c) => a[1] - c[1] || a[0] - c[0]);
+  for (const [pi, li] of order) {
+    const ps = passes[pi];
     if (ps.chain) { // acik zincir 'on'
-      for (const z of levels) {
+      { const z = levels[li];
         const a = ps.chain[0].a; b.linkTo(a[0], a[1], z, cut.feedPlunge);
         if (ps.wear) b.moves.push({ t: 'comp', on: true });
         ps.chain.forEach((sg, i) => b.seg(sg, z, z, cut.feedCut, ps.wear && (i === 0 || i === ps.chain.length - 1) ? 'lead' : 'cut')); // wear: uzatmalar = dogrusal giris/cikis
@@ -217,7 +221,7 @@ export function computeContour(op, ctx) {
       }
       continue;
     }
-    for (let li = 0; li < levels.length; li++) {
+    {
       const z = levels[li]; const zPrev = li ? levels[li - 1] : h.zTop;
       for (const set of ps.loops) for (const { loop: L0 } of set) {
         const L = P.startAt(L0, goodStart(L0));

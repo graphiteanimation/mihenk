@@ -91,7 +91,7 @@ export class CamOps {
     try {
       // dis frezeleme: delik onceki islemle (matkap) acilmis olabilir; taslak, kendinden onceki islemlerle zincirlenir (stok denetimi)
       const all = setup.ops || []; const at = all.findIndex((o) => o.id === d.id);
-      const prior = d.type === 'threadmill' && at > 0 ? all.slice(0, at).filter((o) => !o.suppressed) : [];
+      const prior = (d.type === 'threadmill' || (d.type === 'adaptive' && d.rest?.source === 'stock')) && at > 0 ? all.slice(0, at).filter((o) => !o.suppressed) : []; // WP-12: rest stok zinciri
       const m = await this.computeSetup({ ...setup, ops: [d] }, [d.id], prior); const x = m.get(d.id);
       this.draftPath = x && !x.error ? { opId: d.id, S: x.S, tp: x.tp } : null;
       return x?.error ? { error: x.error } : { tp: x.tp, S: x.S };

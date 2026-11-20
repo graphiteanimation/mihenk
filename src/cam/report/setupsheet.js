@@ -37,7 +37,7 @@ const dur = (min) => { if (!Number.isFinite(min)) return '-'; const s = Math.rou
 
 // Tam sozluk anahtarlari (dinamik anahtar yok)
 const TOOL_KEY = { flat: 'cam.tt.flat', ball: 'cam.tt.ball', bullnose: 'cam.tt.bullnose', drill: 'cam.tt.drill', spot: 'cam.tt.spot', tap: 'cam.tt.tap', chamfer: 'cam.tt.chamfer', face: 'cam.tt.face', reamer: 'cam.tt.reamer', bore: 'cam.tt.bore', threadmill: 'cam.tt.threadmill' };
-const OP_KEY = { contour: 'cam.op.type.contour', drill: 'cam.op.type.drill', face: 'cam.op.type.face', pocket: 'cam.op.type.pocket', chamfer: 'cam.op.type.chamfer', circular: 'cam.op.type.circular', threadmill: 'cam.op.type.threadmill', slot: 'cam.op.type.slot', trace: 'cam.op.type.trace' };
+const OP_KEY = { contour: 'cam.op.type.contour', drill: 'cam.op.type.drill', face: 'cam.op.type.face', pocket: 'cam.op.type.pocket', chamfer: 'cam.op.type.chamfer', circular: 'cam.op.type.circular', threadmill: 'cam.op.type.threadmill', slot: 'cam.op.type.slot', trace: 'cam.op.type.trace', adaptive: 'cam.op.type.adaptive', flat: 'cam.op.type.flat' };
 
 // Kesme beslemesi: ilk 'cut' hareketi (yoksa dongu f, yoksa ilk ilerleme)
 export function feedOf(tp) {

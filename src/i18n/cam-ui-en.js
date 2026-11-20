@@ -35,7 +35,7 @@ export default {
   "cam.tip.op-face": "Faces the top of the stock.",
   "cam.tip.op-contour": "Cuts a profile outside, inside or on the line.",
   "cam.tip.op-pocket": "Clears out a closed region.",
-  "cam.tip.op-adaptive": "Adaptive clearing is not in this version.",
+  "cam.tip.op-adaptive": "Clears material with a limited tool engagement angle (constant load); supports open edges and rest machining.",
   "cam.tip.op-drill": "Applies a drilling cycle to the selected holes.",
   "cam.tip.op-thread": "Applies a tapping cycle to the selected holes.",
   "cam.tip.op-surface": "3D surfacing is not in this version.",

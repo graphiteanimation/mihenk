@@ -9,6 +9,9 @@ import { computeChamfer } from './ops/chamfer.js';
 import { computeCircular } from './ops/circular.js';
 import { computeSlot, computeTrace } from './ops/slot.js';
 import { computeThread } from './ops/thread.js';
+import { computeAdaptive } from './ops/adaptive.js'; // WP-12
+import { computeFlat } from './ops/flat.js'; // WP-12
+import { applyFeedOpt } from './ops/feedopt.js'; // WP-12
 export { gates } from './gates.js';
 export { buildProgram, generateProgram, expandAngles, axisPlane, freePiecePolicy, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
 export { CamErr } from './geom/err.js';
@@ -121,6 +124,10 @@ export function computeOp(op, ctx) {
   if (!ctx.tool) throw cerr('cam.op.no_tool', { op: op.name || op.id });
   const tool = normalizeTool(ctx.tool);
   const c = { ...ctx, tool };
+  const tp = runOp(op, c);
+  return op.feedOpt ? applyFeedOpt(tp, op, ctx.machine) : tp; // WP-12: koseda / cikista ilerleme dusurme
+}
+function runOp(op, c) {
   switch (op.type) {
     case 'face': return computeFace(op, c);
     case 'drill': return computeDrill(op, c);
@@ -131,6 +138,8 @@ export function computeOp(op, ctx) {
     case 'slot': return computeSlot(op, c);
     case 'trace': return computeTrace(op, c);
     case 'threadmill': return computeThread(op, c);
+    case 'adaptive': return computeAdaptive(op, c);
+    case 'flat': return computeFlat(op, c);
     default: throw cerr('cam.op.unsupported', { what: String(op.type) });
   }
 }
