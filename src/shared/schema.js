@@ -45,6 +45,7 @@ const AX = ['X', 'Y', 'Z'];
 const sourceChk = obj({ kind: oneOf(['feature', 'body']), id: str(LIMITS.shortStr), bodies: strArr() });
 const sketchChk = {
   seq: num(),
+  underlay: nullable(obj({ name: str(200), mime: oneOf(['image/png', 'image/jpeg']), data: str(12 * 1024 * 1024), wPx: num(), hPx: num(), mmPerPx: num(), origin: arrOf(num(), 2), angle: num(), opacity: num(), visible: bool() })), // WP-14: eskiz altligi
   plane: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }),
   points: (v, p) => {
     if (!isObj(v)) fail('schema.bad_field', { path: p, expect: 'object' });

@@ -11,6 +11,7 @@ import { replicateProgram, shiftOffset } from '../src/cam/multipart.js';
 import { summarizeForQuote, computeQuote, buildQuoteHtml, stockVolumeMm3, validateQuoteInput } from '../src/cam/report/quote.js';
 import { SHEET_CSS_HASH } from '../src/cam/report/setupsheet.js';
 import crypto from 'node:crypto';
+import { imageInfo, makeUnderlay, checkUnderlay, pxToSketch, sketchToPx, scaleByDistance, fitTwoPoints, pdfPageImages, underlayFromPdf } from '../src/shared/underlay.js';
 import { makeTemplate, instantiateTemplate, exportTemplates, importTemplates, matchTool, planHoleOps, checkHoleRules, DEFAULT_HOLE_RULES, classifyHole } from '../src/cam/templates.js';
 
 let pass = 0, fail = 0;
@@ -304,6 +305,47 @@ console.log('8. teklif yardimcisi');
   ok(/class="warn"/.test(html0) && html0.includes('cam.quote.incomplete'), 'eksik girdi uyarisi HTML\'de');
   try { validateDoc({ cam: { quote: { qty: 5, material: { density: 2.7, pricePerKg: 3 }, extras: [{ name: 'x', amount: 1, per: 'piece' }] } } }); ok(true, 'sema: quote'); } catch (e) { ok(false, 'sema quote: ' + e.code); }
   try { validateDoc({ cam: { quote: { rates: { setup: -1 } } } }); ok(false, 'sema negatif ucret reddedilir'); } catch (e) { ok(true, 'sema negatif ucret reddedilir'); }
+}
+
+console.log('9. PDF / goruntu altligi + iki nokta olcekleme');
+{
+  // en kucuk gecerli PNG (1x1) ve elle kurulmus JPEG basligi (SOF0 640x480)
+  const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'));
+  const jpg = (w, h) => Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xc0, 0, 11, 8, h >> 8, h & 255, w >> 8, w & 255, 1, 1, 0x11, 0, 0xff, 0xd9]);
+  ok(JSON.stringify(imageInfo(png)) === '{"mime":"image/png","w":1,"h":1}' && imageInfo(jpg(640, 480)).w === 640 && imageInfo(jpg(640, 480)).h === 480 && imageInfo(Uint8Array.from([1, 2, 3, 4, 5, 6])) === null, 'goruntu boyutu: PNG, JPEG, bilinmeyen');
+  const u0 = makeUnderlay('plan.jpg', jpg(1000, 500)); ok(u0.wPx === 1000 && u0.hPx === 500 && u0.mmPerPx === 1 && u0.mime === 'image/jpeg' && checkUnderlay(u0) === true, 'altlik nesnesi');
+  throwsCode(() => makeUnderlay('x', Uint8Array.from([1, 2, 3])), 'underlay.bad_image', 'bilinmeyen dosya');
+  throwsCode(() => makeUnderlay('x', new Uint8Array(9 * 1024 * 1024)), 'underlay.too_big', 'cok buyuk');
+  // donusumler: sol-alt kose = origin; piksel (0,hPx)
+  const u = { ...u0, mmPerPx: 0.5, origin: [10, 20], angle: 0 };
+  const near = (a, b) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
+  ok(near(pxToSketch(u, [0, 500]), [10, 20]) && near(pxToSketch(u, [100, 400]), [60, 70]) && near(sketchToPx(u, [60, 70]), [100, 400]), 'piksel <-> eskiz donusumu');
+  const ur = { ...u, angle: 90 }; ok(near(pxToSketch(ur, [100, 500]), [10, 70]) && near(sketchToPx(ur, [10, 70]), [100, 500]), 'donmus altlik (90 derece)');
+  // iki nokta mesafe: A sabit, olcek mesafeye uyar. A=(100,400)px, B=(300,400)px -> 200 px x 0.5 = 100 mm; gercek 250 mm
+  const s1 = scaleByDistance(u, [100, 400], [300, 400], 250);
+  const a1 = pxToSketch(s1, [100, 400]), b1 = pxToSketch(s1, [300, 400]);
+  ok(Math.abs(s1.mmPerPx - 1.25) < 1e-9 && near(a1, pxToSketch(u, [100, 400])) && Math.abs(Math.hypot(b1[0] - a1[0], b1[1] - a1[1]) - 250) < 1e-9, 'mesafeyle olcekleme: A yerinde, |AB| = 250 mm');
+  throwsCode(() => scaleByDistance(u, [1, 1], [1, 1], 5), 'underlay.same_point', 'ayni nokta');
+  throwsCode(() => scaleByDistance(u, [1, 1], [5, 5], 0), 'underlay.bad_distance', 'mesafe 0');
+  // iki noktayi iki eskiz noktasina oturtma (olcek + donme + oteleme)
+  const f = fitTwoPoints(u, [100, 400], [300, 400], [0, 0], [0, 100]);
+  ok(near(pxToSketch(f, [100, 400]), [0, 0]) && near(pxToSketch(f, [300, 400]), [0, 100]) && Math.abs(f.mmPerPx - 0.5) < 1e-9 && Math.abs(f.angle - 90) < 1e-9, 'iki noktaya oturtma: A->(0,0), B->(0,100), 90 derece: ' + JSON.stringify([f.mmPerPx, f.angle]));
+  const f2 = fitTwoPoints(u, [100, 400], [300, 400], [5, 5], [305, 5]); ok(near(pxToSketch(f2, [100, 400]), [5, 5]) && near(pxToSketch(f2, [300, 400]), [305, 5]) && Math.abs(f2.mmPerPx - 1.5) < 1e-9 && Math.abs(f2.angle) < 1e-9, 'oturtma: olcek 3x, donme yok');
+  // PDF: elle kurulmus sikistirilmamis PDF (1 sayfa, gomulu JPEG)
+  const img = jpg(640, 480); const mkPdf = (extra = '') => {
+    const parts = []; const push = (t) => parts.push(Buffer.from(t, 'latin1'));
+    push('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 640 480] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n');
+    push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width 640 /Height 480 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.length} >>\nstream\n`); parts.push(Buffer.from(img)); push('\nendstream\nendobj\n5 0 obj\n<< /Length 20 >>\nstream\nq 640 0 0 480 0 0 cm /Im0 Do Q\nendstream\nendobj\n' + extra + 'trailer\n<< /Root 1 0 R >>\n%%EOF\n');
+    return Uint8Array.from(Buffer.concat(parts));
+  };
+  const pdf = mkPdf(); const im = pdfPageImages(pdf);
+  ok(im.length === 1 && im[0].page === 1 && im[0].w === 640 && im[0].h === 480 && im[0].bytes.length === img.length && im[0].bytes[0] === 0xff && im[0].bytes[1] === 0xd8, 'PDF: sayfa 1 gomulu JPEG cikarilir');
+  const ou = underlayFromPdf('cizim.pdf', pdf, 1); ok(ou.wPx === 640 && ou.hPx === 480 && ou.mime === 'image/jpeg', 'PDF sayfasi -> altlik');
+  throwsCode(() => underlayFromPdf('c.pdf', pdf, 2), 'underlay.pdf_no_page', 'olmayan sayfa');
+  throwsCode(() => pdfPageImages(Uint8Array.from(Buffer.from('%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n'))), 'underlay.pdf_unsupported', 'goruntusuz/vektor PDF acik hata');
+  throwsCode(() => pdfPageImages(Uint8Array.from(Buffer.from('%PDF-1.4\n/Encrypt 9 0 R\n'))), 'underlay.pdf_encrypted', 'sifreli PDF');
+  throwsCode(() => pdfPageImages(Uint8Array.from(Buffer.from('MZ not a pdf'))), 'underlay.bad_file', 'PDF degil');
+  try { validateDoc({ features: [{ id: 'sk1', type: 'sketch', seq: 1, plane: { kind: 'base', name: 'XY', offset: '0' }, points: {}, ents: [], cons: [], dims: [], underlay: ou }] }); ok(true, 'sema: sketch.underlay'); } catch (e) { ok(false, 'sema sketch.underlay: ' + e.code + JSON.stringify(e.params)); }
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
