@@ -78,4 +78,7 @@ export default {
   "hs.rp_suppress": "Bastır",
   "hs.rp_delete": "Sil",
   "hs.rp_next": "Sonraki hata ({n})",
+  "hs.move_sensitive": "Sıraya duyarlı: aynı gövdeyi değiştiren işlemlerle yer değişir ({list}); sonuç değişebilir",
+  "hs.move_changed": "Sıra değişince model değişti: hacim {a} → {b} mm³",
+  "hs.undo_move": "Geri al",
 };

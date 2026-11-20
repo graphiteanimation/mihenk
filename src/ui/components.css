@@ -402,3 +402,6 @@ svg.ic.sm { width: 16px; height: 16px; stroke-width: 2; }
 .chip.in-group { box-shadow: inset 0 3px 0 var(--line-strong); }
 .chip.in-group.sel { box-shadow: inset 0 3px 0 var(--line-strong), inset 0 -3px 0 var(--accent); }
 .callout.repair { display: flex; flex-direction: column; gap: var(--sp-2); } .callout.repair .rp-t { display: flex; align-items: center; gap: var(--sp-2); color: var(--c-fg); } .callout.repair .rp-a { display: flex; flex-wrap: wrap; gap: var(--sp-2); } .hwhy { display: flex; align-items: center; gap: var(--sp-3); } .hwhy > span { flex: 1 1 auto; min-width: 0; }
+/* sıraya duyarlı aralık: izinli ama aynı gövdeyi değiştiren işlemlerin yeri değişir (uyarı rengi, noktalı) */
+.hist-dragging .hrow[data-gap=warn]::after { border-top: var(--bw-strong) dotted var(--warn-fg); }
+.hist-dragging .chip[data-gap=warn]::before { border-left: var(--bw-strong) dotted var(--warn-fg); }

@@ -315,11 +315,16 @@ class App {
     const ch = feats.filter((f) => this.marks.changed.has(f.id));
     const sum = { n: feats.length, c: ch.length, w: warns.length, e: errs.length, order: S.order.slice(), errors: errs.map((f) => f.id), changed: ch.map((f) => f.id) };
     const first = errs[0];
+    // WP-02: sıra değişikliği sonucu değiştirdiyse açık uyarı + tek tıkla geri al
+    const mc = this._moveCheck; this._moveCheck = null; let mv = null;
+    if (mc) { const b = this.modelSig(res); if (Math.abs(b.vol - mc.vol) > 1e-6 * Math.max(1, mc.vol) || b.faces !== mc.faces || b.n !== mc.n) mv = { a: mc.vol, b: b.vol, fa: mc.faces, fb: b.faces }; }
+    sum.moveChanged = mv;
     const text = () => [tn('hs.sum_n', sum.n), tn('hs.sum_c', sum.c), tn('hs.sum_w', sum.w), tn('hs.sum_e', sum.e)].join(' · ') + (first ? t('hs.summary_err', { name: first.name || first.id, msg: errText(res.status[first.id].error) }) : '');
-    sum.text = text(); this.lastSummary = sum;
+    sum.text = text() + (mv ? ' · ' + t('hs.move_changed', { a: fmt(mv.a, 1), b: fmt(mv.b, 1) }) : ''); this.lastSummary = sum;
     // tek özet: yenisi öncekinin yerine geçer
     this._sumToast?.querySelector('[data-testid=toast-close]')?.click();
-    this._sumToast = toast(sum.text, { kind: errs.length ? 'err' : warns.length ? 'warn' : 'ok', title: t('hs.summary_title'), ...(first ? { action: { label: t('hs.repair'), run: () => this.repairFeature(first.id) } } : {}) });
+    const act = mv ? { action: { label: t('hs.undo_move'), run: () => this.undo() } } : first ? { action: { label: t('hs.repair'), run: () => this.repairFeature(first.id) } } : {};
+    this._sumToast = toast(sum.text, { kind: errs.length ? 'err' : warns.length || mv ? 'warn' : 'ok', title: t('hs.summary_title'), ...(mv ? { ms: 0 } : {}), ...act });
     this._sumToast.setAttribute('data-testid', 'hist-summary');
     let host = document.getElementById('hist-summary-host');
     if (!host) { host = h('div', { id: 'hist-summary-host', class: 'toasts', 'aria-live': 'polite' }); document.getElementById('viewwrap').append(host); }
@@ -520,18 +525,21 @@ class App {
     host.replaceChildren(el); const root = document.getElementById('toast'); if (root && !root.children.length) root.classList.add('hidden');
     this.C.announce(msg); return el;
   }
+  // son modelin özeti (taşıma öncesi/sonrası karşılaştırma): toplam hacim ve yüz sayısı
+  modelSig(res) { const B = res?.bodies || []; return { vol: B.reduce((a, b) => a + (b.volume || 0), 0), faces: B.reduce((a, b) => a + (b.nFaces || 0), 0), n: B.length }; }
+  sensWhy(ids) { const nm = ids.map((id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }); return t('hs.move_sensitive', { list: nm.join(', ') }); }
   moveWhy(why) { const nm = (id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }; return t('hs.move_blocked', { a: nm(why.feat), b: nm(why.dep) }); }
   async moveFeature(i, to) {
     if (this.guard()) return false; const f = this.doc.features[i]; if (!f) return false;
     const p = planMove(this.doc, i, to, this.result?.status || {});
     if (!p.ok) { this.histNote(this.moveWhy(p.why)); return false; }
     if (p.noop) return true;
-    this._sweepNext = { at: p.at };
+    this._sweepNext = { at: p.at }; this._moveCheck = this.modelSig(this.result);
     const done = this.commit((d) => { d.features = p.features; d.rollback = p.rollback; if (p.groups !== undefined) d.groups = p.groups; });
     this.selFeature = f.id; this.C.renderAll();
     const k = this.doc.features.findIndex((x) => x.id === f.id);
     this.C.announce(t('hs.moved', { name: f.name || featLabel(f), n: k + 1, total: this.doc.features.length }));
-    await done; return true;
+    await done; this._moveCheck = null; return true;
   }
 
   // ------------------------------------------------------------ WP-02 dilim 4: gruplar (belgede isteğe bağlı `groups`)

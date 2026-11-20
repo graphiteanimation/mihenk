@@ -266,7 +266,12 @@ export function planMove(doc, i, to, status = {}, refs = null) {
     if (why && (uset.has(why.feat) || uset.has(why.dep))) break;
   }
   if (why) return { ok: false, why };
-  return { ok: true, noop: false, features: rest, rollback: nrb, groups, at: at < 0 ? Math.min(...unit) : at };
+  // sıraya duyarlı: taşınan birim, üzerinden atladığı işlemlerle aynı gövdeyi değiştiriyorsa sonuç değişebilir (engel değil, uyarı)
+  const bodiesOf = (id) => { const st = status[id]; return st && st.ok && Array.isArray(st.bodies) ? st.bodies : []; };
+  const ub = new Set(unit.flatMap((k) => bodiesOf(feats[k].id)));
+  const O = new Map(feats.map((x, k) => [x.id, k])); const u0 = Math.min(...unit);
+  const sensitive = ub.size ? feats.filter((g) => !uset.has(g.id) && (O.get(g.id) < u0) !== (P.get(g.id) < P.get(feats[u0].id)) && bodiesOf(g.id).some((b) => ub.has(b))).map((g) => g.id) : [];
+  return { ok: true, noop: false, features: rest, rollback: nrb, groups, at: at < 0 ? Math.min(...unit) : at, sensitive };
 }
 // sürükleme sırasında her aralığın durumu (bırakılabilir mi, değilse neden)
 export function dropTargets(doc, i, status = {}) {

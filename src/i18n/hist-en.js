@@ -78,4 +78,7 @@ export default {
   "hs.rp_suppress": "Suppress",
   "hs.rp_delete": "Delete",
   "hs.rp_next": "Next error ({n})",
+  "hs.move_sensitive": "Order-sensitive: swaps with features that modify the same body ({list}); the result may change",
+  "hs.move_changed": "Reordering changed the model: volume {a} → {b} mm³",
+  "hs.undo_move": "Undo",
 };

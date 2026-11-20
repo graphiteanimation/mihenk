@@ -904,7 +904,7 @@ try:
         return st
     ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', P12); idle()
     st = drag_to('#browser .hrow[data-hist="k3"]', '#browser .hrow[data-hist="e1"]', 'before', drop=False)
-    check('WP-02 sıra: sürüklerken aralıklar işaretli (izinli yeşil / kapalı kırmızı)', st['dragging'] and 'e1:no' in st['gaps'] and 'bx:ok' in st['gaps'], st)
+    check('WP-02 sıra: sürüklerken aralıklar işaretli (izinli yeşil / sıraya duyarlı uyarı / kapalı kırmızı)', st['dragging'] and 'e1:no' in st['gaps'] and 'bx:warn' in st['gaps'] and 'fb:ok' in st['gaps'], st)
     check('WP-02 sıra: bağımlılığı bozan aralıkta neden ipucunda', 'Taşınamaz' in st['hint'] and 'Extrude 1' in st['hint'], st)
     page.mouse.up(); page.wait_for_timeout(100); idle()
     check('WP-02 sıra: bağımlılığı bozan bırakma yapılmaz (sıra değişmedi)', order() == IDS, order())
@@ -1072,8 +1072,34 @@ try:
     ok(); idle()
     check('WP-02 iptal: Tamam sonrası parça hatasız, iptal hata bildirimi üretmez', allok() and 'iptal' not in ev('document.querySelector("#toast").textContent'))
 
-    # ---------------------------------------------------------------- WP-02 doğrulama: grup üyesi silme
+    # ---------------------------------------------------------------- WP-02 doğrulama: sıraya duyarlı taşıma, grup üyesi silme
+    print('WP-02 doğrulama: sıraya duyarlı taşıma')
     order = lambda: ev('app.doc.features.map(f => f.id)')
+    allok = lambda: ev('Object.values(app.result.status).every(s => s.ok)')
+    tvol = lambda: ev('app.result.bodies.reduce((a, b) => a + b.volume, 0)')
+    def center(sel):
+        return ev('(s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, r.width, r.height]; }', sel)
+    vbox = {'id': 'b', 'type': 'primitive', 'name': 'Kutu 1', 'kind': 'box', 'x': '0', 'y': '0', 'z': '0', 'w': '40', 'd': '40', 'h': '20', 'op': 'new'}
+    vfil = {'id': 'f1', 'type': 'fillet', 'name': 'Yuvarlat 1', 'edges': [{'body': 'b', 'kind': 'edge', 'name': {'a': 'b:x+', 'b': 'b:y+'}}], 'r': '5'}
+    vhole = {'id': 'h1', 'type': 'primitive', 'name': 'Silindir 1', 'kind': 'cylinder', 'x': '20', 'y': '20', 'z': '-1', 'dia': '10', 'h': '100', 'axis': 'Z', 'op': 'cut', 'targets': ['b']}
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', {'params': [], 'features': [vbox]}); idle()
+    top = ev('(async () => { for (let i = 0; i < 6; i++) { const d = await app.describe({ body: "b", idx: i }, "face"); if (d && d.name && d.name.k === "b:z+") return d; } return null; })()')
+    vshl = {'id': 's1', 'type': 'shell', 'name': 'Kabuk 1', 'faces': [top], 't': '2'}
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', {'params': [], 'features': [vbox, vfil, vshl]}); idle()
+    v0 = tvol()
+    a = center('#browser .hrow[data-hist="s1"]'); b = center('#browser .hrow[data-hist="f1"]')
+    page.mouse.move(a[0], a[1]); page.mouse.down(); page.mouse.move(a[0] + 4, a[1] + 4, steps=2); page.mouse.move(b[0], b[1] - b[3] * 0.3, steps=6); page.wait_for_timeout(60); page.mouse.move(b[0] + 1, b[1] - b[3] * 0.3, steps=2); page.wait_for_timeout(60)
+    st = ev('({ gap: document.querySelector("#browser .hrow[data-hist=f1]").dataset.gap, hint: document.querySelector("#hint-text").textContent })')
+    page.mouse.up(); page.wait_for_timeout(100); idle()
+    check('WP-02 sıraya duyarlı: sürüklerken aralık uyarı renginde (engel değil) + neden', top is not None and st['gap'] == 'warn' and 'Sıraya duyarlı' in st['hint'], st)
+    S = ev('app.lastSummary')
+    check('WP-02 sıraya duyarlı: kabuk ↔ yuvarlat taşıması sonucu değiştirir → özette açık uyarı + Geri al', order() == ['b', 's1', 'f1'] and S and S['moveChanged'] and 'Sıra değişince model değişti' in summ_text() and toast_btn('Geri al').count() == 1, [order(), summ_text()])
+    toast_btn('Geri al').first.click(); idle()
+    check('WP-02 sıraya duyarlı: "Geri al" eski sıraya ve hacme döner', order() == ['b', 'f1', 's1'] and near(tvol(), v0, 1e-6), [order(), tvol(), v0])
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', {'params': [], 'features': [vbox, vfil, vhole]}); idle()
+    page.click('#browser .hrow[data-hist="h1"] .hn'); page.keyboard.press('Alt+Shift+ArrowUp'); idle()
+    S = ev('app.lastSummary')
+    check('WP-02 sıraya duyarlı: yuvarlat ↔ delik (hacim aynı) uyarı üretmez', order() == ['b', 'h1', 'f1'] and allok() and S and not S['moveChanged'] and 'Sıra değişince' not in summ_text(), [order(), summ_text()])
     print('WP-02 doğrulama: grup üyesi silme')
     ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', dict(P12, groups=[{'id': 'g1', 'name': 'Delikler', 'first': 'k1', 'last': 'k2'}, {'id': 'g2', 'name': 'Tek', 'first': 'cz', 'last': 'cz'}])); idle()
     gr = lambda: ev('app.doc.groups === undefined ? "yok" : app.doc.groups')

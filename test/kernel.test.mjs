@@ -265,6 +265,8 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   p = FS.planMove(dg, ids.indexOf('k3'), ids.indexOf('ch'), r0.status); ok(p.ok && !p.noop && p.groups[0].last === 'fb' && p.features.map((f) => f.id).join() === ids.join(), 'son üyeyi grubun hemen arkasına bırakmak: sıra aynı, üyelikten çıkar');
   ok(FS.fixGroups(dg, d.features.filter((f) => f.id !== 'k1'))[0].first === 'k2', 'fixGroups: ilk üye silinince grup bir sonrakinden başlar');
   ok(FS.fixGroups(d, d.features) === undefined, 'fixGroups: grupsuz belgede alan oluşmaz');
+  p = FS.planMove(d, ids.indexOf('k3'), ids.indexOf('k1'), r0.status); ok(p.ok && p.sensitive.join() === 'k1,k2,e2', 'planMove: aynı gövdeyi değiştirenlerin üzerinden atlama sıraya duyarlı: ' + JSON.stringify(p.sensitive));
+  p = FS.planMove(d, ids.indexOf('bx'), ids.indexOf('k2'), r0.status); ok(p.ok && p.sensitive.length === 0, 'planMove: başka gövdeye dokunanlar üzerinden atlama duyarlı değil');
   const T = FS.dropTargets(d, ids.indexOf('k3'), r0.status); ok(T.length === 13 && !T[0].ok && !T[1].ok && T[2].ok && T[8].noop && T[9].noop, 'dropTargets: her aralık için izin/neden');
 }
 

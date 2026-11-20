@@ -593,9 +593,9 @@ export function initChrome(app) {
     const D = app.drag; if (!D) return;
     for (const box of [$('#timeline'), $('#browser')]) {
       const list = dragList(box);
-      list.forEach((el) => { const P = D.targets[unitA(+el.dataset.i)]; el.dataset.gap = !P || P.noop ? 'same' : P.ok ? 'ok' : 'no'; if (P && !P.ok) el.dataset.why = app.moveWhy(P.why); else delete el.dataset.why; });
+      list.forEach((el) => { const P = D.targets[unitA(+el.dataset.i)]; el.dataset.gap = !P || P.noop ? 'same' : P.ok ? (P.sensitive?.length ? 'warn' : 'ok') : 'no'; if (P && !P.ok) el.dataset.why = app.moveWhy(P.why); else delete el.dataset.why; });
       const last = list[list.length - 1]; const P = D.targets[app.doc.features.length];
-      if (last) last.dataset.gapEnd = !P || P.noop ? 'same' : P.ok ? 'ok' : 'no';
+      if (last) last.dataset.gapEnd = !P || P.noop ? 'same' : P.ok ? (P.sensitive?.length ? 'warn' : 'ok') : 'no';
     }
   };
   const endDrag = () => {
@@ -618,7 +618,7 @@ export function initChrome(app) {
       const D = app.drag; if (!D) return;
       const g = gapAt(el, e, horiz); const P = D.targets[g.gap];
       clearDrop(); el.classList.add(g.before ? 'drop-before' : 'drop-after'); if (P && !P.ok) el.classList.add('drop-no');
-      const why = P && !P.ok ? app.moveWhy(P.why) : '';
+      const why = P && !P.ok ? app.moveWhy(P.why) : P && P.ok && !P.noop && P.sensitive?.length ? app.sensWhy(P.sensitive) : '';
       if (why !== D.why) { D.why = why; app.setHint(why); if (why) C.announce(why); }
       if (P && P.ok) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } else e.dataTransfer.dropEffect = 'none';
     });
