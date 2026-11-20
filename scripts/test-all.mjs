@@ -29,8 +29,8 @@ const STEPS = [
   ...['test/i18n.test.mjs', 'test/security.test.mjs', 'test/kernel.test.mjs', 'test/solver.test.mjs', 'test/geom2d.test.mjs', 'test/profiles.test.mjs', 'test/sketchops.test.mjs', 'test/dxf.test.mjs', 'test/stability.test.mjs', 'test/models/run-all.mjs', 'test/cam.test.mjs', 'test/post.test.mjs', 'test/sim.test.mjs'].map(node),
   { name: 'vite build', cmd: process.execPath, args: [path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), 'build'], build: true },
   py('test/sketcher.test.py', { needsBuild: true }),
-  // Bilinen kararsız, WP-04: "konsolda sayfa hatası yok" denetimi aralıklı kalıyor. Test değiştirilmez; yalnız bu dosya için 1 yeniden deneme.
-  py('test/app.test.py', { needsBuild: true, retry: 1, retryLabel: 'bilinen kararsız, WP-04' }),
+  // WP-04 dilim 1: "konsolda sayfa hatası yok" kararsızlığı giderildi (testin kendi CSP sınaması ayrı listeye alınıyor); yeniden deneme kaldırıldı.
+  py('test/app.test.py', { needsBuild: true }),
   py('test/ui.test.py', { needsBuild: true }),
   py('test/cam-ui.test.py', { needsBuild: true }),
   node('test/electron.test.mjs'),

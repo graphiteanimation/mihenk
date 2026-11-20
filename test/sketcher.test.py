@@ -4,7 +4,6 @@ from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = os.path.join(ROOT, 'test', 'shots'); os.makedirs(SHOTS, exist_ok=True)
-PORT = 5199
 passed = failed = 0
 
 def check(name, cond, detail=''):
@@ -12,18 +11,10 @@ def check(name, cond, detail=''):
     if cond: passed += 1; print('  ok   ', name)
     else: failed += 1; print('  FAIL ', name, detail)
 
-def port_open():
-    s = socket.socket(); s.settimeout(0.3)
-    try: s.connect(('127.0.0.1', PORT)); return True
-    except OSError: return False
-    finally: s.close()
 
-server = None
-if not port_open():
-    server = subprocess.Popen(['npx', 'vite', '--config', 'test/vite.harness.config.js', '--port', str(PORT)], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(100):
-        if port_open(): break
-        time.sleep(0.2)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _srv
+PORT, server = _srv.start(ROOT, ['--config', 'test/vite.harness.config.js'])  # her koşu kendi boş portunda kendi sunucusunu açar (test/_srv.py)
 
 try:
   with sync_playwright() as p:
@@ -518,6 +509,6 @@ try:
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()
 finally:
-    if server: server.terminate()
+    _srv.stop(server)
 print(f'\n{passed} geçti, {failed} kaldı')
 sys.exit(1 if failed else 0)

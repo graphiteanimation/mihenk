@@ -4,24 +4,15 @@ import os, re, socket, subprocess, sys, time, json
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PORT = int(os.environ.get('MIHENK_UI_PORT', '4197'))  # paralel calisma agaclari icin ortamdan degistirilebilir
 passed = failed = 0
 def check(name, cond, detail=''):
     global passed, failed
     if cond: passed += 1; print('  ok   ', name)
     else: failed += 1; print('  FAIL ', name, detail)
-def port_open():
-    s = socket.socket(); s.settimeout(0.3)
-    try: s.connect(('127.0.0.1', PORT)); return True
-    except OSError: return False
-    finally: s.close()
 
-server = None
-if not port_open():
-    server = subprocess.Popen(['npx', 'vite', 'preview', '--port', str(PORT), '--strictPort'], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(100):
-        if port_open(): break
-        time.sleep(0.2)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _srv
+PORT, server = _srv.start(ROOT, ['preview'])  # her koşu kendi boş portunda kendi sunucusunu açar (test/_srv.py)
 URL = f'http://127.0.0.1:{PORT}/'
 
 # örnek parça: 80x60x20 blok, üstünde 40x30x8 cep, dört köşede Ø6 delik (extrude + cut yerine ilkel gövde + kesme)
@@ -634,5 +625,5 @@ try:
 
     br.close()
 finally:
-    if server: server.terminate()
+    _srv.stop(server)
 print(f'\n{passed} geçti, {failed} kaldı'); sys.exit(1 if failed else 0)

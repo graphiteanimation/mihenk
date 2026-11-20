@@ -5,7 +5,6 @@ from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = os.path.join(ROOT, 'test', 'shots'); os.makedirs(SHOTS, exist_ok=True)
 TMP = os.path.join(ROOT, 'test', 'tmp'); os.makedirs(TMP, exist_ok=True)
-PORT = int(os.environ.get("MIHENK_TEST_PORT", 4190))
 passed = failed = 0
 
 def check(name, cond, detail=''):
@@ -13,18 +12,10 @@ def check(name, cond, detail=''):
     if cond: passed += 1; print('  ok   ', name)
     else: failed += 1; print('  FAIL ', name, detail)
 
-def port_open():
-    s = socket.socket(); s.settimeout(0.3)
-    try: s.connect(('127.0.0.1', PORT)); return True
-    except OSError: return False
-    finally: s.close()
 
-server = None
-if not port_open():
-    server = subprocess.Popen(['npx', 'vite', 'preview', '--port', str(PORT)], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(100):
-        if port_open(): break
-        time.sleep(0.2)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _srv
+PORT, server = _srv.start(ROOT, ['preview'])  # her koşu kendi boş portunda kendi sunucusunu açar (test/_srv.py)
 
 def near(a, b, tol=2e-3): return a is not None and abs(a - b) <= tol * max(1, abs(b))
 
@@ -39,8 +30,13 @@ try:
     ctx.add_init_script("window.__csp = []; document.addEventListener('securitypolicyviolation', (e) => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI + ' ' + (e.sample || '') + ' @' + e.sourceFile + ':' + e.lineNumber));")
     page = ctx.new_page()
     errs = []
-    page.on('pageerror', lambda e: errs.append('pageerror: ' + str(e) + ' ' + str(getattr(e,'stack','') or '')[:400]))
-    page.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
+    # Kasıtlı CSP sınaması (S-05) sayfada EvalError/CSP konsol hatası ve pageerror üretir; zamanlaması kararsızdı ("konsolda sayfa hatası yok" aralıklı kalıyordu).
+    # Sınama süresince gelen hatalar ayrı listeye alınır; sonra yalnız beklenen türde (EvalError / CSP) olduğu doğrulanır.
+    probe = {'on': False, 'errs': []}
+    def _on_err(msg):
+        (probe['errs'] if probe['on'] else errs).append(msg)
+    page.on('pageerror', lambda e: _on_err('pageerror: ' + str(e) + ' ' + str(getattr(e,'stack','') or '')[:400]))
+    page.on('console', lambda m: _on_err(m.text) if m.type == 'error' else None)
     ev = page.evaluate
 
     def idle(): ev('app.whenIdle()')
@@ -522,11 +518,14 @@ try:
     check('CSP meta etiketi: sıkı ilke (unsafe-eval / unsafe-inline yok, default-src none)', "default-src 'none'" in csp_meta and "'unsafe-eval'" not in csp_meta and "'unsafe-inline'" not in csp_meta and "form-action 'none'" in csp_meta, csp_meta)
     # not: CDP "evaluate" CSP eval engelini atlar; Playwright'ın dizge ifadeli wait_for_function sorgusu ise sayfa bağlamında eval kullanır ve engellenir
     csp_before = ev('window.__csp.slice()')
+    probe['on'] = True
     try: page.wait_for_function('document.querySelector("#viewport").dataset.zzz === "1"', timeout=3000); evalblocked = False
     except Exception as e: evalblocked = 'unsafe-eval' in str(e) and 'Content Security Policy' in str(e)
     check('CSP: sayfada eval (dizgeden betik) engelli: EvalError üretildi', evalblocked)
     page.evaluate("() => { const s = document.createElement('script'); s.textContent = 'window.__inl = 1'; document.body.append(s); }")
     check('CSP: satır içi <script> çalışmadı', ev('window.__inl') is None)
+    page.wait_for_timeout(500); probe['on'] = False  # geç gelen CSP/EvalError olayları da sınama listesine düşsün
+    check('CSP sınaması yalnız beklenen hatalar üretti (EvalError / CSP; başka sayfa hatası karışmadı)', all(('EvalError' in e or 'Content Security Policy' in e or 'unsafe-eval' in e or 'CSP' in e or 'Refused to' in e) for e in probe['errs']), str(probe['errs'][:3]))
     check('CSP: uygulama tüm akış boyunca (kasıtlı sınamalar öncesi) HİÇ CSP ihlali üretmedi', len(csp_before) == 0, str(csp_before[:3]))
     ev('window.__csp = []')
 
@@ -891,5 +890,5 @@ try:
     check('konsolda sayfa hatası yok', not [e for e in errs if e.startswith('pageerror')], str([e for e in errs if e.startswith('pageerror')][:3]))
     br.close()
 finally:
-    if server: server.terminate()
+    _srv.stop(server)
 print(f'\n{passed} geçti, {failed} kaldı'); sys.exit(1 if failed else 0)

@@ -1,14 +1,14 @@
 // Güvenlik birim testleri (Electron'suz): şema doğrulaması, atomik yazma, yol denetimi, CSP tutarlılığı, kurulum betiği.
 // Çalıştır: node test/security.test.mjs
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
-const { validateDoc, checkEnvelope, LIMITS, FILE_VERSION } = await import(path.join(ROOT, 'src/shared/schema.js'));
+const { validateDoc, checkEnvelope, LIMITS, FILE_VERSION } = await import(pathToFileURL(path.join(ROOT, 'src/shared/schema.js')).href);
 const { atomicWrite, isInside } = require(path.join(ROOT, 'electron/safe-write.cjs'));
 const { CSP, WORKER_CSP, isWorkerScript } = require(path.join(ROOT, 'electron/csp.cjs'));
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL:', m); } };
 const code = (fn) => { try { fn(); return null; } catch (e) { return e.code || ('JS:' + e.message); } };
 const box = { id: 'b1', type: 'primitive', name: 'K', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '30', h: '20', op: 'new' };
@@ -93,7 +93,8 @@ ok(isInside(D, path.join(D, '..foo', 'a')), '"..foo" adlı alt dizin geçerli (y
 
 console.log('4. CSP tutarlılığı');
 for (const html of ['index.html', 'dist/index.html']) {
-  if (!fs.existsSync(path.join(ROOT, html))) continue;
+  // dist/index.html yalnız `vite build` sonrası vardır: yoksa bu denetim atlanır (geçti sayısı 1 az çıkar: Linux 69 / build sonrası 70). Atlanan sayı aşağıda ayrıca yazılır.
+  if (!fs.existsSync(path.join(ROOT, html))) { skipped++; continue; }
   const m = /http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(fs.readFileSync(path.join(ROOT, html), 'utf8'));
   ok(m && m[1] === CSP, html + ': meta CSP, electron/csp.cjs ile aynı');
 }
@@ -109,4 +110,5 @@ ok(/\$\\"\$INSTDIR\\\$\{APP\}\.exe\$\\" \$\\"%1\$\\"/.test(nsi), '.mhnk komutu t
 ok(/\\Mihenk/.test(nsi) && /DirLeave|\.onVerifyInstDir/.test(nsi), 'dizin sonuna Mihenk ekleme işlevi var');
 ok(/uninstall-files\.nsh/.test(nsi), 'kaldırıcı dosya listesini kullanıyor');
 
+if (skipped) console.log(`  not: ${skipped} denetim atlandı (dist/ yok; önce vite build)`);
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
