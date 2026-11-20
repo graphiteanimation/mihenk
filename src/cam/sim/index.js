@@ -9,7 +9,7 @@ import { KErr } from '../../shared/errors.js';
 import { validateProgram, validateToolpath, splitRapid, sampleArc } from '../ir.js';
 import { createHeightmap, cloneHeightmap } from './heightmap.js';
 import { toolGeom } from './tool.js';
-import { stockFromPrevious, chainSources } from './chain.js';
+import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './chain.js';
 import { freePieces } from './free.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
@@ -48,7 +48,8 @@ export function createSim(input, opts = {}) {
     const src = opts.chain !== false && !init ? chainSources([...setups.values()], { frame, box, stockFrom, bodies }) : [];
     if (init) hm = cloneHeightmap(init);
     else if (src.length) { // T-04: onceki setup'larin son stogu (yalniz malzeme cikarir; B1)
-      hm = stockFromPrevious(src.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box })), { frame, box }, res); chained = true;
+      const sl = src.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box }));
+      hm = stockFromPrevious(sl, { frame, box }, res); chained = prepareSources(sl);
     } else hm = createHeightmap([box.min[0], box.min[1]], [box.max[0], box.max[1]], res, box.max[2]);
     let hmax = -Infinity; for (let k = 0; k < hm.data.length; k++) if (hm.data[k] > hmax) hmax = hm.data[k];
     const mh = opts.modelHeightmaps?.[id] ?? (opts.modelHeightmap?.data ? opts.modelHeightmap : null);
@@ -107,7 +108,9 @@ export function createSim(input, opts = {}) {
     if (opts.freePieces === false) return;
     const lastSec = new Map(); sections.forEach((sec, si) => lastSec.set(sec.setup?.id ?? 'default', si));
     for (const [id, st] of setups) {
-      const r = freePieces(st.hm, st.zFloor, { minArea: opts.freePieceMinArea ?? 1 });
+      const hm = st.hm, F = st.frame, cs = st.chained;
+      const empty = cs && F ? (k) => { const i = k % hm.nx, j = (k - i) / hm.nx; return columnEmpty(cs, F, hm.x0 + (i + 0.5) * hm.res, hm.y0 + (j + 0.5) * hm.res, st.zFloor, hm.data[k]); } : null;
+      const r = freePieces(hm, st.zFloor, { minArea: opts.freePieceMinArea ?? 1, empty });
       for (const c of r.free) {
         counts.free_piece = (counts.free_piece || 0) + 1; if (counts.free_piece > capPerCode) { suppressed++; continue; }
         const si = lastSec.get(id) ?? 0;
@@ -333,7 +336,7 @@ export function createSim(input, opts = {}) {
     },
     result() {
       const remainBySetup = {}; for (const [id, s] of setups) remainBySetup[id] = s.hm;
-      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => x.chained).map((x) => x.id) };
+      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => !!x.chained).map((x) => x.id) };
       if (opts.frames > 0) out.frames = frames;
       return out;
     },

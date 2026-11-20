@@ -64,3 +64,30 @@ export function chainSources(prev, target) {
   const key = (b) => (Array.isArray(b) ? b.map(String).sort().join('|') : null);
   return prev.slice(start).filter((p) => p.frame && p.hm && (key(p.bodies) == null || key(target.bodies) == null || key(p.bodies) === key(target.bodies)) && boxesOverlap(p, target));
 }
+
+// T-15 (zincir): hedef cercevede (x, y) sutununun [zLo, zHi] araligi onceki setup kisitlarina gore tamamen BOS mu.
+// Eksenleri hedefle (anti)paralel kaynaklar icin tam aralik kesisimi. Egik (paralel olmayan) kaynak varsa sutun bos SAYILMAZ
+// (SINIR: egik setup'larla tabandan serbest kalan parca gorulmez; yanlis pozitif yok). Haritalar genisletilmis: muhafazakar.
+export function prepareSources(prev) { return prev.map((p) => ({ F: p.frame, H: dilate(p.hm), B: p.box })); }
+export function columnEmpty(src, F, x, y, zLo, zHi) {
+  const eps = 1e-6; let lo = zLo, hi = zHi; const oblique = [];
+  for (const s of src) {
+    const k = dot(F.z, s.F.z);
+    if (Math.abs(Math.abs(k) - 1) > 1e-9) { oblique.push(s); continue; }
+    const P0 = fromF(F, [x, y, 0]); const q = toF(s.F, P0); const H = s.H, B = s.B;
+    if (q[0] < B.min[0] - eps || q[0] > B.max[0] + eps || q[1] < B.min[1] - eps || q[1] > B.max[1] + eps) continue; // kutu disi: kisit yok
+    let i = Math.floor((q[0] - H.x0) / H.res), j = Math.floor((q[1] - H.y0) / H.res);
+    if (i === -1 || i === H.nx) i = Math.min(H.nx - 1, Math.max(0, i)); if (j === -1 || j === H.ny) j = Math.min(H.ny - 1, Math.max(0, j));
+    if (i < 0 || j < 0 || i >= H.nx || j >= H.ny) continue;
+    const h = H.data[j * H.nx + i];
+    if (!(h < B.max[2] - eps)) continue; // bu setup bu sutunda hic kesmedi
+    // kaynak k'nin kaldirdigi: z_k in (h, B.max]; hedef z'ye: z_k = q[2] + k z
+    const zOf = (v) => (v - q[2]) / k; const c0 = Math.min(zOf(h), zOf(B.max[2])), c1 = Math.max(zOf(h), zOf(B.max[2]));
+    // kalan malzemenin kapsayicisi [lo, hi] (ortadan kesilirse kapsayici korunur: daha cok malzeme, muhafazakar)
+    if (c0 <= lo + eps && c1 >= hi - eps) return true;
+    if (c0 <= lo + eps && c1 > lo) lo = c1; else if (c1 >= hi - eps && c0 < hi) hi = c0;
+    if (hi < lo + eps) return true;
+  }
+  // egik (paralel olmayan) kaynak: ornekleme ince dilimi kacirip yanlis 'bos' (yanlis serbest parca) verebilir -> bos sayilmaz
+  return !oblique.length && hi < lo + eps;
+}

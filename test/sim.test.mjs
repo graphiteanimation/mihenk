@@ -418,5 +418,24 @@ console.log('11. B2 delme stok alti payi: breakThrough + uc boyu ile sinirli');
   b = run(4, { belowStock: 2.8, drillAllow: 2.8 }); ok(b.length === 1 && b[0].level === 'error' && b[0].code === 'cam.sim.below_stock_excess', 'drillAllow asan 4 mm: engel (below_stock_excess)');
 }
 
+console.log('12. T-15 zincirde tabandan serbest kalan ada (ust cep + alttan halka)');
+{
+  const tl = { number: 4, H: 4, D: 4, type: 'flat', dia: 4, cornerR: 0, tipAngle: null, fluteLen: 40, bodyLen: 50, centerCutting: true, pitch: null };
+  const T = (moves) => TP(tl, moves);
+  const FA = { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, FC = { o: [0, 0, -30], x: [1, 0, 0], y: [0, -1, 0], z: [0, 0, -1] };
+  const box = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const m1 = []; for (let y = -13; y <= 13; y += 3) { m1.push(mk.rapid(-13, y, 10)); m1.push(mk.feed(-13, y, -29.5, 500, 'plunge')); m1.push(mk.feed(13, y, -29.5, 500)); m1.push(mk.rapid(13, y, 10)); }
+  const ring = (z) => T([mk.rapid(-8, -8, 10), mk.feed(-8, -8, z, 100, 'plunge'), mk.feed(8, -8, z, 500), mk.feed(8, 8, z, 500), mk.feed(-8, 8, z, 500), mk.feed(-8, -8, z, 500), mk.rapid(-8, -8, 10)]);
+  const sec = (id, frame, toolpath) => ({ setup: { id, name: id, workOffset: { kind: 'G54' }, aAngle: null, stockBox: box, frame }, toolpath });
+  const run = (z, o = {}) => simulate({ name: 'T', number: null, units: 'mm', machine: null, sections: [sec('A', FA, T(m1)), sec('C', FC, ring(z))] }, { res: 0.5, stockBoxes: { A: box, C: box }, ...o }).issues.filter((i) => i.code === 'cam.sim.free_piece');
+  let f = run(-1); ok(f.length === 1 && f[0].params.setup === 'C' && Math.abs(f[0].params.area - 144) <= 12, 'dogrulayici ornegi: ust cep 0,5 mm taban + alttan 1 mm halka -> ada serbest (C, ~144 mm2): ' + JSON.stringify(f.map((i) => [i.params.setup, i.params.area])));
+  f = run(-0.4); ok(!f.length, 'halka tabani (0,5) delmiyor (0,4): serbest parca yok (yanlis pozitif yok)');
+  f = run(-1, { chain: false }); ok(!f.length, 'zincirsiz: alttan 1 mm halka tek basina parcayi ayirmaz');
+  // egik (45 derece) kaynak: sutun bos sayilmaz -> uyari yok (sinir, yanlis pozitif yok)
+  const c = Math.SQRT1_2; const FD = { o: [0, 0, 0], x: [1, 0, 0], y: [0, c, -c], z: [0, c, c] }; const boxD = { min: [-30, -30, -30], max: [30, 30, 30] };
+  const rD = simulate({ name: 'T', number: null, units: 'mm', machine: null, sections: [sec('A', FA, T(m1)), { setup: { id: 'D', name: 'D', workOffset: { kind: 'G54' }, aAngle: null, stockBox: boxD, frame: FD }, toolpath: T([mk.rapid(0, 0, 10), mk.rapid(1, 0, 10)]) }] }, { res: 1, stockBoxes: { A: box, D: boxD } });
+  ok(!rD.issues.some((i) => i.code === 'cam.sim.free_piece' && i.params.setup === 'D'), 'egik zincir kaynagi: ek bos olcutu kullanilmaz (yanlis pozitif yok)');
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
