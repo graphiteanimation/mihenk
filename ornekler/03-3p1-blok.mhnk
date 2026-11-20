@@ -1,0 +1,456 @@
+{
+ "params": [],
+ "features": [
+  {
+   "id": "b",
+   "type": "primitive",
+   "kind": "box",
+   "x": "-30",
+   "y": "0",
+   "z": "-20",
+   "w": "60",
+   "d": "30",
+   "h": "40",
+   "op": "new"
+  },
+  {
+   "id": "st",
+   "type": "sketch",
+   "plane": {
+    "kind": "base",
+    "name": "XZ",
+    "offset": "30"
+   },
+   "points": {
+    "a": {
+     "x": -15,
+     "y": -8
+    },
+    "b": {
+     "x": 15,
+     "y": -8
+    },
+    "c": {
+     "x": 15,
+     "y": 8
+    },
+    "d": {
+     "x": -15,
+     "y": 8
+    }
+   },
+   "ents": [
+    {
+     "id": "e0",
+     "type": "line",
+     "a": "a",
+     "b": "b"
+    },
+    {
+     "id": "e1",
+     "type": "line",
+     "a": "b",
+     "b": "c"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "a": "c",
+     "b": "d"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "a": "d",
+     "b": "a"
+    }
+   ]
+  },
+  {
+   "id": "ustcep",
+   "type": "extrude",
+   "sketch": "st",
+   "profiles": "all",
+   "dist": "8",
+   "flip": false,
+   "op": "cut"
+  },
+  {
+   "id": "hp",
+   "type": "sketch",
+   "plane": {
+    "kind": "base",
+    "name": "XY",
+    "offset": "20"
+   },
+   "points": {
+    "p0": {
+     "x": -20,
+     "y": 15
+    },
+    "p1": {
+     "x": 20,
+     "y": 15
+    }
+   },
+   "ents": [
+    {
+     "id": "e0",
+     "type": "point",
+     "p": "p0"
+    },
+    {
+     "id": "e1",
+     "type": "point",
+     "p": "p1"
+    }
+   ]
+  },
+  {
+   "id": "delikP",
+   "type": "hole",
+   "sketch": "hp",
+   "kind": "simple",
+   "dia": "6",
+   "extent": "dist",
+   "depth": "12",
+   "tipAngle": "118"
+  },
+  {
+   "id": "hm",
+   "type": "sketch",
+   "plane": {
+    "kind": "base",
+    "name": "XY",
+    "offset": "-20"
+   },
+   "points": {
+    "p0": {
+     "x": -20,
+     "y": 15
+    },
+    "p1": {
+     "x": 20,
+     "y": 15
+    }
+   },
+   "ents": [
+    {
+     "id": "e0",
+     "type": "point",
+     "p": "p0"
+    },
+    {
+     "id": "e1",
+     "type": "point",
+     "p": "p1"
+    }
+   ]
+  },
+  {
+   "id": "delikM",
+   "type": "hole",
+   "sketch": "hm",
+   "kind": "simple",
+   "dia": "6",
+   "extent": "dist",
+   "depth": "12",
+   "tipAngle": "118",
+   "flip": true
+  }
+ ],
+ "cam": {
+  "machineId": "ornek-genel-3p1-a",
+  "tools": [
+   {
+    "id": "T1",
+    "number": 1,
+    "lengthOffset": 1,
+    "diaOffset": 1,
+    "centerCutting": true,
+    "holder": {
+     "dia": 40,
+     "len": 50
+    },
+    "type": "flat",
+    "name": "Parmak freze D10 3 ağız",
+    "dia": 10,
+    "flutes": 3,
+    "fluteLen": 25,
+    "bodyLen": 50
+   },
+   {
+    "id": "T2",
+    "number": 2,
+    "lengthOffset": 2,
+    "diaOffset": 2,
+    "centerCutting": true,
+    "holder": {
+     "dia": 40,
+     "len": 50
+    },
+    "type": "flat",
+    "name": "Parmak freze D6 3 ağız",
+    "dia": 6,
+    "flutes": 3,
+    "fluteLen": 18,
+    "bodyLen": 40
+   },
+   {
+    "id": "T3",
+    "number": 3,
+    "lengthOffset": 3,
+    "diaOffset": 3,
+    "centerCutting": true,
+    "holder": {
+     "dia": 40,
+     "len": 50
+    },
+    "type": "drill",
+    "name": "Matkap D6 118",
+    "dia": 6,
+    "tipAngle": 118,
+    "flutes": 2,
+    "fluteLen": 40,
+    "bodyLen": 60
+   }
+  ],
+  "setups": [
+   {
+    "id": "S1",
+    "name": "Üst (+Y)",
+    "bodies": [
+     "b"
+    ],
+    "workOffset": {
+     "kind": "G55"
+    },
+    "clearanceZ": 5,
+    "frame": {
+     "zAxis": {
+      "kind": "base",
+      "dir": "+Y"
+     },
+     "xAxis": {
+      "kind": "base",
+      "dir": "+X"
+     },
+     "origin": {
+      "kind": "stockTopCenter"
+     }
+    },
+    "stock": {
+     "kind": "boxOffset",
+     "side": 2,
+     "top": 2,
+     "bottom": 2
+    },
+    "ops": [
+     {
+      "id": "o1",
+      "type": "face",
+      "name": "Yüzey frezeleme",
+      "toolId": "T1",
+      "rpm": 4500,
+      "feedCut": 1500,
+      "feedPlunge": 500,
+      "coolant": "flood",
+      "heights": {
+       "clearance": 15,
+       "retract": 5,
+       "top": {
+        "from": "stockTop",
+        "off": 0
+       },
+       "bottom": {
+        "from": "modelTop",
+        "off": 0
+       }
+      },
+      "stepover": 7,
+      "stepdown": 1,
+      "extend": 1
+     },
+     {
+      "id": "o4",
+      "type": "pocket",
+      "name": "Üst cep",
+      "toolId": "T2",
+      "rpm": 6000,
+      "feedCut": 1200,
+      "feedPlunge": 400,
+      "coolant": "flood",
+      "heights": {
+       "clearance": 15,
+       "retract": 5,
+       "top": {
+        "from": "modelTop",
+        "off": 0
+       },
+       "bottom": {
+        "from": "modelTop",
+        "off": -8
+       }
+      },
+      "geom": [
+       {
+        "kind": "sketch",
+        "sketch": "st",
+        "profiles": "all"
+       }
+      ],
+      "stepover": 2.5,
+      "stepdown": 3,
+      "stockToLeave": {
+       "radial": 0,
+       "axial": 0
+      },
+      "entry": {
+       "kind": "helix",
+       "angle": 3,
+       "helixDia": 3
+      }
+     }
+    ]
+   },
+   {
+    "id": "S2",
+    "name": "A -90 (−Z yüzü)",
+    "bodies": [
+     "b"
+    ],
+    "workOffset": {
+     "kind": "G56"
+    },
+    "clearanceZ": 5,
+    "frame": {
+     "zAxis": {
+      "kind": "base",
+      "dir": "+Y"
+     },
+     "xAxis": {
+      "kind": "base",
+      "dir": "+X"
+     },
+     "origin": {
+      "kind": "point",
+      "p": [
+       0,
+       15,
+       -22
+      ]
+     }
+    },
+    "rotary": {
+     "enabled": true,
+     "aAngle": -90
+    },
+    "stock": {
+     "kind": "boxOffset",
+     "side": 2,
+     "top": 2,
+     "bottom": 2
+    },
+    "ops": [
+     {
+      "id": "o2",
+      "type": "drill",
+      "name": "Delme D6",
+      "toolId": "T3",
+      "rpm": 3000,
+      "feedCut": 300,
+      "feedPlunge": 300,
+      "coolant": "flood",
+      "heights": {
+       "clearance": 15,
+       "retract": 5
+      },
+      "holes": {
+       "kind": "feature",
+       "filter": {
+        "feature": "delikM"
+       }
+      },
+      "cycle": "peck",
+      "peck": 3,
+      "depth": {
+       "from": "hole",
+       "tipComp": true,
+       "breakThrough": 1
+      },
+      "order": "shortest"
+     }
+    ]
+   },
+   {
+    "id": "S3",
+    "name": "A +90 (+Z yüzü)",
+    "bodies": [
+     "b"
+    ],
+    "workOffset": {
+     "kind": "G57"
+    },
+    "clearanceZ": 5,
+    "frame": {
+     "zAxis": {
+      "kind": "base",
+      "dir": "+Y"
+     },
+     "xAxis": {
+      "kind": "base",
+      "dir": "+X"
+     },
+     "origin": {
+      "kind": "point",
+      "p": [
+       0,
+       15,
+       22
+      ]
+     }
+    },
+    "rotary": {
+     "enabled": true,
+     "aAngle": 90
+    },
+    "stock": {
+     "kind": "boxOffset",
+     "side": 2,
+     "top": 2,
+     "bottom": 2
+    },
+    "ops": [
+     {
+      "id": "o3",
+      "type": "drill",
+      "name": "Delme D6",
+      "toolId": "T3",
+      "rpm": 3000,
+      "feedCut": 300,
+      "feedPlunge": 300,
+      "coolant": "flood",
+      "heights": {
+       "clearance": 15,
+       "retract": 5
+      },
+      "holes": {
+       "kind": "feature",
+       "filter": {
+        "feature": "delikP"
+       }
+      },
+      "cycle": "peck",
+      "peck": 3,
+      "depth": {
+       "from": "hole",
+       "tipComp": true,
+       "breakThrough": 1
+      },
+      "order": "shortest"
+     }
+    ]
+   }
+  ]
+ }
+}

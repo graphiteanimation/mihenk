@@ -196,6 +196,93 @@
     "taninan": 30
    },
    "hesapS": 183.031
+  },
+  "01-Prizmatik-plaka": {
+   "id": "01-Prizmatik-plaka",
+   "tur": "belge",
+   "setups": {
+    "S1": {
+     "block": 0,
+     "warn": 6,
+     "temiz": true,
+     "estS": 231.323,
+     "G81": 0,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": null,
+   "delik": null,
+   "hesapS": 1.266
+  },
+  "02-Delikli-iki-setup": {
+   "id": "02-Delikli-iki-setup",
+   "tur": "belge",
+   "setups": {
+    "S1": {
+     "block": 0,
+     "warn": 5,
+     "temiz": true,
+     "estS": 91.764,
+     "G81": 0,
+     "G83": 2,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 0,
+     "warn": 2,
+     "temiz": true,
+     "estS": 167.843,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": null,
+   "delik": null,
+   "hesapS": 1.364
+  },
+  "03-3p1-blok": {
+   "id": "03-3p1-blok",
+   "tur": "belge",
+   "setups": {
+    "S1": {
+     "block": 0,
+     "warn": 2,
+     "temiz": true,
+     "estS": 88.575,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 0,
+     "warn": 1,
+     "temiz": true,
+     "estS": 7.581,
+     "G81": 0,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S3": {
+     "block": 0,
+     "warn": 1,
+     "temiz": true,
+     "estS": 7.581,
+     "G81": 0,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": null,
+   "delik": null,
+   "hesapS": 1.024
   }
  }
 }

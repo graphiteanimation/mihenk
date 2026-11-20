@@ -1,0 +1,365 @@
+{
+ "params": [],
+ "features": [
+  {
+   "id": "b",
+   "type": "primitive",
+   "kind": "box",
+   "x": "0",
+   "y": "0",
+   "z": "0",
+   "w": "80",
+   "d": "50",
+   "h": "20",
+   "op": "new"
+  },
+  {
+   "id": "sp",
+   "type": "sketch",
+   "plane": {
+    "kind": "base",
+    "name": "XY",
+    "offset": "20"
+   },
+   "points": {
+    "a": {
+     "x": 20,
+     "y": 13
+    },
+    "b": {
+     "x": 60,
+     "y": 13
+    },
+    "c": {
+     "x": 60,
+     "y": 37
+    },
+    "d": {
+     "x": 20,
+     "y": 37
+    }
+   },
+   "ents": [
+    {
+     "id": "e0",
+     "type": "line",
+     "a": "a",
+     "b": "b"
+    },
+    {
+     "id": "e1",
+     "type": "line",
+     "a": "b",
+     "b": "c"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "a": "c",
+     "b": "d"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "a": "d",
+     "b": "a"
+    }
+   ]
+  },
+  {
+   "id": "cep",
+   "type": "extrude",
+   "sketch": "sp",
+   "profiles": "all",
+   "dist": "8",
+   "flip": true,
+   "op": "cut"
+  },
+  {
+   "id": "sh",
+   "type": "sketch",
+   "plane": {
+    "kind": "base",
+    "name": "XY",
+    "offset": "20"
+   },
+   "points": {
+    "p0": {
+     "x": 8,
+     "y": 8
+    },
+    "p1": {
+     "x": 72,
+     "y": 8
+    },
+    "p2": {
+     "x": 8,
+     "y": 42
+    },
+    "p3": {
+     "x": 72,
+     "y": 42
+    }
+   },
+   "ents": [
+    {
+     "id": "e0",
+     "type": "point",
+     "p": "p0"
+    },
+    {
+     "id": "e1",
+     "type": "point",
+     "p": "p1"
+    },
+    {
+     "id": "e2",
+     "type": "point",
+     "p": "p2"
+    },
+    {
+     "id": "e3",
+     "type": "point",
+     "p": "p3"
+    }
+   ]
+  },
+  {
+   "id": "delik",
+   "type": "hole",
+   "sketch": "sh",
+   "kind": "simple",
+   "dia": "6.6",
+   "extent": "all",
+   "tipAngle": "118"
+  }
+ ],
+ "cam": {
+  "machineId": "ornek-genel-3-eksen",
+  "tools": [
+   {
+    "id": "T1",
+    "number": 1,
+    "lengthOffset": 1,
+    "diaOffset": 1,
+    "centerCutting": true,
+    "holder": {
+     "dia": 40,
+     "len": 50
+    },
+    "type": "flat",
+    "name": "Parmak freze D10 3 ağız",
+    "dia": 10,
+    "flutes": 3,
+    "fluteLen": 25,
+    "bodyLen": 50
+   },
+   {
+    "id": "T2",
+    "number": 2,
+    "lengthOffset": 2,
+    "diaOffset": 2,
+    "centerCutting": true,
+    "holder": {
+     "dia": 40,
+     "len": 50
+    },
+    "type": "flat",
+    "name": "Parmak freze D6 3 ağız",
+    "dia": 6,
+    "flutes": 3,
+    "fluteLen": 18,
+    "bodyLen": 40
+   },
+   {
+    "id": "T3",
+    "number": 3,
+    "lengthOffset": 3,
+    "diaOffset": 3,
+    "centerCutting": true,
+    "holder": {
+     "dia": 40,
+     "len": 50
+    },
+    "type": "drill",
+    "name": "Matkap D6.6 118",
+    "dia": 6.6,
+    "tipAngle": 118,
+    "flutes": 2,
+    "fluteLen": 40,
+    "bodyLen": 60
+   }
+  ],
+  "setups": [
+   {
+    "id": "S1",
+    "name": "Üst",
+    "bodies": [
+     "b"
+    ],
+    "workOffset": {
+     "kind": "G55"
+    },
+    "clearanceZ": 5,
+    "frame": {
+     "zAxis": {
+      "kind": "base",
+      "dir": "+Z"
+     },
+     "xAxis": {
+      "kind": "base",
+      "dir": "+X"
+     },
+     "origin": {
+      "kind": "stockTopCenter"
+     }
+    },
+    "stock": {
+     "kind": "boxOffset",
+     "side": 2,
+     "top": 2,
+     "bottom": 2
+    },
+    "ops": [
+     {
+      "id": "o1",
+      "type": "face",
+      "name": "Yüzey frezeleme",
+      "toolId": "T1",
+      "rpm": 4500,
+      "feedCut": 1500,
+      "feedPlunge": 500,
+      "coolant": "flood",
+      "heights": {
+       "clearance": 15,
+       "retract": 5,
+       "top": {
+        "from": "stockTop",
+        "off": 0
+       },
+       "bottom": {
+        "from": "modelTop",
+        "off": 0
+       }
+      },
+      "stepover": 7,
+      "stepdown": 1,
+      "extend": 1
+     },
+     {
+      "id": "o2",
+      "type": "pocket",
+      "name": "Cep",
+      "toolId": "T2",
+      "rpm": 6000,
+      "feedCut": 1200,
+      "feedPlunge": 400,
+      "coolant": "flood",
+      "heights": {
+       "clearance": 15,
+       "retract": 5,
+       "top": {
+        "from": "modelTop",
+        "off": 0
+       },
+       "bottom": {
+        "from": "modelTop",
+        "off": -8
+       }
+      },
+      "geom": [
+       {
+        "kind": "sketch",
+        "sketch": "sp",
+        "profiles": "all"
+       }
+      ],
+      "stepover": 2.5,
+      "stepdown": 3,
+      "stockToLeave": {
+       "radial": 0,
+       "axial": 0
+      },
+      "entry": {
+       "kind": "helix",
+       "angle": 3,
+       "helixDia": 3
+      }
+     },
+     {
+      "id": "o3",
+      "type": "drill",
+      "name": "Delme D6.6",
+      "toolId": "T3",
+      "rpm": 3000,
+      "feedCut": 300,
+      "feedPlunge": 300,
+      "coolant": "flood",
+      "heights": {
+       "clearance": 15,
+       "retract": 5
+      },
+      "holes": {
+       "kind": "feature",
+       "filter": {
+        "feature": "delik"
+       }
+      },
+      "cycle": "peck",
+      "peck": 3,
+      "depth": {
+       "from": "hole",
+       "tipComp": true,
+       "breakThrough": 1
+      },
+      "order": "shortest"
+     },
+     {
+      "id": "o4",
+      "type": "contour",
+      "name": "Dış kontur (siluet)",
+      "toolId": "T1",
+      "rpm": 4500,
+      "feedCut": 1200,
+      "feedPlunge": 500,
+      "coolant": "flood",
+      "heights": {
+       "clearance": 15,
+       "retract": 5,
+       "top": {
+        "from": "modelTop",
+        "off": 0
+       },
+       "bottom": {
+        "from": "modelBottom",
+        "off": -0.5
+       }
+      },
+      "geom": [
+       {
+        "kind": "silhouette",
+        "body": "b",
+        "loops": "outer"
+       }
+      ],
+      "side": "outside",
+      "dir": "climb",
+      "stepdown": 6,
+      "stockToLeave": {
+       "radial": 0,
+       "axial": 0
+      },
+      "leadIn": {
+       "kind": "arc",
+       "r": 3
+      },
+      "leadOut": {
+       "kind": "arc",
+       "r": 3
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

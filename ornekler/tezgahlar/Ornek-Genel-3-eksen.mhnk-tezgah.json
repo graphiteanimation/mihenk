@@ -1,0 +1,53 @@
+{
+ "format": "mihenk-machine",
+ "version": 1,
+ "machines": [
+  {
+   "id": "ornek-genel-3-eksen",
+   "name": "Örnek · Genel 3 eksen (Fanuc tarzı)",
+   "rev": 1,
+   "control": "fanuc-generic",
+   "axes": {
+    "X": {
+     "travel": 800,
+     "min": null,
+     "max": null
+    },
+    "Y": {
+     "travel": 500,
+     "min": null,
+     "max": null
+    },
+    "Z": {
+     "travel": 500,
+     "min": null,
+     "max": null
+    }
+   },
+   "spindle": {
+    "maxRpm": 10000,
+    "minRpm": 100
+   },
+   "feed": {
+    "maxCut": 5000,
+    "rapid": 20000
+   },
+   "toolChange": {
+    "maxTools": 20,
+    "kind": "fixed",
+    "pos": null
+   },
+   "protected": {
+    "T": [],
+    "H": [],
+    "D": [],
+    "wcs": []
+   },
+   "post": {
+    "props": {
+     "safeRetract": "G28"
+    }
+   }
+  }
+ ]
+}
