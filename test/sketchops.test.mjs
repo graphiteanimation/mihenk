@@ -150,7 +150,12 @@ const area = (sk) => findRegions(sk).regions.reduce((s, r) => s + r.net, 0);
     ok(O.matchEdge(M(5, 0), [Y(5, 20), Y(7, 0)]).idx === 7, 'kontrol: tam eşleşen yeni indeks, uzak eski indekse tercih edilir');
     ok(O.matchEdge(M(5, 0), [Y(5, 0.5), Y(7, 0)]) === null, '0,5 mm ötedeki eski indeks, tam eşleşen yeni indeksi ezmez; ayırt edilemiyorsa lost');
     const r = O.matchEdgeD(M(5, 0), [Y(5, 20)]); ok(r && r.c.idx === 5 && Math.abs(r.d - 20) < 1e-9, 'tek aday, aynı indeks, 20 mm: parametrik değişim kabul, kayma 20 mm bildirilir');
-    ok(O.matchEdgeD(M(5, 0), [Y(5, 5), Y(7, 8)]) === null, 'aynı indeks ama ikinci aday yeterince uzak değil (<2 kat) → lost');
+    ok(O.matchEdgeD(M(5, 0), [Y(5, 5), Y(7, 8)])?.c.idx === 5, 'aynı indeks 5 mm, başka aday daha yakın değil (8 mm) → parametrik değişim kabul');
+    ok(O.matchEdge(M(5, 0), [Y(5, 5), Y(7, 3)]) === null, 'başka aday belirgin (>= 1 mm) daha yakın (3 mm), (i) sağlamıyor → lost');
+    ok(O.matchEdge(M(5, 0), [Y(5, 5), Y(7, 4.75)]).idx === 5, 'başka aday yalnız 0,25 mm daha yakın (belirgin değil) → aynı indeks kabul');
+    { // dikdörtgen genişliği 40 → W, x=40 kenarı (indeks 1)
+      const vm = { g: 1, sig: O.edgeSig([[40, 0], [40, 20]]) };
+      for (const W of [60, 64]) ok(O.matchEdge(vm, [{ idx: 0, pts: [[0, 0], [W, 0]] }, { idx: 1, pts: [[W, 0], [W, 20]] }, { idx: 2, pts: [[W, 20], [0, 20]] }, { idx: 3, pts: [[0, 20], [0, 0]] }]).idx === 1, `dikdörtgen genişliği 40 → ${W} (${W - 40} mm yan kayma, karşı kenar 40 mm ötede): güncellenir`); }
     ok(O.matchEdge(M(5, 0), [Y(5, 30)]) === null && O.matchEdge(M(5, 0), [Y(5, 5)]).idx === 5, 'yan kayma 30 mm lost, 5 mm kabul');
     const S50 = { g: 5, sig: O.edgeSig([[0, 0], [50, 0]]) };
     ok(O.matchEdge(S50, [L(5, [0, 0], [100, 0])]).idx === 5, 'bir ucu sabit, boyu 50 → 100: güncellenir');
