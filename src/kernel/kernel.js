@@ -377,6 +377,14 @@ export class Kernel {
     return { d: t, trim: null };
   }
 
+  // WP-08: kenardan eksen: doğru kenar → kenar doğrultusu; dairesel kenar → dairenin ekseni (merkez + normal)
+  edgeAxis(ref, state, ctx) {
+    if (!ref || typeof ref !== 'object') throw new KErr('pattern.no_axis');
+    const E = this.resolveRef(ref, state, 'edge', ctx);
+    if (E.geomType === 'LINE') { const a = E.startPoint.toTuple(), b = E.endPoint.toTuple(); if (V.dist(a, b) < 1e-9) throw new KErr('pattern.axis_edge'); return { c: a, ax: V.norm(V.sub(b, a)) }; }
+    if (E.geomType === 'CIRCLE') { const C = E._geomAdaptor().Circle(); const l = C.Location(), d = C.Axis().Direction(); return { c: [l.X(), l.Y(), l.Z()], ax: [d.X(), d.Y(), d.Z()] }; }
+    throw new KErr('pattern.axis_edge');
+  }
   // WP-08: bölme ve doğrudan düzenleme (src/kernel/direct.js)
   toolPlane(spec, state, N, ctx) {
     if (!spec || typeof spec !== 'object') throw new KErr('split.no_tool');
@@ -476,15 +484,21 @@ export class Kernel {
   pattern(f, state, N) {
     const xs = [];
     if (f.type === 'mirror') {
-      const pl = f.plane ?? 'XY'; if (!V.BASE_PLANES[pl]) throw new KErr('sketch.plane_unknown'); // F-12
-      const P = V.basePlane(pl, this.coord(N(f.offset ?? 0, tk('ef.offset')), 'ef.offset'));
+      const pl = f.plane ?? 'XY';
+      // WP-08: aynalama düzlemi düzlemsel bir yüzden (planeRef)
+      const P = pl === 'face' ? this.resolvePlane({ kind: 'face', ref: f.planeRef }, state, { feature: f.id, field: 'planeRef' })
+        : (() => { if (!V.BASE_PLANES[pl]) throw new KErr('sketch.plane_unknown'); return V.basePlane(pl, this.coord(N(f.offset ?? 0, tk('ef.offset')), 'ef.offset')); })(); // F-12
       xs.push({ inst: 'm', steps: [{ mirror: { o: P.o, n: P.n } }] });
     } else if (f.kind === 'circ') {
       const n = Math.round(N(f.count, tk('ef.count'))); const tot = N(f.total ?? 360, tk('ef.angle'));
       if (!(n >= 2)) throw new KErr('pattern.count_min'); if (n > LIMITS.maxPattern) throw new KErr('pattern.too_many', { n, max: LIMITS.maxPattern });
       if (!(Math.abs(tot) > 1e-9 && Math.abs(tot) <= 360 + 1e-9)) throw new KErr('pattern.angle_range', { value: tot });
-      const ax = AX[f.axis ?? 'Z']; if (!ax) throw new KErr('prim.axis_unknown');
-      const c = [N(f.cx ?? 0, tk('ef.x')), N(f.cy ?? 0, tk('ef.y')), N(f.cz ?? 0, tk('ef.z'))].map((x) => this.coord(x, 'ef.x'));
+      let ax, c;
+      if (f.axis === 'edge') ({ ax, c } = this.edgeAxis(f.axisRef, state, { feature: f.id, field: 'axisRef' }));
+      else {
+        ax = AX[f.axis ?? 'Z']; if (!ax) throw new KErr('prim.axis_unknown');
+        c = [N(f.cx ?? 0, tk('ef.x')), N(f.cy ?? 0, tk('ef.y')), N(f.cz ?? 0, tk('ef.z'))].map((x) => this.coord(x, 'ef.x'));
+      }
       const step = Math.abs(Math.abs(tot) - 360) < 1e-9 ? tot / n : tot / (n - 1);
       for (let i = 1; i < n; i++) xs.push({ inst: String(i), steps: [{ rot: { c, ax, deg: step * i } }] });
     } else if (f.kind === 'rect') {

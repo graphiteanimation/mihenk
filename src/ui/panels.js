@@ -3,7 +3,7 @@ import { h, $, toast, modal, fmt, esc } from './dom.js';
 import { icon, featureIcon } from './icons.js';
 import { t, tk, errText } from '../shared/i18n.js';
 import { toErr } from '../shared/errors.js';
-import { fieldsFor, featLabel, THREADS, patternSources } from './features.js';
+import { fieldsFor, featLabel, THREADS, THREAD_TABLES, THREAD_FAMILIES, threadFamily, patternSources } from './features.js';
 import { evalExpr, resolveParams } from '../shared/expr.js';
 import { LIMITS } from '../shared/schema.js';
 import { basePlane } from '../shared/vec.js';
@@ -170,15 +170,21 @@ export class FeaturePanel {
         return this.row(fd.label, unitBox(s));
       }
       case 'thread': {
+        // WP-08: diş ailesi (ISO kaba / ISO ince / G (BSPP) / NPT) + ölçü. ISO kaba kaydı eski biçimdedir ({designation, pitch, major}).
         const cur = d.thread?.designation || '';
-        const s = h('select', { 'data-k': 'thread' }, [h('option', { value: '' }, t('common.none')), ...THREADS.map((th) => h('option', { value: th.designation, selected: th.designation === cur }, t('fld.thread_opt', { d: th.designation, p: fmt(th.pitch, 3) })))]);
+        const fam = this.thrFam || threadFamily(d.thread); this.thrFam = fam; const table = THREAD_TABLES[fam] || THREAD_TABLES.iso;
+        const fs = h('select', { 'data-k': 'thread.family', 'aria-label': t('fld.thread_family') }, THREAD_FAMILIES.map(([v, l]) => h('option', { value: v, selected: v === fam }, t(l))));
+        fs.addEventListener('change', () => { this.thrFam = fs.value; this.setActive(null); this.render(); this.updateViewport(); });
+        const opt = (th) => (th.tpi ? t('fld.thread_opt_tpi', { d: th.designation, n: fmt(th.tpi, 1) }) : t('fld.thread_opt', { d: th.designation, p: fmt(th.pitch, 3) }));
+        const s = h('select', { 'data-k': 'thread' }, [h('option', { value: '' }, t('common.none')), ...table.map((th) => h('option', { value: th.designation, selected: th.designation === cur }, opt(th)))]);
         s.addEventListener('change', () => {
-          const th = THREADS.find((x) => x.designation === s.value);
-          d.thread = th ? { designation: th.designation, pitch: th.pitch, major: th.major } : null;
-          if (th) d.dia = String(Math.round((th.major - th.pitch) * 1000) / 1000);
+          const th = table.find((x) => x.designation === s.value);
+          d.thread = !th ? null : fam === 'iso' ? { designation: th.designation, pitch: th.pitch, major: th.major } : Object.fromEntries(Object.entries(th).filter(([, v]) => v !== undefined));
+          if (th) d.dia = String(fam === 'iso' ? Math.round((th.major - th.pitch) * 1000) / 1000 : th.drill);
           this.fieldChanged('thread');
         });
-        return this.row(fd.label, unitBox(s));
+        const note = d.thread && d.thread.family ? h('div', { class: 'resolved', 'data-testid': 'thread-drill', text: t('fld.thread_drill', { d: fmt(d.thread.drill, 3) }) + (d.thread.taper ? ' · ' + t('fld.thread_taper') : '') }) : null;
+        return this.row(fd.label, h('div', {}, unitBox(fs), h('div', { style: { marginTop: '4px' } }, unitBox(s)), note));
       }
       case 'sel': {
         const el = h('div', { class: 'selbox input pick', 'data-k': fd.k, 'data-testid': 'sel-' + fd.k, tabindex: '0', role: 'button', onclick: () => this.setActive(fd.k) });
@@ -226,7 +232,7 @@ export class FeaturePanel {
     this.setActive(null); this.render();
     const first = this.fields().find((x) => x.t === 'sel');
     if (k === 'source' && this.draft.source?.kind === 'body') this.setActive('source.bodies', true);
-    else if (first && (k === 'kind' || k === 'extent' || k === 'mode' || k === 'tool')) this.setActive(first.k, true);
+    else if (first && ['kind', 'extent', 'mode', 'tool', 'axis', 'plane'].includes(k)) this.setActive(first.k, true);
     this.updateViewport(); this.changed();
   }
   changed() { this.app.previewSoon(); }

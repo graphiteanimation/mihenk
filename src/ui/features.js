@@ -31,6 +31,25 @@ export const AXES = [['X', null], ['Y', null], ['Z', null]];
 // Kaba diş tablosu (ad, adım, nominal çap)
 export const THREADS = [['M3', 0.5, 3], ['M4', 0.7, 4], ['M5', 0.8, 5], ['M6', 1, 6], ['M8', 1.25, 8], ['M10', 1.5, 10], ['M12', 1.75, 12], ['M14', 2, 14], ['M16', 2, 16], ['M20', 2.5, 20], ['M24', 3, 24]]
   .map(([designation, pitch, major]) => ({ designation, pitch, major }));
+// WP-08: diş tabloları (yalnız veri + kılavuz matkabı çapı; diş geometrisi modellenmez). drill: önerilen matkap çapı (mm).
+// - iso: ISO metrik kaba (ISO 261 kaba seri); matkap = D − P (yaygın kılavuz matkabı kuralı; yukarıdaki THREADS ile aynı).
+// - iso_fine: ISO metrik ince (ISO 261 ince seri seçkisi); matkap = D − P.
+// - g: G / BSPP silindirik boru dişi (ISO 228-1); D ve matkap çapları engineersedge.com "DIN ISO 228" tablosundan.
+// - npt: NPT konik boru dişi (ASME B1.20.1); dış çap ve matkap (reamersiz) engineeringtoolbox.com NPT tablosundan (1/8: R = 0,339 in).
+//   NPT konik olduğu için delik silindirik kalır; değerler CAM/çizim için bilgidir.
+const IN = 25.4;
+const fine = [['M3x0.35', 0.35, 3], ['M4x0.5', 0.5, 4], ['M5x0.5', 0.5, 5], ['M6x0.75', 0.75, 6], ['M8x1', 1, 8], ['M10x1', 1, 10], ['M10x1.25', 1.25, 10], ['M12x1.25', 1.25, 12], ['M12x1.5', 1.5, 12], ['M14x1.5', 1.5, 14], ['M16x1.5', 1.5, 16], ['M18x1.5', 1.5, 18], ['M20x1.5', 1.5, 20], ['M22x1.5', 1.5, 22], ['M24x2', 2, 24]];
+const bspp = [['G1/8', 28, 9.728, 8.8], ['G1/4', 19, 13.157, 11.8], ['G3/8', 19, 16.662, 15.25], ['G1/2', 14, 20.955, 19], ['G5/8', 14, 22.911, 21], ['G3/4', 14, 26.441, 24.5], ['G1', 11, 33.249, 30.75], ['G1 1/4', 11, 41.91, 39.25], ['G1 1/2', 11, 47.803, 45.25], ['G2', 11, 59.614, 57]];
+const npt = [['1/8 NPT', 27, 0.405, 0.339], ['1/4 NPT', 18, 0.54, 7 / 16], ['3/8 NPT', 18, 0.675, 37 / 64], ['1/2 NPT', 14, 0.84, 23 / 32], ['3/4 NPT', 14, 1.05, 59 / 64], ['1 NPT', 11.5, 1.315, 1 + 5 / 32], ['1 1/4 NPT', 11.5, 1.66, 1.5], ['1 1/2 NPT', 11.5, 1.9, 1 + 47 / 64], ['2 NPT', 11.5, 2.375, 2 + 7 / 32]];
+const r4 = (x) => Math.round(x * 10000) / 10000;
+export const THREAD_TABLES = {
+  iso: THREADS.map((x) => ({ ...x, family: 'iso', drill: r4(x.major - x.pitch) })),
+  iso_fine: fine.map(([designation, pitch, major]) => ({ designation, pitch, major, family: 'iso_fine', drill: r4(major - pitch) })),
+  g: bspp.map(([designation, tpi, major, drill]) => ({ designation, pitch: r4(IN / tpi), tpi, major, family: 'g', drill })),
+  npt: npt.map(([designation, tpi, od, drill]) => ({ designation, pitch: r4(IN / tpi), tpi, major: r4(od * IN), family: 'npt', taper: true, drill: r4(drill * IN) })),
+};
+export const THREAD_FAMILIES = [['iso', tk('thr.iso')], ['iso_fine', tk('thr.iso_fine')], ['g', tk('thr.g')], ['npt', tk('thr.npt')]];
+export const threadFamily = (th) => th?.family || (th ? 'iso' : 'iso');
 
 // Yeni özellik: varsayılan alanlar. ctx = {doc, bodies:[], sketches:[feature], sketchOnFace?:bool, lastFree?:id}
 export function defaults(type, kind, ctx) {
@@ -124,8 +143,12 @@ export function fieldsFor(f, ctx) {
       break;
     case 'pattern':
       F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'kind', label: tk('fld.pat_type'), opts: [['rect', tk('pat.rect')], ['circ', tk('pat.circ')]] });
-      if (f.kind === 'circ') F.push({ t: 'expr', k: 'count', label: tk('fld.count') }, { t: 'expr', k: 'total', label: tk('fld.total_angle'), unit: '°' }, { t: 'select', k: 'axis', label: tk('fld.axis'), opts: AXES },
-        { t: 'expr', k: 'cx', label: tk('fld.c_x'), unit: 'mm' }, { t: 'expr', k: 'cy', label: tk('fld.c_y'), unit: 'mm' }, { t: 'expr', k: 'cz', label: tk('fld.c_z'), unit: 'mm' });
+      if (f.kind === 'circ') {
+        F.push({ t: 'expr', k: 'count', label: tk('fld.count') }, { t: 'expr', k: 'total', label: tk('fld.total_angle'), unit: '°' }, { t: 'select', k: 'axis', label: tk('fld.axis'), opts: [...AXES, ['edge', tk('fld.axis_edge')]] });
+        // WP-08: eksen bir kenardan (doğru kenar ya da dairesel kenarın ekseni)
+        if (f.axis === 'edge') F.push({ t: 'sel', k: 'axisRef', label: tk('fld.axis_ref'), kind: 'edge', single: true });
+        else F.push({ t: 'expr', k: 'cx', label: tk('fld.c_x'), unit: 'mm' }, { t: 'expr', k: 'cy', label: tk('fld.c_y'), unit: 'mm' }, { t: 'expr', k: 'cz', label: tk('fld.c_z'), unit: 'mm' });
+      }
       else F.push({ t: 'expr', k: 'count1', label: tk('fld.count1') }, { t: 'expr', k: 'step1', label: tk('fld.step1'), unit: 'mm' }, { t: 'select', k: 'dir1', label: tk('fld.dir1'), opts: AXES },
         { t: 'expr', k: 'count2', label: tk('fld.count2') }, { t: 'expr', k: 'step2', label: tk('fld.step2'), unit: 'mm' }, { t: 'select', k: 'dir2', label: tk('fld.dir2'), opts: AXES });
       if (f.source?.kind === 'body') F.push({ t: 'check', k: 'join', label: tk('fld.join_body') });
@@ -138,7 +161,10 @@ export function fieldsFor(f, ctx) {
       if (f.mode === 'move') F.push({ t: 'expr', k: 'dx', label: tk('fld.tr_x'), unit: 'mm' }, { t: 'expr', k: 'dy', label: tk('fld.tr_y'), unit: 'mm' }, { t: 'expr', k: 'dz', label: tk('fld.tr_z'), unit: 'mm' });
       break;
     case 'mirror':
-      F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')]] }, { t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' });
+      F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')], ['face', tk('fld.plane_face')]] });
+      // WP-08: aynalama düzlemi düzlemsel bir yüzden
+      if (f.plane === 'face') F.push({ t: 'sel', k: 'planeRef', label: tk('fld.mirror_face'), kind: 'face', single: true });
+      else F.push({ t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' });
       break;
   }
   return F;
@@ -216,7 +242,7 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
     case 'sketch': parts.push(f.plane?.kind === 'face' ? t('hs.on_face') : String(f.plane?.name || '')); parts.push(tn('hs.n_ents', (f.ents || []).length)); break;
     case 'extrude': parts.push(f.extent === 'all' ? t('hs.all') : f.extent === 'face' ? t('hs.to_face') : f.extent === 'body' ? t('hs.to_body') : mm(f.dist)); if (f.dir === 'sym') parts.push(t('hs.sym')); if (f.taper && n(f.taper) !== fmt(0)) parts.push('∠' + n(f.taper) + '°'); parts.push(op(f.op)); break;
     case 'revolve': parts.push(n(f.angle) + '°'); parts.push(op(f.op)); break;
-    case 'hole': parts.push(f.thread?.designation || 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;
+    case 'hole': parts.push(f.thread?.designation ? f.thread.designation + (f.thread.family && f.thread.family !== 'iso' ? ' (Ø' + fmt(f.thread.drill) + ')' : '') : 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;
     case 'fillet': parts.push('R' + n(f.r)); parts.push(cnt('hs.n_edges', f.edges)); break;
     case 'chamfer': parts.push(f.mode === 'two' ? n(f.d) + ' × ' + mm(f.d2) : f.mode === 'angle' ? mm(f.d) + ' × ' + n(f.angle ?? 45) + '°' : mm(f.d)); parts.push(cnt('hs.n_edges', f.edges)); break;
     case 'shell': parts.push(mm(f.t)); parts.push(cnt('hs.n_faces', f.faces)); break;
@@ -227,8 +253,8 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
       parts.push(op(f.op)); break;
     case 'combine': parts.push(t(f.op === 'cut' ? 'op.cut' : f.op === 'intersect' ? 'op.intersect' : 'op.combine_join')); parts.push(cnt('hs.n_tools', f.tools)); break;
     case 'move': parts.push([n(f.dx ?? 0), n(f.dy ?? 0), n(f.dz ?? 0)].join(', ') + ' mm'); if (f.angle && n(f.angle) !== fmt(0)) parts.push(n(f.angle) + '°'); break;
-    case 'pattern': parts.push(f.kind === 'circ' ? '×' + n(f.count) : '×' + n(f.count1) + (f.count2 ? ' × ' + n(f.count2) : '')); break;
-    case 'mirror': parts.push(String(f.plane || '')); break;
+    case 'pattern': parts.push(f.kind === 'circ' ? '×' + n(f.count) : '×' + n(f.count1) + (f.count2 ? ' × ' + n(f.count2) : '')); if (f.kind === 'circ' && f.axis === 'edge') parts.push(t('hs.axis_edge')); break;
+    case 'mirror': parts.push(f.plane === 'face' ? t('hs.on_face') : String(f.plane || '')); break;
     case 'import': parts.push(String(f.format || '').toUpperCase()); break;
     case 'split': case 'splitface': parts.push(f.tool?.kind === 'face' ? t('hs.on_face') : String(f.tool?.name || '') + (f.tool?.offset && n(f.tool.offset) !== fmt(0) ? ' ' + mm(f.tool.offset) : '')); if (f.type === 'splitface') parts.push(cnt('hs.n_faces', f.faces)); break;
     case 'faceop': parts.push(t(f.mode === 'move' ? 'faceop.move' : f.mode === 'delete' ? 'faceop.delete' : 'faceop.offset')); if ((f.mode ?? 'offset') === 'offset') parts.push(mm(f.dist)); parts.push(cnt('hs.n_faces', f.faces)); break;

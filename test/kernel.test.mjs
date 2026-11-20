@@ -560,4 +560,35 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   r = await K8.rebuild({ features: [imp, { id: 'fo', type: 'faceop', mode: 'delete', faces: [iw] }] }); near(r.bodies[0].volume, 24000, 'WP-08 STEP: delik yüzü sil → dolu', 1e-9);
   r = await K8.rebuild({ features: [imp, { id: 'fo', type: 'faceop', mode: 'offset', faces: [itop], dist: '-4' }] }); near(r.bodies[0].volume, vh * 16 / 20, 'WP-08 STEP: üst yüz -4 ofset', 1e-9);
 }
+
+// ------------------------------------------------------------------ WP-08 dilim 4: diş tabloları, yüzden ayna, kenar ekseninden dairesel desen
+{
+  const { THREAD_TABLES } = await import('../src/ui/features.js');
+  const g = (fam, d) => THREAD_TABLES[fam].find((x) => x.designation === d);
+  ok(THREAD_TABLES.iso.every((x) => !x.family || x.family === 'iso') && g('iso', 'M8').drill === 6.75, 'WP-08 diş: ISO kaba M8 matkap 6,75 (eski tabloyla aynı)');
+  ok(g('iso_fine', 'M10x1').drill === 9 && g('iso_fine', 'M12x1.5').drill === 10.5 && g('iso_fine', 'M8x1').pitch === 1, 'WP-08 diş: ISO ince M10x1 → 9, M12x1,5 → 10,5');
+  ok(g('g', 'G1/4').drill === 11.8 && Math.abs(g('g', 'G1/4').pitch - 25.4 / 19) < 1e-4 && g('g', 'G1/2').major === 20.955, 'WP-08 diş: G1/4 matkap 11,8, 19 diş/inç; G1/2 D=20,955');
+  ok(Math.abs(g('npt', '1/4 NPT').drill - 11.1125) < 1e-4 && g('npt', '1/4 NPT').taper && Math.abs(g('npt', '1/2 NPT').major - 21.336) < 1e-4, 'WP-08 diş: 1/4 NPT matkap 7/16 in, konik; 1/2 NPT dış çap 0,840 in');
+  ok(Object.values(THREAD_TABLES).every((T) => T.every((x) => x.drill > 0 && x.drill < x.major && x.pitch > 0)), 'WP-08 diş: tüm tablolarda 0 < matkap < D, adım > 0');
+  const K8 = await initKernel(opencascade, () => wasm);
+  const bx = { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '30', h: '20', op: 'new' };
+  const faceBy = (bid, pred) => { for (let i = 0; i < 64; i++) { let d; try { d = K8.describe({ body: bid, idx: i }, 'face'); } catch (e) { return null; } if (pred(d)) return d; } return null; };
+  await K8.rebuild({ features: [bx] }); const px = faceBy('b', (d) => d.normal && d.normal[0] > 0.99);
+  let r = await K8.rebuild({ features: [bx, { id: 'mi', type: 'mirror', source: { kind: 'body', bodies: ['b'] }, plane: 'face', planeRef: px }] });
+  ok(r.status.mi.ok && r.bodies.length === 2, 'WP-08 yüzden ayna: kopya gövde ' + r.status.mi.error?.code);
+  { const c = r.bodies.find((b) => b.id !== 'b'); near(c?.volume, 24000, 'WP-08 yüzden ayna: hacim', 1e-12); ok(c && Math.abs(c.bbox[0][0] - 40) < 1e-9 && Math.abs(c.bbox[1][0] - 80) < 1e-9, 'WP-08 yüzden ayna: kopya x 40…80'); }
+  r = await K8.rebuild({ features: [bx, { id: 'mi', type: 'mirror', source: { kind: 'body', bodies: ['b'] }, plane: 'face' }] });
+  ok(!r.status.mi.ok && r.bodies.length === 1, 'WP-08 yüzden ayna: yüz yoksa açık hata, belge bozulmaz: ' + r.status.mi.error?.code);
+  // kenar ekseni: kutunun x=40,y=0 dikey kenarı etrafında 4'lü dairesel desen (gövde kopyaları)
+  let ve = null; for (let i = 0; i < 12; i++) { const d = K8.describe({ body: 'b', idx: i }, 'edge'); if ([d.start, d.end].every((p) => Math.abs(p[0] - 40) < 1e-9 && Math.abs(p[1]) < 1e-9)) ve = d; }
+  r = await K8.rebuild({ features: [bx, { id: 'pt', type: 'pattern', kind: 'circ', source: { kind: 'body', bodies: ['b'] }, count: '4', total: '360', axis: 'edge', axisRef: ve }] });
+  ok(r.status.pt.ok && r.bodies.length === 4, 'WP-08 kenar ekseninden desen: 4 gövde ' + r.status.pt.error?.code);
+  { const bb = r.bodies.map((b) => b.bbox); const lo = [0, 1].map((k) => Math.min(...bb.map((x) => x[0][k]))), hi = [0, 1].map((k) => Math.max(...bb.map((x) => x[1][k])));
+    ok(Math.abs(lo[0] - 0) < 1e-6 && Math.abs(hi[0] - 80) < 1e-6 && Math.abs(lo[1] + 40) < 1e-6 && Math.abs(hi[1] - 40) < 1e-6, 'WP-08 kenar ekseninden desen: kopyalar kenar (40,0) çevresinde: ' + JSON.stringify([lo, hi])); }
+  // dairesel kenar ekseni: silindirin üst dairesi → silindir ekseni; silindir dışındaki kutu onun çevresinde döner
+  const cy = { id: 'cy', type: 'primitive', kind: 'cylinder', x: '100', y: '0', z: '0', dia: '10', h: '5', axis: 'Z', op: 'new' };
+  await K8.rebuild({ features: [bx, cy] }); let ce = null; for (let i = 0; i < 3; i++) { const d = K8.describe({ body: 'cy', idx: i }, 'edge'); if (d.geom === 'CIRCLE') ce = d; }
+  r = await K8.rebuild({ features: [bx, cy, { id: 'pt', type: 'pattern', kind: 'circ', source: { kind: 'body', bodies: ['b'] }, count: '2', total: '360', axis: 'edge', axisRef: ce }] });
+  { const c = r.bodies.find((b) => b.id !== 'b' && b.id !== 'cy'); ok(r.status.pt.ok && c && Math.abs(c.bbox[0][0] - 160) < 1e-6 && Math.abs(c.bbox[1][0] - 200) < 1e-6, 'WP-08 dairesel kenar ekseni (silindir x=100): 180° kopya x 160…200 ' + JSON.stringify(c?.bbox)); }
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
