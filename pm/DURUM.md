@@ -1,32 +1,34 @@
-# Mihenk — durum (2026-11-20, üçüncü oturum, sürüyor)
+# Mihenk — durum (2026-11-20, üçüncü oturum sonu) — DURDURULDU (K-040)
 
-Sürüm: kurulu 0.3.0 · `master` = WP-00, 01, 02, 03, 04, 05, 06, 09, 11, 20 (resmi kurulum yok; Actions her birleşmede deneme kurulumu üretir).
-Depo: GitHub `graphiteanimation/mihenk` (özel, ana). Yedek `mihenk.git` bu oturumda eşitlenmedi (oturuma bilgisayar klasörü bağlı değil).
+Sürüm: kurulu 0.3.0 · `master` = WP-00…WP-11 ve WP-20'nin tamamı (0.4'ün bütün yazılım paketleri; resmi kurulum yok, Actions her birleşmede deneme kurulumu üretir).
+Depo: GitHub `graphiteanimation/mihenk` (özel, ana). Yedek `mihenk.git` bu oturumda eşitlenmedi.
 Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARARLAR.md` · WP notları: `pm/wp/`.
+**Kullanıcı durdurdu (K-040): yeni paket, sürüm kapısı ve kendi kendini uyandırma yok. Kullanıcı `Mihenk: devam` yazınca sürer.**
 
-## Biten (bu oturum; her biri bağımsız doğrulandı)
-- WP-04 Arayüz hataları: C-01, 02, 04, 05, 08…12, M-02, U-10, pah ölçü kısıtı + devirler; görünüm küpü tüm yüz/kenar/köşe, sol tuşla döndürme seçeneği (varsayılan kapalı). C-03, C-06, C-07(p) iki ayrı ajanla üretilemedi; koruyucu test eklendi. Arayüz testleri kendi boş portunda; `app.test.py` kararlı.
-- WP-05 Setup'lar arası stok + delikler: setup stok zinciri (O-039), delik dibi = modelden son çıkış, delme çevrimi gruplama (P4 S1 G81/G83/G84 4/14/6 → 2/5/1; Fusion 1/4/1), B-rep delik tanıma (P3 8/8, P4 32/32), serbest parça uyarısı, stok altı payı (O-040). Doğrulama iki turda 4 güvenlik kusuru buldu, hepsi düzeltildi.
-- WP-11 Takım yolu kütüphaneleri raporu (`pm/tasarim/TAKIMYOLU-KUTUPHANELERI.md`, O-038).
-- WP-02 dilim 4–5 (sıra değiştirme, gruplar, klavye, onarım kipi, hesap iptali; O-041), WP-06 (ilk dalma, M kodu sadeleştirme: P3 S1 M5 93 → 8, pah işlemi, açık zincir, tanınan delik seçimi; P4 S1 çevrim 1/4/1 = Fusion; O-043), WP-09 (hizalama izi, koordinat girişi, komut tekrarı, referans ölçü, ilişkisel izdüşüm O-042, görüntü modları).
-- Entegre dalda Linux `npm run test:all` 20/20 adım, 4908 denetim, 0 kalan (sonraki 5 dar düzeltme hedefli testlerle). P3 BLOCK 5/0/0/0, P4 11/0/0/0.
+## Biten (bu oturum; her biri bağımsız doğrulandı, bulgular düzeltildi)
+- WP-04 arayüz hataları · WP-05 setup stok zinciri, delik tanıma, delme gruplama · WP-11 kütüphane raporu (O-038).
+- WP-02 dilim 4–5 Geçmiş (O-041) · WP-06 NC verimi, pah, açık zincir (O-043) · WP-09 çizim konforu, ilişkisel izdüşüm (O-042).
+- WP-07 2D CAM'in kalanı: dairesel ve diş frezeleme, kanal, iz sürme, helis rampa, ön delik, yüzden eksen, bir setup'ta çok A açısı, yuvarlak stok, kesme verisi + hesaplayıcı, keskin kenar pah, setup sheet (O-045).
+- WP-08 modelleme: yüze kadar/konik extrude, pah türleri, teğet zincir, gövde/yüz bölme, yüz taşı/ofsetle/sil, diş tabloları, yüzden ayna, eskiz metni, ifade kuralı (O-044), CSP'de gereksiz kısıt tanısı, bayat hesap sonucu, Örnekler ve günlük menüleri.
+- WP-10 güven altyapısı: test hijyeni (part-h 3,4 GB → 0,7 GB), altın parça seti P1–P4, örnek belgeler, hata günlüğü, NC başlığı model özeti, `pm/KABUL-WINDOWS.md`, sürüm iş akışı (O-046).
 
-## Sürüyor (KILIT)
-- WP-07 (`wp-07`), WP-08 (`wp-08`), WP-10 (`wp-10`) paralel; sözleşmeler `pm/wp/`.
+## Test durumu
+- Son tam `npm run test:all` (entegre dal): 25/27 adım, 5704 geçti, 4 kaldı. O 4 denetim düzeltildi ve hedefli testlerle geçti (kernel 285, sketchops 154, i18n 52, app 408, ui 32). Düzeltme sonrası tam zincir YEREL KOŞULMADI; `master`daki GitHub Actions koşusu bekleniyor (sonraki oturumda ilk iş: sonucu oku).
+- Altın set tabanı: P1 BLOCK 19/0/5, P2 2/20, P3 5/0/0/0, P4 11/0/0/0; tanınan delik 46/46. P1/P2 BLOCK'ları plan/model uyumsuzluğu olarak sınıflandı (P1 S3 `holder_collision` ×2 ayrılamadı).
 
 ## Açık
-- P1/P2 STEP girdileri depoya alındı (`test/compare/P1/in`, `P2/in`); koşu betikleri eski, WP-10'da güncellenip ölçülecek.
-- NSIS DirLeave düzeltmesi ve sabitlenen `choco nsis` sürümü yalnız Windows koşusunda görülür (Actions sonucu okunacak).
-- `test:all` izlenen `test/models/results.json`'ı değiştiriyor; part-h 3,4 GB bellek → WP-10.
-- LGPL/WASM dağıtım biçimi (OpenCAMLib) sürümden önce teyit edilecek.
+- `test:all` özeti "1 bilinen açık" gösterebilir (`iptal` testi; düzeltme WP-08 ile geldi, `IPTAL_KATI` varsayılanı güncellenmedi).
+- Windows'ta doğrulanmayanlar: NSIS kurulumu, `release.yml`, kurulu sürümde `resources\ornekler`, hata kutusu görünümü.
+- LGPL/WASM dağıtım biçimi (OpenCAMLib) 0.6'dan önce teyit edilecek.
 
-## Sıradaki
-1. WP-07, WP-08, WP-10 doğrulama + birleşme → sürüm 0.4 kapısı (Actions + yerel kurulum, `pm/KABUL-WINDOWS.md`) → 0.5 (WP-12 ‖ WP-13 ‖ WP-14).
+## Sıradaki (kullanıcı devam deyince)
+1. `master` Actions sonucunu oku; kırmızıysa onar.
+2. WP-21 (0.4 kapanış devirleri) → sürüm 0.4 kapısı: etiket, Actions, yerel kurulum + `pm/KABUL-WINDOWS.md` (ekran kontrolü izni gerekir).
+3. 0.5: WP-12 ‖ WP-13 ‖ WP-14.
 
 ## Kullanıcıdan beklenen
-- Klasör erişimi verildi (`Documents\Fusion-Klon-Spec`). 0.4 kurulumu ve ekran denemesi için ekran kontrolü izni istenecek; bilgisayar açık ve Claude masaüstü uygulaması çalışır olmalı.
-- İsteğe bağlı: kendi parçaların `Mihenk\altin-parcalar\`; açık varsayımlar `pm/SORULAR.md`.
+- Devam için `Mihenk: devam`. İsteğe bağlı: kendi parçaların `Mihenk\altin-parcalar\`; açık varsayımlar `pm/SORULAR.md`.
 
 ## Notlar
 - Fusion deneme lisansı 23 Kasım 2026'da bitiyor.
-- Yeni oturum mesajı: `Mihenk: devam` (K-039: paket bitince aynı turda sıradaki; tur biterse 1 dk sonra uyanır).
+- Bilgisayar klasörü `Documents\Fusion-Klon-Spec` bu sohbete bağlı; P1/P2 STEP dosyaları depoya alındı.
