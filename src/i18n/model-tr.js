@@ -107,4 +107,6 @@ export default {
   "sk.text_max": "En çok {n} karakter.",
   "about.fonts": "Yazı tipleri",
   "about.third_party": "Üçüncü taraf lisans metinleri uygulama klasöründe licenses/ altındadır (Inter, Inter Regular eskiz yazı tipi, JetBrains Mono: SIL OFL 1.1).",
+  "menu.open_logs": "Günlük klasörünü aç",
+  "menu.examples": "Örnekler",
 };

@@ -6,6 +6,7 @@ import planegcsWasm from '@salusoft89/planegcs/dist/planegcs_dist/planegcs.wasm?
 import { Viewport, THREE, COL } from './viewport.js';
 import { SKO, onSkOptsChange } from './sketch/opts.js';
 import { TEXT_MAX } from './sketch/text.js';
+const EXAMPLES = import.meta.glob('../../ornekler/*.mhnk', { query: '?raw', import: 'default' });
 import { paintFaces } from './viewport-hist.js';
 import { initSolver, solveSketch } from './solver.js';
 import { evalExpr, resolveParams, changedByO044 } from '../shared/expr.js';
@@ -172,6 +173,13 @@ class App {
   // ------------------------------------------------------------ belge
   cloneDoc(d) { return clone(d); }
   vars() { try { return resolveParams(this.doc.params).vars; } catch (e) { return {}; } }
+  // WP-10 devri: örnek belgeler (geliştirmede ve paketlenmiş uygulamada ornekler/*.mhnk derlemeye gömülür; yoksa liste boş, menü gizli)
+  exampleList() { return Object.keys(EXAMPLES).sort().map((p) => ({ key: p.split('/').pop().replace(/\.mhnk$/i, '').replace(/[^\w-]/g, '_'), name: p.split('/').pop().replace(/\.mhnk$/i, ''), path: p })); }
+  async openExample(key) {
+    const ex = this.exampleList().find((x) => x.key === key); if (!ex || this.guard()) return;
+    if (!(await this.confirmDiscard())) return;
+    try { const txt = await EXAMPLES[ex.path](); await this.openBytes(new TextEncoder().encode(txt), ex.name + '.mhnk', null); } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); }
+  }
   async saveViewPrompt() {
     const nm = await promptText(t('vd.name'), ''); if (!nm) return;
     const r = this.viewport.saveNamedView(nm); toast(r.ok ? t('cmd.view_saved', { name: r.name }) : t(r.err), !r.ok);

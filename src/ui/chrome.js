@@ -32,7 +32,7 @@ export function initChrome(app) {
   const cmds = {};            // kimlik → {id, name, icon, kbd, tip, run, off(): neden | null, sk?: yalnız sketch kipi}
   C.cmds = cmds;
   const reg = (id, name, ic, run, o = {}) => { cmds[id] = { id, name, icon: ic, run, ...o }; return cmds[id]; };
-  const label = (c) => t(c.name);
+  const label = (c) => (c.raw != null ? c.raw : t(c.name));
   const reason = (c) => (c.off ? c.off() : null);
 
   // ---------------------------------------------------------------- komut kayıt defteri
@@ -71,6 +71,9 @@ export function initChrome(app) {
   reg('settings', 'menu.settings', 'settings', () => app.showSettings(), { kbd: 'Ctrl+,', tip: 'tip.settings' });
   reg('shortcuts', 'menu.shortcuts', 'keyboard', () => app.showShortcuts());
   reg('about', 'menu.about', 'info', () => app.showAbout());
+  // WP-10 devri: günlük klasörü (yalnız masaüstü kabuğu sağlıyorsa) ve örnek belgeler (ornekler/*.mhnk; yoksa menüde görünmez)
+  reg('open-logs', 'menu.open_logs', 'file-open', () => window.native?.openLogFolder?.());
+  for (const ex of app.exampleList()) reg('ex-' + ex.key, 'menu.examples', 'file-open', () => app.openExample(ex.key), { raw: ex.name });
   reg('home', 'menu.home', 'home', () => app.showWelcome(true));
   reg('palette', 'ui.palette', 'search', () => C.openPalette(), { kbd: 'Ctrl+K', tip: 'tip.palette' });
   feat('sketch', tk('tb.sketch'), 'sketch', 'sketch').run = () => app.startSketch();
@@ -128,9 +131,9 @@ export function initChrome(app) {
   // ---------------------------------------------------------------- başlık şeridi
   const closeMenus = () => { document.querySelectorAll('#menubar .menu.open').forEach((m) => { m.classList.remove('open'); m.querySelector('[data-menu]')?.setAttribute('aria-expanded', 'false'); }); };
   const fileItems = () => [
-    'new', 'open', ['recent'], 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-stl-fine', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
+    'new', 'open', ['recent'], ...(app.exampleList().length ? [{ head: 'menu.examples' }, ...app.exampleList().map((ex) => 'ex-' + ex.key), { sep: 1 }] : []), 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-stl-fine', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
   ];
-  const helpItems = () => ['shortcuts', 'about'];
+  const helpItems = () => ['shortcuts', ...(typeof window.native?.openLogFolder === 'function' ? ['open-logs'] : []), 'about'];
   const viewItems = () => ['fit', 'view-front', 'view-top', 'view-right', 'view-iso', { sep: 1 }, 'vd-shaded', 'vd-wire', 'vd-ghost', { sep: 1 }, 'view-save', 'view-list', 'planes', { sep: 1 }, 'draw-settings'];
   const menuBtn = (c) => { const why = reason(c); const b = h('button', { class: 'mi', role: 'menuitem', 'data-cmd': c.id, 'aria-disabled': why ? 'true' : null, onclick: (e) => { e.stopPropagation(); closeMenus(); C.run(c.id); } },
     h('span', { html: icon(c.icon, 'sm') }), h('span', { text: label(c) }), c.kbd ? h('span', { class: 'kbd', text: c.kbd }) : null); if (why) b.classList.add('is-disabled'); return b; };
@@ -143,6 +146,7 @@ export function initChrome(app) {
     const drop = h('div', { class: 'drop ctxmenu', role: 'menu' });
     for (const it of items) {
       if (it.sep) { drop.append(h('hr')); continue; }
+      if (it.head) { drop.append(h('div', { class: 'mhead', role: 'presentation', 'data-testid': 'menu-head-examples', text: t(it.head) })); continue; }
       if (Array.isArray(it) && it[0] === 'recent') { C.recentMenu = h('div', { class: 'recent-sub', 'data-testid': 'recent-sub' }); drop.append(C.recentMenu); continue; }
       drop.append(menuBtn(cmds[it]));
     }

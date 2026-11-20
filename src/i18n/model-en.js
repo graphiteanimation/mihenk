@@ -107,4 +107,6 @@ export default {
   "sk.text_max": "At most {n} characters.",
   "about.fonts": "Fonts",
   "about.third_party": "Third-party license texts are in the application folder under licenses/ (Inter, Inter Regular sketch font, JetBrains Mono: SIL OFL 1.1).",
+  "menu.open_logs": "Open log folder",
+  "menu.examples": "Examples",
 };
