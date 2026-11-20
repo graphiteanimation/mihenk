@@ -286,6 +286,13 @@ section('2b. yerlesik genel sablonlar ve tezgah ice/disa aktarma');
 }
 
 // ================================================================== 6. kapilar
+{ // T-21b: A.wrap dogrulamasi
+  const g4 = builtinMachines().find((q) => q.axes.A);
+  const withWrap = (w) => ({ ...g4, axes: { ...g4.axes, A: { ...g4.axes.A, wrap: w } } });
+  ok(!checkMachine(withWrap(null)).errors.length && ['shortest', 'signed', '0-360'].every((w) => !checkMachine(withWrap(w)).errors.length), 'A.wrap gecerli degerler (null, shortest, signed, 0-360)');
+  const bw = checkMachine(withWrap('ters')).errors; ok(bw.length === 1 && JSON.stringify(bw[0]).includes('axes.A.wrap'), 'A.wrap gecersiz deger hata: ' + JSON.stringify(bw));
+  ok(checkMachine(withWrap('none')).errors.length === 1, "A.wrap 'none' profil degeri degil");
+}
 section('6. guvenlik kapilari');
 {
   const nw = structuredClone(NEWAY_FIXTURE);

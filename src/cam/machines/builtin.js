@@ -5,6 +5,7 @@
 // Metin alanlari: name kullanici verisidir (cevrilmez); yerlesik sablonlar nameKey ile iki dilde gosterilir.
 import { cerr, issue } from '../geom/err.js';
 
+export const A_WRAP_VALUES = ['shortest', 'signed', '0-360']; // T-21b A kelimesi bicimi (post/engine.js ile ayni)
 const WCS = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1'];
 
 // Genel 3 eksen (Fanuc tarzi): yalniz yapi; tum sayisal degerler kullanici tarafindan girilmeli.
@@ -84,6 +85,7 @@ export function checkMachine(m) {
       else { const idx = { X: 0, Y: 1, Z: 2 }[a.about]; if (idx !== undefined && Math.abs(Math.abs(a.dir[idx]) - 1) > 1e-9) bad(`axes.${k}.dir`, 'parallel to ' + a.about); }
       if (a.limits !== null && a.limits !== undefined && !(Array.isArray(a.limits) && a.limits.length === 2 && a.limits.every(isNum) && a.limits[1] > a.limits[0])) bad(`axes.${k}.limits`, 'null or [min,max]');
       if (a.shortest !== undefined && typeof a.shortest !== 'boolean') bad(`axes.${k}.shortest`, 'boolean');
+      if (a.wrap != null && !A_WRAP_VALUES.includes(a.wrap)) bad(`axes.${k}.wrap`, A_WRAP_VALUES.join('/')); // T-21b (null = shortest bayragindan)
       nn(a.rapid, `axes.${k}.rapid`); nn(a.feedMax, `axes.${k}.feedMax`);
       if (a.clamp != null && (typeof a.clamp !== 'object' || typeof a.clamp.output !== 'boolean')) bad(`axes.${k}.clamp`, 'object');
       if (a.clamp?.output && (typeof a.clamp.lock !== 'string' || typeof a.clamp.unlock !== 'string')) bad(`axes.${k}.clamp`, 'lock/unlock');
