@@ -35,6 +35,7 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 - **K-035** — "0.6 sürümü de dahil herşey bitinceye kadar devam et. kurulumu yap, denemeleri yap, herşeyi yap." Saatte bir zamanlanmış oturum; sürüm kapılarında beklenmez (CALISMA-DUZENI §8).
 - **K-036** — "bu modelin [Fable 5.2] orkestrasyon, yönetim yapmasını istiyorum… diğer modellere ne iş yaptıracağına ve süreci nasıl yöneteceğine karar versin. az token harcamak için gerekli yol neyse öyle çalışsın." CALISMA-DUZENI §9.
 - **K-037** — "0.6 sürümünü bitirip kurup deneyip herşeyiyle bitirmeni istiyorum. bilgisayara kurma ve deneme için gereken izni de vereyim." Zamanlanmış göreve `Documents\Fusion-Klon-Spec` klasörü bağlandı; görev kullanıcının bilgisayarını gerektirir. Her sürüm yayımlanınca yerel kurulum + ekranda kabul listesi (`pm/KABUL-WINDOWS.md`); `TAMAMLANDI` ancak 0.6 yerelde kurulup denendikten sonra. Yarım saatte bir çalıştırma istendi; platformun en kısa aralığı 1 saat, bu yüzden bir oturumda en çok 3 WP paralel yürütülür.
+- **K-038** (2026-11-20) — "Her turun sonunda send_later ile kendine 60 dakika sonrasına \"Mihenk: devam\" kur ve uyanınca beni beklemeden sıradaki iş paketini al." Anlam: oturum her turun sonunda kendine 60 dk sonrası için aynı sohbete `Mihenk: devam` kurar; uyanınca kullanıcı beklenmeden §8 kilit kuralıyla sıradaki "Hazır" WP alınır.
 
 ## Öneriler
 | No | Öneri | Durum |
