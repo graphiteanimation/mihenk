@@ -7,6 +7,9 @@ import { DEFS, DRAW_TOOLS } from './sketch/tools.js';
 import { snapAt, SNAP_LABEL } from './sketch/snap.js';
 import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
+import { COMFORT_METHODS } from './sketch/comfort.js';
+import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
+import { dropEditedLinks, syncRefs } from './sketch/ops.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
@@ -35,6 +38,7 @@ const HINT_KEY = {
   patrect: tk('hint.patrect'), patcirc: tk('hint.patcirc'), move: tk('hint.move'), copy: tk('hint.copy'), rotate: tk('hint.rotate'), scale: tk('hint.scale'), project: tk('hint.project'),
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
+const getEntS = (sk, id) => sk.ents.find((e) => e.id === id);
 const fmt = (v) => fmtNum(Number(v), 3);
 const norm = (a) => { a %= TAU; return a < 0 ? a + TAU : a; };
 const normId = (id) => String(id).replace(/_(b|c|rules)$/, '');
@@ -99,18 +103,19 @@ export class Sketcher {
     this.gMain = new THREE.Group(); this.gPrev = new THREE.Group(); this.root.add(this.gMain, this.gPrev);
     this.vp.editGroup.add(this.root);
     this.ovl = document.createElement('div'); this.ovl.className = 'sk-ovl'; this.ovl.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
-    this.overlayEl.appendChild(this.ovl);
+    this.overlayEl.appendChild(this.ovl); this._cfInit();
     this._prevPtr = this.vp.onPointer; this._prevCam = this.vp.onCamera; this.vp.leftLock++; // eskizde sol tuş çizime ayrılır (sol tuşla döndürme kapalı)
     this.vp.onPointer = (t, e) => this._pointer(t, e);
     this.vp.onCamera = () => { this._prevCam && this._prevCam(); this._onCamera(); };
     this.active = true; this.tool = 'select'; this._resetDraw();
+    this._reprojectOnOpen();
     this.vp.lookAtPlane(plane); this.vp.fit();
     this.setHint(HINT_KEY.select);
     this._refresh();
     const sid = this._sid;
     this._q = this._q.then(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; this._statusDof(r); this._probeSoon(); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
+      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; if (r.ok) syncRefs(this.sk); this._statusDof(r, this._openNote); this._openNote = null; this._probeSoon(); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
       this._refresh();
     });
     return this._q;
@@ -125,7 +130,7 @@ export class Sketcher {
     this._closeInput(); this._closeDialog(); this._hideCtx(); clearTimeout(this._probeT); this._sid++;
     this.active = false;
     for (const g of [this.gMain, this.gPrev]) this._clearGroup(g);
-    this.vp.editGroup.remove(this.root); this.ovl.remove();
+    this._cfDispose(); this.vp.editGroup.remove(this.root); this.ovl.remove();
     this.vp.onPointer = this._prevPtr || null; this.vp.onCamera = this._prevCam || null; this.vp.leftLock = Math.max(0, this.vp.leftLock - 1);
     this.vp.renderer.domElement.style.cursor = '';
     this.selection = []; this._resetDraw(); this.setHint(''); this.vp.dirty = true; this.onChange();
@@ -138,7 +143,7 @@ export class Sketcher {
     this._closeInput(); this._closeDialog(); this._resetDraw();
     const keepSel = DIM_TOOLS.includes(name) || EDIT_TOOLS.includes(name);
     const prevSel = this.selection.slice();
-    this.tool = name;
+    this.tool = name; if (name !== 'select') this._lastTool = name; // Enter/Boşluk son komutu yineler
     this.vp.renderer.domElement.style.cursor = name === 'select' ? 'default' : 'crosshair';
     this.setHint(HINT_KEY[name]);
     if (DIM_TOOLS.includes(name) && this.selection.length) this._dimEval(); else if (name !== 'select' && this.selection.length && !keepSel) this.selection = [];
@@ -166,7 +171,7 @@ export class Sketcher {
   retheme() { if (this.active) { this._renderGL(); this._renderPreview(); this._buildOverlay(); } }
   relang() {
     this.setHint(this._hintSpec); this._status(this._statusSpec);
-    if (this.active) { this._buildOverlay(); this.onChange(); }
+    if (this.active) { this.relangComfort(); this._buildOverlay(); this.onChange(); }
   }
   _statusDof(r, note) {
     if (!this.sk.ents.length) return this._status('sk.empty');
@@ -198,28 +203,31 @@ export class Sketcher {
     const before = this._snapStr();
     const abort = mutate(this.sk);
     if (typeof abort === 'function') { this._restore(before); this._status(abort); this._refresh(); return Promise.resolve({ ok: false, msg: abort() }); }
+    const dropped = dropEditedLinks(this.sk); // izdüşürülen nesne düzenlendiyse (kırp/uzat/böl/taşı/kopya…) kaynak bağı düşer
+    if (dropped) { const n0 = note; note = () => [n0 && n0(), t('sk.proj_unlinked', { n: dropped })].filter(Boolean).join('  ·  '); }
     const entry = { s: before }; this._undo.push(entry); if (this._undo.length > 200) this._undo.shift(); this._redo = [];
     this._refresh();
     const sid = this._sid;
     const run = async () => {
       if (this._sid !== sid || !this.active) return { ok: false };
-      const prev = this._badSet(); let r, mk = null;
+      const prev = this._badSet(); let r, mk = null, over = false;
       try { r = await solveSketch(this.sk, this.getVars()); } catch (e) { r = { ok: false, errors: [toErr(e)] }; }
       if (this._sid !== sid || !this.active) return { ok: false };
       const newBad = [...(r.conflicting || []), ...(r.redundant || [])].map(normId).filter((id) => !prev.has(id));
       const K = () => ({ kind: t(kind) });
       const lst = () => { const l = this._badLabels(r); return l.length ? ' ' + t('sk.conflict_list', { list: l.join('; ') }) : ''; };
       if (r.errors && r.errors.length) { const er = r.errors[0]; mk = () => errText(er); }
-      else if (!r.ok) mk = r.conflicting && r.conflicting.length ? (strict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.conflict_undone', K()) + lst()) : () => t('sk.no_solution', K());
+      else if (!r.ok) { over = !!(strict && r.conflicting && r.conflicting.length); mk = r.conflicting && r.conflicting.length ? (strict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.conflict_undone', K()) + lst()) : () => t('sk.no_solution', K()); }
       else if (strict && newBad.length) {
+        over = true;
         const conflict = (r.conflicting || []).map(normId).some((id) => !prev.has(id));
         mk = conflict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.redundant_con', K()) + lst();
       }
       if (mk) {
         this._restore(before); const i = this._undo.indexOf(entry); if (i >= 0) this._undo.splice(i, 1);
-        this._resetDraw(); this._status(mk); this._refresh(); return { ok: false, msg: mk() };
+        this._resetDraw(); this._status(mk); this._refresh(); return { ok: false, msg: mk(), over };
       }
-      this.lastSolve = r; this._statusDof(r, note); this._probeSoon(); this._refresh(); return { ok: true };
+      this.lastSolve = r; syncRefs(this.sk); this._statusDof(r, note); this._probeSoon(); this._refresh(); return { ok: true };
     };
     const p = this._q.then(run, run); this._q = p.catch(() => {}); return p;
   }
@@ -227,7 +235,7 @@ export class Sketcher {
     const sid = this._sid;
     this._q = this._q.then(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const r = await solveSketch(this.sk, this.getVars()); if (r.ok) { this.lastSolve = r; this._statusDof(r); this._probeSoon(); } } catch (e) {}
+      try { const r = await solveSketch(this.sk, this.getVars()); if (r.ok) { this.lastSolve = r; syncRefs(this.sk); this._statusDof(r); this._probeSoon(); } } catch (e) {}
       this._refresh();
     });
   }
@@ -249,13 +257,19 @@ export class Sketcher {
     if (s.pid) return s.pid;
     const id = this._newPt(s.x, s.y);
     const okOn = (eid) => { const e = this.sk.ents.find((x) => x.id === eid); return e && e.type !== 'spline' && e.type !== 'ellarc' && e.type !== 'point'; };
+    if (!autoOn('on') && s.kind !== 'mid') return id; // otomatik "nesne üstünde" kapalı: yalnız nokta konur
     if (s.kind === 'int' && s.ents) { for (const e of s.ents) if (okOn(e)) this._addCon('pointOn', id, e); }
-    else if (s.kind === 'mid' && s.ent) { const e = this.sk.ents.find((x) => x.id === s.ent); if (e && e.type === 'line') this._addCon('midpoint', id, s.ent); else if (okOn(s.ent)) this._addCon('pointOn', id, s.ent); }
+    else if (s.kind === 'quad' && s.ent) { // çeyrek nokta: daire/yayın üstünde ve merkezle yatay/dikey hizada
+      const e = this.sk.ents.find((x) => x.id === s.ent); if (okOn(s.ent)) this._addCon('pointOn', id, s.ent);
+      if (e && (e.type === 'circle' || e.type === 'arc') && e.c) this._addCon(s.qi % 2 === 0 ? 'horizontal_pp' : 'vertical_pp', id, e.c);
+    }
+    else if (s.kind === 'mid' && s.ent) { const e = this.sk.ents.find((x) => x.id === s.ent); if (e && e.type === 'line' && autoOn('mid')) this._addCon('midpoint', id, s.ent); else if (okOn(s.ent) && autoOn('on')) this._addCon('pointOn', id, s.ent); }
     else if (s.ent && okOn(s.ent)) this._addCon('pointOn', id, s.ent);
     return id;
   }
   _alignEnd(st, s) {
-    if (s.pid || s.ent) return s;
+    if (s.pid || s.ent || !autoOn('hv')) return s;
+    if (s.exact) { const ex = s.x - st.x, ey = s.y - st.y; return autoOn('hv') && Math.hypot(ex, ey) > 1e-9 ? (Math.abs(ey) < 1e-9 ? { ...s, align: 'h' } : Math.abs(ex) < 1e-9 ? { ...s, align: 'v' } : s) : s; } // yazılan koordinat: kaydırma yok, tam yatay/dikey ise kısıt
     const dx = s.x - st.x, dy = s.y - st.y; if (Math.hypot(dx, dy) < 1e-9) return s;
     const ang = Math.atan2(Math.abs(dy), Math.abs(dx)) / DEG;
     if (ang < ANG_TOL) return { ...s, y: st.y, align: 'h' };
@@ -265,13 +279,18 @@ export class Sketcher {
 
   // ---------- yakalama / seçme ----------
   _hit(loc) {
-    const tol = SNAP_PX * this.vp.worldPerPixel(); let best = null;
-    for (const [id, p] of Object.entries(this.sk.points)) { const d = Math.hypot(p.x - loc[0], p.y - loc[1]); if (d <= tol && (!best || d < best.d)) best = { kind: 'point', id, d }; }
+    const tol = SNAP_PX * this.vp.worldPerPixel(); let best = null; const flt = this.tool === 'select'; // seçim filtresi yalnız Seç aracında
+    if (!flt || selOn('point')) for (const [id, p] of Object.entries(this.sk.points)) { const d = Math.hypot(p.x - loc[0], p.y - loc[1]); if (d <= tol && (!best || d < best.d)) best = { kind: 'point', id, d }; }
     if (best) return best;
-    for (const e of this.sk.ents) { if (e.type === 'point') continue; const r = entDist(this.sk, e, loc); if (r && r.d <= tol && (!best || r.d < best.d)) best = { kind: 'ent', id: e.id, d: r.d, x: r.x, y: r.y }; }
+    for (const e of this.sk.ents) { if (e.type === 'point') continue; if (flt && !selOn(selClass('ent', e))) continue; const r = entDist(this.sk, e, loc); if (r && r.d <= tol && (!best || r.d < best.d)) best = { kind: 'ent', id: e.id, d: r.d, x: r.x, y: r.y }; }
     return best;
   }
-  _snapAt(loc, ev, from) { return snapAt(this, loc, ev, from || this._snapFrom()); }
+  _snapAt(loc, ev, from) {
+    const s = snapAt(this, loc, ev, from || this._snapFrom());
+    // otomatik "çakışık" kapalıysa mevcut noktaya yakalanan çizim noktası paylaşılmaz (konum aynı, yeni nokta, kısıt yok)
+    if (s.pid && !autoOn('coin') && !EDIT_TOOLS.includes(this.tool) && this.tool !== 'select' && !DIM_TOOLS.includes(this.tool)) { const { pid, ...r } = s; return r; }
+    return s;
+  }
   _snapFrom() { // teğet/dik yakalama için çizilmekte olan çizginin başlangıcı
     if (this.tool === 'line' && this._ln) return [this._ln.start.x, this._ln.start.y];
     return null;
@@ -315,14 +334,19 @@ export class Sketcher {
     if (DIM_TOOLS.includes(t)) return this._dimDown(loc, ev);
     if (EDIT_TOOLS.includes(t)) return this._editDown(loc, ev);
     const s = this._snapAt(loc, ev);
-    if (t === 'line') this._lineClick(s);
-    else if (t === 'rect') this._rectClick(s);
-    else if (t === 'circle') this._circleClick(s);
-    else if (t === 'arc') this._arcClick(s);
-    else if (t === 'point') this._pointClick(s);
-    else if (t === 'spline') this._splineClick(s);
-    else if (DEFS[t]) this._dsClick(s);
+    this._clickWith(s);
     this._renderPreview();
+  }
+  // Çizim aracına hazır bir yakalama sonucunu "tıklama" olarak verir (fare ve koordinat girişi ortak kullanır)
+  _clickWith(s) {
+    const t = this.tool;
+    if (t === 'line') return this._lineClick(s);
+    if (t === 'rect') return this._rectClick(s);
+    if (t === 'circle') return this._circleClick(s);
+    if (t === 'arc') return this._arcClick(s);
+    if (t === 'point') return this._pointClick(s);
+    if (t === 'spline') return this._splineClick(s);
+    if (DEFS[t]) return this._dsClick(s);
   }
   _move(loc, ev) {
     const t = this.tool;
@@ -412,7 +436,7 @@ export class Sketcher {
     if (!b.active) { if (!b.shift && this.selection.length) this._setSel([]); return; }
     const box = [Math.min(b.a[0], loc[0]), Math.min(b.a[1], loc[1]), Math.max(b.a[0], loc[0]), Math.max(b.a[1], loc[1])];
     const r = boxSelect(this.sk, box, !b.touch);
-    const items = [...r.ents.map((id) => ({ kind: 'ent', id })), ...r.pts.map((id) => ({ kind: 'point', id }))];
+    const items = [...r.ents.filter((id) => selOn(selClass('ent', getEntS(this.sk, id)))).map((id) => ({ kind: 'ent', id })), ...(selOn('point') ? r.pts : []).map((id) => ({ kind: 'point', id }))];
     const merged = b.shift ? [...this.selection, ...items.filter((x) => !this._isSel(x))] : items;
     this._setSel(merged); this._status(() => t('sk.box_selected', { n: items.length, mode: t(b.touch ? 'sk.box_touch' : 'sk.box_contain') }));
   }
@@ -446,7 +470,7 @@ export class Sketcher {
       if (!d.moved) return;
       const r = await solveSketch(this.sk, this.getVars());
       if (!r.ok) { this._restore(d.before); this._status('sk.drag_failed'); }
-      else { this._undo.push({ s: d.before }); this._redo = []; this.lastSolve = r; this._statusDof(r); this._probeSoon(); }
+      else { this._undo.push({ s: d.before }); this._redo = []; this.lastSolve = r; syncRefs(this.sk); this._statusDof(r); this._probeSoon(); }
       this._refresh();
     });
   }
@@ -466,7 +490,7 @@ export class Sketcher {
       bId = this._ptFor(s);
       const l = this._addEnt({ type: 'line', a: aId, b: bId });
       if (s.align === 'h') this._addCon('horizontal', l); else if (s.align === 'v') this._addCon('vertical', l);
-      if (s.kind === 'tan' && s.ent) this._addCon('tangent', l, s.ent); else if (s.kind === 'perp' && s.ent && sk.ents.find((e) => e.id === s.ent)?.type === 'line') this._addCon('perpendicular', l, s.ent);
+      if (s.kind === 'tan' && s.ent && autoOn('tan')) this._addCon('tangent', l, s.ent); else if (s.kind === 'perp' && autoOn('perp') && s.ent && sk.ents.find((e) => e.id === s.ent)?.type === 'line') this._addCon('perpendicular', l, s.ent);
       st.lastEnt = l;
     }, { kind: tk('sk.kind.line') });
     st.n++;
@@ -543,10 +567,11 @@ export class Sketcher {
   deleteSelection() {
     if (!this.active) return;
     if (!this.selection.length) return this._status('sk.pick_first');
-    const items = this.selection.slice(); let hadO = false;
+    const items = this.selection.filter((s) => this._selAllowed(s)); let hadO = false; // seçim filtresi kapalı türler silinmez
+    if (!items.length) return this._status('sk.sel_filtered');
     if (items.every((i) => i.kind === 'point' && i.id === 'O')) return this._status('sk.origin_nodelete');
     for (const i of items) if (i.kind === 'point' && i.id === 'O') hadO = true;
-    this.selection = []; this.hover = null;
+    this.selection = this.selection.filter((s) => !items.includes(s)); this.hover = null;
     const res = this._apply((sk) => this._deleteItems(sk, items), { kind: tk('sk.kind.delete') });
     if (hadO) this._status('sk.origin_partial');
     this.onChange(); return res;
@@ -731,7 +756,7 @@ export class Sketcher {
     if (ex) { this._status('sk.dim_exists'); this._editDim(ex.id); return 'ok'; }
     this._openInput({
       anchor: spec.anchor, text: fmt(spec.value), label: nameOf(spec.type),
-      submit: (txt) => this._dimSubmit(spec, txt),
+      submit: (txt, asRef) => this._dimSubmit(spec, txt, asRef),
     });
     this._status('sk.dim_prompt', { name: nameOf(spec.type) });
     return 'ok';
@@ -742,11 +767,17 @@ export class Sketcher {
     if (type === 'angle' && (v === 0 || Math.abs(v) >= 360)) return { err: t('sk.angle_range') };
     return { v };
   }
-  async _dimSubmit(spec, txt) {
+  async _dimSubmit(spec, txt, asRef = false) {
     const e = this._evalDim(spec.type, txt); if (e.err) { this._status(() => e.err); return e.err; }
     this.selection = []; this.onChange();
+    // referans (sürülen) ölçü: değeri çözümden değil geometriden okunur, çözücüyü kısıtlamaz
+    const addRef = () => this._apply((sk) => { const c = { type: spec.type, a: spec.a, expr: '0', ref: true }; if (spec.b !== undefined) c.b = spec.b; const m = measureDim(sk, c); if (Number.isFinite(m)) c.expr = String(+m.toFixed(6)); this._addCon(c.type, c.a, c.b, { expr: c.expr, ref: true }); }, { kind: tk('sk.kind.dim') });
+    if (asRef) { const r = await addRef(); if (r.ok) this._status('sk.dim_made_ref'); return r.ok ? null : r.msg; }
     const r = await this._apply((sk) => { this._addCon(spec.type, spec.a, spec.b, { expr: String(txt).trim() }); }, { strict: true, kind: tk('sk.kind.dim') });
-    return r.ok ? null : r.msg;
+    if (r.ok) return null;
+    if (r.over && SKO.autoRef) { const r2 = await addRef(); if (r2.ok) { this._status('sk.dim_made_ref'); return null; } }
+    if (r.over) { const m = r.msg; this._status(() => m + ' ' + t('sk.over_hint')); }
+    return r.msg;
   }
   _editDim(id) {
     const c = this.sk.cons.find((x) => x.id === id); if (!c) return;
@@ -770,7 +801,7 @@ export class Sketcher {
       if (ev.key === 'Escape') { this._closeInput(); this._setSel([]); }
       else if (ev.key === 'Enter') {
         ev.preventDefault(); if (busy) return; busy = true;
-        const err = await submit(inp.value); busy = false;
+        const err = await submit(inp.value, ev.ctrlKey || ev.metaKey); busy = false; // Ctrl+Enter: referans ölçü olarak ekle
         if (err) inp.classList.add('bad'); else this._closeInput();
       }
     });
@@ -812,12 +843,14 @@ export class Sketcher {
       else return false;
       return done();
     }
-    if (k === 'Enter') { if (this._sp) { this._finishSpline(); return done(); } if (this._mir && this._mir.phase === 1) { this._mirNext(); return done(); } return false; }
+    if (k === 'Enter') { if (this._sp) { this._finishSpline(); return done(); } if (this._mir && this._mir.phase === 1) { this._mirNext(); return done(); } if (this._repeatLast(t0)) return done(); return false; }
+    if (k === ' ' && this._repeatLast(t0)) return done();
     if (k === 'Delete' || k === 'Backspace') { this.deleteSelection(); return done(); }
     // sayısal giriş: çizerken uzunluk/açı yazılır
     if (/^[0-9.,]$/.test(k) && this._numericStart(k)) return done();
     // C-07: harf kısayolları düzen bağımsız: Latin olmayan düzende (ör. 'з') fiziksel tuş koduna (KeyP) düşülür
     let lk = k.toLowerCase(); if (!/^[a-z]$/.test(lk) && /^Key[A-Z]$/.test(ev.code || '')) lk = ev.code.slice(3).toLowerCase();
+    if (lk === 'n' && this._coordStart()) return done(); // N: koordinat girişi (mutlak X,Y ya da bağıl ΔX,ΔY)
     if (this._ln && this.tool === 'line' && (lk === 'a' || lk === 'l')) { this.chainMode(lk === 'a' ? 'arc' : 'line'); return done(); }
     const map = { l: 'line', r: 'rect', c: 'circle', a: 'arc', d: 'dim', p: 'point', t: 'trim', x: 'extend', k: 'break', o: 'offset', q: 'fillet', w: 'chamfer', m: 'mirror', g: 'polygon', u: 'slot', y: 'ellipse', b: 'spline', j: 'project' };
     const shiftMap = { r: 'rectc', c: 'circle3', a: 'arc3' };
@@ -850,11 +883,12 @@ export class Sketcher {
     const isSel = (k, id) => this.selection.some((s) => s.kind === k && s.id === id), isHov = (k, id) => this.hover && this.hover.kind === k && this.hover.id === id;
     for (const s of sketchPolylines(sk)) {
       const e = s.e, sel = isSel('ent', e.id), hov = isHov('ent', e.id);
-      const color = sel ? COL.cons : hov ? COL.hover : e.cons ? COL.sketchDim : entDark(e) ? COL.dark : COL.sketch;
+      const lost = !!(e.proj && e.proj.lost); // kaynağını yitirmiş izdüşüm: ayrı renk ve sık kesikli çizgi
+      const color = sel ? COL.cons : hov ? COL.hover : lost ? COL.err : e.cons ? COL.sketchDim : entDark(e) ? COL.dark : COL.sketch;
       const geo = new THREE.BufferGeometry().setFromPoints(s.pts.map((p) => new THREE.Vector3(p[0], p[1], 0)));
-      const mat = e.cons ? new THREE.LineDashedMaterial({ color, dashSize: 7 * wpp, gapSize: 4 * wpp, depthTest: false }) : new THREE.LineBasicMaterial({ color, depthTest: false });
+      const mat = e.cons ? new THREE.LineDashedMaterial({ color, dashSize: (lost ? 2.5 : 7) * wpp, gapSize: (lost ? 3 : 4) * wpp, depthTest: false }) : new THREE.LineBasicMaterial({ color, depthTest: false });
       const line = new THREE.Line(geo, mat); if (e.cons) line.computeLineDistances();
-      line.renderOrder = 4; line.userData.ent = e.id; this.gMain.add(line);
+      line.renderOrder = 4; line.userData.ent = e.id; if (lost) line.userData.lost = true; this.gMain.add(line);
     }
     const pos = [], col = [], c = new THREE.Color();
     for (const [id, p] of Object.entries(sk.points)) {
@@ -907,7 +941,7 @@ export class Sketcher {
       }
     }
     // yakalama işareti (uç, orta, merkez, kesişim, teğet, dik, nesne üstü)
-    this._showSnap(s);
+    this._showSnap(s); this._drawTraces(s);
     this._tipLoc = [s.x, s.y];
     if (tip) { this._showTip(tip); } else this._hideTip();
     this.vp.dirty = true;
@@ -959,7 +993,7 @@ export class Sketcher {
   }
   _buildOverlay() {
     if (!this.active) return;
-    for (const el of [...this.ovl.children]) if (el !== this._input && el !== this._tip && el !== this._snapEl && el !== this._dlg && el !== this._ctxEl) el.remove();
+    for (const el of [...this.ovl.children]) if (el !== this._input && el !== this._tip && el !== this._snapEl && el !== this._dlg && el !== this._ctxEl && el !== this._cfEl) el.remove();
     this._ovEls = [];
     for (const c of this.sk.cons) {
       if (!conRefs(c).every((r) => r in this.sk.points || this.sk.ents.some((e) => e.id === r))) continue;
@@ -1025,4 +1059,4 @@ export class Sketcher {
   }
 }
 
-Object.assign(Sketcher.prototype, EDIT_METHODS);
+Object.assign(Sketcher.prototype, EDIT_METHODS, COMFORT_METHODS);

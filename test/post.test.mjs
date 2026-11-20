@@ -334,5 +334,80 @@ console.log('7. T-21b: A kelimesi bicimi profilden (A.wrap)');
   ok(back.sections.map((q) => q.setup.aAngle).join() === '0,90,-90,0', 'geri okunan A: ' + back.sections.map((q) => q.setup.aAngle).join());
 }
 
+console.log('9. WP-06 T-07 ardisik islemlerde mil/sogutma tekrari yok; T-18 yorum karakter eslemesi');
+{
+  const sm = S.surfaceSample().program; const B = sm.sections[0]; const M = S.testMachine();
+  const sec = (i, over = {}, setupOver = {}) => ({ setup: { ...B.setup, ...setupOver }, toolpath: { ...B.toolpath, opId: 'f' + i, opName: 'Yuzey ' + i, ...over } });
+  const run = (secs, o = {}) => { const prog = { ...sm, sections: secs }; const r = postProgram(prog, M, { ...OPTS, ...o }); return { r, lines: r.lines, cnt: (re) => r.lines.filter((l) => re.test(l)).length, back: readNC(r.text, { machine: M, props: o.props }).program }; };
+  const count = (lines, re) => lines.filter((l) => re.test(l)).length;
+  const S3 = [sec(1), sec(2), sec(3)];
+  { // ayni takim, devir, sogutma, setup: mil ve sogutma bir kez
+    const x = run(S3);
+    ok(x.cnt(/^M5$/) === 1 && x.cnt(/^M9$/) === 1, 'T-07: ayni takim/devir/sogutma: M5 ve M9 yalniz program sonunda: M5 ' + x.cnt(/^M5$/) + ' M9 ' + x.cnt(/^M9$/));
+    ok(x.cnt(/\bM8\b/) === 1 && x.cnt(/^S2500 M3$/) === 1 && x.cnt(/\bM6\b/) === 1, 'T-07: M8, S2500 M3, T M6 birer kez: ' + [x.cnt(/\bM8\b/), x.cnt(/^S2500 M3$/), x.cnt(/\bM6\b/)]);
+    ok(x.cnt(/^\(OP \d:/) === 3 && x.cnt(/^G43 H/) === 3, 'T-07: her islemde yorum ve G43 H yazilir (G28 Z0 G49 iptal eder): ' + x.cnt(/^G43 H/));
+    ok(x.back.sections.length === 3 && x.back.sections.every((q) => q.toolpath.rpm === 2500 && q.toolpath.coolant === 'flood' && q.toolpath.tool.number === B.toolpath.tool.number), "T-07: geri okuma: 3 bolum, devir/sogutma/takim modal tasinir");
+  }
+  { // yalniz devir degisir: M5 yok, yalniz S
+    const x = run([sec(1), sec(2, { rpm: 3000 }), sec(3, { rpm: 3000 })]);
+    ok(x.cnt(/^M5$/) === 1 && x.cnt(/^S3000$/) === 1 && x.cnt(/^S2500 M3$/) === 1 && x.cnt(/\bM8\b/) === 1, 'T-07: yalniz devir degisti: M5 yok, yalniz S3000 yazilir: ' + [x.cnt(/^M5$/), x.cnt(/^S3000$/)]);
+    ok(x.back.sections.map((q) => q.toolpath.rpm).join() === '2500,3000,3000', 'T-07: geri okuma devirleri: ' + x.back.sections.map((q) => q.toolpath.rpm));
+  }
+  { // yalniz sogutma degisir: M9 + yeni kod, mil acik
+    const x = run([sec(1), sec(2, { coolant: 'mist' })], { props: { coolantCodes: { flood: 'M8', mist: 'M7', air: null, through: null, off: 'M9' } } });
+    const i9 = x.lines.findIndex((l, k) => /^M9$/.test(l) && k < x.lines.length - 4);
+    ok(i9 > 0 && x.cnt(/^M5$/) === 1 && x.cnt(/\bM7\b/) === 1 && x.cnt(/\bM8\b/) === 1, 'T-07: yalniz sogutma degisti: M9 + M7, mil kapanmaz: ' + [i9, x.cnt(/^M5$/), x.cnt(/\bM7\b/)]);
+    ok(x.back.sections.map((q) => q.toolpath.coolant).join() === 'flood,mist', 'T-07: geri okuma sogutmalar: ' + x.back.sections.map((q) => q.toolpath.coolant));
+  }
+  { // takim degisir: tam dizi
+    const t2 = { ...B.toolpath.tool, number: 22, H: 22, D: 22 };
+    const x = run([sec(1), sec(2, { tool: t2 })]);
+    ok(x.cnt(/^M5$/) === 2 && x.cnt(/^M9$/) === 2 && x.cnt(/\bM6\b/) === 2 && x.cnt(/\bM8\b/) === 2 && x.cnt(/^S2500 M3$/) === 2, 'T-07: takim degisince tam dizi (M5, M9, M6, S M3, M8): ' + [x.cnt(/^M5$/), x.cnt(/\bM6\b/), x.cnt(/\bM8\b/)]);
+  }
+  { // ayni takim ama farkli A acisi: mil ve sogutma durdurulur (donmeden once)
+    const x = run([sec(1), sec(2, {}, { aAngle: 90 })]);
+    ok(x.cnt(/^M5$/) === 2 && x.cnt(/^M9$/) === 2, 'T-07: ayni takim, farkli setup (A): mil/sogutma tekrar baslatilir: ' + [x.cnt(/^M5$/), x.cnt(/^M9$/)]);
+    const y = run([sec(1), sec(2, {}, { workOffset: { kind: 'G56' } })]);
+    ok(y.cnt(/^M5$/) === 2, 'T-07: ayni takim, farkli is koordinati: tam dizi');
+  }
+  { // mil yonu degisir: once M5
+    const x = run([sec(1), sec(2, { spindleDir: 'ccw' })]);
+    ok(x.cnt(/^M5$/) === 2 && x.cnt(/^S2500 M4$/) === 1, 'T-07: mil yonu degisince M5 + S M4: ' + [x.cnt(/^M5$/), x.cnt(/^S2500 M4$/)]);
+  }
+  // opsiyonel durdurma her islemde korunur
+  { const x = run(S3, { props: { optionalStop: true } }); ok(x.cnt(/^M01$/) === 3, 'T-07: optionalStop her islemde M01: ' + x.cnt(/^M01$/)); }
+  // durum makinesi: M00/M01 satirinda mil ve sogutma KAPALI (sadelestirme durdurma iceren gecislerde uygulanmaz)
+  { const x = run(S3, { props: { optionalStop: true } }); let spin = false, cool = false, bad = [];
+    x.lines.forEach((l, i) => { const w = l.split(/\s+/); if (w.some((t) => /^M0?[34]$/.test(t))) spin = true; if (w.includes('M5') || w.includes('M05')) spin = false; if (w.includes('M8') || w.includes('M08')) cool = true; if (w.includes('M9') || w.includes('M09')) cool = false; if (w.includes('M01') || w.includes('M00')) { if (spin || cool) bad.push(i + ':' + l); } });
+    ok(bad.length === 0, 'T-07: M01 satirinda mil/sogutma kapali: ' + bad.join(','));
+    ok(x.cnt(/^M5$/) === 3 && x.cnt(/^M9$/) === 3 && x.cnt(/^S2500 M3$/) === 3 && x.cnt(/\bM8\b/) === 3, 'T-07: durmali programda her gecis M5/M9 + S M3/M8 yeniden: ' + [x.cnt(/^M5$/), x.cnt(/^M9$/), x.cnt(/^S2500 M3$/), x.cnt(/\bM8\b/)]); }
+  // T-18
+  ok(sanitizeComment('Ø12 mm² 10³ µm ø5') === 'D12 mm2 103 um D5', 'T-18: ², ³, Ø/ø, µ eslemesi: ' + sanitizeComment('Ø12 mm² 10³ µm ø5'));
+  ok(!sanitizeComment('Ø6 R² ³ µ ± ≈').includes('?'), "T-18: bu karakterler '?' olmaz: " + sanitizeComment('Ø6 R² ³ µ ± ≈'));
+  { const x = run([sec(1, { opName: 'Ø8 kanal 5µm mm²' })]); ok(x.lines.some((l) => l.includes('D8 kanal 5um mm2')) && !x.lines.some((l) => /^\(OP.*\?/.test(l)), 'T-18: NC islem yorumunda ? yok'); }
+}
+
+
+console.log('10. WP-06 R altinda cok noktali G98 (returnTo clearance): IR + post + okuyucu');
+{
+  const M = S.testMachine(); const dr = S.drillSample().program; const B = dr.sections.find((x) => x.toolpath.opId === 'drl');
+  const mkTp = (over) => ({ ...B.toolpath, moves: [mk.rapid(-30, 0, 20), mk.cycle({ cycle: 'peck', points: [[-30, 0], [-10, 0], [10, 0]], top: 0, bottom: -20, retract: 5, clearance: 20, peck: 4, f: 200, ...over }), mk.rapid(10, 0, 20)] });
+  const nc = (over) => { const prog = { ...dr, sections: [{ setup: B.setup, toolpath: mkTp(over) }] }; return postProgram(prog, M, OPTS); };
+  const g99 = nc({}).lines.filter((l) => /^(G9[89]|X|Y|\(?)/.test(l) && /G9[89]|^X|^Y/.test(l));
+  const g98 = nc({ returnTo: 'clearance' }).lines.filter((l) => /G9[89]|^X-?\d|^G98|^G99/.test(l));
+  ok(nc({}).lines.some((l) => /G99/.test(l)) && nc({}).lines.filter((l) => /G98/.test(l)).length === 1, 'G99 gecisli cevrim (varsayilan): ilk nokta G99, son G98: ' + g99.join(' | '));
+  ok(!nc({ returnTo: 'clearance' }).lines.some((l) => /G99/.test(l)) && nc({ returnTo: 'clearance' }).lines.filter((l) => /G83|G73/.test(l)).length === 1, 'returnTo clearance: tek cevrim, hic G99 yok (her nokta G98): ' + g98.join(' | '));
+  const res = nc({ returnTo: 'clearance' }); const rb = readNC(res.text, { machine: M }).program; const cy = rb.sections[0].toolpath.moves.find((m) => m.t === 'cycle');
+  ok(cy.points.length === 3 && cy.returnTo === 'clearance', 'okuyucu: tum noktalar G98 -> returnTo clearance geri okunur: ' + cy.returnTo);
+  const cmp = compareToolpaths(mkTp({ returnTo: 'clearance' }), rb.sections[0].toolpath); ok(cmp.equal === true, 'IR <-> NC karsilastirma esit: ' + JSON.stringify(cmp));
+  const resG99 = readNC(nc({}).text, { machine: M }).program.sections[0].toolpath.moves.find((m) => m.t === 'cycle'); ok(resG99.returnTo === undefined && resG99.points.length === 3, 'G99 gecisli cevrim returnTo tasimaz');
+  ok(compareToolpaths(mkTp({ returnTo: 'clearance' }), mkTp({})).diffs.some((x) => /returnTo/.test(x)), 'karsilastirma returnTo farkini yakalar');
+  throwsCode(() => validateToolpath(mkTp({ returnTo: 'x' })), 'cam.ir.field', 'gecersiz returnTo reddedilir');
+  const cyc = mk.cycle({ cycle: 'drill', points: [[0, 0], [10, 0]], top: 0, bottom: -5, retract: 2, clearance: 20, f: 100, returnTo: 'clearance' }); ok(cyc.returnTo === 'clearance', 'IR cevrimi returnTo tasir');
+  // acik hareket (cannedCycles kapali): ara noktalarda baslangic duzlemine donus
+  const MM = S.testMachine({ props: { cannedCycles: false } }); const o2 = postProgram({ ...dr, sections: [{ setup: B.setup, toolpath: mkTp({ returnTo: 'clearance', cycle: 'drill', peck: undefined }) }] }, MM, OPTS);
+  ok(o2.lines.filter((l) => /^G0 Z20\./.test(l)).length >= 3, 'cannedCycles kapali: her nokta sonrasi Z20 (baslangic duzlemi): ' + o2.lines.filter((l) => /^G0 Z/.test(l)).join(' | '));
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

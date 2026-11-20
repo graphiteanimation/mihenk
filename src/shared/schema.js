@@ -77,7 +77,7 @@ const COOL = ['flood', 'mist', 'air', 'through', 'off'];
 const camTool = obj({
   id: idStr, number: posInt(), lengthOffset: posInt(), diaOffset: nullable(posInt()),
   type: oneOf(['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore']),
-  dia: camNum(0, 2000), cornerR: camNum(0, 1000), tipAngle: camNum(0, 180), fluteLen: camNum(0), bodyLen: camNum(0), shaftDia: camNum(0, 2000),
+  dia: camNum(0, 2000), cornerR: camNum(0, 1000), tipAngle: camNum(0, 180), fluteLen: camNum(0), bodyLen: camNum(0), shaftDia: camNum(0, 2000), tipDia: camNum(0, 2000),
   flutes: posInt(100), centerCutting: bool(), pitch: camNum(0, 100), holder: nullable(obj({ dia: camNum(0), len: camNum(0) })),
   material: str(LIMITS.shortStr), note: str(), name: str(LIMITS.shortStr),
   presets: arrOf(obj({ name: str(LIMITS.shortStr), rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), stepdown: camNum(0), stepover: camNum(0), coolant: oneOf(COOL) }), CAM_LIMITS.presets),
@@ -85,19 +85,20 @@ const camTool = obj({
 const axisSpec = obj({ kind: oneOf(['base', 'face']), dir: oneOf(['+X', '-X', '+Y', '-Y', '+Z', '-Z']), ref: obj(), flip: bool() });
 const heightRef = obj({ from: oneOf(['stockTop', 'stockBottom', 'modelTop', 'modelBottom', 'selection', 'abs']), off: camNum() });
 const camOp = obj({
-  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
+  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
   rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), coolant: oneOf(COOL), suppressed: bool(),
   heights: obj({ clearance: camNum(), retract: camNum(), top: heightRef, bottom: heightRef }),
-  geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr }), CAM_LIMITS.geom),
+  geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr, ents: strArr(), reverse: bool() }), CAM_LIMITS.geom),
   stepover: camNum(0), stepdown: camNum(0), finishStepdown: camNum(0), finishStock: camNum(0), direction: camNum(), extend: camNum(0),
-  side: oneOf(['outside', 'inside', 'on']), dir: oneOf(['climb', 'conv']), comp: oneOf(['computer', 'wear']), finishPass: bool(),
+  side: oneOf(['outside', 'inside', 'on', 'left', 'right']), extendStart: camNum(0), extendEnd: camNum(0), width: camNum(0), tipClearance: camNum(0), dir: oneOf(['climb', 'conv']), comp: oneOf(['computer', 'wear']), finishPass: bool(),
   cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
-  holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr }), sketch: idStr, ents: strArr() }),
+  holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr }), sketch: idStr, ents: strArr(), rec: strArr(), acceptThread: strArr() }),
   depth: obj({ from: oneOf(['hole', 'abs']), tipComp: bool(), breakThrough: camNum(0), z: camNum() }),
   entry: obj({ kind: oneOf(['helix', 'ramp', 'plunge', 'predrill']), angle: camNum(0, 90), helixDia: camNum(0) }),
   leadIn: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }), leadOut: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }),
   tabs: obj({ n: posInt(100), width: camNum(0), height: camNum(0) }), ramp: obj({ kind: oneOf(['plunge', 'ramp', 'helix']), angle: camNum(0, 90) }),
   roughPasses: obj({ n: posInt(100), stepover: camNum(0) }),
+  stockToLeave: either(camNum(0), obj({ radial: camNum(0), axial: camNum(0) }), 'number/{radial,axial}'),
 });
 const camSetup = obj({
   id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),
@@ -105,7 +106,7 @@ const camSetup = obj({
   rotary: obj({ enabled: bool(), aAngle: camNum(-36000, 36000) }),
   workOffset: obj({ kind: oneOf(['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1']), p: posInt(9999) }),
   stock: obj({ kind: oneOf(['boxOffset', 'box', 'cyl']), side: camNum(0), top: camNum(0), bottom: camNum(0), min: arrOf(camNum(), 3), max: arrOf(camNum(), 3), dia: camNum(0), len: camNum(0), axis: oneOf(['X']) }),
-  clearanceZ: camNum(0), ops: arrOf(camOp, CAM_LIMITS.ops),
+  clearanceZ: camNum(0), stockFrom: oneOf(['previous', 'blank']), freePieceBlock: bool(), ops: arrOf(camOp, CAM_LIMITS.ops),
 });
 const CP = 'cam'; // belge yolu oneki (sozluk anahtari degil)
 export function validateCam(cam) {

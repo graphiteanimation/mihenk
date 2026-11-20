@@ -3,7 +3,7 @@
 import { cerr } from './err.js';
 import * as P from './path2d.js';
 import * as G from '../../shared/geom2d.js';
-import { findRegions, resolveProfiles } from '../../shared/profiles.js';
+import { findRegions, resolveProfiles, entSeg } from '../../shared/profiles.js';
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 // path2d yonlu dongu -> cekirdek ogeleri (geom2d kanonik + fwd)
@@ -59,32 +59,75 @@ export function sketchFaces(sel, sk, plane, frame) {
   });
 }
 
+// T-02: sketch ogelerinden (cizgi/yay) ACIK ya da kapali ZINCIR -> contour 'chain' girdisi { segs:[geom2d+fwd], closed, z } (setup uzayi).
+// sel = {kind:'chain', sketch, ents:[kimlik], reverse?}. Ogeler uc uca tek zincir olmali (aksi: cam.geom.chain_broken); zincir yonu
+// geom2d.orderChain sirasidir (serbest uclu zincirde bir serbest uctan baslar), reverse:true ters cevirir. Egri turleri cizgi/yay/daire.
+export function sketchChain(sel, sk, plane, frame) {
+  if (!sk || !Array.isArray(sk.ents) || !sk.points) throw cerr('cam.geom.sketch_missing', { sketch: String(sel.sketch) });
+  if (!plane || !Array.isArray(plane.n)) throw cerr('cam.geom.sketch_missing', { sketch: String(sel.sketch) });
+  const k = dot(plane.n, frame.z);
+  if (Math.abs(Math.abs(k) - 1) > 1e-7) throw cerr('cam.geom.sketch_not_perpendicular');
+  if (!Array.isArray(sel.ents) || !sel.ents.length) throw cerr('cam.geom.chain_empty');
+  const T3 = (u, v) => [plane.o[0] + plane.x[0] * u + plane.y[0] * v, plane.o[1] + plane.x[1] * u + plane.y[1] * v, plane.o[2] + plane.x[2] * u + plane.y[2] * v];
+  const toS = (p) => { const d = [p[0] - frame.o[0], p[1] - frame.o[1], p[2] - frame.o[2]]; return [dot(d, frame.x), dot(d, frame.y), dot(d, frame.z)]; };
+  const z = toS(T3(0, 0))[2];
+  const T = (p) => { const q = toS(T3(p[0], p[1])); return [q[0], q[1]]; };
+  const mirror = k < 0;
+  const segs = sel.ents.map((id) => {
+    const e = sk.ents.find((x) => x.id === id); const g = e ? entSeg(sk, e) : null;
+    if (!g) throw cerr('cam.geom.chain_ent_missing', { ent: String(id), sketch: String(sel.sketch) });
+    if (!['line', 'arc', 'circle'].includes(g.type)) throw cerr('cam.geom.unsupported_curve', { type: String(g.type) });
+    return g;
+  });
+  const ord = G.orderChain(segs, 1e-6);
+  if (!ord || ord.length !== segs.length) throw cerr('cam.geom.chain_broken', { n: segs.length, linked: ord ? ord.length : 0 });
+  let path = ord.flatMap((o) => P.fromGeom2d(o.seg, o.fwd));
+  if (sel.reverse) path = P.reverseLoop(path);
+  const closed = P.dist(path[0].a, path[path.length - 1].b) < 1e-6;
+  if (!closed) for (let i = 0; i + 1 < path.length; i++) if (P.dist(path[i].b, path[i + 1].a) > 1e-6) throw cerr('cam.geom.chain_broken', { n: segs.length, linked: i + 1 });
+  const mapped = mapLoop(path, T, mirror);
+  return { segs: toItems(mapped), closed, z, src: 'chain' };
+}
+
 // silhouette(zl, sections) -> yuz (dis sinir, z = govde tabani)
 //   zl: camZLevels sonucu; sections: seviyeler arasi orta z'lerdeki camSection sonuclari
 //   Prizmatik olmayan yuzler (ornegin delik ucu konisi) yalniz XY kutulari dis sinirin KESIN icindeyse kabul edilir:
 //   boyle bir yuz dis siniri (kesitlerin birlesimini) genisletemez.
-export function silhouetteFace(zl, sections) {
+// T-19: kesitlerde birden cok bolge olabilir. Tum kesitlerin dis halkalari alana gore buyukten kucuge dizilir; bir halka daha
+// buyuk bir halkanin icindeyse (ornek: yatay tunelin kesiti bolmesi) o kumeye katilir, hicbirinin icinde degil ve hicbiriyle
+// kesismiyorsa YENI kume (ayri bolge) olur. Her kume en buyuk halkasiyla tek dis sinirdir. Kismen ortusen halkalar hata.
+// Donus: yuz nesneleri dizisi (konuma gore sirali); her biri ayri bolge, islemler ayri ayri isler.
+export function silhouetteFaces(zl, sections) {
   if (zl.levels.length < 2 || !sections.length) throw cerr('cam.silhouette.not_prismatic', { n: 0 });
   const outs = [];
   for (const sec of sections) {
     const loops = sec.loops.map((l) => P.closeItemLoop(l).flatMap((it) => P.fromGeom2d(it, it.fwd !== false))); // T-24: zincir acikliklari kapatilir
-    const o = loops.filter((l) => P.area(l) > 1e-9);
-    // her kesitte tek dis sinir ve o sinirin icinde olmayan baska dis halka olmamali
     const regs = P.regionsFromLoops(loops);
-    const top = regs.filter((g) => !regs.some((h) => h !== g && P.inRegion(P.probePoint(g.outer), { outer: h.outer, holes: [] })));
-    if (top.length !== 1) throw cerr('cam.silhouette.multiple', { n: top.length, z: Math.round(sec.z * 1000) / 1000 });
-    void o; outs.push(top[0].outer);
+    for (const g of regs) if (!regs.some((h) => h !== g && P.inRegion(P.probePoint(g.outer), { outer: h.outer, holes: [] }))) outs.push(g.outer);
   }
-  let big = outs[0]; for (const l of outs) if (P.area(l) > P.area(big)) big = l;
-  const R = { outer: big, holes: [] };
-  for (const l of outs) for (const s of l) for (const t of [0, 0.5]) { const p = P.pointAt(s, t); if (!P.inRegion(p, R) && P.distTo(p, big) > 1e-6) throw cerr('cam.silhouette.not_nested'); }
+  if (!outs.length) throw cerr('cam.silhouette.not_prismatic', { n: 0 });
+  outs.sort((a, b) => P.area(b) - P.area(a));
+  const clusters = [];
+  for (const l of outs) {
+    let home = null;
+    for (const c of clusters) {
+      const R = { outer: c.big, holes: [] };
+      const pts = []; for (const sg of l) for (const t of [0, 0.5]) pts.push(P.pointAt(sg, t));
+      const inside = pts.map((p) => P.inRegion(p, R) || P.distTo(p, c.big) <= 1e-6);
+      if (inside.every(Boolean)) { home = c; break; }
+      if (inside.some(Boolean) || l.some((sg) => c.big.some((q) => P.intersect(sg, q, 1e-9).length))) throw cerr('cam.silhouette.not_nested');
+    }
+    if (!home) clusters.push({ big: l });
+  }
   for (const b of zl.badBoxes || (zl.bad ? [null] : [])) {
     if (!b) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
     const cs = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
     const edges = cs.map((c, i) => P.line(c, cs[(i + 1) % 4]));
-    const inside = cs.every((c) => P.inRegion(c, R)) && !edges.some((e) => big.some((s) => P.intersect(e, s, 1e-9).length));
+    const inside = clusters.some((c) => { const R = { outer: c.big, holes: [] }; return cs.every((q) => P.inRegion(q, R)) && !edges.some((e) => c.big.some((sg) => P.intersect(e, sg, 1e-9).length)); });
     if (!inside) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
   }
-  return { z: zl.levels[0], normalOk: true, outer: toItems(P.mergeLoop(big)), inners: [], open: false, above: null, src: 'silhouette' };
+  const key = (l) => { const bb = P.loopBBox([l]); return [Math.round(bb[0] * 1e6), Math.round(bb[1] * 1e6)]; };
+  clusters.sort((a, b) => { const ka = key(a.big), kb = key(b.big); return ka[0] - kb[0] || ka[1] - kb[1]; });
+  return clusters.map((c) => ({ z: zl.levels[0], normalOk: true, outer: toItems(P.mergeLoop(c.big)), inners: [], open: false, above: null, src: 'silhouette' }));
 }
 export const midLevels = (levels) => { const out = []; for (let i = 1; i < levels.length; i++) out.push((levels[i - 1] + levels[i]) / 2); return out; };

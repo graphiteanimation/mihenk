@@ -27,6 +27,19 @@ export const posNum = (v) => isNum(v) && v > 0;
 export const nonNeg = (v) => isNum(v) && v >= 0;
 export const anyNum = (v) => isNum(v);
 
+// T-10: stockToLeave her iki bicimde de verilebilir: sayi n (-> {radial: n, axial: n}) ya da {radial?, axial?}. Ic gosterim daima {radial, axial}.
+// face yalniz axial'i kullanir (sayi eski davranisla ayni: eksenel pay).
+export function stockToLeave(op) {
+  const v = op.stockToLeave; const name = op.name || op.id;
+  if (v === undefined || v === null) return { radial: 0, axial: 0 };
+  if (typeof v === 'number') { if (!nonNeg(v)) throw cerr('cam.op.bad_field', { field: 'stockToLeave', expect: 'number >= 0 / {radial, axial}', op: name }); return { radial: v, axial: v }; }
+  if (typeof v === 'object' && !Array.isArray(v)) {
+    const g = (k) => { const x = v[k]; if (x === undefined || x === null) return 0; if (!nonNeg(x)) throw cerr('cam.op.bad_field', { field: 'stockToLeave.' + k, expect: 'number >= 0', op: name }); return x; };
+    return { radial: g('radial'), axial: g('axial') };
+  }
+  throw cerr('cam.op.bad_field', { field: 'stockToLeave', expect: 'number >= 0 / {radial, axial}', op: name });
+}
+
 // Ortak kesme verisi: rpm, ilerlemeler, sogutma
 export function cutting(op) {
   const rpm = need(op, 'rpm'), feedCut = need(op, 'feedCut'), feedPlunge = need(op, 'feedPlunge');
@@ -87,12 +100,14 @@ export class Builder {
   segs(list, z, f, kind = 'cut') { for (const s of list) this.seg(s, z, z, f, kind); }
   // ilk konumlanma: clearance'ta hizli
   start(x, y) { this.rapid(x, y, this.zClr); }
-  // (x,y)'ye guvenli gecis ve zTarget'a ilerlemeyle inis. opts.clear: inis bolgesi bu islemde bosaltilmis (kapi 4 icin)
+  // (x,y)'ye guvenli gecis ve zTarget'a inis: stok ustu retract'a kadar hizli, sonrasi ilerleme. opts.clear: inis bolgesi bu islemde bosaltilmis (kapi 4 icin)
   linkTo(x, y, zTarget, fPlunge, opts = {}) {
     if (!this.pos) { this.start(x, y); }
     const [px, py, pz] = this.pos; const d = Math.hypot(x - px, y - py);
     const far = opts.far ?? d > this.far;
-    if (d > 1e-9 || pz < this.zRet - 1e-9) {
+    // T-01: ilk konum clearance'ta (pz > zRet) ve XY ayni ise de retract'a HIZLI inilir (eskiden clearance'tan ilerlemeyle inilirdi:
+    // havada kesme). Hizli inis yalniz stok ustu + retract payina kadar (zRet > stockTop); orada ilerlemeye gecilir.
+    if (d > 1e-9 || Math.abs(pz - this.zRet) > 1e-9) {
       const zUp = far ? this.zClr : this.zRet;
       if (pz < zUp - 1e-9) this.rapid(px, py, zUp);
       if (d > 1e-9) this.rapid(x, y, Math.max(zUp, this.pos[2]));

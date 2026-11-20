@@ -33,6 +33,7 @@ Kapılar (savunma derinliği, CAM-FIXES V-07): `opts.gates` içinde `block` vars
 Başlık: `O<no>` (program.number varsa) · UNVERIFIED · PROGRAM · DATE · MACHINE (ad, rev, kontrol) · takım listesi `(T H D DIA TÜR)` · kapı özeti · `G90 G17 G21 G40 G49 G80 G94`.
 Her işlem: `(OP n: ad)` → güvenli Z geri çekilme (`G90 G40 G49` / `G91 G28 Z0.` / `G90` ya da `G53 G0 Z..`) → `M5`/`M9` (açıksa) → `[M01]` → `T.. M6` (yalnız takım değişince) →
 **A indeksleme: `[M11]` → `G0 A..` → `[M10]`** (Z güvenli geri çekilme bunlardan ÖNCE yapılmıştır) → `S.. M3|M4` → `G0 G90 G5x X Y` → `G43 H.. Z..` → soğutma → hareketler.
+**Ardışık işlemler (WP-06 T-07):** önceki işlemle aynı takım + aynı setup (iş koordinatı ve A açısı) ise ve mil/soğutma zaten istenen durumdaysa `M5`/`M9`/`S.. M3`/soğutma kodu tekrarlanmaz (her işlemde yorum, güvenli geri çekilme ve `G43 H..` yine yazılır; `G28` G49'u iptal eder). Yalnız devir değişirse yalnız `S..`; mil yönü değişirse `M5` + `S.. M4`; yalnız soğutma değişirse `M9` + yeni kod. Takım ya da setup değişirse tam dizi. Yorumlarda `²`→`2`, `³`→`3`, `Ø`/`ø`→`D`, `µ`→`u`, `±`→`+/-` (T-18; diğer ASCII dışı karakterler `?`).
 Bitiş: `(END OF PROGRAM)` → güvenli geri çekilme → A→0 (`aReturnZero`) → `M5` `M9` → `[G05 P0]` → `M30`.
 Delik: `G98|G99 G8x X Y Z R [Q|P] F` (ilk nokta), sonraki noktalar yalnız `X Y`, son nokta G98; `G80`. R düzlemi güvenli yüksekliğe eşitse yalnız G98.
 Çevrim eşleşmesi: drill/spot → G81 (dwell>0: G82), peck → G83 (Q), chipbreak → G73 (Q), tap → G84 (spindleDir ccw: G74), ream → G85, bore → G89. G76 yok.
@@ -54,7 +55,7 @@ Bu özellikler makine profilinde `post.props` altında saklanır (`machine.post.
 | `dwellAddress`, `dwellUnit` | G04 adresi (`P`/`X`) ve birimi (`'ms'`/`'s'`) | `'P'`, `'ms'` | **null**, **null** | M80V [?] (M80 1/2 kılavuz bölüm 8.1-8.2) |
 | `cycleDwellAddress`, `cycleDwellUnit` | G82/G89 bekleme adresi (X/Y/Z/R/Q/F olamaz) ve birimi | `'P'`, `'ms'` | **null**, **null** | [?] |
 | `coolantCodes` | `{flood,mist,air,through,off}` M kodları | M8, M7, null, null, M9 | M8, **null, null, null**, M9 | flood/off sözleşme lehçesi; diğerleri [?] |
-| `optionalStop` | Her işlem başında M01 | false | false | seçenek (CP3) |
+| `optionalStop` | Her işlem başında M01 (mil/soğutma kapalıyken: M5/M9 → M01 → S M3/soğutma yeniden; T-07 sadeleştirmesi bu durumda uygulanmaz) | false | false | seçenek (CP3) |
 | `rapidSplit` | Karışık XY+Z hızlıyı böl (iniş: önce XY sonra Z; çıkış: önce Z sonra XY) | true | true | [Ç] dog-leg önlemi (CP2) |
 | `cannedCycles` | false: delik çevrimini açık harekete aç (drill/spot/ream/bore; diğerleri `cam.post.cycle_unsupported`) | true | true | C6 |
 | `tapMode` | `'feed'`: F = devir x adım (+`rigidTapM`); `'pitch'`: F = adım | `'feed'` | `'pitch'` | M80V [D] (#8159=1, F=adım) |

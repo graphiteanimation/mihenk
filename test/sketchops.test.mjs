@@ -83,6 +83,105 @@ const area = (sk) => findRegions(sk).regions.reduce((s, r) => s + r.net, 0);
   const wav = []; for (let i = 0; i <= 30; i++) wav.push([i, 10 + 2 * Math.sin(i / 3)]);
   const r = O.projectPolylines(sk, [{ pts }, { pts: circ }, { pts: arcp }, { pts: wav }]); ok(r.lines === 1 && r.circles === 2 && r.splines === 1, `izdüşüm türleri çizgi/daire+yay/spline: ${JSON.stringify(r)}`);
   ok(sk.ents.every((e) => e.cons) && Object.entries(sk.points).every(([id, p]) => id === 'O' || p.fixed), 'hepsi sabit yapı geometrisi'); const s = await solve(sk); ok(s.ok, 'sabit geometri çözülür'); }
+// ---- ilişkisel izdüşüm (WP-09 dilim 4)
+{ const sk = empty(); const ln = (a, b) => ({ pts: [a, b], meta: { b: 'B', g: 0, c: [0, 0, 0] } });
+  const r0 = O.projectPolylines(sk, [ln([0, 0], [10, 0]), { pts: [[10, 0], [10, 5]], meta: { b: 'B', g: 1, c: [0, 0, 0] } }]);
+  const tagged = sk.ents.filter((e) => e.proj); ok(r0.lines === 2 && tagged.length === 2 && tagged[0].proj.g === 0 && tagged[1].proj.g === 1, 'izdüşüm: üretilen nesnelere proj bağı yazılır');
+  const own = addEnt(sk, { type: 'line', a: tagged[0].a, b: addPoint(sk, -5, -5) });
+  const res = O.reprojectLinked(sk, (m) => (m.g === 0 ? [[0, 0], [20, 10]] : [[20, 10], [20, 15]]));
+  const l0 = tagged[0], l1 = tagged[1];
+  ok(res.updated === 2 && res.rebuilt === 0 && sk.points[l0.b].x === 20 && sk.points[l0.b].y === 10 && sk.points[l1.b].y === 15, 'reprojectLinked: yapı aynıysa nesneler yerinde taşınır');
+  ok(sk.ents.find((e) => e.id === own).a === l0.a && l0.b === l1.a, 'paylaşılan noktalar ve kendi nesneler korunur');
+  const circ = []; for (let i = 0; i <= 40; i++) circ.push([20 + 5 * Math.cos((i / 40) * TAU()), 10 + 5 * Math.sin((i / 40) * TAU())]);
+  const res2 = O.reprojectLinked(sk, (m) => (m.g === 0 ? circ : null));
+  ok(res2.rebuilt === 1 && res2.lost === 1 && sk.ents.some((e) => e.type === 'circle' && e.proj && e.proj.g === 0) && sk.ents.some((e) => e.proj && e.proj.g === 1 && e.proj.lost), 'yapı değişince yeniden kurulur; kaynağı olmayan grup "lost" işaretlenir');
+  const none = O.reprojectLinked(sk, () => null); ok(none.updated === 0 && none.rebuilt === 0, 'kenar bulunamazsa geometriye dokunulmaz');
+}
+// ---- ilişkisel izdüşüm düzeltmeleri (WP-09 bağımsız doğrulama RET'i)
+{ // 1) sabit noktalar (orijin dahil) ASLA taşınmaz
+  const sk = empty(); const mk = (a, b, g) => ({ pts: [a, b], meta: { b: 'B', g, c: [0, 0, 0] } });
+  O.projectPolylines(sk, [mk([0, 0], [100, 0], 1), mk([0, 40], [100, 40], 2)]);
+  const l1 = sk.ents.find((e) => e.proj.g === 1), body = addEnt(sk, { type: 'line', a: 'O', b: addPoint(sk, 0, -30) });
+  ok(l1.a === 'O' && l1.proj.pin.includes('O'), 'orijinden başlayan izdüşüm O ile paylaşır ve pin olarak işaretlenir');
+  const r = O.reprojectLinked(sk, (m) => (m.g === 1 ? [[5, 0], [105, 0]] : [[5, 40], [105, 40]]));
+  ok(sk.points.O.x === 0 && sk.points.O.y === 0 && sk.points.O.fixed, 'orijin yerinde kalır'); ok(r.updated === 2, 'iki grup güncellendi');
+  ok(l1.a !== 'O' && sk.points[l1.a].x === 5 && sk.points[l1.a].fixed, 'izdüşüm ucu ayrı (sabit) noktaya taşındı'); ok(sk.ents.find((e) => e.id === body).a === 'O', 'gövde-dışı nesne O ile bağlı kalır');
+  ok(sk.points[l1.b].x === 105, 'diğer uç taşındı'); ok(l1.proj.pin.length === 0, 'paylaşım çözülünce pin temizlenir');
+  const sk2 = empty(); const fp = addPoint(sk2, 0, 10, true); O.projectPolylines(sk2, [mk([0, 10], [50, 10], 4)]); const ln2 = sk2.ents[0];
+  ok(ln2.a === fp && ln2.proj.pin.includes(fp), 'önceden var olan sabit nokta paylaşılır (pin)'); O.reprojectLinked(sk2, () => [[3, 10], [53, 10]]);
+  ok(sk2.points[fp].x === 0 && sk2.points[fp].y === 10 && ln2.a !== fp, 'kullanıcının sabit noktası taşınmaz');
+  const sk3 = empty(); O.projectPolylines(sk3, [mk([0, 0], [10, 0], 0), { pts: [[10, 0], [10, 5]], meta: { b: 'B', g: 1, c: [0, 0, 0] } }]);
+  O.reprojectLinked(sk3, (m) => (m.g === 0 ? [[2, 0], [12, 0]] : [[12, 0], [12, 5]])); const [q0, q1] = sk3.ents;
+  ok(q0.b === q1.a && sk3.points[q0.b].x === 12 && sk3.points[q0.a].x === 2, 'komşu izdüşüm grupları arasındaki ortak köşe paylaşımı korunur');
+  const sk4 = empty(); O.projectPolylines(sk4, [mk([0, 0], [10, 0], 0), { pts: [[10, 0], [10, 5]], meta: { b: 'B', g: 1, c: [0, 0, 0] } }]);
+  O.reprojectLinked(sk4, (m) => (m.g === 0 ? [[2, 0], [12, 0]] : null)); const [z0, z1] = sk4.ents;
+  ok(sk4.points[z1.a].x === 10 && z1.proj.lost && sk4.points[z0.b].x === 12 && z0.b !== z1.a, 'kayıp komşunun ucu taşınmaz (paylaşım çözülür)');
+}
+{ // 2) kullanıcı düzenleyince proj bağı düşer; yeniden açılışta geri alınmaz, sıfır uzunluklu parça olmaz
+  const mkSk = () => { const sk = empty(); O.projectPolylines(sk, [{ pts: [[0, 10], [100, 10]], meta: { b: 'B', g: 1, c: [50, 10, 0] } }]); return sk; };
+  const res = (m) => [[0, 10], [100, 10]];
+  let sk = mkSk(); let id = sk.ents[0].id; O.breakAt(sk, id, [50, 10]);
+  O.dropEditedLinks(sk); ok(sk.ents.length === 2 && sk.ents.every((e) => !e.proj), 'breakAt: iki parçanın da proj bağı düşer');
+  { const r = O.reprojectLinked(sk, res); ok(sk.ents.length === 2 && r.updated === 0 && r.rebuilt === 0 && sk.ents.every((e) => !e.proj), 'break sonrası yeniden açılış düzenlemeyi geri almaz'); }
+  sk = mkSk(); id = sk.ents[0].id; { ok(O.dropEditedLinks(sk) === 0, 'düzenleme yokken bağ düşmez'); O.transformEnts(sk, [id], 'move', { dx: 7, dy: 3 }); ok(O.dropEditedLinks(sk) === 1 && !sk.ents[0].proj, 'taşıma: bağ düşer'); }
+  sk = mkSk(); id = sk.ents[0].id; addEnt(sk, { type: 'line', a: addPoint(sk, 50, -20), b: addPoint(sk, 50, 40) }); { const rt = O.trimAt(sk, id, [20, 10]); const k = sk.ents.find((e) => e.id === id); O.dropEditedLinks(sk); ok(rt.ok && k && sk.points[k.a].x === 50 && !k.proj, 'kırp: parça kısalır, bağ düşer'); }
+  sk = mkSk(); const ex = addEnt(sk, { type: 'line', a: addPoint(sk, 120, 20), b: addPoint(sk, 120, 60) }); void ex; { const l = sk.ents[0]; sk.points[l.b].x = 90; ok(O.dropEditedLinks(sk) === 1 && !l.proj, 'uç oynatılınca (uzat/kısalt) bağ düşer'); }
+  sk = mkSk(); id = sk.ents[0].id; const ax = addEnt(sk, { type: 'line', a: addPoint(sk, 50, -50), b: addPoint(sk, 50, 50) });
+  const mr = O.mirrorEnts(sk, [id], ax, true); O.dropEditedLinks(sk); ok(mr.ok && sk.ents.filter((e) => e.proj).length === 1 && sk.ents[0].proj, 'ayna: asıl bağlı kalır, ayna kopyası (kimliği farklı) sıradan geometri');
+  { const dup = JSON.parse(JSON.stringify(sk.ents[0])); dup.id = 'zz'; sk.ents.push(dup); ok(O.dropEditedLinks(sk) === 1 && !sk.ents.at(-1).proj && sk.ents[0].proj, 'kopya (bire bir aynı konumda bile) bağı taşımaz'); }
+  sk = mkSk(); const cl = O.copySelection(sk, [sk.ents[0].id]); const pr = O.pasteClip(sk, cl, 0, 0); ok(pr.ok && sk.ents.filter((e) => e.proj).length === 1, 'yapıştırılan nesne proj taşımaz');
+}
+{ // 3) kenar eşleştirme: imza + belirsizlikte bağlama
+  const L = (idx, a, b) => ({ idx, pts: [a, b] });
+  const meta = { g: 1, sig: O.edgeSig([[0, 0], [100, 0]]) };
+  ok(O.edgeSig([[0, 0], [100, 0]]).k === 'l', 'imza: doğru');
+  ok(O.matchEdge(meta, [L(1, [5, 0], [105, 0])]).idx === 1, '(a) aynı indeks, makul değişim kabul');
+  ok(O.matchEdge(meta, [L(1, [0, 40], [100, 40]), L(2, [0, 0], [100, 0])]).idx === 2, 'indeks kayınca birebir uyan kenar izlenir');
+  ok(O.matchEdge(meta, [L(1, [0, 40], [100, 40])]) === null, 'indeks kayıp 40 mm uzaktaki kenara taşınmaz → lost');
+  ok(O.matchEdge(meta, [L(2, [0, 3], [100, 3])]) === null, '3 mm arayla paralel kenarlardan biri silinince diğerine bağlanmaz → lost');
+  ok(O.matchEdge(meta, [L(1, [0, 0], [0, 100])]) === null, 'aynı indeks ama farklı doğrultu → bağlanmaz');
+  ok(O.matchEdge(meta, [{ idx: 1, pts: Array.from({ length: 37 }, (_, i) => [10 * Math.cos(i * Math.PI / 18), 10 * Math.sin(i * Math.PI / 18)]) }]) === null, 'aynı indeks ama farklı tür → bağlanmaz');
+  ok(O.matchEdge(meta, [L(7, [0, 0.2], [100, 0.2]), L(8, [0, -0.2], [100, -0.2])]) === null, 'iki yakın aday ayırt edilemiyorsa bağlanmaz');
+  ok(O.matchEdge(meta, [L(7, [0, 0.1], [100, 0.1]), L(8, [0, 30], [100, 30])]).idx === 7, 'tek yakın aday, ikincisi belirgin uzak: kabul');
+  ok(O.matchEdge({ g: 1 }, [L(1, [0, 0], [100, 0])]).idx === 1 && O.matchEdge({ g: 1 }, [L(2, [0, 0], [100, 0])]) === null, 'imzasız eski bağ: yalnız aynı indeks');
+  { // en yakın aday kazanır; aynı indeks yalnız makul değişim izni verir (doğrulayıcı karşı-örnekleri)
+    const M = (g, y) => ({ g, sig: O.edgeSig([[0, y], [100, y]]) }), Y = (idx, y) => L(idx, [0, y], [100, y]);
+    ok(O.matchEdge(M(5, 0), [Y(5, 20), Y(7, 2)]) === null, 'kaynak 2 mm kaydı + indeks değişti; eski indekse 20 mm ötede paralel kenar geldi → 20 mm ötedeki SEÇİLMEZ (lost)');
+    ok(O.matchEdge(M(5, 0), [Y(5, 20), Y(7, 0)]).idx === 7, 'kontrol: tam eşleşen yeni indeks, uzak eski indekse tercih edilir');
+    ok(O.matchEdge(M(5, 0), [Y(5, 0.5), Y(7, 0)]) === null, '0,5 mm ötedeki eski indeks, tam eşleşen yeni indeksi ezmez; ayırt edilemiyorsa lost');
+    const r = O.matchEdgeD(M(5, 0), [Y(5, 20)]); ok(r && r.c.idx === 5 && Math.abs(r.d - 20) < 1e-9, 'tek aday, aynı indeks, 20 mm: parametrik değişim kabul, kayma 20 mm bildirilir');
+    ok(O.matchEdgeD(M(5, 0), [Y(5, 5), Y(7, 8)]) === null, 'aynı indeks ama ikinci aday yeterince uzak değil (<2 kat) → lost');
+    ok(O.matchEdge(M(5, 0), [Y(5, 30)]) === null && O.matchEdge(M(5, 0), [Y(5, 5)]).idx === 5, 'yan kayma 30 mm lost, 5 mm kabul');
+    const S50 = { g: 5, sig: O.edgeSig([[0, 0], [50, 0]]) };
+    ok(O.matchEdge(S50, [L(5, [0, 0], [100, 0])]).idx === 5, 'bir ucu sabit, boyu 50 → 100: güncellenir');
+    ok(O.matchEdge(S50, [L(5, [-25, 0], [75, 0])]).idx === 5, 'iki ucu simetrik uzayan (merkezden büyüyen) kenar güncellenir');
+    ok(O.matchEdgeD(S50, [L(5, [0, 3], [100, 3])]).d === 3, 'bildirilen kayma yan kaymadır (3 mm), boy değişimi değil');
+    ok(O.matchEdge(S50, [L(5, [0, 40], [100, 40])]) === null, 'boy uzarken yan kayma 40 mm → lost');
+    const C5 = { g: 3, sig: O.edgeSig(Array.from({ length: 37 }, (_, i) => [5 * Math.cos(i * Math.PI / 18), 5 * Math.sin(i * Math.PI / 18)])) };
+    const circ = (idx, r, cx = 0) => ({ idx, pts: Array.from({ length: 37 }, (_, i) => [cx + r * Math.cos(i * Math.PI / 18), r * Math.sin(i * Math.PI / 18)]) });
+    ok(O.matchEdge(C5, [circ(3, 40)]).idx === 3, 'yarıçapı 5 → 40 olan daire güncellenir');
+    ok(O.matchEdge(C5, [circ(3, 40, 30)]) === null, 'daire merkezi 30 mm kaydı → lost');
+  }
+  // reprojectLinked: imza ilk başarılı güncellemede yazılır, uyuşmazlıkta nesne yerinde kalır
+  const sk = empty(); O.projectPolylines(sk, [{ pts: [[0, 0], [100, 0]], meta: { b: 'B', g: 1, c: [0, 0, 0] } }]); const e0 = sk.ents[0]; delete e0.proj.sig;
+  O.reprojectLinked(sk, () => { const p = [[0, 5], [100, 5]]; return p; }); ok(e0.proj.sig && e0.proj.sig.a[1] === 5, 'imzasız bağa ilk başarılı güncellemede imza yazılır');
+  const before = JSON.stringify(sk.points); const r = O.reprojectLinked(sk, () => null); ok(r.lost === 1 && JSON.stringify(sk.points) === before && e0.proj.lost, 'lost: geometri yerinde kalır');
+}
+{ // 4) lost / güncellenen ayrı sayılır; gizli (bilinmeyen) gövde lost olmaz; bağı kaldır / yeniden bağla
+  const sk = empty(); const mk = (g, y) => ({ pts: [[0, y], [100, y]], meta: { b: 'B', g, c: [50, y, 0] } });
+  O.projectPolylines(sk, [mk(1, 0), mk(2, 20), mk(3, 40), mk(4, 60)]);
+  const r = O.reprojectLinked(sk, (m) => (m.g === 1 ? [[0, 5], [100, 5]] : m.g === 2 ? [[0, 20], [100, 20]] : m.g === 3 ? null : undefined));
+  ok(r.updated === 1 && r.lost === 1 && r.skipped === 1, `güncellenen / kaybolan / bilinmeyen ayrı sayılır: ${JSON.stringify(r)}`);
+  ok(!sk.ents[3].proj.lost && sk.ents[2].proj.lost && !sk.ents[0].proj.lost, 'gizli gövde (undefined) lost işaretlenmez; yalnız null lost olur');
+  const re = O.relinkProjection(sk, [sk.ents[2].id], { b: 'B', g: 9, c: [50, 80, 0] }, [[0, 80], [100, 80]]);
+  ok(re.ok && !sk.ents[2].proj.lost && sk.ents[2].proj.g === 9 && sk.points[sk.ents[2].a].y === 80, 'yeniden bağla: yeni kenara taşınır, lost kalkar');
+  ok(O.unlinkProjection(sk, [sk.ents[2].id]) === 1 && !sk.ents[2].proj, 'bağı kaldır: sıradan geometri');
+}
+{ // 8) referans ölçü ifadesi geometriyle güncellenir
+  const sk = empty(); const a = addPoint(sk, 0, 0), b = addPoint(sk, 60, 0); addEnt(sk, { type: 'line', a, b }); const id = addCon(sk, 'dist', a, b, { expr: '60', ref: true });
+  sk.points[b].x = 50; ok(O.syncRefs(sk) === 1 && sk.cons.find((c) => c.id === id).expr === '50', 'referans ölçü expr güncel geometriye eşlenir');
+  ok(O.syncRefs(sk) === 0, 'değişmediyse dokunmaz'); const drv = addCon(sk, 'dist', a, b, { expr: '40' }); ok(O.syncRefs(sk) === 0 && sk.cons.find((c) => c.id === drv).expr === '40', 'sürücü ölçüye dokunmaz');
+}
 // ---- pano
 { const sk = empty(); const R = rect(sk, 0, 0, 10, 5); const clip = O.copySelection(sk, R.l); ok(clip.ents.length === 4 && clip.cons.length === 4, 'pano: 4 çizgi + 4 kısıt'); const r = O.pasteClip(sk, clip, 20, 0); ok(r.ok && sk.ents.length === 8, 'yapıştır'); ok(findRegions(sk).regions.length === 2, 'iki dikdörtgen'); const s = await solve(sk); ok(s.ok, 'yapıştırma çözülür'); }
 // ---- kutu seçimi

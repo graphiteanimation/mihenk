@@ -402,4 +402,6 @@ export default {
   "cam.ppw.coolant.air": "Hava üfleme kullanılacaksa M kodu girilmeli.",
   "cam.ppw.coolant.through": "Mil içi soğutma kullanılacaksa M kodu girilmeli.",
   "cam.ppw.coolant.off": "Soğutmayı kapatan M kodu.",
+  "cam.cmd.chamfer": "Pah",
+  "cam.tip.op-chamfer": "Bir kenarı ya da zinciri konik uçlu takımla pahlar.",
 };

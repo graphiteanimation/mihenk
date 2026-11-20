@@ -106,7 +106,7 @@ export class CamView {
     const cyl = (r, h, z0, m) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, Math.max(h, 0.01), 28), m); c.rotation.x = Math.PI / 2; c.position.z = z0 + h / 2; return c; };
     let z0 = 0;
     if (T.type === 'ball') { const s = new THREE.Mesh(new THREE.SphereGeometry(R, 28, 14), mat); s.position.z = R; g.add(s); z0 = R; }
-    else if (['drill', 'spot', 'chamfer'].includes(T.type) && T.tipAngle) { const tl = R / Math.tan((T.tipAngle * Math.PI) / 360); const c = new THREE.Mesh(new THREE.ConeGeometry(R, tl, 28), mat); c.rotation.x = -Math.PI / 2; c.position.z = tl / 2; g.add(c); z0 = tl; }
+    else if (['drill', 'spot', 'chamfer'].includes(T.type) && T.tipAngle) { const tr = Math.min(R * 0.999, (T.tipDia || 0) / 2); const tl = (R - tr) / Math.tan((T.tipAngle * Math.PI) / 360); const c = new THREE.Mesh(tr > 0 ? new THREE.CylinderGeometry(tr, R, tl, 28) : new THREE.ConeGeometry(R, tl, 28), mat); c.rotation.x = -Math.PI / 2; c.position.z = tl / 2; g.add(c); z0 = tl; }
     g.add(cyl(R, fl - z0, z0, mat));
     const sd = T.shaftDia || T.dia; if (bl > fl) g.add(cyl(sd / 2, bl - fl, fl, mat));
     if (withHolder && T.holder) g.add(cyl(T.holder.dia / 2, T.holder.len, bl, matH));
