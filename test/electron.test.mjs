@@ -1,11 +1,12 @@
-// Electron güvenlik/davranış testi (Playwright _electron). Ekran yoksa xvfb-run ile kendini yeniden başlatır.
+// Electron güvenlik/davranış testi (Playwright _electron). Linux'ta ekran yoksa xvfb-run ile kendini yeniden başlatır (Windows'ta gerekmez).
+// Kurulu exe'ye karşı koşulamaz: paketli sürümde enableNodeCliInspectArguments fuse'u kapalı (Playwright --inspect ister); kurulu sürüm için scripts/installed-smoke.mjs.
 // Çalıştır: node test/electron.test.mjs     (önce: npm run build)
 // Kök kullanıcıda --no-sandbox YALNIZ komut satırından verilir; uygulama kodu kum havuzunu hiçbir zaman kapatmaz.
 import { _electron as electron } from 'playwright';
 import { spawnSync } from 'node:child_process'; import http from 'node:http'; import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import { fileURLToPath } from 'node:url'; import { createRequire } from 'node:module';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-if (!process.env.DISPLAY) { const r = spawnSync('xvfb-run', ['-a', process.execPath, ...process.argv.slice(1)], { stdio: 'inherit' }); process.exit(r.status ?? 1); }
+if (process.platform === 'linux' && !process.env.DISPLAY) { const r = spawnSync('xvfb-run', ['-a', process.execPath, ...process.argv.slice(1)], { stdio: 'inherit' }); process.exit(r.status ?? 1); }
 const { CSP } = createRequire(import.meta.url)(path.join(ROOT, 'electron/csp.cjs'));
 const SANDBOX_ARGS = process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : [];
 
@@ -285,9 +286,9 @@ await app.close();
 
 // ================================================================ 5. öz-test (sandbox:true) alt süreç olarak
 console.log('5: öz-test');
-const st = spawnSync('npx', ['electron', ...SANDBOX_ARGS, '.'], { cwd: ROOT, env: { ...process.env, MIHENK_SELFTEST: '1' }, encoding: 'utf8', timeout: 150000 });
+const st = spawnSync('npx', ['electron', ...SANDBOX_ARGS, '.'], { cwd: ROOT, env: { ...process.env, MIHENK_SELFTEST: '1' }, encoding: 'utf8', timeout: 150000, shell: process.platform === 'win32' });
 const line = (st.stdout || '').split('\n').find((l) => l.startsWith('SELFTEST')) || '(çıktı yok)';
 check('Electron öz-testi (sandbox:true) GEÇTI', /^SELFTEST GEÇTI/.test(line) && /sandbox=true/.test(line) && /serverHits=0/.test(line), line.slice(0, 300));
 
-srv.close(); fs.rmSync(TMP, { recursive: true, force: true });
+srv.close(); try { fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }); } catch (e) { console.log('  (geçici klasör silinemedi, yok sayıldı: ' + e.code + ')'); } // Windows: Chromium birkaç yüz ms dosya tutabilir
 console.log(`\n${pass} geçti, ${failN} kaldı`); process.exit(failN ? 1 : 0);

@@ -1,0 +1,31 @@
+# `v*` etiketi itilince: ci.yml'deki aynı iş (test + paket + duman testi) → GitHub Release'e kurulum + SHA-256.
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+  surum:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: Mihenk-Kurulum, path: kurulum }
+      - name: Etiket = package.json sürümü ve SHA-256
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          [ "v$VER" = "$TAG" ] || { echo "Etiket $TAG, package.json sürümü $VER: eşleşmiyor"; exit 1; }
+          [ -f "kurulum/Mihenk-Kurulum-$VER.exe" ] || { echo "kurulum/Mihenk-Kurulum-$VER.exe yok"; ls -l kurulum; exit 1; }
+          (cd kurulum && sha256sum -c SHA256SUMS.txt)
+      - name: GitHub Release
+        run: |
+          gh release create "$TAG" kurulum/Mihenk-Kurulum-*.exe kurulum/SHA256SUMS.txt --title "Mihenk ${TAG#v}" --generate-notes --verify-tag
