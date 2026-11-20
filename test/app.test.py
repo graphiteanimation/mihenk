@@ -1306,7 +1306,7 @@ try:
     ptsk = {'id': 'hs8', 'type': 'sketch', 'name': 'Eskiz 1', 'plane': {'kind': 'base', 'name': 'XY', 'offset': '20'}, 'points': {'q': {'x': 20, 'y': 15}}, 'ents': [{'id': 'pp', 'type': 'point', 'p': 'q'}], 'cons': []}
     w8_load([bx8, ptsk]); tb('hole'); page.wait_for_selector('#panel select[data-k="thread.family"]')
     page.select_option('#panel select[data-k="thread.family"]', 'g'); page.wait_for_timeout(100); select('thread', 'G1/4'); page.wait_for_timeout(100)
-    check('WP-08 delik G1/4: matkap çapı tablodan (11,8) ve not', page.input_value('#panel [data-k="dia"]') == '11.8' and '11,8' in page.inner_text('#panel [data-testid=thread-drill]'), page.input_value('#panel [data-k="dia"]'))
+    check('WP-08 delik G1/4: matkap çapı tablodan (11,8) ve "öneri" notu', page.input_value('#panel [data-k="dia"]') == '11.8' and '11,8' in page.inner_text('#panel [data-testid=thread-drill]') and 'Önerilen' in page.inner_text('#panel [data-testid=thread-drill]'), page.input_value('#panel [data-k="dia"]'))
     select('extent', 'all'); idle(); ok()
     hid8 = ev('app.doc.features[2].id')
     check('WP-08 delik G1/4 boydan boya: hacim', near(w8_body('b8'), 24000 - math.pi * 5.9 ** 2 * 20, 1e-9) and ev('app.doc.features[2].thread.family') == 'g', w8_body('b8'))
@@ -1422,6 +1422,11 @@ try:
     page.click('#menubar button[data-menu="file"]'); page.wait_for_timeout(100)
     head = page.locator('#menubar .drop [data-testid=menu-head-examples]').count(); page.keyboard.press('Escape')
     check('WP-10 devri: Örnekler alt menüsü ornekler/*.mhnk sayısına göre (0 dosya; yoksa gizli)', nexp == 0 and head == (1 if 0 else 0), [nexp, head])
+    # CSP kök nedeni (solver tanı okuması): gerçek CSP'li dist'te horizontal + horizontal_pp aynı çift → "gereksiz kısıt var"
+    w8_load([]); ev('app.viewport.view("iso")'); tb('sketch'); page.wait_for_timeout(300); click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
+    csp0 = ev('window.__csp.length'); rd = ev("(async () => { const S = app.sketcher; await S._apply((sk) => { const a = S._newPt(0, 0.0), b = S._newPt(30, 0.2); const l = S._addEnt({ type: 'line', a, b }); S._addCon('horizontal', l); S._addCon('horizontal_pp', a, b); }); await S.idle(); const r = S.lastSolve; return { red: (r && r.redundant) || [], st: S._statusSpec ? S._statusSpec() : '' }; })()")
+    check('CSP: gereksiz kısıt tanısı sıkı CSP altında çalışır (horizontal + horizontal_pp → gereksiz kısıt var), yeni ihlal yok', len(rd['red']) >= 1 and 'gereksiz' in rd['st'] and ev('window.__csp.length') == csp0, [rd, ev('window.__csp.length'), csp0])
+    page.click('#sk-cancel') if page.locator('#sk-cancel').count() else ev('app.cancelSketch()'); accept_modal(); idle()
     check('CSP: dil değiştirme dahil son aşamada da ihlal yok', ev('window.__csp.length') == 0, str(ev('window.__csp')[:3]))
     print('\nkonsol hataları:', [e for e in errs if 'GL Driver' not in e][:5])
     check('konsolda sayfa hatası yok', not [e for e in errs if e.startswith('pageerror')], str([e for e in errs if e.startswith('pageerror')][:3]))
