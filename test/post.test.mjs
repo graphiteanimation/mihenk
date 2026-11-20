@@ -423,16 +423,16 @@ console.log('11. WP-07 dilim 1: dis frezeleme ve dairesel frezeleme NC kalibi + 
   const th = (extra) => CAM.computeOp({ id: 'th', type: 'threadmill', ...base, holes: { kind: 'feature' }, designation: 'M10', length: 15, ...extra }, { setup: S0, tool: tm, geom: { holes: [hole] } });
   // ic sag tirmanma: alttan uste G3, Z her yarim yayda +0,75 (elle)
   const r1 = rt('dis ic sag tirmanma', th({}));
-  const L1 = r1.lines; const iG3 = L1.findIndex((l) => /^G3 X52\. I1\. J0\. F160\./.test(l));
-  ok(iG3 > 0 && L1[iG3 + 1] === 'X48. Z-14.25 I-2. J0. F320.' && L1[iG3 + 2] === 'X52. Z-13.5 I2. J0.' && L1[iG3 + 20] === 'X52. Z0. I2. J0.' && L1[iG3 + 21] === 'X50. I-1. J0. F160.', 'dis NC: ic sag tirmanma G3 yari cember giris, 20 yarim yay Z -14.25 ... 0, cikis: ' + L1.slice(iG3, iG3 + 3).join(' / '));
+  const L1 = r1.lines; const iG3 = L1.findIndex((l) => /^G3 X52\. Z-14\.25 I1\. J0\. F160\./.test(l)); // WP-07 duzeltme: giris yayi Z'yi yarim hatve yurutur (-15 -> -14,25)
+  ok(iG3 > 0 && L1[iG3 + 1] === 'X48. Z-13.5 I-2. J0. F320.' && L1[iG3 + 2] === 'X52. Z-12.75 I2. J0.' && L1[iG3 + 18] === 'X52. Z-0.75 I2. J0.' && L1[iG3 + 19] === 'X50. Z0. I-1. J0. F160.', 'dis NC: ic sag tirmanma G3 giris yayi Z-14.25, 18 yarim yay Z -13.5 ... -0.75, cikis yayi Z0: ' + L1.slice(iG3, iG3 + 3).join(' / '));
   ok(!L1.some((l) => /^G2/.test(l)), 'dis NC: ic sag tirmanma G2 icermez');
   // ic sag zit: ustten alta G2
   const r2 = rt('dis ic sag zit', th({ dir: 'conv' }));
-  const i2 = r2.lines.findIndex((l) => /^G2 X52\. I1\. J0\./.test(l)); ok(i2 > 0 && r2.lines[i2 + 1] === 'X48. Z-0.75 I-2. J0. F320.' && r2.lines[i2 + 20] === 'X52. Z-15. I2. J0.', 'dis NC: ic sag zit G2, ustten alta Z -0.75 ... -15: ' + r2.lines.slice(i2, i2 + 2).join(' / '));
+  const i2 = r2.lines.findIndex((l) => /^G2 X52\. Z-0\.75 I1\. J0\./.test(l)); ok(i2 > 0 && r2.lines[i2 + 1] === 'X48. Z-1.5 I-2. J0. F320.' && r2.lines[i2 + 18] === 'X52. Z-14.25 I2. J0.' && r2.lines[i2 + 19] === 'X50. Z-15. I-1. J0. F160.', 'dis NC: ic sag zit G2, ustten alta giris -0.75, helis -1.5 ... -14.25, cikis -15: ' + r2.lines.slice(i2, i2 + 2).join(' / '));
   // dis dis sag tirmanma: ustten alta G2; sol dis ic tirmanma: ustten alta G3
   { const l = rt('dis dis sag tirmanma', th({ external: true })).lines; const g2 = l.filter((x) => /^G2 /.test(x)).length, g3 = l.filter((x) => /^G3 /.test(x)).length; const k = l.findIndex((x) => /^G2 /.test(x));
-    ok(g2 === 1 && g3 === 2 && /Z-0\.75 /.test(l[k]) , 'dis NC: dis dis sag tirmanma helis G2 (ustten alta); giris/cikis S egrileri G3 (zit yonlu yari cember): G2 ' + g2 + ' G3 ' + g3 + ' ' + l[k]); }
-  { const l = rt('dis ic sol tirmanma', th({ hand: 'left' })).lines; const k = l.findIndex((x) => /^G3 X52\./.test(x)); ok(k > 0 && l[k + 1] === 'X48. Z-0.75 I-2. J0. F320.', 'dis NC: ic sol tirmanma G3 ama Z ASAGI (ustten alta)'); }
+    ok(g2 === 1 && g3 === 2 && /Z-1\.5 /.test(l[k]) , 'dis NC: dis dis sag tirmanma helis G2 (ustten alta); giris/cikis S egrileri G3 (zit yonlu yari cember): G2 ' + g2 + ' G3 ' + g3 + ' ' + l[k]); }
+  { const l = rt('dis ic sol tirmanma', th({ hand: 'left' })).lines; const k = l.findIndex((x) => /^G3 X52\. Z-0\.75/.test(x)); ok(k > 0 && l[k + 1] === 'X48. Z-1.5 I-2. J0. F320.', 'dis NC: ic sol tirmanma G3 ama Z ASAGI (ustten alta)'); }
   // radyal paso
   rt('dis 3 paso', th({ radialPasses: 3, springPasses: 1 }));
   // dairesel
