@@ -65,8 +65,14 @@ const app = await electron.launch({ args: [ROOT, ...SANDBOX_ARGS], env: { ...pro
 const page = await app.firstWindow(); await page.waitForFunction(() => window.app && window.app.ready, null, { timeout: 90000 }); await page.evaluate(() => window.app.ready);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const read = () => (fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : '');
 const gizliYol = path.join(userData, 'gizli-musteri-belgesi.mhnk');
+await app.evaluate(({ dialog, app: a }) => { globalThis.__kutu = null; globalThis.__cikis = null; dialog.showErrorBox = (t, m) => { globalThis.__kutu = [t, m]; }; a.exit = (c) => { globalThis.__cikis = c; }; }); // gerçek kutu/çıkış yok
 await app.evaluate((_, y) => { setTimeout(() => { throw new Error('YAPAY-ANA-HATA dosya ' + y + ' açılamadı'); }, 0); }, gizliYol);
 await sleep(600); ok(/main-uncaught .*YAPAY-ANA-HATA/.test(read()), 'ana süreç yakalanmamış hata dosyaya yazıldı', read().slice(0, 300));
+{ const kutu = await app.evaluate(() => globalThis.__kutu), cikis = await app.evaluate(() => globalThis.__cikis);
+  ok(Array.isArray(kutu) && kutu[0] && kutu[1] && !kutu.join(' ').includes('YAPAY-ANA-HATA'), 'yakalanmamış ana hata: kullanıcıya hata kutusu (hata metni/yol içermez)', JSON.stringify(kutu));
+  ok(cikis === 1, 'yakalanmamış ana hata: kontrollü çıkış (app.exit(1))', String(cikis));
+  await app.evaluate(() => { globalThis.__kutu = null; setTimeout(() => { throw new Error('IKINCI-HATA'); }, 0); }); await sleep(500);
+  ok(/IKINCI-HATA/.test(read()) && (await app.evaluate(() => globalThis.__kutu)) === null, 'ikinci hata günlüğe yazılır ama kutu yinelenmez'); }
 await page.evaluate(() => { setTimeout(() => { throw new Error('YAPAY-CIZICI-HATA'); }, 0); }); await sleep(600);
 ok(/console-error .*YAPAY-CIZICI-HATA/.test(read()), 'çizici süreç yakalanmamış hata dosyaya yazıldı', read().slice(-300));
 await page.evaluate(() => { Promise.reject(new Error('YAPAY-RED-HATA')); }); await sleep(600);

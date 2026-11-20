@@ -49,7 +49,20 @@ let logger = null;
 function log(kind, message, stack) {
   try { if (!logger) logger = createLogger({ dir: path.join(app.getPath('userData'), 'logs'), version: app.getVersion(), electron: process.versions.electron, platform: process.platform, roots: { appPath: app.getAppPath(), userData: app.getPath('userData'), temp: app.getPath('temp') } }); logger.write(kind, message, stack); } catch (e) { /* günlük hatası uygulamayı etkilemez */ }
 }
-process.on('uncaughtException', (e) => { log('main-uncaught', e && e.message, e && e.stack); });
+// Yakalanmamış ana süreç hatası: günlüğe yaz, kullanıcıya hata kutusu göster, kontrollü çık (bozuk durumda sürdürme). Kurtarma dosyası
+// (userData/recovery) silinmez; sonraki açılışta kurtarma sorulur.
+const FATAL = {
+  tr: { t: 'Mihenk beklenmedik bir hatayla karşılaştı', m: 'Uygulama kapatılacak. Son otomatik kayıt varsa bir sonraki açılışta size sunulur. Hata, Yardım menüsündeki günlük klasörüne yazıldı.' }, // i18n-ignore: ana süreç hata kutusu, iki dilli
+  en: { t: 'Mihenk hit an unexpected error', m: 'The application will close. If an automatic recovery copy exists it is offered on the next launch. The error was written to the log folder.' },
+};
+let fatalHandled = false;
+process.on('uncaughtException', (e) => {
+  log('main-uncaught', e && e.message, e && e.stack);
+  if (fatalHandled) return; fatalHandled = true;
+  let lang = 'tr'; try { if (settings && settings.lang === 'en') lang = 'en'; } catch (x) { /* ayar henüz yok */ }
+  try { dialog.showErrorBox(FATAL[lang].t, FATAL[lang].m); } catch (x) { /* kutu gösterilemezse de çık */ }
+  app.exit(1);
+});
 process.on('unhandledRejection', (e) => { log('main-rejection', e && e.message ? e.message : String(e), e && e.stack); });
 app.on('render-process-gone', (ev, wc, d) => log('render-gone', 'reason=' + (d && d.reason) + ' exit=' + (d && d.exitCode)));
 app.on('child-process-gone', (ev, d) => log('child-gone', 'type=' + (d && d.type) + ' reason=' + (d && d.reason) + ' exit=' + (d && d.exitCode)));
