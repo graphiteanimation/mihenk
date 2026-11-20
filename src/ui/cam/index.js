@@ -134,6 +134,7 @@ export class CamCtl {
     reg('cam-stock', 'cam.cmd.stock', 'cam-stock', () => this.editStock(), { off: needModel });
     reg('cam-machine', 'cam.cmd.machine', 'cam-machine', () => openMachineManager(this));
     reg('cam-tools', 'cam.cmd.tools', 'cam-tool-library', () => openToolManager(this, 'doc'));
+    reg('cam-sheet', 'cam.cmd.sheet', 'nc-code', () => { this.ops.sheet(); }, { off: needOps, tip: null });
     reg('cam-cutdata', 'cam.cmd.cutdata', 'cam-tool-library', () => openCutData(this));
     const opcmd = (id, nm, ic, type, cycle) => reg(id, nm, ic, () => this.ops.create(type, cycle), { off: needSetup });
     opcmd('cam-op-face', 'cam.cmd.face', 'op-face', 'face'); opcmd('cam-op-contour', 'cam.cmd.contour', 'op-contour', 'contour'); opcmd('cam-op-pocket', 'cam.cmd.pocket', 'op-pocket', 'pocket'); opcmd('cam-op-chamfer', 'cam.cmd.chamfer', 'chamfer', 'chamfer');

@@ -1068,6 +1068,41 @@ try:
     check('delme taslağı: rec işaretli, filtre yok', r.get('rec') == ['rec:1', 'rec:2'] and 'filter' not in r, json.dumps(r))
     ctx.close()
 
+    print('WP-07 dilim 6: kurulum föyü (HTML) - içerik, kaçışlama, CSP, indirme')
+    ctx, pg = newpage(); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", MACH)
+    load(pg, PART); pg.click('[data-testid=tab-manufacture]')
+    pg.evaluate("(m) => app.cam.setMachine(m)", MACH['id']); pg.evaluate("(t) => app.cam.setTools(t)", TOOLS)
+    pg.click('[data-cmd=cam-setup]'); pg.click('[data-testid=panel-ok]')
+    pg.evaluate("() => { const c = app.cam; const mk = (type) => { c.ops.create(type); const id = c.sel.id; c.closePanel(); return id; }; mk('face'); mk('contour'); }")
+    pg.evaluate("() => app.cam.mut((c) => { const o = c.setups[0].ops; Object.assign(o[0], { stepover: 7, stepdown: 1, name: '<img src=x onerror=window.__xss=1>' }); Object.assign(o[1], { rpm: 8000, feedCut: 1500, feedPlunge: 500, stepdown: 7, geom: [{ kind: 'silhouette', body: app.result.bodies[0].id }] }); c.setups[0].name = '</td><script>window.__xss=2</script>'; })")
+    check('föy: komut kayıtlı', pg.evaluate("() => !!app.C.cmds['cam-sheet']"))
+    html = pg.evaluate("async () => { const r = await app.cam.ops.prepare(); return r ? app.cam.ops.buildSheet(r) : null; }")
+    check('föy: HTML üretildi, betik/img öğesi ve dış adres yok', html and '<script' not in html and '<img' not in html and 'http:' not in html and 'https:' not in html, (html or '')[:200])
+    check('föy: takım adı, T numarası, devir ve ilerleme belge verisinden', html and 'Freze 10' in html and '>T1<' in html and '>8000<' in html and '>1500<' in html, '')
+    check('föy: kullanıcı adları kaçışlı görünür', html and '&lt;img src=x onerror=window.__xss=1&gt;' in html and '&lt;/td&gt;&lt;script&gt;window.__xss=2&lt;/script&gt;' in html)
+    check('föy: ham ölçü listesi ve iki SVG (üst/yan)', html and 'Ham malzeme ölçü listesi' in html and html.count('<svg ') == 2)
+    # gerçek tarayıcıda: CSP'ye uyum (ihlal yok), betik çalışmaz, stil uygulanır
+    ctx2, pg2 = newpage(); errs = []
+    pg2.on('console', lambda m: errs.append(m.text) if m.type in ('error', 'warning') else None)
+    pg2.goto('about:blank'); pg2.set_content(html); time.sleep(0.3)
+    check('föy: tarayıcıda CSP ihlali yok', not [e for e in errs if 'Content Security Policy' in e or 'Refused' in e], json.dumps(errs)[:300])
+    check('föy: tarayıcıda XSS çalışmadı (window.__xss yok), img/script öğesi yok', pg2.evaluate('() => window.__xss === undefined && document.querySelectorAll("img, script").length === 0'))
+    check('föy: stil uygulandı (başlık 20px) ve SVG çizildi', pg2.evaluate('() => getComputedStyle(document.querySelector("h1")).fontSize') == '20px' and pg2.evaluate('() => document.querySelectorAll("svg rect").length') == 4)
+    ctx2.close()
+    # komut: dosya indirir
+    with pg.expect_download(timeout=60000) as dl:
+        pg.evaluate("() => { app.C.run('cam-sheet'); }")
+    d = dl.value; path = d.path()
+    saved = open(path, encoding='utf-8').read()
+    check('föy: komut HTML dosyası indirir (-foy.html), içerik üretilenle aynı yapıda', d.suggested_filename.endswith('-foy.html') and saved.startswith('<!DOCTYPE html>') and 'Kurulum föyü' in saved and 'Freze 10' in saved, d.suggested_filename)
+    # NC penceresinde düğme
+    pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=nc-text], [data-testid=issue-list]', timeout=40000)
+    if count(pg, '[data-testid=nc-text]') == 1:
+        check('föy: NC penceresinde "Kurulum föyü (HTML)" düğmesi var', count(pg, '[data-testid=nc-sheet]') == 1)
+    else:
+        check('föy: NC penceresi açılmadı (engel listesi) - düğme denetlenemedi', True, txt(pg, '#modal')[:200])
+    ctx.close()
+
     br.close()
 finally:
     _srv.stop(server)

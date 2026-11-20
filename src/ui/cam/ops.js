@@ -12,6 +12,9 @@ import { uid, hashStr } from './util.js';
 import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
 import { SimRun } from './simbar.js';
 import { showIssueList, showNc as showNcModal, openVerify as openVerifyDlg } from './postui.js';
+import { buildSetupSheet } from '../../cam/report/setupsheet.js';
+import { MATERIALS } from '../../cam/cutdata.js';
+import { machineName } from './store.js';
 import pkg from '../../../package.json';
 
 const errObj = (e) => ({ code: e?.code || 'internal', params: e?.params || { message: String(e?.message ?? e) } });
@@ -244,6 +247,20 @@ export class CamOps {
     let res; try { res = this.runPost(r.program, r.gates); } catch (e) { this.nc = null; this.app.C.renderAll(); await showIssueList(this, { title: t('cam.post.fail_title'), intro: t('cam.post.fail_intro'), rows: [{ level: 'block', op: '', text: errText(e) }], kind: 'err' }); return; }
     this.nc = { ...res, items: r.items, program: r.program, gates: r.gates, docSig: r.docSig, name: this.progName() };
     this.app.C.renderAll(); await this.showNc();
+  }
+  // WP-07 dilim 6: kurulum foyu - belge verisinden (hesaplanmis islemler) tek dosya HTML; tarayicidan PDF'e yazdirilir
+  buildSheet(r) {
+    const cam = this.cam; const toolNames = {}; for (const x of cam.tools()) if (x.name) toolNames[x.number] = x.name;
+    const mat = cam.data().material; const material = mat ? (MATERIALS.includes(mat) ? t('cam.cd.m.' + mat) : mat) : '';
+    const title = String(this.app.fileName || '').replace(/\.[^.]*$/, '');
+    return buildSetupSheet({ title, date: new Date().toISOString().slice(0, 10), machineName: machineName(cam.machine()), material, programName: this.progName(), toolNames, tr: (k, p) => t(k, p), lang: document.documentElement.lang === 'en' ? 'en' : 'tr',
+      items: r.items.map((x) => ({ setupName: x.setup.name, stockFrom: x.setup.stockFrom, S: x.S, opName: x.op.name, opType: x.op.type, tp: x.tp })) });
+  }
+  async sheet() {
+    const r = await this.prepare(); if (!r) return null;
+    const html = this.buildSheet(r); const name = this.progName() + '-foy.html';
+    try { const p = await this.app.writeOut(new TextEncoder().encode(html), name, 'html', true); if (p) toast(t('cam.sheet.saved', { name: typeof p === 'string' ? p : name }), { kind: 'ok' }); return html; }
+    catch (e) { toast(t('cam.sheet.save_failed', { msg: errText(e) }), { kind: 'err' }); return null; }
   }
   async showNc() { if (!this.nc) { toast(t('cam.need_post'), { kind: 'warn' }); return; } await showNcModal(this); this.cam.view?.hideMove(); }
 }

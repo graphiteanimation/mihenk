@@ -12,7 +12,7 @@ import { NEWAY_FIXTURE } from './fixtures/machine-neway.mjs';
 import { exportMachines, importMachines, MACHINE_FORMAT } from '../src/cam/machines/io.js';
 import { builtinMachines, checkMachine, copyMachine } from '../src/cam/machines/builtin.js';
 import { normalizeTool, importLibrary, exportLibrary, applyPreset, toolListIssues } from '../src/cam/tools.js';
-import { validateToolpath, validateProgram, walk, sampleArc, arcSweep } from '../src/cam/ir.js';
+import { validateToolpath, validateProgram, walk, sampleArc, arcSweep, mk as IRmk } from '../src/cam/ir.js';
 import { blocked } from '../src/cam/gates.js';
 import { heightmapFromFn } from '../src/cam/sim/index.js';
 import { validateDoc } from '../src/shared/schema.js';
@@ -1373,6 +1373,69 @@ section('WP-07 dilim 5. pah: keskin kenar kipi (modelde pah yok, pah secilen ken
   const tpC = CAM.computeOp({ id: 'c', type: 'chamfer', ...base, geom: [{ kind: 'chain' }], side: 'right', sharp: true, width: 1.5, heights: { clearance: 10, retract: 2 } }, { setup: S0, tool: ch90, geom: cch });
   const pc = cutPoints(tpC, () => true, 0.2); ok(pc.length > 10 && pc.every((q) => Math.abs(q[1] - 8.8) < 1e-6), 'dilim5: zincir side right -> takim y=8,8 (kenar y=10, 1,2 sagda)');
   ok(tpC.meta.chamferSharp.items[0].matLeft === true && tpC.meta.chamferSharp.items[0].closed === false, 'dilim5: zincir: malzeme solda, acik');
+}
+
+// ------------------------------------------------------------------ WP-07 dilim 6: kurulum foyu (setup sheet) HTML
+section('WP-07 dilim 6. kurulum foyu: icerik, sure el hesabi, kacislama (XSS), CSP, betik/dis kaynak yok');
+{
+  const SS = await import('../src/cam/report/setupsheet.js');
+  const { tLang } = await import('../src/shared/i18n.js');
+  const nodeCrypto = await import('node:crypto');
+  const trL = (l) => (k, p) => tLang(l, k).replace(/\{(\w+)\}/g, (m, n) => (p && n in p ? String(p[n]) : m));
+  const tr = trL('tr');
+  // el hesabi sure: rapid (0,0,5) -> dalma (0,0,0) F300 = 5/300 dk = 1 sn; kesme (0,0,0)->(100,0,0) F600 = 100/600 dk = 10 sn -> 0:11
+  const tool5 = { number: 5, type: 'flat', dia: 6, fluteLen: 20, bodyLen: 40, flutes: 3, centerCutting: true };
+  const mkTp = (opName, opType, tool, rpm, f) => IRmk.toolpath({ opId: opName, opName, opType, tool, rpm, clearanceZ: 10, moves: [IRmk.rapid(0, 0, 5), IRmk.feed(0, 0, 0, 300, 'plunge'), IRmk.feed(100, 0, 0, f, 'cut')] });
+  const tp1 = mkTp('A', 'contour', tool5, 8000, 600);
+  ok(Math.abs(tp1.stats.timeMin * 60 - 11) < 1e-9, 'foy: IR sure el hesabi 11 sn: ' + tp1.stats.timeMin * 60);
+  const evil = `<script>alert(1)</script>&"'`;
+  const S1 = { ...S0, id: 'sA', name: 'x' };
+  const S2 = { ...S0, id: 'sA@A1', name: 'y', aAngle: 90 };
+  const Scyl = { ...S0, id: 'sC', name: 'z', stock: { kind: 'cyl', dia: 40, len: 120 } };
+  const tp2 = mkTp('B', 'chamfer', { ...tool5, number: 9, type: 'chamfer', dia: 12 }, 6000, 450.5);
+  const tp3 = mkTp('C', 'drill', { ...tool5, number: 5 }, 8000, 600);
+  const items = [
+    { setupName: evil, S: S1, opName: evil, opType: 'contour', tp: tp1 },
+    { setupName: '<img src=x onerror=alert(1)>', S: S2, stockFrom: 'previous', opName: 'ikinci', opType: 'chamfer', tp: tp2 },
+    { setupName: 'silindir', S: Scyl, opName: 'u', opType: 'drill', tp: tp3 },
+  ];
+  const data = { title: '</title><script>alert(2)</script>', date: '2026-11-20', machineName: '<b>Tezgah</b>', material: 'Al "6061"', programName: 'O1', items, toolNames: { 5: '<i>Freze</i>', 9: 'Pah 90' }, tr, lang: 'tr' };
+  const html = SS.buildSetupSheet(data);
+  // guvenlik: betik, olay, style oznitelikleri, dis kaynak yok; kullanici metni kacisli
+  // etiket bazli denetim (kacisli kullanici metni etiket sayilmaz): yalniz izinli etiketler, hicbirinde olay/style/dis kaynak oznitelik yok
+  { const tags = html.match(/<[^>]+>/g) || []; const names = new Set(tags.map((x) => (/^<\/?([a-zA-Z0-9!]+)/.exec(x) || [])[1]?.toLowerCase()));
+    const allowed = new Set(['!doctype', 'html', 'head', 'meta', 'title', 'style', 'body', 'h1', 'h2', 'h3', 'p', 'table', 'tr', 'th', 'td', 'div', 'svg', 'rect', 'line', 'text', 'circle']);
+    ok([...names].every((n) => allowed.has(n)), 'foy: yalniz izinli etiketler (script/img/link/iframe/object yok): ' + [...names].filter((n) => !allowed.has(n)));
+    const attrs = tags.flatMap((x) => [...x.matchAll(/\s([a-zA-Z:-]+)\s*=/g)].map((m) => m[1].toLowerCase()));
+    ok(attrs.every((n) => !/^on/.test(n) && n !== 'style' && !['src', 'href', 'srcset', 'action', 'data', 'xlink:href', 'formaction'].includes(n)), 'foy: hicbir etiketin olay/style/src/href oznitelik yok: ' + [...new Set(attrs)]);
+    ok(!/url\(|@import|https?:|\/\/\w/i.test(html), 'foy: url()/@import/http(s)/protokol-bagil adres yok'); }
+  ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;&amp;&quot;&#39;') && html.includes('&lt;img src=x onerror=alert(1)&gt;') && html.includes('&lt;b&gt;Tezgah&lt;/b&gt;') && html.includes('&lt;i&gt;Freze&lt;/i&gt;'), 'foy: islem/kurulum/takim/tezgah adlari kacislandi');
+  ok(!html.includes('<b>Tezgah') && !html.includes('<i>Freze') && !html.includes('<img') && (html.match(/<title>/g) || []).length === 1 && html.includes('&lt;/title&gt;&lt;script&gt;'), 'foy: baslik kacislandi, </title> ile kacis yok');
+  const hash = 'sha256-' + nodeCrypto.createHash('sha256').update(SS.SHEET_CSS).digest('base64');
+  ok(SS.SHEET_CSS_HASH === hash, 'foy: SHEET_CSS_HASH, CSS ozetiyle ayni (CSS degisirse sabit guncellenmeli): ' + hash);
+  ok(html.includes(`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src '${hash}'; base-uri 'none'; form-action 'none'">`) && html.includes('<style>' + SS.SHEET_CSS + '</style>') && !/script-src|unsafe-inline|unsafe-eval/.test(html), 'foy: kendi CSP\'si: default-src none, stil yalniz ozetle, betik izni yok');
+  // icerik (belge verisinden)
+  ok(html.includes('Al &quot;6061&quot;') && html.includes('2026-11-20') && html.includes('>O1<'), 'foy: malzeme, tarih, program');
+  ok(html.includes('>T5<') && html.includes('>T9<') && html.includes('>8000<') && html.includes('>6000<') && html.includes('>600<'), 'foy: takim numaralari, devir ve ilerleme');
+  ok(html.includes('>450.5<'), 'foy: ilerleme 450,5 (ondalik)');
+  // kesme 450,5: (5/300 + 100/450,5) dk = 14,318 sn -> 0:14 ; toplam 11 + 14,318 + 11 = 36,318 sn -> 0:36
+  ok(html.includes('>0:11<') && html.includes('>0:14<'), 'foy: islem sureleri 0:11 ve 0:14 (el hesabi)');
+  ok(/Toplam tahmini süre<\/th><th class="n">0:36</.test(html), 'foy: toplam sure 0:36');
+  ok(html.includes('3 kurulum, 2 takım, 3 işlem, tahmini süre 0:36'), 'foy: ozet satiri (3 kurulum, 2 takim, 3 islem): ' + (html.match(/\d kurulum[^<]*/) || [])[0]);
+  // resim: her kurulumda iki SVG, oklar ve kutular
+  ok((html.match(/<svg /g) || []).length === 6 && (html.match(/<rect /g) || []).length === 12 && (html.match(/>X<\/text>/g) || []).length === 6 && html.includes('>Y</text>') && html.includes('>Z</text>'), 'foy: 3 kurulum x (ust + yan) = 6 SVG, her birinde stok+parca kutusu, X/Y/Z oku');
+  // resim el hesabi: stok x 0..100, y 0..60 (alan 250x170, pad 22): olcek = min(206/100, 126/60) = 2,06 -> stok dikdortgeni genislik 206
+  ok(html.includes('width="206"') && html.includes('height="123.6"'), 'foy: ust gorunus olcegi el hesabi (genislik 206, yukseklik 123.6)');
+  // ham malzeme: onceki kurulumdan gelen satir listede yok, silindir ve kutu var
+  const rawPart = html.slice(html.indexOf('Ham malzeme ölçü listesi'));
+  ok(rawPart.includes('100 × 60 × 30 mm') && rawPart.includes('Ø40 × 120 mm (yuvarlak)') && !rawPart.includes('&lt;img') && (rawPart.match(/<tr><td>/g) || []).length === 2, 'foy: ham olcu listesi: kutu 100x60x30 + Ø40x120; onceki kurulumdan gelen satir yok');
+  ok(html.includes('A açısı') && html.includes('90°') && html.includes('Önceki kurulumdan gelen'), 'foy: A acisi ve onceki-kurulum notu');
+  // EN
+  const en = SS.buildSetupSheet({ ...data, tr: trL('en'), lang: 'en' });
+  ok(en.includes('<html lang="en">') && en.includes('Setup sheet') && en.includes('Tool list') && en.includes('Operation list') && en.includes('Raw material size list') && !en.includes('Kurulum föyü'), 'foy: EN dil');
+  // bos / tek islem
+  ok(SS.buildSetupSheet({ items: [], tr, lang: 'tr' }).includes('0 kurulum, 0 takım, 0 işlem'), 'foy: bos program cokmez');
+  ok(SS.esc(`&<>"'\``) === '&amp;&lt;&gt;&quot;&#39;&#96;', 'foy: esc tum ozel karakterleri kacislar');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
