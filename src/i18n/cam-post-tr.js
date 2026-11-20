@@ -72,6 +72,7 @@ export default {
   "err.cam.post.program_number": "Program numarası {number} geçersiz: 1'den başlayan, en çok {digits} haneli bir tam sayı olmalı (O0 olmaz).",
   "err.cam.post.bad_rpm": "İş mili devri {rpm} NC'ye S0 olarak yazılırdı; NC üretilmedi.",
   "err.cam.post.arc_degenerate": "Bir yayın (yarıçap {r} mm) başlangıcı ile bitişi NC çözünürlüğünde aynı; kontrol tam daire yürütür. NC üretilmedi.",
+  "err.cam.post.cycle_expanded": "Çevrim bu postta desteklenmiyor, açık harekete açıldı ({cycle}); mil yönlendirme (M19) yazılmadı, kayma yönünü kontrol edin.",
   "err.cam.post.arc_as_line": "Çok kısa bir yay doğru olarak yazıldı (başlangıç ve bitiş NC çözünürlüğünde aynı).",
   "err.cam.post.line_number_wrapped": "Satır numaraları {max} değerini aştı ve başlangıç değerinden yeniden başlıyor (N numaraları tekrarlanır).",
   "err.cam.post.gates_blocked": "Güvenlik kapıları bu programı engelliyor ({n} sorun, ilki: {code} {op}); NC üretilmedi.",

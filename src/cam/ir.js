@@ -5,7 +5,7 @@ import { KErr } from '../shared/errors.js';
 
 export const MOVE_TYPES = ['rapid', 'feed', 'arc', 'cycle', 'dwell', 'comp'];
 export const FEED_KINDS = ['cut', 'plunge', 'ramp', 'lead'];
-export const CYCLES = ['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore'];
+export const CYCLES = ['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore', 'fineBore', 'backBore']; // WP-14: fineBore = G76 ince delik, backBore = G87 arka havsa (cutTo: ustte biten kesme, bottom: alttaki baslangic)
 export const COOLANTS = ['flood', 'mist', 'air', 'through', 'off'];
 export const TOOL_TYPES = ['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore', 'threadmill'];
 export const ARC_TOL = 0.005; // mm: yayin baslangic ve bitis yaricaplari arasindaki izinli fark
@@ -119,7 +119,7 @@ export function computeStats(tp, opts = {}) {
       else { const r = arcRadius(from || { x: 0, y: 0 }, m); const sw = from ? Math.abs(arcSweep(from, m)) : 0; l = Math.hypot(r * sw, m.z - (from?.z ?? m.z)); }
       cutLen += l; if (m.f > 0) tMin += l / m.f; zMin = Math.min(zMin, m.z);
     } else if (m.t === 'cycle') {
-      for (let n = 0; n < (m.points || []).length; n++) { const l = m.retract - m.bottom; cutLen += l; if (m.f > 0) tMin += l / m.f; }
+      for (let n = 0; n < (m.points || []).length; n++) { const l = m.cycle === 'backBore' ? m.cutTo - m.bottom : m.retract - m.bottom; cutLen += l; if (m.f > 0) tMin += l / m.f; }
       zMin = Math.min(zMin, m.bottom);
     } else if (m.t === 'dwell') tMin += (m.s || 0) / 60;
   });
@@ -224,6 +224,14 @@ export function toolpathErrors(tp, firstOnly = false) {
       if (m.returnTo != null && m.returnTo !== 'r' && m.returnTo !== 'clearance') { if (bad('cam.ir.field', { ...at, field: 'returnTo' })) return errs; } // WP-06: 'clearance' = her nokta sonrasi G98 (baslangic duzlemine donus); 'r' (varsayilan) = G99 gecisleri
       if ((m.cycle === 'peck' || m.cycle === 'chipbreak') && !(isNum(m.peck) && m.peck > 0)) { if (bad('cam.ir.field', { ...at, field: 'peck' })) return errs; }
       if (m.dwell != null && (!isNum(m.dwell) || m.dwell < 0)) { if (bad('cam.ir.field', { ...at, field: 'dwell' })) return errs; }
+      if (m.cycle === 'fineBore' || m.cycle === 'backBore') {
+        if (!(isNum(m.shift) && m.shift > 0)) { if (bad('cam.ir.field', { ...at, field: 'shift' })) return errs; }
+        if (m.shiftDir != null && !isNum(m.shiftDir)) { if (bad('cam.ir.field', { ...at, field: 'shiftDir' })) return errs; }
+      }
+      if (m.cycle === 'backBore') {
+        if (!(isNum(m.cutTo) && isNum(m.bottom) && m.cutTo > m.bottom)) { if (bad('cam.ir.field', { ...at, field: 'cutTo' })) return errs; }
+        if (isNum(m.retract) && isNum(m.clearance) && Math.abs(m.retract - m.clearance) > EPS) { if (bad('cam.ir.cycle_heights', at)) return errs; } // G87 yalniz baslangic duzlemine doner (G98)
+      }
       if (m.cycle === 'tap') {
         if (!(isNum(m.pitch) && m.pitch > 0)) { if (bad('cam.ir.tap_pitch', at)) return errs; }
         else if (isNum(tp.rpm) && isNum(m.f) && Math.abs(m.f - tp.rpm * m.pitch) > 1e-3 * Math.max(1, m.f)) { if (bad('cam.ir.tap_feed_mismatch', { ...at, f: m.f, expected: tp.rpm * m.pitch })) return errs; }
@@ -293,7 +301,7 @@ export function compareToolpaths(a, b, tol = 0.001) {
       if (p.points.length !== q.points.length) diffs.push(`#${k} cycle points count`);
       else if (p.points.length > 1 && retToClr(p) !== retToClr(q)) diffs.push(`#${k} cycle.returnTo ${retToClr(p) ? 'clearance' : 'r'} != ${retToClr(q) ? 'clearance' : 'r'}`);
       else p.points.forEach((pt, m) => { if (!near(pt[0], q.points[m][0]) || !near(pt[1], q.points[m][1])) diffs.push(`#${k} point ${m}`); });
-      for (const key of ['peck', 'dwell', 'pitch']) if ((p[key] ?? null) !== null || (q[key] ?? null) !== null) { if (!(typeof p[key] === 'number' && typeof q[key] === 'number' && near(p[key], q[key], 0.0011))) { if (!(key === 'dwell' && !(p[key] > 0) && !(q[key] > 0))) diffs.push(`#${k} cycle.${key} ${p[key]} != ${q[key]}`); } }
+      for (const key of ['peck', 'dwell', 'pitch', 'shift', 'cutTo']) if ((p[key] ?? null) !== null || (q[key] ?? null) !== null) { if (!(typeof p[key] === 'number' && typeof q[key] === 'number' && near(p[key], q[key], 0.0011))) { if (!(key === 'dwell' && !(p[key] > 0) && !(q[key] > 0))) diffs.push(`#${k} cycle.${key} ${p[key]} != ${q[key]}`); } }
     }
   }
   for (const key of ['rpm']) if (a[key] !== b[key]) diffs.push(`${key} ${a[key]} != ${b[key]}`);

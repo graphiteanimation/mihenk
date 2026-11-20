@@ -99,7 +99,8 @@ const camOp = obj({
   geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr, ents: strArr(), reverse: bool() }), CAM_LIMITS.geom),
   stepover: camNum(0), stepdown: camNum(0), finishStepdown: camNum(0), finishStock: camNum(0), direction: camNum(), extend: camNum(0),
   side: oneOf(['outside', 'inside', 'on', 'left', 'right']), extendStart: camNum(0), extendEnd: camNum(0), width: camNum(0), tipClearance: camNum(0), dir: oneOf(['climb', 'conv']), comp: oneOf(['computer', 'wear']), finishPass: bool(),
-  cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
+  cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore', 'fineBore', 'backBore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
+  shift: camNum(0), shiftDir: camNum(-360, 360), backDepth: camNum(0), startBelow: camNum(0), // WP-14: G76/G87
   aAngle: camNum(-36000, 36000),
   sharp: bool(),
   holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr }), sketch: idStr, ents: strArr(), rec: strArr(), acceptThread: strArr() }),

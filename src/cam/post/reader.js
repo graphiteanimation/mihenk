@@ -65,7 +65,8 @@ export function readNC(text, opts = {}) {
     if (cy.lastRetr !== 98) fail('cam.post.read_cycle_end_g99', ln);
     const mv = { t: 'cycle', cycle: cy.kind, points: cy.points, top: cy.R, bottom: cy.Z, retract: cy.R, clearance: cy.startZ, f: cy.f };
     if (cy.points.length > 1 && cy.modes.every((x) => x === 98) && cy.R < cy.startZ - 1e-9) mv.returnTo = 'clearance'; // her nokta G98: baslangic duzlemine donus
-    if (cy.Q != null) mv.peck = cy.Q;
+    if (cy.kind === 'fineBore') { mv.shift = cy.Q; } else if (cy.kind === 'backBore') { mv.shift = cy.Q; mv.bottom = cy.R; mv.cutTo = cy.Z; mv.top = cy.Z; mv.retract = cy.startZ; } // G87: R = alt baslangic, Z = ustte bitis, doner: baslangic duzlemi
+    else if (cy.Q != null) mv.peck = cy.Q;
     if (cy.P != null) mv.dwell = cy.P;
     if (cy.kind === 'tap') {
       if (!(S.rpm > 0)) fail('cam.post.read_no_spindle', ln);
@@ -98,7 +99,7 @@ export function readNC(text, opts = {}) {
     const Gs = words.filter((w) => w.l === 'G').map((w) => w.v);
     const Ms = words.filter((w) => w.l === 'M').map((w) => w.v);
     const has = (g) => Gs.includes(g);
-    const isCycleCode = (g) => [73, 74, 81, 82, 83, 84, 85, 89].includes(g);
+    const isCycleCode = (g) => [73, 74, 76, 81, 82, 83, 84, 85, 87, 89].includes(g);
 
     // ---- G kodlari
     let retractEv = false, dwell = false, machineCoord = false, wantCycle = null, compReq = undefined, retrMode = null, newMotion = null;
@@ -183,10 +184,11 @@ export function readNC(text, opts = {}) {
       if (wantCycle != null) {
         finishCycle(ln);
         if (S.z == null) fail('cam.post.read_no_position', ln);
-        const kind = { 81: 'drill', 82: 'drill', 83: 'peck', 73: 'chipbreak', 84: 'tap', 74: 'tap', 85: 'ream', 89: 'bore' }[wantCycle];
+        const kind = { 81: 'drill', 82: 'drill', 83: 'peck', 73: 'chipbreak', 84: 'tap', 74: 'tap', 85: 'ream', 89: 'bore', 76: 'fineBore', 87: 'backBore' }[wantCycle];
         const Rw = W('R'), Zw = Z, Fw = W('F'), Qw = W('Q');
         if (!Rw || !Zw || !Fw) fail('cam.post.read_missing_word', ln, { word: !Rw ? 'R' : !Zw ? 'Z' : 'F' });
         let P = null;
+        if (wantCycle === 76 || wantCycle === 87) { if (!Qw) fail('cam.post.read_missing_word', ln, { word: 'Q' }); const a = props.cycleDwellAddress; const pw = a ? W(a) : null; if (pw) { if (props.cycleDwellUnit == null) fail('cam.post.read_prop_missing', ln, { prop: 'cycleDwellUnit' }); P = readDwell(a, props.cycleDwellUnit, pw, ln); } }
         if (wantCycle === 82 || wantCycle === 89) { const a = props.cycleDwellAddress; const pw = a ? W(a) : null; if (a == null || props.cycleDwellUnit == null) fail('cam.post.read_prop_missing', ln, { prop: 'cycleDwellAddress' }); if (!pw) fail('cam.post.read_missing_word', ln, { word: a }); P = readDwell(a, props.cycleDwellUnit, pw, ln); }
         if ((wantCycle === 83 || wantCycle === 73) && !Qw) fail('cam.post.read_missing_word', ln, { word: 'Q' });
         if (wantCycle === 84 || wantCycle === 74) { if (!!words.find((w) => w.l === ',R') !== !!props.tapR1) fail('cam.post.read_tap_r1', ln); }

@@ -3,6 +3,7 @@
 // Bu dosyanin urettigi NC YALNIZ TEST CIKTISIDIR; makinede kosturulabilir diye sunulmaz.
 import { createFormat, createVariable, createModal, sanitizeComment, perr, isEmptyProp, MIHENK_VERSION } from './engine.js';
 import { describeIssue } from './describe.js';
+import { expandCyclePoint } from '../cycles.js';
 
 export const FANUC_DEFAULT_PROPS = {
   lineNumbers: false, lineNumberStart: 10, lineNumberStep: 10,
@@ -17,7 +18,9 @@ export const FANUC_DEFAULT_PROPS = {
   coolantCodes: { flood: 'M8', mist: 'M7', air: null, through: null, off: 'M9' },
   optionalStop: false,           // her islem basinda M01
   rapidSplit: true,              // karisik XY+Z hizliyi guvenli siraya boler
-  cannedCycles: true,            // false: acik hareket (yalniz drill/spot/ream/bore)
+  cannedCycles: true,            // false: acik hareket (yalniz drill/spot/ream/bore; fineBore/backBore acilir)
+  cycleG76: true,                // false: ince delik (G76) cevrimi desteklenmiyor -> acik harekete acilir (uyari)
+  cycleG87: true,                // false: arka havsa (G87) cevrimi desteklenmiyor -> acik harekete acilir (uyari)
   tapMode: 'feed',               // 'feed': F = devir x adim (+ rigidTapM); 'pitch': F = adim
   rigidTapM: 'M29',              // 'feed' kipinde G84 oncesi senkron kilavuz kodu (null: yazma)
   tapR1: false,                  // G84 satirina ,R1 ekle
@@ -286,7 +289,15 @@ export function createFanucPost(over = {}) {
     onCycle(c) {
       const p = this.props, tp = this.section.toolpath;
       this.state.cycle = { c, n: 0 };
-      if (!p.cannedCycles) {
+      // WP-14: G76/G87 desteklenmiyorsa (profil ozelligi ya da cannedCycles:false) nokta basina acik harekete acilir; mil yonlendirme yok -> uyari
+      if (c.cycle === 'fineBore' || c.cycle === 'backBore') {
+        if (!p.cannedCycles || (c.cycle === 'fineBore' ? p.cycleG76 === false : p.cycleG87 === false)) {
+          this.state.cycle.expand = true;
+          this.warn('cam.post.cycle_expanded', { cycle: c.cycle });
+          this.writeComment(`${c.cycle === 'fineBore' ? 'G76' : 'G87'} EXPANDED - NO SPINDLE ORIENT - CHECK SHIFT DIRECTION`);
+          return;
+        }
+      } else if (!p.cannedCycles) {
         if (!['drill', 'spot', 'ream', 'bore'].includes(c.cycle)) this.fail('cam.post.cycle_unsupported', { cycle: c.cycle });
         return;
       }
@@ -303,12 +314,23 @@ export function createFanucPost(over = {}) {
         case 'tap': return tp.spindleDir === 'ccw' ? 74 : 84;
         case 'ream': return 85;
         case 'bore': return 89;
+        case 'fineBore': return 76;
+        case 'backBore': return 87;
         default: throw perr('cam.post.cycle_unsupported', { cycle: c.cycle });
       }
     },
     onCyclePoint(x, y, z) {
       const st = this.state, { c } = st.cycle, p = this.props, d = p.decimals;
       const last = st.cycle.n === c.points.length - 1;
+      if (st.cycle.expand) { // WP-14: acilmis G76/G87
+        for (const s of expandCyclePoint(c, x, y, last)) {
+          if (s.t === 'dwell') { this.writeBlock('G04', post._dwellWord.call(this, p.dwellAddress, p.dwellUnit, s.s)); this.g.motion.reset(); continue; }
+          const xy = [s.x != null ? this.v.x.format(s.x) : '', s.y != null ? this.v.y.format(s.y) : ''], zw = s.z != null ? this.v.z.format(s.z) : '';
+          this.writeBlock(this.g.motion.format(s.t === 'rapid' ? 0 : 1), ...xy, zw, s.t === 'feed' ? this.v.f.format(s.f) : '');
+        }
+        st.cycle.n++;
+        return;
+      }
       if (!p.cannedCycles) { // acik hareket: XY hizli, R'ye hizli, dibe kesme, bekleme, R'ye (son nokta: clearance) hizli
         const xy = [this.v.x.format(x), this.v.y.format(y)];
         if (xy.some(Boolean)) this.writeBlock(this.g.motion.format(0), ...xy);
@@ -321,12 +343,13 @@ export function createFanucPost(over = {}) {
         return;
       }
       const code = post._cycleCode.call(this, c);
-      const retr = (last || c.retract === c.clearance || c.returnTo === 'clearance') ? 'G98' : 'G99';
+      const retr = (last || c.retract === c.clearance || c.returnTo === 'clearance' || code === 87) ? 'G98' : 'G99'; // G87 yalniz baslangic duzlemine doner
       const first = st.cycle.n === 0;
       const fmtd = (pre, v) => createFormat({ prefix: pre, decimals: d }).format(v);
       if (first) {
-        const words = [retr, 'G' + code, this.v.x.formatForced(x), this.v.y.formatForced(y), fmtd('Z', c.bottom), fmtd('R', c.retract)];
+        const words = [retr, 'G' + code, this.v.x.formatForced(x), this.v.y.formatForced(y), fmtd('Z', code === 87 ? c.cutTo : c.bottom), fmtd('R', code === 87 ? c.bottom : c.retract)]; // G87: R = alt baslangic, Z = ustte bitis
         if (code === 73 || code === 83) words.push(fmtd('Q', c.peck));
+        if (code === 76 || code === 87) { words.push(fmtd('Q', c.shift)); if (c.dwell > 0) words.push(post._dwellWord.call(this, p.cycleDwellAddress, p.cycleDwellUnit, c.dwell, true)); }
         if (code === 82 || code === 89) words.push(post._dwellWord.call(this, p.cycleDwellAddress, p.cycleDwellUnit, c.dwell ?? 0, true));
         if (code === 84 || code === 74) {
           if (p.tapMode === 'pitch') words.push('F' + createFormat({ decimals: 3 }).format(c.pitch));
@@ -345,7 +368,7 @@ export function createFanucPost(over = {}) {
       st.cycle.n++;
     },
     onCycleEnd() {
-      if (this.props.cannedCycles) this.writeBlock('G80');
+      if (this.props.cannedCycles && !this.state.cycle?.expand) this.writeBlock('G80');
       this.g.motion.reset(); this.v.x.reset(); this.v.y.reset(); this.v.z.reset();
       this.state.cycle = null;
     },

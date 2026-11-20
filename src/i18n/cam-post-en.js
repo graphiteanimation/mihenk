@@ -72,6 +72,7 @@ export default {
   "err.cam.post.program_number": "Program number {number} is invalid: it must be an integer from 1 with at most {digits} digits (O0 is not allowed).",
   "err.cam.post.bad_rpm": "Spindle speed {rpm} would be written as S0; no NC is generated.",
   "err.cam.post.arc_degenerate": "An arc (radius {r} mm) has the same start and end point at NC resolution; the control would run a full circle. No NC is generated.",
+  "err.cam.post.cycle_expanded": "Cycle is not supported by this post and was expanded to explicit moves ({cycle}); no spindle orient (M19) was written, check the shift direction.",
   "err.cam.post.arc_as_line": "A very short arc was written as a straight line (start and end are equal at NC resolution).",
   "err.cam.post.line_number_wrapped": "Line numbers exceeded {max} and restart from the start value (N numbers repeat).",
   "err.cam.post.gates_blocked": "Safety gates block this program ({n} issues, first: {code} {op}); no NC is generated.",

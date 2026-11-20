@@ -7,7 +7,7 @@ import { cerr } from '../geom/err.js';
 import { tipLength } from '../tools.js';
 import { need, opt, posNum, nonNeg, anyNum, cutting, Builder, finishToolpath, warn, r3 } from './common.js';
 
-export const CYCLE_TOOLS = { drill: ['drill'], peck: ['drill'], chipbreak: ['drill'], spot: ['spot', 'drill', 'chamfer'], tap: ['tap'], ream: ['reamer'], bore: ['bore'] };
+export const CYCLE_TOOLS = { drill: ['drill'], peck: ['drill'], chipbreak: ['drill'], spot: ['spot', 'drill', 'chamfer'], tap: ['tap'], ream: ['reamer'], bore: ['bore'], fineBore: ['bore'], backBore: ['bore'] };
 const DIA_TOL = 0.01;
 const TRANSIT_GAP = 0.1; // mm: G99 gecisinde R ile stok arasinda istenen en kucuk bosluk
 
@@ -102,6 +102,12 @@ export function computeDrill(op, ctx) {
   let peck = null, dwell = null, pitch = null, f = cut.feedCut;
   if (cycle === 'peck' || cycle === 'chipbreak') peck = need(op, 'peck');
   if (op.dwell != null) dwell = need(op, 'dwell', nonNeg, 'number >= 0');
+  // WP-14: G76 (ince delik) / G87 (arka havsa): kayma miktari zorunlu; G87 ek olarak boydan boya delik, arka havsa boyu ve alt baslangic payi ister
+  let shift = null, shiftDir = null, backDepth = null, startBelow = 0;
+  if (cycle === 'fineBore' || cycle === 'backBore') {
+    shift = need(op, 'shift', posNum, 'number > 0'); if (op.shiftDir != null) shiftDir = need(op, 'shiftDir', anyNum, 'number');
+    if (cycle === 'backBore') { backDepth = need(op, 'backDepth', posNum, 'number > 0'); startBelow = opt(op, 'startBelow', nonNeg, 'number >= 0', 2); }
+  }
   if (cycle === 'tap') {
     if (!(tool.pitch > 0)) throw cerr('cam.drill.tap_no_pitch', { tool: tool.number });
     pitch = tool.pitch; f = cut.rpm * pitch; // senkron kilavuz: ilerleme = devir x hatve
@@ -123,9 +129,16 @@ export function computeDrill(op, ctx) {
         else { if (h.thread.major != null && Math.abs(h.thread.major - tool.dia) > DIA_TOL) mism++; if (h.thread.pitch != null && Math.abs(h.thread.pitch - tool.pitch) > 1e-6) pmism++; }
       } else if (cycle !== 'spot' && Math.abs(h.dia - tool.dia) > DIA_TOL) mism++;
     }
+    let cutTo = null;
+    if (cycle === 'backBore') { // alt baslangic = delik cikisinin startBelow altinda, ustte bitis = cikistan backDepth yukari
+      if (!(h.through && h.exit != null)) throw cerr('cam.drill.backbore_needs_through');
+      if (!(tool.dia < h.dia - DIA_TOL)) throw cerr('cam.drill.backbore_tool_too_big', { tool: tool.dia, dia: h.dia });
+      const zExit = h.top - h.exit; bottom = zExit - startBelow; cutTo = zExit + backDepth;
+      if (!(cutTo < h.top - 1e-9)) throw cerr('cam.drill.backbore_too_long', { depth: backDepth, hole: r3(h.exit) });
+    }
     const R = h.top + ret;
     if (!(bottom < R - 1e-9)) throw cerr('cam.drill.bottom_above_r', { bottom: r3(bottom), r: r3(R) });
-    return { ...h, bottom, R };
+    return { ...h, bottom, R, cutTo };
   });
   if (thru) warnings.push(warn('cam.drill.through_to_model_bottom', { n: thru, z: r3(S.modelBBox.min[2]) }));
   if (mism) warnings.push(warn('cam.drill.dia_mismatch', { n: mism, dia: tool.dia }));
@@ -138,14 +151,14 @@ export function computeDrill(op, ctx) {
   const stockMap = ctx.stockMap?.data ? ctx.stockMap : null, modelMap = ctx.modelMap?.data ? ctx.modelMap : null;
   const clearAt = (a, b, z) => (z >= stockTop - 1e-9) || (stockMap && modelMap ? segClear(stockMap, a, b, z - TRANSIT_GAP, tool.dia / 2) && segClear(modelMap, a, b, z - TRANSIT_GAP, tool.dia / 2) : false);
   const byKey = new Map(); const keyed = [];
-  for (const p of pts) { const key = `${Math.round(p.top * 1e6)}|${Math.round(p.bottom * 1e6)}|${Math.round(p.R * 1e6)}`; if (!byKey.has(key)) { const k = { top: p.top, bottom: p.bottom, R: p.R, pts: [] }; byKey.set(key, k); keyed.push(k); } byKey.get(key).pts.push(p); }
+  for (const p of pts) { const key = `${Math.round(p.top * 1e6)}|${Math.round(p.bottom * 1e6)}|${Math.round(p.R * 1e6)}|${p.cutTo == null ? '' : Math.round(p.cutTo * 1e6)}`; if (!byKey.has(key)) { const k = { top: p.top, bottom: p.bottom, R: p.R, cutTo: p.cutTo, pts: [] }; byKey.set(key, k); keyed.push(k); } byKey.get(key).pts.push(p); }
   const groups = []; const zCyc0 = Math.max(zSafe, ...pts.map((p) => p.R)); // cevrim baslangic duzlemi (asagidaki zCyc ile ayni)
   // R altinda engel (kaburga vb.) gecisi G99'a izin vermiyorsa ayni anahtarli noktalar BIR cevrimde G98 ile (her nokta sonrasi baslangic
   // duzlemine donus; XY hizli hareket baslangic duzleminde = stok ustu) toplanir: returnTo:'clearance'. Gecis guvenliyse eskisi gibi G99 zinciri.
   const chains = (k, list) => {
     const from = groups.length; let g = null;
-    for (const p of list) { if (g && clearAt(g.pts[g.pts.length - 1], p, k.R)) g.pts.push(p); else { g = { top: k.top, bottom: k.bottom, R: k.R, pts: [p] }; groups.push(g); } }
-    if (groups.length - from > 1 && k.R < zCyc0 - 1e-9) { const all = groups.splice(from).flatMap((x) => x.pts); groups.push({ top: k.top, bottom: k.bottom, R: k.R, pts: all, returnTo: 'clearance' }); }
+    for (const p of list) { if (g && clearAt(g.pts[g.pts.length - 1], p, k.R)) g.pts.push(p); else { g = { top: k.top, bottom: k.bottom, R: k.R, cutTo: k.cutTo, pts: [p] }; groups.push(g); } }
+    if (groups.length - from > 1 && k.R < zCyc0 - 1e-9) { const all = groups.splice(from).flatMap((x) => x.pts); groups.push({ top: k.top, bottom: k.bottom, R: k.R, cutTo: k.cutTo, pts: all, returnTo: 'clearance' }); }
   };
   let cur = null;
   if (order === 'shortest') { // anahtar gruplari en yakin komsu sirasiyla, grup ici en kisa yol, sonra guvenli gecis zincirleri
@@ -166,12 +179,14 @@ export function computeDrill(op, ctx) {
     else if (Math.abs(b.pos[2] - zCyc) > 1e-9) b.rapid(b.pos[0], b.pos[1], zCyc);
     if (Math.hypot(b.pos[0] - x, b.pos[1] - y) > 1e-9) b.rapid(x, y, zCyc);
     if (Math.abs(b.pos[2] - zCyc) > 1e-9) b.rapid(x, y, zCyc);
-    const m = { t: 'cycle', cycle, points: g.points, top: g.top, bottom: g.bottom, retract: g.R, clearance: zCyc, f };
+    const m = { t: 'cycle', cycle, points: g.points, top: g.top, bottom: g.bottom, retract: cycle === 'backBore' ? zCyc : g.R, clearance: zCyc, f }; // G87 yalniz baslangic duzlemine doner: retract = clearance
+    if (shift != null) { m.shift = shift; if (shiftDir != null) m.shiftDir = shiftDir; }
+    if (cycle === 'backBore') m.cutTo = g.cutTo;
     if (g.returnTo && g.points.length > 1) m.returnTo = g.returnTo;
     if (peck != null) m.peck = peck; if (dwell != null) m.dwell = dwell; if (pitch != null) m.pitch = pitch;
     b.moves.push(m); const lp = g.points[g.points.length - 1]; b.pos = [lp[0], lp[1], zCyc];
   }
   const passDepth = Math.max(...pts.map((p) => p.top - p.bottom));
   const hh = { zClr, zRet: zCyc, zTop: Math.max(...pts.map((p) => p.top)), zBot: Math.min(...pts.map((p) => p.bottom)), stockTop };
-  return finishToolpath(op, tool, { ...cut }, hh, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { holes: pts.length, cycles: groups.length, drillAllow: brk + tipL, belowStock: pts.some((p) => p.through || p.depth == null) ? Math.min(brk + tipL, Math.max(0, S.stockBox.min[2] - Math.min(...pts.filter((p) => p.through || p.depth == null).map((p) => p.bottom)))) : 0 } });
+  return finishToolpath(op, tool, { ...cut }, hh, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { holes: pts.length, cycles: groups.length, drillAllow: brk + tipL + startBelow, belowStock: pts.some((p) => p.through || p.depth == null) ? Math.min(brk + tipL + startBelow, Math.max(0, S.stockBox.min[2] - Math.min(...pts.filter((p) => p.through || p.depth == null).map((p) => p.bottom)))) : 0 } });
 }
