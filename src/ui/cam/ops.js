@@ -150,7 +150,7 @@ export class CamOps {
       try { modelHeightmaps[S.id] = await this.app.query('camHeightmap', { bodies: S.bodies, frame: S.frame, res, bbox: [b.min[0], b.min[1], b.max[0], b.max[1]] }); }
       catch (e) { notes.push({ level: 'block', code: 'cam.ui.sim_no_model', params: { setup: S.name, msg: errText(e) } }); } // V-06: oyma denetlenemez → engel
     }
-    const tools = {}; for (const tl of this.cam.tools()) { const o = {}; if (tl.shaftDia != null) o.shaftDia = tl.shaftDia; if (tl.holder) o.holder = tl.holder; if (Object.keys(o).length) tools[tl.number] = o; }
+    const tools = {}; for (const tl of this.cam.tools()) { const o = {}; if (tl.shaftDia != null) o.shaftDia = tl.shaftDia; if (tl.tipDia != null) o.tipDia = tl.tipDia; if (tl.holder) o.holder = tl.holder; if (Object.keys(o).length) tools[tl.number] = o; }
     return { opts: { res, modelHeightmaps, tools }, notes };
   }
   // tüm işlemleri hesapla (eskileri), program kur, kapıları (simülasyon dahil) çalıştır. Hata → null (kullanıcıya gösterilmiş)

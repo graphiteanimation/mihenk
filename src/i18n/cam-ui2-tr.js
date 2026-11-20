@@ -280,4 +280,6 @@ export default {
   "cam.tl.max_ramp_hint": "Merkezden kesmeyen takımın malzemeye rampa/helisle inebileceği en büyük açı (üretici verisi). Boş bırakılırsa bu takımla rampa ve helis girişi engellenir; değer uydurulmaz.",
   "cam.post.prop_missing_intro": "Tezgâh profilinde {n} post özelliği boş; NC üretilmez. Satıra tıklayınca tezgâh yöneticisi açılır; şablonu kopyalayıp makine belgesinden doldurun.",
   "cam.post.prop_row": "{name} boş ({key})",
+  "cam.tl.tip_dia": "Uç düz çapı",
+  "cam.tl.tip_dia_hint": "Ucun en ucundaki düz yüzeyin çapı (pah/punta/matkap). Boşsa sivri uç (0) varsayılır.",
 };

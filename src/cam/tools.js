@@ -30,6 +30,11 @@ export function normalizeTool(t, path = 'tool') {
   req('flutes', (v) => Number.isInteger(v) && v >= 1 && v <= 100, 'integer >= 1');
   req('centerCutting', (v) => typeof v === 'boolean', 'boolean');
   opt('shaftDia', (v) => isNum(v) && v > 0, 'number > 0');
+  // T-11: uc duz capi (pah/punta/matkap ucu): koninin ucu bu capta keser, 0 <= tipDia < dia. Yalniz uclu takimlarda (drill/spot/chamfer).
+  if (o.tipDia !== undefined && o.tipDia !== null) {
+    if (!TIP_TYPES.has(o.type)) throw bad(`${path}.tipDia`, 'only drill/spot/chamfer');
+    if (!(isNum(o.tipDia) && o.tipDia >= 0 && o.tipDia < o.dia)) throw bad(`${path}.tipDia`, '0 <= tipDia < dia');
+  }
   // kesmeyen uclu takimda izinli en buyuk rampa/helis acisi (derece; ureticiden). Yoksa kapi 4 rampa/helisi engeller (V-10).
   opt('maxRampAngle', (v) => isNum(v) && v > 0 && v <= 90, '0 < angle <= 90');
   for (const k of ['name', 'material', 'note']) opt(k, (v) => typeof v === 'string' && v.length <= LIB_LIMITS.str, 'text');
@@ -61,10 +66,10 @@ export function normalizeTool(t, path = 'tool') {
 }
 // IR'deki takim alt kumesi
 export function irTool(t) {
-  return { number: t.number, H: t.lengthOffset, D: t.diaOffset ?? null, type: t.type, dia: t.dia, cornerR: t.cornerR ?? 0, tipAngle: t.tipAngle ?? null, fluteLen: t.fluteLen, bodyLen: t.bodyLen, centerCutting: t.centerCutting, pitch: t.pitch ?? null, ...(t.maxRampAngle != null ? { maxRampAngle: t.maxRampAngle } : {}) };
+  return { number: t.number, H: t.lengthOffset, D: t.diaOffset ?? null, type: t.type, dia: t.dia, cornerR: t.cornerR ?? 0, tipAngle: t.tipAngle ?? null, fluteLen: t.fluteLen, bodyLen: t.bodyLen, centerCutting: t.centerCutting, pitch: t.pitch ?? null, ...(t.maxRampAngle != null ? { maxRampAngle: t.maxRampAngle } : {}), ...(t.shaftDia != null ? { shaftDia: t.shaftDia } : {}), ...(t.tipDia != null ? { tipDia: t.tipDia } : {}) };
 }
-// matkap ucu boyu (tam captan uca): (d/2)/tan(aci/2)
-export function tipLength(t) { return t.tipAngle && t.tipAngle < 180 ? (t.dia / 2) / Math.tan((t.tipAngle * Math.PI) / 360) : 0; }
+// matkap ucu boyu (tam captan uca): (d/2 - tipDia/2)/tan(aci/2)
+export function tipLength(t) { return t.tipAngle && t.tipAngle < 180 ? (t.dia / 2 - (t.tipDia ?? 0) / 2) / Math.tan((t.tipAngle * Math.PI) / 360) : 0; }
 
 // On ayari isleme kopyalar (rpm, ilerlemeler, stepdown/stepover, sogutma). Islemdeki diger alanlar korunur.
 export function applyPreset(op, tool, presetName) {

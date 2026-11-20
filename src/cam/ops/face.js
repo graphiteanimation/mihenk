@@ -2,7 +2,7 @@
 // Kapsama: hat araligi <= stepover < takim capi, ilk/son hat stok kenarinda (takim kenari stok disina tasar);
 // hat uclari stok disinda takim yaricapi + extend kadar uzanir; hatlar arasi gecis stok disinda yapilir.
 import { cerr } from '../geom/err.js';
-import { need, opt, posNum, nonNeg, anyNum, cutting, heights, depthLevels, Builder, finishToolpath } from './common.js';
+import { need, opt, posNum, nonNeg, anyNum, cutting, heights, depthLevels, Builder, finishToolpath, stockToLeave } from './common.js';
 
 export function computeFace(op, ctx) {
   const { setup: S, tool, machine } = ctx;
@@ -11,7 +11,7 @@ export function computeFace(op, ctx) {
   const r = tool.dia / 2;
   const so = need(op, 'stepover'); if (!(so < tool.dia)) throw cerr('cam.op.stepover_too_big', { stepover: so, dia: tool.dia });
   const sd = opt(op, 'stepdown', posNum, 'number > 0', null);
-  const sta = opt(op, 'stockToLeave', nonNeg, 'number >= 0', 0);
+  const sta = stockToLeave(op).axial;
   const ang = (opt(op, 'direction', anyNum, 'number', 0) * Math.PI) / 180;
   const ext = opt(op, 'extend', nonNeg, 'number >= 0', 0);
   const h = heights({ ...op, heights: { top: { from: 'stockTop', off: 0 }, bottom: { from: 'modelTop', off: 0 }, ...op.heights } }, S, {});

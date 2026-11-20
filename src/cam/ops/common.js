@@ -27,6 +27,19 @@ export const posNum = (v) => isNum(v) && v > 0;
 export const nonNeg = (v) => isNum(v) && v >= 0;
 export const anyNum = (v) => isNum(v);
 
+// T-10: stockToLeave her iki bicimde de verilebilir: sayi n (-> {radial: n, axial: n}) ya da {radial?, axial?}. Ic gosterim daima {radial, axial}.
+// face yalniz axial'i kullanir (sayi eski davranisla ayni: eksenel pay).
+export function stockToLeave(op) {
+  const v = op.stockToLeave; const name = op.name || op.id;
+  if (v === undefined || v === null) return { radial: 0, axial: 0 };
+  if (typeof v === 'number') { if (!nonNeg(v)) throw cerr('cam.op.bad_field', { field: 'stockToLeave', expect: 'number >= 0 / {radial, axial}', op: name }); return { radial: v, axial: v }; }
+  if (typeof v === 'object' && !Array.isArray(v)) {
+    const g = (k) => { const x = v[k]; if (x === undefined || x === null) return 0; if (!nonNeg(x)) throw cerr('cam.op.bad_field', { field: 'stockToLeave.' + k, expect: 'number >= 0', op: name }); return x; };
+    return { radial: g('radial'), axial: g('axial') };
+  }
+  throw cerr('cam.op.bad_field', { field: 'stockToLeave', expect: 'number >= 0 / {radial, axial}', op: name });
+}
+
 // Ortak kesme verisi: rpm, ilerlemeler, sogutma
 export function cutting(op) {
   const rpm = need(op, 'rpm'), feedCut = need(op, 'feedCut'), feedPlunge = need(op, 'feedPlunge');

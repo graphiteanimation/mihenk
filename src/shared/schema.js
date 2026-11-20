@@ -77,7 +77,7 @@ const COOL = ['flood', 'mist', 'air', 'through', 'off'];
 const camTool = obj({
   id: idStr, number: posInt(), lengthOffset: posInt(), diaOffset: nullable(posInt()),
   type: oneOf(['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore']),
-  dia: camNum(0, 2000), cornerR: camNum(0, 1000), tipAngle: camNum(0, 180), fluteLen: camNum(0), bodyLen: camNum(0), shaftDia: camNum(0, 2000),
+  dia: camNum(0, 2000), cornerR: camNum(0, 1000), tipAngle: camNum(0, 180), fluteLen: camNum(0), bodyLen: camNum(0), shaftDia: camNum(0, 2000), tipDia: camNum(0, 2000),
   flutes: posInt(100), centerCutting: bool(), pitch: camNum(0, 100), holder: nullable(obj({ dia: camNum(0), len: camNum(0) })),
   material: str(LIMITS.shortStr), note: str(), name: str(LIMITS.shortStr),
   presets: arrOf(obj({ name: str(LIMITS.shortStr), rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), stepdown: camNum(0), stepover: camNum(0), coolant: oneOf(COOL) }), CAM_LIMITS.presets),
@@ -98,6 +98,7 @@ const camOp = obj({
   leadIn: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }), leadOut: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }),
   tabs: obj({ n: posInt(100), width: camNum(0), height: camNum(0) }), ramp: obj({ kind: oneOf(['plunge', 'ramp', 'helix']), angle: camNum(0, 90) }),
   roughPasses: obj({ n: posInt(100), stepover: camNum(0) }),
+  stockToLeave: either(camNum(0), obj({ radial: camNum(0), axial: camNum(0) }), 'number/{radial,axial}'),
 });
 const camSetup = obj({
   id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),

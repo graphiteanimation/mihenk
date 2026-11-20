@@ -141,4 +141,5 @@ export default {
   "err.cam.gate.ramp_center": "T{tool} merkezden kesmiyor ve {angle}° ile rampa yapıyor; en büyük rampa açısı {max}°.",
   "err.cam.contour.faces_differ_z": "Seçilen profiller farklı yükseklikte (Z {z1} ve Z {z2}); seçimden alınan taban birisi için yanlış olur. Ayrı işlemler oluşturun.",
   "err.cam.geom.self_intersect": "Sınır kendini kesiyor; bölge belirsiz. Sketch'i ya da modeli düzeltin.",
+  "err.cam.gate.tool_geom_assumed": "T{tool}: {field} girilmemiş. Simülasyon sap çapını kesici çapına eşit ve ucu sivri (uç düz çapı 0) varsayar. Gerçek değerleri takım düzenleyicide girin.",
 };

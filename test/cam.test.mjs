@@ -721,5 +721,45 @@ section('10. WP-06 T-01 ilk dalma: guvenli yukseklikten retract\'a HIZLI inis');
   }
 }
 
+section('11. WP-06 T-10 stockToLeave iki bicim; T-11 tipDia / shaftDia');
+{
+  const { toolGeom } = await import('../src/cam/sim/index.js');
+  const { irTool, tipLength } = await import('../src/cam/tools.js');
+  const tool = flat(10);
+  // ---- T-10
+  const faceZ = (sta) => CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, ...(sta === undefined ? {} : { stockToLeave: sta }), heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -2 } } }, { setup: S0, tool }).stats.zMin;
+  ok(Math.abs(faceZ(undefined) + 2) < 1e-9 && Math.abs(faceZ(0.5) + 1.5) < 1e-9 && Math.abs(faceZ({ radial: 0.2, axial: 0.5 }) + 1.5) < 1e-9 && Math.abs(faceZ({ radial: 0.3 }) + 2) < 1e-9, 'T-10 face: sayi = eksenel pay; {radial, axial} de kabul; yalniz radial -> eksenel 0');
+  throwsCode(() => faceZ(-1), 'cam.op.bad_field', 'T-10: negatif pay'); throwsCode(() => faceZ('x'), 'cam.op.bad_field', 'T-10: sayi/nesne olmayan pay');
+  throwsCode(() => faceZ({ axial: -0.1 }), 'cam.op.bad_field', 'T-10: negatif axial');
+  const cop = (sta) => ({ id: 'c', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], stepdown: 4, ...(sta === undefined ? {} : { stockToLeave: sta }) });
+  const cg = { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] };
+  const cdist = (tp) => { const lp = []; walk(tp, (m, k, from) => { if (!from || m.kind !== 'cut' || m.t !== 'feed' || m.z > -7.99) return; lp.push([m.x, m.y]); }); return Math.min(...lp.map((p) => P.distTo(p, kloop(sq(20, 15, 80, 45))))); };
+  const cN = CAM.computeOp(cop(0.3), { setup: S0, tool, geom: cg }), cO = CAM.computeOp(cop({ radial: 0.3, axial: 0.3 }), { setup: S0, tool, geom: cg });
+  ok(Math.abs(cdist(cN) - 5.3) < 1e-6 && Math.abs(cdist(cO) - 5.3) < 1e-6 && Math.abs(cN.stats.zMin + 9.7) < 1e-9 && Math.abs(cO.stats.zMin + 9.7) < 1e-9, 'T-10 kontur: sayi 0,3 = {radial 0,3, axial 0,3} (yanal r+0,3, taban -9,7)');
+  const cR = CAM.computeOp(cop({ radial: 0.3 }), { setup: S0, tool, geom: cg }); ok(Math.abs(cR.stats.zMin + 10) < 1e-9 && Math.abs(cdist(cR) - 5.3) < 1e-6, 'T-10 kontur: yalniz radial -> eksenel 0');
+  const pk = (sta) => CAM.computeOp({ id: 'p', type: 'pocket', ...base, geom: [{ kind: 'face' }], stepover: 4, stepdown: 4, entry: { kind: 'plunge' }, ...(sta === undefined ? {} : { stockToLeave: sta }) }, { setup: S0, tool, geom: { faces: [{ z: -8, normalOk: true, outer: sq(20, 15, 80, 45), inners: [] }] } });
+  ok(Math.abs(pk(0.5).stats.zMin + 7.5) < 1e-9 && Math.abs(pk({ radial: 0.5, axial: 0.5 }).stats.zMin + 7.5) < 1e-9, 'T-10 cep: sayi = {radial, axial} ayni');
+  // sema
+  { const old = { params: [], features: [] }; const mkd = (sta) => ({ ...old, cam: { machineId: null, tools: [flat(6)], setups: [{ id: 's', name: 'S', bodies: [], workOffset: { kind: 'G55' }, stock: { kind: 'box', min: [0, 0, 0], max: [1, 1, 1] }, ops: [{ id: 'o1', type: 'face', toolId: 't6', stockToLeave: sta }] }] } });
+    ok(validateDoc(mkd(0.2)) && validateDoc(mkd({ radial: 0.1, axial: 0.2 })), 'T-10 sema: iki bicim gecerli'); throwsCode(() => validateDoc(mkd('x')), 'schema.bad_field', 'T-10 sema: metin pay reddedilir'); throwsCode(() => validateDoc(mkd({ radial: -1 })), 'schema.bad_field', 'T-10 sema: negatif pay reddedilir'); }
+  // ---- T-11
+  const cham = { id: 'tc', number: 9, lengthOffset: 9, diaOffset: 9, type: 'chamfer', dia: 10, tipAngle: 90, fluteLen: 5, bodyLen: 30, flutes: 2, centerCutting: true };
+  ok(normalizeTool({ ...cham, tipDia: 2 }).tipDia === 2 && normalizeTool({ ...cham, tipDia: 0 }).tipDia === 0 && normalizeTool(cham).tipDia === undefined, 'T-11: tipDia 0 <= tipDia < dia kabul, verilmezse yok');
+  throwsCode(() => normalizeTool({ ...cham, tipDia: 10 }), 'cam.tool.bad_field', 'T-11: tipDia >= dia'); throwsCode(() => normalizeTool({ ...cham, tipDia: -1 }), 'cam.tool.bad_field', 'T-11: negatif tipDia');
+  throwsCode(() => normalizeTool({ ...flat(6), tipDia: 1 }), 'cam.tool.bad_field', 'T-11: duz uclu takimda tipDia anlamsiz -> hata');
+  { const d0 = { params: [], features: [], cam: { tools: [{ ...cham, tipDia: 2, shaftDia: 8 }] } }; ok(validateDoc(d0), 'T-11 sema: tipDia + shaftDia gecerli'); }
+  { const it = irTool(normalizeTool({ ...cham, tipDia: 2, shaftDia: 8 })); ok(it.tipDia === 2 && it.shaftDia === 8 && irTool(normalizeTool(cham)).tipDia === undefined, 'T-11: IR takiminda tipDia/shaftDia (varsa)'); }
+  ok(Math.abs(tipLength(normalizeTool({ ...cham, tipDia: 2 })) - 4) < 1e-9 && Math.abs(tipLength(normalizeTool(cham)) - 5) < 1e-9, 'T-11: uc boyu (90 derece, D10): sivri 5, tipDia 2 -> 4');
+  { const g = toolGeom({ ...irTool(normalizeTool({ ...cham, tipDia: 2 })), shaftDia: 8 }), g0 = toolGeom(irTool(normalizeTool(cham)));
+    ok(g.profile(0.5) === 0 && g.profile(1) === 0 && Math.abs(g.profile(3) - 2) < 1e-9 && Math.abs(g0.profile(3) - 3) < 1e-9 && g.shaftR === 4, 'T-11 sim: uc duz capi (r<=1 duz, sonra 45 derece) ve sap capi'); }
+  // kapi: sap/uc varsayim uyarisi
+  { const M = { ...structuredClone(NEWAY_FIXTURE), post: { props: { ...NEWAY_FIXTURE.post.props, safeRetract: 'G28' } } };
+    const mkp = (t) => CAM.buildProgram({ name: 'O1', machine: M, sections: [{ setup: S0, toolpaths: [CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -1 } } }, { setup: S0, tool: t })] }] });
+    const ga = (t, sim) => CAM.gates(mkp(t), M, sim ? { sim } : {}).filter((g) => g.code === 'cam.gate.tool_geom_assumed');
+    ok(ga(tool).length === 1 && ga(tool)[0].level === 'warn' && ga(tool)[0].params.field === 'shaftDia', 'T-11 kapi: sap capi yoksa tool_geom_assumed uyarisi (block degil)');
+    ok(ga({ ...tool, shaftDia: 10 }).length === 0, 'T-11 kapi: shaftDia varsa uyari yok'); ok(ga(tool, { res: 1, tools: { 5: { shaftDia: 10 } } }).length === 0, 'T-11 kapi: sim.tools ile gelen shaftDia da sayilir');
+  }
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

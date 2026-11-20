@@ -4,7 +4,7 @@
 // Yon: tirmanma (climb) = malzeme gidis yonunun SAGINDA (saat yonu mil, G41 ile ayni).
 import { cerr } from '../geom/err.js';
 import * as P from '../geom/path2d.js';
-import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3, belowStockAllow } from './common.js';
+import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3, belowStockAllow, stockToLeave } from './common.js';
 
 const TURN_EPS = 1e-6;
 
@@ -117,7 +117,7 @@ export function computeContour(op, ctx) {
   const comp = op.comp ?? 'computer'; if (!['computer', 'wear'].includes(comp)) throw cerr('cam.op.bad_field', { field: 'comp', expect: 'computer/wear', op: op.name || op.id });
   const dir = op.dir ?? 'climb'; if (!['climb', 'conv'].includes(dir)) throw cerr('cam.op.bad_field', { field: 'dir', expect: 'climb/conv', op: op.name || op.id });
   const sd = need(op, 'stepdown'); const fsd = opt(op, 'finishStepdown', posNum, 'number > 0', null);
-  const stR = opt(op, 'stockToLeave.radial', nonNeg, 'number >= 0', 0), stA = opt(op, 'stockToLeave.axial', nonNeg, 'number >= 0', 0);
+  const { radial: stR, axial: stA } = stockToLeave(op);
   const rough = op.roughPasses && op.roughPasses.n > 0 ? { n: need(op, 'roughPasses.n', (v) => Number.isInteger(v) && v >= 1 && v <= 100, 'integer 1..100'), so: need(op, 'roughPasses.stepover') } : null;
   if (rough && rough.so >= tool.dia) throw cerr('cam.op.stepover_too_big', { stepover: rough.so, dia: tool.dia });
   if (comp === 'wear' && rough) throw cerr('cam.contour.wear_rough');

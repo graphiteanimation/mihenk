@@ -713,6 +713,23 @@ try:
     check('A.wrap: seçilen biçim profilde saklanır (axes.A.wrap = signed)', saved and saved[0]['axes']['A'].get('wrap') == 'signed', saved[0]['axes']['A'] if saved else None)
     ctx.close()
 
+    print('WP-06 T-11: takım düzenleyicide uç düz çapı (tipDia)')
+    ctx, pg = newpage(); load(pg, BLOCK); pg.click('[data-testid=tab-manufacture]')
+    pg.click('[data-cmd=cam-tools]'); pg.click('[data-testid=tl-new]')
+    pg.click('[data-testid=tl-tab-geom]')
+    check('T-11: düz parmak freze takımında uç düz çapı alanı yok', count(pg, '[data-f=tl-tipDia]') == 0)
+    pg.click('[data-testid=tl-tab-general]'); pg.select_option('[data-f=tl-type]', 'chamfer'); pg.click('[data-testid=tl-tab-geom]')
+    check('T-11: pah takımında uç düz çapı alanı var (boş = sivri uç)', count(pg, '[data-f=tl-tipDia]') == 1 and pg.input_value('[data-f=tl-tipDia]') == '')
+    pg.fill('[data-f=tl-dia]', '10'); pg.fill('[data-f=tl-tipDia]', '10'); pg.click('[data-testid=tl-ok]')
+    check('T-11: uç düz çapı ≥ çap kaydedilmez (pencere açık, hata iletisi)', count(pg, '[data-testid=tool-editor]') == 1 and txt(pg, '.mc-err') != '', txt(pg, '.mc-err'))
+    pg.fill('[data-f=tl-tipDia]', '2'); pg.click('[data-testid=tl-ok]')
+    tl1 = pg.evaluate('app.doc.cam.tools[0]')
+    check('T-11: tipDia belgeye yazıldı (2)', tl1 and tl1.get('tipDia') == 2 and tl1['type'] == 'chamfer', json.dumps(tl1)[:200])
+    pg.click('[data-testid=tl-edit]'); pg.click('[data-testid=tl-tab-general]'); pg.select_option('[data-f=tl-type]', 'flat')
+    pg.click('[data-testid=tl-ok]')
+    check('T-11: türü düz takıma çevirince tipDia silinir', 'tipDia' not in pg.evaluate('app.doc.cam.tools[0]'))
+    ctx.close()
+
     br.close()
 finally:
     _srv.stop(server)

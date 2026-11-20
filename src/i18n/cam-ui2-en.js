@@ -280,4 +280,6 @@ export default {
   "cam.tl.max_ramp_hint": "Largest angle at which a non-center-cutting tool may ramp or helix into material (manufacturer data). If left empty, ramp and helical entry are blocked for this tool; no value is assumed.",
   "cam.post.prop_missing_intro": "{n} post properties are empty in the machine profile; no NC is generated. Click a row to open the machine manager; copy the template and fill the values from the machine documentation.",
   "cam.post.prop_row": "{name} is empty ({key})",
+  "cam.tl.tip_dia": "Tip flat diameter",
+  "cam.tl.tip_dia_hint": "Diameter of the flat at the very tip (chamfer/spot/drill). If empty, a sharp tip (0) is assumed.",
 };
