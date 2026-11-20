@@ -1,5 +1,5 @@
 # Arayüz testi: gerçek fare/klavye ile (Playwright, chrome). Önce `npm run build`; çalıştır: python3 test/app.test.py
-import json, math, os, re, socket, subprocess, sys, time
+import glob, json, math, os, re, socket, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -658,7 +658,9 @@ try:
 
     # menüler (İngilizce) ve açık kip pencereler
     page.click('#menubar button[data-menu="file"]')
-    check('İngilizce: Dosya menüsü', [x.split('\n')[0] for x in page.locator('#menubar .menu.open .drop > button').all_inner_texts()][:6] == ['New', 'Open…', 'Save', 'Save As…', 'Import STEP…', 'Import STL…'], str(page.locator('#menubar .menu.open .drop > button').all_inner_texts()))
+    n_ornek = len(glob.glob(os.path.join(ROOT, 'ornekler', '*.mhnk')))  # beklenen örnek sayısı diskten okunur
+    fm = page.locator('#menubar .menu.open .drop > button, #menubar .menu.open .drop > .subwrap > button').all_inner_texts()
+    check('İngilizce: Dosya menüsü (tek "Examples" alt menüsü, örnekler düz eklenmez)', [x.split('\n')[0].strip() for x in fm][:6] == (['New', 'Open…', 'Examples', 'Save', 'Save As…', 'Import STEP…'] if n_ornek else ['New', 'Open…', 'Save', 'Save As…', 'Import STEP…', 'Import STL…']), str(fm))
     page.keyboard.press('Escape'); page.mouse.click(700, 500)
     page.click('#menubar button[data-menu="help"]'); page.click('#menubar [data-cmd="about"]'); page.wait_for_selector('#modal:not(.hidden)')
     check('İngilizce: Hakkında penceresi', page.inner_text('#modal h3') == 'About Mihenk CAD/CAM' and 'Parametric solid modeling' in page.inner_text('#modal'), page.inner_text('#modal h3'))
@@ -1424,10 +1426,31 @@ try:
     page.click('#menubar button[data-menu="help"]'); page.wait_for_timeout(100); page.click('#menubar .drop [data-cmd="open-logs"]'); page.wait_for_timeout(100)
     got = ev('window.__logs || 0'); ev("(() => { delete window.native; app.C.renderMenu(); return true; })()")
     check('WP-10 devri: Günlük klasörü menüsü yalnız native.openLogFolder varken görünür ve onu çağırır', no_logs and got == 1, [no_logs, got])
+    exp_files = sorted(os.path.basename(f)[:-5] for f in glob.glob(os.path.join(ROOT, 'ornekler', '*.mhnk')))  # beklenen: diskteki ornekler/*.mhnk
     nexp = ev('app.exampleList().length')
     page.click('#menubar button[data-menu="file"]'); page.wait_for_timeout(100)
-    head = page.locator('#menubar .drop [data-testid=menu-head-examples]').count(); page.keyboard.press('Escape')
-    check('WP-10 devri: Örnekler alt menüsü ornekler/*.mhnk sayısına göre (0 dosya; yoksa gizli)', nexp == 0 and head == (1 if 0 else 0), [nexp, head])
+    sub = page.locator('#menubar .drop [data-testid=menu-examples]'); flat = page.locator('#menubar .drop > button[data-cmd^="ex-"]').count()
+    toggle_txt = page.locator('#menubar .drop [data-testid=menu-examples-toggle]').inner_text().strip() if sub.count() else ''
+    if sub.count(): page.click('#menubar .drop [data-testid=menu-examples-toggle]'); page.wait_for_timeout(100)
+    names = [x.strip() for x in page.locator('#menubar .drop [data-testid=menu-examples-list] > button').all_inner_texts()]
+    page.keyboard.press('Escape')
+    check('WP-10 devri: Örnekler alt menüsü ornekler/*.mhnk sayısına göre (diskte %d dosya; yoksa gizli)' % len(exp_files), nexp == len(exp_files) and sub.count() == (1 if exp_files else 0) and flat == 0 and names == exp_files and (not exp_files or toggle_txt == 'Örnekler'), [nexp, sub.count(), flat, names, exp_files, toggle_txt])
+    # menüden bir örnek aç: model yüklenir, adsız kopya (yol yok → Kaydet örnek dosyanın üzerine yazmaz), kirli değil
+    if exp_files:
+        ev('app.loadDoc({ params: [], features: [] }, { reset: true })'); idle(); ev('app.markDirty(false)')
+        page.click('#menubar button[data-menu="file"]'); page.wait_for_timeout(100); page.click('#menubar .drop [data-testid=menu-examples-toggle]'); page.wait_for_timeout(100)
+        page.click('#menubar .drop [data-testid=menu-examples-list] > button[data-cmd="ex-%s"]' % exp_files[0]); page.wait_for_timeout(300)
+        page.wait_for_function('() => app.doc.features.length > 0', timeout=20000); idle()
+        st = ev('({ n: app.doc.features.length, bodies: (app.result && app.result.bodies || []).length, path: app.filePath, name: app.fileName, dirty: !!app.dirty, cam: !!(app.doc.cam && app.doc.cam.setups && app.doc.cam.setups.length) })')
+        check('WP-10 devri: menüden örnek açılır, model yüklenir ve adsız kopya olur (yol yok, kirli değil)', st['n'] > 0 and st['bodies'] >= 1 and st['path'] is None and st['name'] == exp_files[0] + '.mhnk' and not st['dirty'] and st['cam'], st)
+        # kaydedilmemiş değişiklik varsa mevcut "kaydet?" akışı çalışır: vazgeçilirse belge değişmez
+        ev('app.markDirty(true)'); before = ev('app.doc.features.length')
+        page.click('#menubar button[data-menu="file"]'); page.wait_for_timeout(100); page.click('#menubar .drop [data-testid=menu-examples-toggle]'); page.wait_for_timeout(100)
+        page.click('#menubar .drop [data-testid=menu-examples-list] > button[data-cmd="ex-%s"]' % exp_files[-1]); page.wait_for_timeout(300)
+        asked = page.locator('#modal').count() > 0 and page.locator('#modal').is_visible()
+        if asked: page.keyboard.press('Escape'); page.wait_for_timeout(200)
+        check('WP-10 devri: kaydedilmemiş değişiklikte örnek açmadan önce onay sorulur; vazgeçilirse belge değişmez', asked and ev('app.fileName') == exp_files[0] + '.mhnk' and ev('app.doc.features.length') == before, [asked, ev('app.fileName')])
+        ev('app.markDirty(false)')
     # CSP kök nedeni (solver tanı okuması): gerçek CSP'li dist'te horizontal + horizontal_pp aynı çift → "gereksiz kısıt var"
     w8_load([]); ev('app.viewport.view("iso")'); tb('sketch'); page.wait_for_timeout(300); click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
     csp0 = ev('window.__csp.length'); rd = ev("(async () => { const S = app.sketcher; await S._apply((sk) => { const a = S._newPt(0, 0.0), b = S._newPt(30, 0.2); const l = S._addEnt({ type: 'line', a, b }); S._addCon('horizontal', l); S._addCon('horizontal_pp', a, b); }); await S.idle(); const r = S.lastSolve; return { red: (r && r.redundant) || [], st: S._statusSpec ? S._statusSpec() : '' }; })()")

@@ -131,7 +131,7 @@ export function initChrome(app) {
   // ---------------------------------------------------------------- başlık şeridi
   const closeMenus = () => { document.querySelectorAll('#menubar .menu.open').forEach((m) => { m.classList.remove('open'); m.querySelector('[data-menu]')?.setAttribute('aria-expanded', 'false'); }); };
   const fileItems = () => [
-    'new', 'open', ['recent'], ...(app.exampleList().length ? [{ head: 'menu.examples' }, ...app.exampleList().map((ex) => 'ex-' + ex.key), { sep: 1 }] : []), 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-stl-fine', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
+    'new', 'open', ['recent'], ...(app.exampleList().length ? [{ submenu: 'menu.examples', items: app.exampleList().map((ex) => 'ex-' + ex.key) }, { sep: 1 }] : []), 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-stl-fine', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
   ];
   const helpItems = () => ['shortcuts', ...(typeof window.native?.openLogFolder === 'function' ? ['open-logs'] : []), 'about'];
   const viewItems = () => ['fit', 'view-front', 'view-top', 'view-right', 'view-iso', { sep: 1 }, 'vd-shaded', 'vd-wire', 'vd-ghost', { sep: 1 }, 'view-save', 'view-list', 'planes', { sep: 1 }, 'draw-settings'];
@@ -146,14 +146,21 @@ export function initChrome(app) {
     const drop = h('div', { class: 'drop ctxmenu', role: 'menu' });
     for (const it of items) {
       if (it.sep) { drop.append(h('hr')); continue; }
-      if (it.head) { drop.append(h('div', { class: 'mhead', role: 'presentation', 'data-testid': 'menu-head-examples', text: t(it.head) })); continue; }
+      if (it.submenu) { // alt menü (Örnekler): düğme açar/kapar, içindekiler aşağıya açılır
+        const wrap = h('div', { class: 'subwrap', 'data-testid': 'menu-examples' });
+        const sb = h('button', { class: 'mi sub-toggle', role: 'menuitem', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'data-testid': 'menu-examples-toggle', onclick: (e) => { e.stopPropagation(); const o = wrap.classList.toggle('open'); sb.setAttribute('aria-expanded', o ? 'true' : 'false'); } },
+          h('span', { html: icon('file-open', 'sm') }), h('span', { text: t(it.submenu) }), h('span', { class: 'kbd', html: icon('chevron-down', 'sm') }));
+        sb.addEventListener('keydown', (e) => { if ((e.key === 'ArrowRight' && !wrap.classList.contains('open')) || (e.key === 'ArrowLeft' && wrap.classList.contains('open'))) { e.preventDefault(); e.stopPropagation(); sb.click(); } });
+        wrap.append(sb, h('div', { class: 'sub', role: 'menu', 'data-testid': 'menu-examples-list' }, ...it.items.map((id) => menuBtn(cmds[id]))));
+        drop.append(wrap); continue;
+      }
       if (Array.isArray(it) && it[0] === 'recent') { C.recentMenu = h('div', { class: 'recent-sub', 'data-testid': 'recent-sub' }); drop.append(C.recentMenu); continue; }
       drop.append(menuBtn(cmds[it]));
     }
     m.append(b, drop);
     m.addEventListener('keydown', (e) => {
       if (!m.classList.contains('open')) return;
-      const items2 = [...drop.querySelectorAll('.mi')]; const i = items2.indexOf(document.activeElement);
+      const items2 = [...drop.querySelectorAll('.mi')].filter((x) => x.offsetParent !== null); const i = items2.indexOf(document.activeElement);
       if (e.key === 'ArrowDown') { e.preventDefault(); items2[(i + 1) % items2.length].focus(); } else if (e.key === 'ArrowUp') { e.preventDefault(); items2[(i - 1 + items2.length) % items2.length].focus(); }
       else if (e.key === 'Escape') { e.stopPropagation(); closeMenus(); b.focus(); }
     });

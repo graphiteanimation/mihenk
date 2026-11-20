@@ -178,7 +178,7 @@ class App {
   async openExample(key) {
     const ex = this.exampleList().find((x) => x.key === key); if (!ex || this.guard()) return;
     if (!(await this.confirmDiscard())) return;
-    try { const txt = await EXAMPLES[ex.path](); await this.openBytes(new TextEncoder().encode(txt), ex.name + '.mhnk', null); } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); }
+    try { let txt = await EXAMPLES[ex.path](); const j = JSON.parse(txt); if (!(j && typeof j === 'object' && j.doc)) txt = JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: j }); /* örnek dosyalar çıplak belgedir: zarfa sarılır */ await this.openBytes(new TextEncoder().encode(txt), ex.name + '.mhnk', null); } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); }
   }
   async saveViewPrompt() {
     const nm = await promptText(t('vd.name'), ''); if (!nm) return;
