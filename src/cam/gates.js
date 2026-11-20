@@ -4,6 +4,7 @@
 import { checkMachine, axisTravel } from './machines/builtin.js';
 import { walk } from './ir.js';
 import { simulate } from './sim/index.js';
+import { postPropsMissing } from './post/needs.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const G = (level, c, params, extra) => ({ level, code: c, params: params || {}, ...(extra || {}) });
@@ -27,6 +28,11 @@ export function gates(program, machine, opts = {}) {
   const mc = checkMachine(machine);
   for (const e of mc.errors) out.push(G('block', 'cam.gate.machine_invalid', e.params));
   for (const f of mc.missing) out.push(G('block', 'cam.gate.missing', { field: 'machine.' + f }));
+  // M-03: yalniz BU programin gercekten kullandigi bos post ozellikleri engel (kullanilmayanin boslugu engel degil)
+  if (machine && !mc.errors.length && secs.length) {
+    let pm = null; try { pm = postPropsMissing(program, machine); } catch (e) { pm = null; /* bilinmeyen kontrol vb.: post kendisi bildirir */ }
+    for (const p of pm?.missing || []) out.push(G('block', 'cam.gate.post_prop_missing', { prop: p }));
+  }
   const prot = machine?.protected || { T: [], H: [], D: [], wcs: [] };
   const maxRpm = machine?.spindle?.maxRpm, minRpm = machine?.spindle?.minRpm, maxF = machine?.feed?.maxCut, maxTools = machine?.toolChange?.maxTools;
   const absWarned = new Set();

@@ -289,7 +289,9 @@ section('2b. yerlesik genel sablonlar ve tezgah ice/disa aktarma');
 section('6. guvenlik kapilari');
 {
   const nw = structuredClone(NEWAY_FIXTURE);
-  const M = { ...nw, id: 'm', spindle: { maxRpm: 12000, minRpm: 50 }, feed: { maxCut: 10000, rapid: 30000 }, toolChange: { ...nw.toolChange, maxTools: 24 }, axes: { ...nw.axes, A: { ...nw.axes.A, limits: [-360, 360] } } };
+  // M-03: kapi artik programin kullandigi bos post ozelliklerini de engeller; safeRetract her programda kullanilir (fikstürde bos)
+  const M = { ...nw, id: 'm', spindle: { maxRpm: 12000, minRpm: 50 }, feed: { maxCut: 10000, rapid: 30000 }, toolChange: { ...nw.toolChange, maxTools: 24 }, axes: { ...nw.axes, A: { ...nw.axes.A, limits: [-360, 360] } }, post: { props: { ...nw.post.props, safeRetract: 'G28' } } };
+  ok(CAM.gates(CAM.buildProgram({ name: 'O1', machine: nw, sections: [{ setup: S0, toolpaths: [CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, stepdown: 1, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -1 } } }, { setup: S0, tool: flat(10, { number: 5, lengthOffset: 5, diaOffset: 5 }), machine: nw })] }] }), nw).some((g) => g.code === 'cam.gate.post_prop_missing' && g.params.prop === 'safeRetract'), 'M-03: kullanilan bos safeRetract kapida engel');
   const tool = flat(10, { number: 5, lengthOffset: 5, diaOffset: 5 });
   const fop = { id: 'f', type: 'face', ...base, stepover: 7, stepdown: 1, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -1 } } };
   const prog = (tp, S = S0) => CAM.buildProgram({ name: 'O1', machine: M, sections: [{ setup: S, toolpaths: [tp] }] });

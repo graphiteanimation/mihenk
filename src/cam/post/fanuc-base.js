@@ -61,8 +61,8 @@ export function createFanucPost(over = {}) {
     _resetPos() { this.v.x.reset(); this.v.y.reset(); this.v.z.reset(); },
     _dwellWord(addr, unit, s, inCycle = false) {
       if (inCycle && addr != null && 'XYZRQFI'.includes(addr)) throw perr('cam.post.bad_prop', { prop: 'cycleDwellAddress', value: String(addr) });
-      if (addr == null) throw perr('cam.post.prop_missing', { prop: 'dwellAddress', post: this.post.id });
-      if (unit == null) throw perr('cam.post.prop_missing', { prop: 'dwellUnit', post: this.post.id });
+      if (addr == null) throw perr('cam.post.prop_missing', { prop: inCycle ? 'cycleDwellAddress' : 'dwellAddress', post: this.post.id });
+      if (unit == null) throw perr('cam.post.prop_missing', { prop: inCycle ? 'cycleDwellUnit' : 'dwellUnit', post: this.post.id });
       if (unit === 'ms') return addr + String(Math.round(s * 1000));
       if (unit === 's') return createFormat({ prefix: addr, decimals: 3 }).format(s);
       throw perr('cam.post.bad_prop', { prop: 'dwellUnit', value: String(unit) });

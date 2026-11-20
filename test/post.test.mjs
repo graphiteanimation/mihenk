@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateToolpath, validateProgram, mk, compareToolpaths, normalizeRapids, splitRapid, pathBBox } from '../src/cam/ir.js';
-import { postProgram, readNC, getPost, listPosts } from '../src/cam/post/index.js';
+import { postProgram, readNC, getPost, listPosts, postPropsMissing } from '../src/cam/post/index.js';
+import { gates } from '../src/cam/gates.js';
 import { sanitizeComment, createFormat } from '../src/cam/post/engine.js';
 import * as S from './cam-samples/samples.mjs';
 
@@ -251,6 +252,39 @@ console.log('8. CAM-VERIFY regresyonlari (docs/CAM-FIXES.md)');
     const txt = postProgram({ ...d, sections: [{ ...tap, toolpath: tp }] }, S.fanucMachine(), OPTS).text; const sw = Number(/^S(\d+) M3/m.exec(txt)[1]), fw = Number(/G84.*F([\d.]+)/.exec(txt)[1]); const pitch = tp.moves.find((m) => m.t === 'cycle').pitch; ok(sw === 333 && Math.abs(fw / sw - pitch) < 1e-9, `V-23: F/S = adim (S${sw} F${fw})`); }
   // V-23b: S0 yazilmaz
   throwsCode(() => postProgram(one(simple(), { rpm: 0.4 }), S.testMachine(), OPTS), 'cam.post.bad_rpm', 'V-23b: rpm 0.4 -> S0 yok');
+}
+
+console.log('6. M-03: yalniz programin kullandigi bos post ozellikleri engel');
+{
+  // P1 durumu: bekleme/G54.1 kullanmayan program; dwell ve G54.1 alanlari bos
+  const empty = { dwellAddress: null, dwellUnit: null, cycleDwellAddress: null, cycleDwellUnit: null, g541Range: null };
+  const mE = S.testMachine({ props: empty });
+  const surf = S.surfaceSample().program;
+  let pm = postPropsMissing(surf, mE);
+  ok(pm.complete && pm.missing.length === 0, 'yuzey programi: kullanilmayan bos alanlar eksik sayilmaz: ' + JSON.stringify(pm));
+  let gl = gates(surf, mE, { sim: false });
+  ok(!gl.some((g) => g.code === 'cam.gate.post_prop_missing'), 'M-03: kapida kullanilmayan alan engeli yok');
+  ok(postProgram(surf, mE, OPTS).text.includes('M30'), 'M-03: NC uretilir (kullanilmayan alanlar bos)');
+  // P1 S3 gibi 3+1 (A ekseni) program G54.1 kullanmiyorsa g541Range gerekmez
+  pm = postPropsMissing(S.indexedSample().program, mE);
+  ok(pm.complete && pm.missing.length === 0, 'M-03: 3+1 program (G58, A90/270) bos dwell/G54.1 alanlariyla eksiksiz: ' + JSON.stringify(pm));
+  // hala yakalanan: G04 ve G82 bekleme kullanan program -> tum eksikler tek listede
+  const dr = S.drillSample().program;
+  pm = postPropsMissing(dr, mE);
+  ok(['dwellAddress', 'dwellUnit', 'cycleDwellAddress', 'cycleDwellUnit'].every((k) => pm.missing.includes(k)) && !pm.missing.includes('g541Range'), 'bekleme kullanan program: 4 bekleme alani birlikte, G54.1 yok: ' + pm.missing);
+  gl = gates(dr, mE, { sim: false });
+  ok(gl.filter((g) => g.code === 'cam.gate.post_prop_missing' && g.level === 'block').length === pm.missing.length, 'kapi: her eksik alan bir engel');
+  throwsCode(() => postProgram(dr, mE, { date: 'x' }), 'cam.post.gates_blocked', 'kapilar verilmezse post statik kapilarla durur');
+  // G54.1 kullanan program
+  const wc = S.contourWearSample().program;
+  pm = postPropsMissing(wc, mE);
+  ok(pm.missing.includes('g541Range'), 'G54.1 kullanan program: g541Range eksik: ' + pm.missing);
+  // her programda kullanilan alan (guvenli geri cekilme)
+  pm = postPropsMissing(surf, S.testMachine({ props: { safeRetract: null } }));
+  ok(pm.missing.join() === 'safeRetract', 'safeRetract bos: eksik: ' + pm.missing);
+  // sogutma kodu: kullanilan sogutma turunun kodu bos
+  pm = postPropsMissing(dr, S.testMachine({ props: { coolantCodes: { flood: null, off: 'M9' } } }));
+  ok(pm.missing.includes('coolantCodes.flood'), 'kullanilan sogutma kodu bos: ' + pm.missing);
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

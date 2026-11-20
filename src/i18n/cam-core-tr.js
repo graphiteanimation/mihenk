@@ -59,6 +59,7 @@ export default {
   "err.cam.gate.rpm_low": "Devir ({rpm}) makinenin en düşük devrinin ({min}) altında.",
   "err.cam.gate.sim_failed": "Simülasyon çalıştırılamadı ({code}); NC üretilmez.",
   "err.cam.gate.sim_not_run": "Simülasyon çalıştırılmadı: çarpışma ve oyma denetlenmedi.",
+  "err.cam.gate.post_prop_missing": "Bu program makine profilinde boş olan bir post özelliğini kullanıyor: {prop}. Değer makinede teyit edilip profile girilmeli.",
   "err.cam.gate.body_short_conservative": "Gövde boyu ilk stok üstüne göre hesaplandı (simülasyon ya da tutucu ölçüsü yok; işlem {op}): yerel stok yüksekliği bilinmediği için muhafazakâr.",
   "err.cam.gate.sim_suppressed": "Simülasyonda {n} sorun daha var (listede gösterilmedi).",
   "err.cam.gate.tool_number_high": "Takım numarası T{number} magazin kapasitesini ({max}) aşıyor.",

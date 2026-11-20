@@ -58,6 +58,7 @@ export default {
   "err.cam.gate.rpm_low": "Spindle speed ({rpm}) is below the machine minimum ({min}).",
   "err.cam.gate.sim_failed": "The simulation could not run ({code}); no NC is generated.",
   "err.cam.gate.sim_not_run": "Simulation was not run: collisions and gouges were not checked.",
+  "err.cam.gate.post_prop_missing": "This program uses a post property that is empty in the machine profile: {prop}. Confirm the value on the machine and enter it in the profile.",
   "err.cam.gate.body_short_conservative": "Stick-out was checked against the original stock top (no simulation or no holder size; operation {op}): conservative because the local stock height is unknown.",
   "err.cam.gate.sim_suppressed": "The simulation found {n} more issues (not listed).",
   "err.cam.gate.tool_number_high": "Tool number T{number} exceeds the magazine capacity ({max}).",

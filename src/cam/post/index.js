@@ -7,6 +7,7 @@ export { readNC } from './reader.js';
 export { registerPost, listPosts, getPost } from './registry.js';
 export { runPost, createFormat, createVariable, createModal, sanitizeComment, resolveProps, resolveRotary } from './engine.js';
 export { describeIssue } from './describe.js';
+export { postPropsMissing } from './needs.js';
 
 // Program + makine profili -> {text, lines, lineMap, warnings, props, gates}
 // opts: {props, date, appVersion, gates, gateText?, verified:{by,date,note}}
