@@ -50,6 +50,7 @@ export function initChrome(app) {
   reg('import-dxf', 'menu.import_dxf', 'dxf-import', () => app.importDxf(), { off: inSketch });
   reg('export-step', 'menu.export_step', 'export', () => app.exportFile('step'));
   reg('export-stl', 'menu.export_stl', 'export', () => app.exportFile('stl'));
+  reg('export-stl-fine', 'menu.export_stl_fine', 'export', () => app.exportFile('stl', { quality: 'fine' })); // F-26: ince ağ
   reg('export-dxf', 'menu.export_dxf', 'dxf-export', () => app.exportDxf('2000'), { off: inSketch });
   reg('export-dxf12', 'menu.export_dxf12', 'dxf-export', () => app.exportDxf('R12'), { off: inSketch });
   reg('quit', 'menu.quit', 'close', () => window.close());
@@ -121,7 +122,7 @@ export function initChrome(app) {
   // ---------------------------------------------------------------- başlık şeridi
   const closeMenus = () => { document.querySelectorAll('#menubar .menu.open').forEach((m) => { m.classList.remove('open'); m.querySelector('[data-menu]')?.setAttribute('aria-expanded', 'false'); }); };
   const fileItems = () => [
-    'new', 'open', ['recent'], 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
+    'new', 'open', ['recent'], 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-stl-fine', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
   ];
   const helpItems = () => ['shortcuts', 'about'];
   const menuBtn = (c) => { const why = reason(c); const b = h('button', { class: 'mi', role: 'menuitem', 'data-cmd': c.id, 'aria-disabled': why ? 'true' : null, onclick: (e) => { e.stopPropagation(); closeMenus(); C.run(c.id); } },

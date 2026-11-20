@@ -76,4 +76,5 @@ export default {
   "fld.mirror_face": "Mirror face",
   "err.pattern.no_axis": "No axis edge selected",
   "err.pattern.axis_edge": "The axis edge must be a line or a circle",
+  "menu.export_stl_fine": "Export STL (fine mesh)…",
 };

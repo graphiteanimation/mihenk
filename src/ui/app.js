@@ -857,13 +857,13 @@ class App {
     window.native?.docState('new'); this.markDirty(true); toast(t('msg.recovered'));
     return true;
   }
-  async exportFile(format) {
+  async exportFile(format, opts = null) {
     if (this.guard()) return;
     const ids = (this.result?.bodies || []).filter((b) => !this.hiddenBodies.has(b.id)).map((b) => b.id);
     if (!ids.length) { toast(t('msg.export_none'), true); return; }
     try {
       const names = Object.fromEntries(ids.map((id) => [id, this.bodyName(id)]));
-      const data = await this.query('export', { format, ids, names });
+      const data = await this.query('export', { format, ids, names, opts });
       const name = (this.fileName || 'Belge').replace(/\.mhnk$/i, '') + '.' + format;
       const p = await this.writeOut(data, name, format, true);
       if (p) toast(t('msg.exported', { fmt: format.toUpperCase(), kb: Math.round(data.length / 1024) }));

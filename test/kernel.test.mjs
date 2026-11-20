@@ -591,4 +591,14 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   r = await K8.rebuild({ features: [bx, cy, { id: 'pt', type: 'pattern', kind: 'circ', source: { kind: 'body', bodies: ['b'] }, count: '2', total: '360', axis: 'edge', axisRef: ce }] });
   { const c = r.bodies.find((b) => b.id !== 'b' && b.id !== 'cy'); ok(r.status.pt.ok && c && Math.abs(c.bbox[0][0] - 160) < 1e-6 && Math.abs(c.bbox[1][0] - 200) < 1e-6, 'WP-08 dairesel kenar ekseni (silindir x=100): 180° kopya x 160…200 ' + JSON.stringify(c?.bbox)); }
 }
+
+// ------------------------------------------------------------------ WP-08 dilim 5: F-26 (STL kiriş hatası) — ince ağ seçeneği
+{
+  const K8 = await initKernel(opencascade, () => wasm);
+  const stlVol = (u) => { const dv = new DataView(u.buffer, u.byteOffset, u.byteLength); const n = dv.getUint32(80, true); let v = 0; for (let i = 0; i < n; i++) { const o = 84 + i * 50 + 12; const p = [0, 1, 2].map((k) => [0, 1, 2].map((j) => dv.getFloat32(o + k * 12 + j * 4, true))); const [a, b, c] = p; v += (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6; } return { v, n }; };
+  const r = await K8.rebuild({ features: [{ id: 'c', type: 'primitive', kind: 'cylinder', x: '0', y: '0', z: '0', dia: '24', h: '100', axis: 'X', op: 'new' }] });
+  const v0 = r.bodies[0].volume; const A = stlVol(await K8.exportFile('stl')), B = stlVol(await K8.exportFile('stl', null, null, { quality: 'fine' }));
+  ok(Math.abs(A.v - v0) / v0 > 1e-4, `F-26 yeniden üretildi: varsayılan STL Ø24 mil hacim hatası ${((A.v - v0) / v0).toExponential(2)} (> 1e-4)`);
+  ok(Math.abs(B.v - v0) / v0 < 1e-4 && B.n > A.n, `F-26 ince ağ: hacim hatası ${((B.v - v0) / v0).toExponential(2)} < 1e-4 (üçgen ${A.n} → ${B.n})`);
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

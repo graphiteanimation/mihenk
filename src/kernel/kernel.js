@@ -790,12 +790,20 @@ export class Kernel {
   camHeightmap(args) { return CAM.camHeightmap(this, args || {}); }
   camZLevels(args) { return CAM.camZLevels(this, args || {}); }
   camHoleExit(args) { return CAM.camHoleExit(this, args || {}); }
-  async exportFile(format, ids, names) {
+  async exportFile(format, ids, names, opts = null) {
     const shapes = [...(this.last?.bodies || [])].filter(([id]) => !ids || ids.includes(id));
     if (!shapes.length) throw new KErr('export.no_body');
     let blob;
     if (format === 'step') blob = R.exportSTEP(shapes.map(([id, b]) => ({ shape: b.shape, name: names?.[id] || (typeof b.name === 'string' ? b.name : id) })), { unit: 'MM', modelUnit: 'MM' });
-    else if (format === 'stl') { const comp = shapes.length === 1 ? shapes[0][1].shape : R.makeCompound(shapes.map(([, b]) => b.shape)); blob = comp.blobSTL({ tolerance: 0.01, angularTolerance: 0.1, binary: true }); }
+    else if (format === 'stl') {
+      // F-26 (WP-08): varsayılan (0,01 mm, 0,1 rad) eğrisel yüzlerde kiriş hatasıyla hacmi 1e-4'ten fazla saptırır (kademeli mil −3,7e-4).
+      // Varsayılan değişmedi (dosya boyutu); opts.quality === 'fine': doğrusal tolerans modele oranlı (köşegen × 2e-5, 0,001…0,01 mm),
+      // açısal 0,04 rad → mil −6,6e-5 (üçgen ~6×). Ölçü karşılaştırması için kesin yol STEP (B-rep).
+      const comp = shapes.length === 1 ? shapes[0][1].shape : R.makeCompound(shapes.map(([, b]) => b.shape));
+      const bb = comp.boundingBox; const fine = opts?.quality === 'fine';
+      const tol = fine ? Math.min(0.01, Math.max(0.001, Math.hypot(bb.width, bb.height, bb.depth) * 2e-5)) : 0.01;
+      blob = comp.blobSTL({ tolerance: tol, angularTolerance: fine ? 0.04 : 0.1, binary: true });
+    }
     else throw new KErr('export.format_unknown');
     return new Uint8Array(await blob.arrayBuffer());
   }

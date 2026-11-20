@@ -76,4 +76,5 @@ export default {
   "fld.mirror_face": "Ayna yüzü",
   "err.pattern.no_axis": "Eksen kenarı seçilmedi",
   "err.pattern.axis_edge": "Eksen kenarı doğru ya da daire olmalı",
+  "menu.export_stl_fine": "STL Dışa Aktar (ince ağ)…",
 };
