@@ -7,9 +7,10 @@ import { computeContour } from './ops/contour.js';
 import { computePocket } from './ops/pocket.js';
 import { computeChamfer } from './ops/chamfer.js';
 import { computeCircular } from './ops/circular.js';
+import { computeSlot, computeTrace } from './ops/slot.js';
 import { computeThread } from './ops/thread.js';
 export { gates } from './gates.js';
-export { buildProgram, generateProgram, freePiecePolicy, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
+export { buildProgram, generateProgram, expandAngles, axisPlane, freePiecePolicy, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
 export { CamErr } from './geom/err.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -22,7 +23,7 @@ export const WCS = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1'];
 function axisDir(spec, plane, which) {
   if (!spec || typeof spec !== 'object') throw cerr('cam.setup.bad_field', { field: `frame.${which}Axis` });
   if (spec.kind === 'base') { const d = AXES[spec.dir]; if (!d) throw cerr('cam.setup.bad_field', { field: `frame.${which}Axis.dir` }); return d; }
-  if (spec.kind === 'face') {
+  if (spec.kind === 'face' || spec.kind === 'edge') {
     // yuz normali cekirdekten (facePlane) onceden alinip opts.planes ile verilir; saklanmis normal KULLANILMAZ (eskiyebilir)
     if (!plane || !Array.isArray(plane.n)) throw cerr('cam.setup.face_axis_unresolved', { axis: which });
     return nrm(spec.flip ? plane.n.map((x) => -x) : plane.n);
@@ -38,7 +39,7 @@ function orientedBBox(bodies, F) {
 }
 
 // resolveSetup(setup, rebuildResult, machine, opts?) -> cozulmus setup (setup uzayi; A acisinda etkin cerceve)
-// opts.planes: { z?: {n:[..]}, x?: {n:[..]} }  (zAxis/xAxis kind 'face' ise cekirdek facePlane sonucu)
+// opts.planes: { z?: {n:[..]}, x?: {n:[..]} }  (zAxis/xAxis kind 'face' ise cekirdek facePlane sonucu; 'edge' ise dogru kenar yonu {n})
 export function resolveSetup(setup, rebuild, machine, opts = {}) {
   if (!setup || typeof setup !== 'object') throw cerr('cam.setup.bad_field', { field: 'setup' });
   const ids = Array.isArray(setup.bodies) ? setup.bodies : []; if (!ids.length) throw cerr('cam.setup.no_bodies');
@@ -46,8 +47,13 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
   const fr = setup.frame || {};
   const z = axisDir(fr.zAxis ?? { kind: 'base', dir: '+Z' }, opts.planes?.z, 'z');
   const x0 = axisDir(fr.xAxis ?? { kind: 'base', dir: '+X' }, opts.planes?.x, 'x');
-  if (Math.abs(dot(z, x0)) > 1e-9) throw cerr('cam.setup.axes_not_perpendicular');
-  const x = nrm(x0), y = cross(z, x); const F0 = [x, y, z];
+  let xv = x0;
+  if (Math.abs(dot(z, x0)) > 1e-9) {
+    // WP-07: xAxis.auto -> verilen taban yonun Z'ye dik izdusumu (egik yuz/kenar Z icin); yoksa hata
+    if (fr.xAxis?.auto === true) { const k = dot(z, x0); xv = [x0[0] - k * z[0], x0[1] - k * z[1], x0[2] - k * z[2]]; if (!(Math.hypot(...xv) > 1e-6)) throw cerr('cam.setup.axes_not_perpendicular'); }
+    else throw cerr('cam.setup.axes_not_perpendicular');
+  }
+  const x = nrm(xv), y = cross(z, x); const F0 = [x, y, z];
   // stok (yonlu, dunya orijinli koordinatlarda)
   const mb = orientedBBox(bodies, F0); const st = setup.stock || {};
   let sb; let stock;
@@ -102,7 +108,9 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
   const wo = setup.workOffset; if (!wo || !WCS.includes(wo.kind)) throw cerr('cam.setup.bad_field', { field: 'workOffset' });
   if (wo.kind === 'G54.1' && !(Number.isInteger(wo.p) && wo.p >= 1)) throw cerr('cam.setup.bad_field', { field: 'workOffset.p' });
   const clr = setup.clearanceZ ?? 0; if (!(isNum(clr) && clr >= 0)) throw cerr('cam.setup.bad_field', { field: 'clearanceZ' });
-  return { id: setup.id, name: setup.name ?? setup.id, bodies: ids, workOffset: { ...wo }, frame, frame0: { o, x, y, z }, aAngle, stock, stockBox, modelBBox, clearance: clr, stockTop: stockBox.max[2], machinePos: setup.machinePos ?? null };
+  // WP-07: silindir stok (eksen X): sim baslangic haritasi kesit merkezi/yaricapla yuvarlak ust yuzeyi kurar
+  const stockCyl = stock.kind === 'cyl' ? { yc: (stockBox.min[1] + stockBox.max[1]) / 2, zc: (stockBox.min[2] + stockBox.max[2]) / 2, R: stock.dia / 2 } : null;
+  return { id: setup.id, name: setup.name ?? setup.id, bodies: ids, workOffset: { ...wo }, frame, frame0: { o, x, y, z }, aAngle, stock, stockCyl, stockBox, modelBBox, clearance: clr, stockTop: stockBox.max[2], machinePos: setup.machinePos ?? null };
 }
 
 // computeOp(op, ctx) -> Toolpath (IR) | throw CamErr.  ctx = { setup: resolveSetup sonucu, tool: belge takimi, geom, machine }
@@ -120,6 +128,8 @@ export function computeOp(op, ctx) {
     case 'pocket': return computePocket(op, c);
     case 'chamfer': return computeChamfer(op, c);
     case 'circular': return computeCircular(op, c);
+    case 'slot': return computeSlot(op, c);
+    case 'trace': return computeTrace(op, c);
     case 'threadmill': return computeThread(op, c);
     default: throw cerr('cam.op.unsupported', { what: String(op.type) });
   }

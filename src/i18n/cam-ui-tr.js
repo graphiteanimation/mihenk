@@ -407,4 +407,12 @@ export default {
   "cam.cmd.circular": "Dairesel",
   "cam.cmd.threadmill": "Diş frez.",
   "cam.tt.threadmill": "Diş frezesi",
+  "cam.cmd.slot": "Kanal",
+  "cam.cmd.trace": "İz",
+  "cam.su.from_edge": "Kenardan (seçili)",
+  "cam.su.pick_axis": "Görünümde yüz/kenar seç",
+  "cam.su.pick_axis_cancel": "Seçimi bırak",
+  "cam.su.pick_axis_hint": "Eksen için düzlemsel bir yüz (normal) ya da düz bir kenar (yön) seçin.",
+  "cam.su.axis_flip": "Ters çevir",
+  "cam.su.x_auto": "X ekseni Z'ye dik izdüşümle otomatik belirlendi.",
 };

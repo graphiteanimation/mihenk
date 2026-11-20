@@ -9,12 +9,12 @@
 // yalniz silindir olarak modellenir; kesit disi fikstur yok. Ayrintilar docs/POST.md.
 import { KErr } from '../../shared/errors.js';
 import { validateProgram, validateToolpath, splitRapid, sampleArc } from '../ir.js';
-import { createHeightmap, cloneHeightmap } from './heightmap.js';
+import { createHeightmap, cloneHeightmap, stockHeightmap } from './heightmap.js';
 import { toolGeom } from './tool.js';
 import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './chain.js';
 import { freePieces } from './free.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
-export { createHeightmap, cloneHeightmap, heightmapFromFn, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
+export { createHeightmap, cloneHeightmap, heightmapFromFn, stockHeightmap, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom } from './tool.js';
 
 const err = (code, params = {}) => new KErr(code, params);
@@ -52,7 +52,7 @@ export function createSim(input, opts = {}) {
     else if (src.length) { // T-04: onceki setup'larin son stogu (yalniz malzeme cikarir; B1)
       const sl = src.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box }));
       hm = stockFromPrevious(sl, { frame, box }, res); chained = prepareSources(sl);
-    } else hm = createHeightmap([box.min[0], box.min[1]], [box.max[0], box.max[1]], res, box.max[2]);
+    } else hm = stockHeightmap(box, res, sset?.stockCyl ?? null);
     let hmax = -Infinity; for (let k = 0; k < hm.data.length; k++) if (hm.data[k] > hmax) hmax = hm.data[k];
     const mh = opts.modelHeightmaps?.[id] ?? (opts.modelHeightmap?.data ? opts.modelHeightmap : null);
     const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies };

@@ -444,5 +444,51 @@ console.log('11. WP-07 dilim 1: dis frezeleme ve dairesel frezeleme NC kalibi + 
   ok(rcc.lines.some((l) => /^G3 /.test(l)) && !rcc.lines.some((l) => /^G2 /.test(l)), 'dairesel NC: dis zit = G3 (dis tirmanma CW=G2 oldugundan)');
 }
 
+console.log('12. WP-07 dilim 2: kanal zigzag rampa, kontur helis rampa, iz, on delik NC kalibi + geri okuma');
+{
+  const CAM = await import('../src/cam/index.js');
+  const G = await import('../src/shared/geom2d.js');
+  const M = S.testMachine();
+  const S0 = { id: 's1', name: 'S1', workOffset: { kind: 'G55' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min: [0, 0, -30], max: [100, 60, 0] }, modelBBox: { min: [0, 0, -30], max: [100, 60, 0] }, clearance: 5, aAngle: null, stockTop: 0, machinePos: null };
+  const em = { id: 'em6', number: 3, lengthOffset: 3, diaOffset: 3, type: 'flat', dia: 6, fluteLen: 25, bodyLen: 50, flutes: 3, centerCutting: true };
+  const base = { rpm: 8000, feedCut: 800, feedPlunge: 300, coolant: 'flood', heights: { clearance: 10, retract: 2 } };
+  const post = (tp) => { const prog = CAM.buildProgram({ name: 'T', machine: M, sections: [{ setup: S0, toolpaths: [tp] }] }); return { prog, res: postProgram(prog, M, OPTS) }; };
+  const rt = (name, tp) => { const { prog, res } = post(tp); const back = readNC(res.text, { machine: M }); const cmp = compareToolpaths(normalizeRapids(prog.sections[0].toolpath), back.program.sections[0].toolpath, 0.001); ok(cmp.equal, `${name}: IR geri okuma esles: ${cmp.diffs.slice(0, 3).join(' | ')}`); return { lines: res.text.split('\n').map((l) => l.trim()), text: res.text }; };
+  const sq = (x0, y0, x1, y1) => [G.mkLine([x0, y0], [x1, y0]), G.mkLine([x1, y0], [x1, y1]), G.mkLine([x1, y1], [x0, y1]), G.mkLine([x0, y1], [x0, y0])].map((s) => ({ ...s, fwd: true }));
+  const chain = (a, b) => ({ items: [{ segs: [{ ...G.mkLine(a, b), fwd: true }], closed: false, z: null }] });
+  // kanal: Ø6 genislik 6, (10,30)->(60,30), stepdown 2.5 aci 10: ilk rampa X24.18 Z-2.5 (elle: 2.5/tan10 = 14.1796)
+  const sl = rt('kanal', CAM.computeOp({ id: 'sl', type: 'slot', ...base, geom: [{ kind: 'chain' }], width: 6, stepdown: 2.5, entry: { angle: 10 }, heights: { clearance: 10, retract: 2, bottom: { from: 'abs', off: -5 } } }, { setup: S0, tool: em, geom: chain([10, 30], [60, 30]) }));
+  ok(sl.lines.some((l) => /^(G1 )?X24\.178 Z-2\.5/.test(l)), 'kanal NC: ilk rampa hareketi X24.178 Z-2.5 (10 + 2.5/tan10): ' + sl.lines.filter((l) => /Z-2\.5/.test(l)).slice(0, 2).join(' / '));
+  ok(sl.lines.some((l) => /X60\./.test(l)) && sl.lines.some((l) => /X10\./.test(l) && /Z-5\./.test(l) || /^(G1 )?X10\./.test(l)), 'kanal NC: zincirin iki ucuna gidilir (X60, X10)');
+  // genis kanal: duvar halkasi G3 yarim yaylar
+  const sw = rt('kanal genis', CAM.computeOp({ id: 'sl', type: 'slot', ...base, geom: [{ kind: 'chain' }], width: 10, stepdown: 5, entry: { angle: 10 }, heights: { clearance: 10, retract: 2, bottom: { from: 'abs', off: -5 } } }, { setup: S0, tool: em, geom: chain([10, 30], [60, 30]) }));
+  ok(sw.lines.filter((l) => /^G3 /.test(l)).length >= 1 && !sw.lines.some((l) => /^G2 /.test(l)), 'kanal genis NC: duvar halkasi G3 (tirmanma), G2 yok');
+  // kontur helis: merkez (50,51), yaricap 3: ilk yay G3 X50 Y54 Z-0.625 I0 J3
+  const ch = rt('kontur helis', CAM.computeOp({ id: 'ch', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], side: 'outside', stepdown: 5, ramp: { kind: 'helix', angle: 5, helixDia: 6 } }, { setup: S0, tool: em, geom: { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] } }));
+  { const k = ch.lines.findIndex((l) => /^G3 Y54\. Z-0\.625 I0\. J3\. F800\./.test(l)); ok(k > 0 && /^Y48\. Z-1\.25 I0\. J-3\./.test(ch.lines[k + 1]), 'kontur helis NC: G3 Y54 Z-0.625 I0 J3, sonra Y48 Z-1.25 I0 J-3 (X50 degismez): ' + ch.lines.filter((l) => /^G3/.test(l)).slice(0, 2).join(' / ')); }
+  // iz
+  rt('iz', CAM.computeOp({ id: 'tr', type: 'trace', ...base, geom: [{ kind: 'chain' }], entry: { kind: 'plunge' }, heights: { clearance: 10, retract: 2, bottom: { from: 'abs', off: -0.5 } } }, { setup: S0, tool: em, geom: chain([10, 10], [40, 10]) }));
+}
+
+console.log('13. WP-07 dilim 3: bir setup\'ta iki A acisi: bolumler arasi guvenli geri cekilme, A indeksleme');
+{
+  const CAM = await import('../src/cam/index.js');
+  const M = S.testMachine();
+  const mkS = (a) => ({ id: 's' + a, name: 'S' + a, workOffset: { kind: 'G55' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min: [0, 0, -30], max: [100, 60, 0] }, modelBBox: { min: [0, 0, -30], max: [100, 60, 0] }, clearance: 5, aAngle: a, stockTop: 0, machinePos: null });
+  const em = { id: 'em6', number: 3, lengthOffset: 3, diaOffset: 3, type: 'flat', dia: 6, fluteLen: 25, bodyLen: 50, flutes: 3, centerCutting: true };
+  const base = { rpm: 8000, feedCut: 800, feedPlunge: 300, coolant: 'flood', heights: { clearance: 10, retract: 2 } };
+  const G = await import('../src/shared/geom2d.js');
+  const sq = (x0, y0, x1, y1) => [G.mkLine([x0, y0], [x1, y0]), G.mkLine([x1, y0], [x1, y1]), G.mkLine([x1, y1], [x0, y1]), G.mkLine([x0, y1], [x0, y0])].map((s) => ({ ...s, fwd: true }));
+  const tp = (id) => CAM.computeOp({ id, type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], side: 'outside', stepdown: 5 }, { setup: mkS(0), tool: em, geom: { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] } });
+  const prog = CAM.buildProgram({ name: 'T', machine: M, sections: [{ setup: mkS(0), toolpaths: [tp('a')] }, { setup: mkS(90), toolpaths: [tp('b')] }, { setup: mkS(0), toolpaths: [tp('c')] }] });
+  const res = postProgram(prog, M, OPTS); const L = res.text.split('\n').map((l) => l.trim());
+  const iA = L.findIndex((l) => /\bA90\./.test(l)); ok(iA > 0, 'cok-A NC: A90 indekslemesi var: ' + L.filter((l) => /\bA/.test(l)).join(' | '));
+  const before = L.slice(0, iA); const lastCut = before.map((l, k) => (/^G[123]\b/.test(l) || /^[XYZ]/.test(l) ? k : -1)).reduce((a, b) => Math.max(a, b), -1);
+  const iRet = before.map((l, k) => (/G28|G53/.test(l) ? k : -1)).reduce((a, b) => Math.max(a, b), -1);
+  ok(iRet > lastCut - 40 && iRet >= 0 && iRet < iA, 'cok-A NC: A donmeden once guvenli geri cekilme (G28/G53) satiri var (satir ' + iRet + ' < A satiri ' + iA + ')');
+  ok(L.findIndex((l, k) => k > iA && /\bA0?\.?(\s|$)/.test(l) && !/A9/.test(l)) > iA, 'cok-A NC: A0 e geri donus 90 dan sonra: ' + L.filter((l) => /\bA/.test(l)).join(' | '));
+  const back = readNC(res.text, { machine: M }); ok(back.program.sections.map((q) => q.setup.aAngle).join() === '0,90,0', 'cok-A NC: geri okunan A: ' + back.program.sections.map((q) => q.setup.aAngle).join());
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

@@ -407,4 +407,12 @@ export default {
   "cam.cmd.circular": "Circular",
   "cam.cmd.threadmill": "Thread mill",
   "cam.tt.threadmill": "Thread mill",
+  "cam.cmd.slot": "Slot",
+  "cam.cmd.trace": "Trace",
+  "cam.su.from_edge": "From edge (selected)",
+  "cam.su.pick_axis": "Pick face/edge in view",
+  "cam.su.pick_axis_cancel": "Cancel picking",
+  "cam.su.pick_axis_hint": "Pick a planar face (normal) or a straight edge (direction) for the axis.",
+  "cam.su.axis_flip": "Flip",
+  "cam.su.x_auto": "The X axis was set automatically by projection perpendicular to Z.",
 };

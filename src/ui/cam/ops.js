@@ -4,6 +4,7 @@ import { h, toast } from '../dom.js';
 import { icon } from '../icons.js';
 import { t, tLang, errText } from '../../shared/i18n.js';
 import { resolveSetup, buildProgram, generateProgram, gates as runGates } from '../../cam/index.js';
+import { axisPlane } from '../../cam/program.js';
 import { blocked } from '../../cam/gates.js';
 import { postProgram, postPropsMissing } from '../../cam/post/index.js';
 import { openMachineManager } from './machines.js';
@@ -63,7 +64,7 @@ export class CamOps {
   // ---------------------------------------------------------------- hesap
   async resolveS(setup) {
     const planes = {};
-    for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face') planes[k] = await this.app.query('facePlane', { ref: ax.ref }); }
+    for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face' || ax?.kind === 'edge') planes[k] = await axisPlane((c, a) => this.app.query(c, a), ax); }
     return resolveSetup(setup, this.app.result, this.cam.machine(), { planes });
   }
   // setup.ops içinden ids hesaplanır; sonuç önbelleğe yazılır. Dönüş: Map(opId → {key,S,tp,error})
@@ -76,7 +77,8 @@ export class CamOps {
     const r = await generateProgram(sub, { rebuild: this.app.result, machine: this.cam.machine(), query: (c, a) => this.app.query(c, a), doc: this.app.doc, name: 'PROG' });
     for (const o of ops) {
       const q = r.ops.find((x) => x.opId === o.id);
-      const x = { key: this.keyOf(o, setup), S, tp: q?.toolpath || null, error: q ? (q.ok ? null : q.error) : errObj({ code: 'cam.gate.op_failed', params: { op: o.name, code: 'internal' } }) };
+      let So = S; if (Number.isFinite(o.aAngle) && o.aAngle !== setup.rotary?.aAngle) { try { So = await this.resolveS({ ...setup, rotary: { enabled: true, aAngle: o.aAngle } }); } catch (e) { So = S; } } // WP-07: islem basina A acisi
+      const x = { key: this.keyOf(o, setup), S: So, tp: q?.toolpath || null, error: q ? (q.ok ? null : q.error) : errObj({ code: 'cam.gate.op_failed', params: { op: o.name, code: 'internal' } }) };
       this.cache.set(o.id, x); out.set(o.id, x);
     }
     return out;

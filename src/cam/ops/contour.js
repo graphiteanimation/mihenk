@@ -3,6 +3,7 @@
 // konturu + yanal pay; zorunlu dogrusal giris; G41/G42 tarafi). Acik zincir yalniz 'on' ile.
 // Yon: tirmanma (climb) = malzeme gidis yonunun SAGINDA (saat yonu mil, G41 ile ayni).
 import { cerr } from '../geom/err.js';
+import { helixArcs } from './helix.js';
 import * as P from '../geom/path2d.js';
 import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3, belowStockAllow, stockToLeave } from './common.js';
 
@@ -129,8 +130,8 @@ export function computeContour(op, ctx) {
   if (rough && rough.so >= tool.dia) throw cerr('cam.op.stepover_too_big', { stepover: rough.so, dia: tool.dia });
   if (comp === 'wear' && rough) throw cerr('cam.contour.wear_rough');
   if (comp === 'wear' && !Number.isInteger(tool.diaOffset)) throw cerr('cam.contour.wear_no_d', { tool: tool.number });
-  const ramp = op.ramp ?? { kind: 'plunge' }; if (!['plunge', 'ramp'].includes(ramp.kind)) throw cerr('cam.op.unsupported', { what: 'ramp.' + ramp.kind });
-  const rampAng = ramp.kind === 'ramp' ? need(op, 'ramp.angle', (v) => v > 0 && v <= 45, '0 < angle <= 45') : null;
+  const ramp = op.ramp ?? { kind: 'plunge' }; if (!['plunge', 'ramp', 'helix'].includes(ramp.kind)) throw cerr('cam.op.unsupported', { what: 'ramp.' + ramp.kind });
+  const rampAng = ramp.kind === 'ramp' || ramp.kind === 'helix' ? need(op, 'ramp.angle', (v) => v > 0 && v <= 45, '0 < angle <= 45') : null;
   const lin = op.leadIn ?? { kind: 'none' }, lout = op.leadOut ?? { kind: 'none' };
   // acik zincirde giris/cikis = extendStart/extendEnd (asagida); zincir secimi varsa bu denetim kapali halkalar icin dongude yapilir
   const hasChain = (op.geom || []).some((g) => g.kind === 'chain');
@@ -139,8 +140,9 @@ export function computeContour(op, ctx) {
     if (!(lin.len > r) || !(lout.len > r)) throw cerr('cam.contour.wear_lead_short', { min: r3(r) });
   };
   if (comp === 'wear' && !hasChain) wearLeadCheck();
-  if (ramp.kind === 'ramp' && (lin.kind !== 'none' || lout.kind !== 'none')) throw cerr('cam.contour.ramp_with_lead');
-  if (ramp.kind === 'ramp' && comp === 'wear') throw cerr('cam.contour.wear_ramp');
+  const helixR = ramp.kind === 'helix' ? need(op, 'ramp.helixDia') / 2 : 0;
+  if (ramp.kind !== 'plunge' && (lin.kind !== 'none' || lout.kind !== 'none')) throw cerr('cam.contour.ramp_with_lead');
+  if (ramp.kind !== 'plunge' && comp === 'wear') throw cerr('cam.contour.wear_ramp');
   const tabs = op.tabs && op.tabs.n > 0 ? { n: need(op, 'tabs.n', (v) => Number.isInteger(v) && v >= 1 && v <= 100, 'integer 1..100'), width: need(op, 'tabs.width'), height: need(op, 'tabs.height') } : null;
   const items = contourInputs(op, geom);
   const zSel = items.find((it) => Number.isFinite(it.z))?.z;
@@ -224,6 +226,15 @@ export function computeContour(op, ctx) {
         if (ramp.kind === 'ramp') {
           b.linkTo(st[0], st[1], zPrev, cut.feedPlunge, { clear: li > 0 });
           rampAlong(b, L, zPrev, z, rampAng, cut.feedRamp);
+        } else if (ramp.kind === 'helix') {
+          // helis, kontur baslangicinda takim tarafinda (serbest taraf): merkez c = st + n*rho; baslangic ve bitis st (tam tur sayisi), teget girer
+          const t0 = P.tangentAt(L[0], 0); const nrm = ps.toolSide === 'left' ? [-t0[1], t0[0]] : [t0[1], -t0[0]];
+          const c = [st[0] + nrm[0] * helixR, st[1] + nrm[1] * helixR];
+          for (let k = 0; k < 24; k++) { const q = [c[0] + helixR * Math.cos((k * Math.PI) / 12), c[1] + helixR * Math.sin((k * Math.PI) / 12)]; if (!ps.check(q)) throw cerr('cam.contour.helix_no_fit', { dia: r3(2 * helixR) }); }
+          b.linkTo(st[0], st[1], zPrev, cut.feedPlunge, { clear: li > 0 });
+          const a0 = Math.atan2(-nrm[1], -nrm[0]); const sgn = (-Math.sin(a0) * t0[0] + Math.cos(a0) * t0[1]) >= 0 ? 1 : -1;
+          const dzH = zPrev - z; const turns = Math.max(1, Math.ceil(dzH / (2 * Math.PI * helixR * Math.tan((rampAng * Math.PI) / 180)) - 1e-9));
+          helixArcs(b, c, helixR, a0, sgn, zPrev, z, turns * 2 * Math.PI, cut.feedRamp, 'ramp');
         } else b.linkTo(st[0], st[1], z, cut.feedPlunge);
         if (comp === 'wear') { b.moves.push({ t: 'comp', on: true }); }
         for (const s of pre) b.seg(s, z, z, cut.feedCut, 'lead');
