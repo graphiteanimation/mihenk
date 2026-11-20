@@ -3,6 +3,8 @@
 // Denetimler: serbest/kopmus parca (T-15, sim sonu), hizlinin stok icine girmesi, oyma (gouge), takim boyu asimi (flute), saft/tutucu carpmasi, stok tabaninin altina inis.
 // Setup'lar arasi stok (T-04): bolum setup'inda frame (model uzayi) varsa yeni setup'in baslangic stogu onceki setup'larin son
 // haritalarindan (chain.js; ayni govde + ortusen kutu; setup.stockFrom 'blank' ya da opts.chain:false kapatir; initialHeightmaps once gelir).
+// stockFrom:'blank' yalniz o setup'i degil SONRAKILERI de etkiler: zincir kaynagi son 'blank' setup'tan baslar, ondan onceki
+// setup'larin kesimleri unutulur (yeni ham parca bagli sayilir).
 // SINIRLAR: yalniz ustten (takim ekseni +Z) kesilen tek degerli stok; alt kesme (undercut) ve ters yuz modellenmez; tutucu/saft
 // yalniz silindir olarak modellenir; kesit disi fikstur yok. Ayrintilar docs/POST.md.
 import { KErr } from '../../shared/errors.js';
