@@ -10,6 +10,7 @@ import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
 import { TEXT_METHODS } from './sketch/text.js';
 import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
+import { alignTraceCons, hvSame, autoHvRedundantAfterFix } from './sketch/autoalign.js';
 import { dropEditedLinks, syncRefs } from './sketch/ops.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
@@ -258,11 +259,12 @@ export class Sketcher {
     if (s.pid) return s.pid;
     const id = this._newPt(s.x, s.y);
     const okOn = (eid) => { const e = this.sk.ents.find((x) => x.id === eid); return e && e.type !== 'spline' && e.type !== 'ellarc' && e.type !== 'point'; };
+    if (s.kind === 'align') { if (autoOn('hv')) for (const [ty, a, b] of alignTraceCons(this.sk, id, s)) this._addCon(ty, a, b, { auto: true }); return id; } // WP-21: hizalama izinden otomatik yatay/dikey
     if (!autoOn('on') && s.kind !== 'mid') return id; // otomatik "nesne üstünde" kapalı: yalnız nokta konur
     if (s.kind === 'int' && s.ents) { for (const e of s.ents) if (okOn(e)) this._addCon('pointOn', id, e); }
     else if (s.kind === 'quad' && s.ent) { // çeyrek nokta: daire/yayın üstünde ve merkezle yatay/dikey hizada
       const e = this.sk.ents.find((x) => x.id === s.ent); if (okOn(s.ent)) this._addCon('pointOn', id, s.ent);
-      if (e && (e.type === 'circle' || e.type === 'arc') && e.c) this._addCon(s.qi % 2 === 0 ? 'horizontal_pp' : 'vertical_pp', id, e.c);
+      if (e && (e.type === 'circle' || e.type === 'arc') && e.c) this._addCon(s.qi % 2 === 0 ? 'horizontal_pp' : 'vertical_pp', id, e.c, { auto: true });
     }
     else if (s.kind === 'mid' && s.ent) { const e = this.sk.ents.find((x) => x.id === s.ent); if (e && e.type === 'line' && autoOn('mid')) this._addCon('midpoint', id, s.ent); else if (okOn(s.ent) && autoOn('on')) this._addCon('pointOn', id, s.ent); }
     else if (s.ent && okOn(s.ent)) this._addCon('pointOn', id, s.ent);
@@ -490,7 +492,8 @@ export class Sketcher {
       if (!st.firstPid) st.firstPid = aId;
       bId = this._ptFor(s);
       const l = this._addEnt({ type: 'line', a: aId, b: bId });
-      if (s.align === 'h') this._addCon('horizontal', l); else if (s.align === 'v') this._addCon('vertical', l);
+      // otomatik yatay/dikey (auto: Sabitle ile gereksizleşirse kaldırılır); hizalama izi zaten belirlediyse eklenmez
+      if (s.align === 'h' && !hvSame(sk, aId, bId, 'h')) this._addCon('horizontal', l, undefined, { auto: true }); else if (s.align === 'v' && !hvSame(sk, aId, bId, 'v')) this._addCon('vertical', l, undefined, { auto: true });
       if (s.kind === 'tan' && s.ent && autoOn('tan')) this._addCon('tangent', l, s.ent); else if (s.kind === 'perp' && autoOn('perp') && s.ent && sk.ents.find((e) => e.id === s.ent)?.type === 'line') this._addCon('perpendicular', l, s.ent);
       st.lastEnt = l;
     }, { kind: tk('sk.kind.line') });
@@ -657,7 +660,13 @@ export class Sketcher {
         const ids = new Set(pts); for (const e of ents) entPts(e).forEach((p) => ids.add(p)); ids.delete('O');
         if (!ids.size) return fail('sk.c_fix');
         this.selection = []; this.onChange();
-        return this._apply((s) => { const all = [...ids].every((i) => s.points[i].fixed); for (const i of ids) { if (all) delete s.points[i].fixed; else s.points[i].fixed = true; } }, { kind: tk('sk.kind.fix'), strict: true });
+        // WP-21 (7g): sabitlenen noktaların zaten belirlediği OTOMATİK yatay/dikey kısıtlar kaldırılır (yoksa çözücü fazla kısıt der, Sabitle reddedilirdi)
+        let drop = [];
+        return this._apply((s) => {
+          const all = [...ids].every((i) => s.points[i].fixed);
+          if (!all) { drop = autoHvRedundantAfterFix(s, ids); for (const cid of drop) { const k = s.cons.findIndex((c) => c.id === cid); if (k >= 0) s.cons.splice(k, 1); } }
+          for (const i of ids) { if (all) delete s.points[i].fixed; else s.points[i].fixed = true; }
+        }, { kind: tk('sk.kind.fix'), strict: true, note: () => (drop.length ? t('sk.fix_auto_dropped', { n: drop.length }) : '') });
       }
       default: return fail('sk.c_unknown', { type });
     }

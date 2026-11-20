@@ -8,6 +8,8 @@ import { postProgram, getPost, listPosts } from '../src/cam/post/index.js';
 import { PP, PP_ORDER, postRunOpts, modelBBoxOf } from '../src/ui/cam/postopts.js';
 import { CAM_RIBBON } from '../src/ui/cam/ribbon.js';
 import { tLang } from '../src/shared/i18n.js';
+import { alignTraceCons, hvSame, autoHvRedundantAfterFix } from '../src/ui/sketch/autoalign.js';
+import { solveSketch } from '../src/ui/solver.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const src = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -58,6 +60,34 @@ await madde(1, 'src/ui/cam devirleri: belge adı + model kutusu post seçenekler
   ok(!kayitsiz.length, 'şeritteki her komut kayıtlı: ' + kayitsiz.join(','));
   ok(/CAM_RIBBON\.map/.test(idx), 'index.js ribbon() CAM_RIBBON’dan kurar');
   ok(CAM_RIBBON[CAM_RIBBON.length - 1][3]?.cls === 'end', 'eylem grubu sonda ve sabit (end)');
+});
+
+await madde(3, 'hizalama izinden otomatik H/V kısıtı; Sabitle ile fazla kısıt çatışması (7g)', async () => {
+  const base = () => ({ points: { O: { x: 0, y: 0, fixed: true }, A: { x: 10, y: 5 }, B: { x: 10, y: 20 }, C: { x: 40, y: 20 } }, ents: [{ id: 'l1', type: 'line', a: 'B', b: 'C' }], cons: [] });
+  let sk = base();
+  ok(JSON.stringify(alignTraceCons(sk, 'B', { kind: 'align', refs: [{ id: 'A', p: [10, 5], axis: 'v' }] })) === '[["vertical_pp","B","A"]]', 'dikey hiza izi → vertical_pp(yeni, referans)');
+  ok(JSON.stringify(alignTraceCons(sk, 'C', { kind: 'align', refs: [{ id: 'B', p: [10, 20], axis: 'h' }, { id: 'A', p: [10, 5], axis: 'v' }] })) === '[["horizontal_pp","C","B"]]', 'iki iz: yalnız konumu hâlâ hizalı olan referans (C.x≠A.x)');
+  ok(alignTraceCons(sk, 'B', { kind: 'end', refs: [{ id: 'A', axis: 'v' }] }).length === 0, 'hizalama dışı yakalama kısıt eklemez');
+  sk.cons.push({ id: 'k0', type: 'horizontal', a: 'l1' });
+  ok(alignTraceCons(sk, 'C', { kind: 'align', refs: [{ id: 'B', axis: 'h' }] }).length === 0 && hvSame(sk, 'B', 'C', 'h'), 'zaten yatay çizgiyle belirli hiza tekrar eklenmez (gereksiz kısıt yok)');
+  // çözücü: otomatik kısıt geometriyi bozmaz, fazla kısıt üretmez
+  sk = base(); for (const [ty, a, b] of alignTraceCons(sk, 'B', { kind: 'align', refs: [{ id: 'A', axis: 'v' }] })) sk.cons.push({ id: 'k1', type: ty, a, b, auto: true });
+  let r = await solveSketch(sk, {});
+  ok(r.ok && !r.redundant.length && !r.conflicting.length && Math.abs(sk.points.B.x - 10) < 1e-9, 'hiza kısıtıyla çözüm temiz: ' + JSON.stringify({ ok: r.ok, red: r.redundant }));
+  // 7g: A sabitken B'yi Sabitle → eskiden vertical_pp gereksiz (fazla kısıt) → katı uygulamada reddedilirdi
+  const fixCase = () => { const s2 = JSON.parse(JSON.stringify(sk)); s2.points.A.fixed = true; return s2; };
+  { const s2 = fixCase(); s2.points.B.fixed = true; const r2 = await solveSketch(s2, {}); ok(r2.redundant.includes('k1'), 'kök neden yeniden üretildi: düşürmeden Sabitle → k1 gereksiz (' + JSON.stringify(r2.redundant) + ')'); }
+  { const s2 = fixCase(); const ids = new Set(['B']); const drop = autoHvRedundantAfterFix(s2, ids);
+    ok(JSON.stringify(drop) === '["k1"]', 'Sabitle: tüm noktaları sabitlenen otomatik kısıt düşer: ' + JSON.stringify(drop));
+    s2.cons = s2.cons.filter((c) => !drop.includes(c.id)); s2.points.B.fixed = true; const r2 = await solveSketch(s2, {});
+    ok(r2.ok && !r2.redundant.length && !r2.conflicting.length, 'düşürünce Sabitle temiz çözülür (katı kip reddetmez)'); }
+  { const s2 = fixCase(); s2.cons[0].auto = undefined; ok(autoHvRedundantAfterFix(s2, new Set(['B'])).length === 0, 'kullanıcının elle eklediği kısıta dokunulmaz'); }
+  { const s2 = JSON.parse(JSON.stringify(sk)); ok(autoHvRedundantAfterFix(s2, new Set(['B'])).length === 0, 'yalnız bir ucu sabitlenen kısıt kalır (gereksiz değil)'); }
+  { const s3 = base(); s3.cons.push({ id: 'k2', type: 'horizontal', a: 'l1', auto: true }); ok(JSON.stringify(autoHvRedundantAfterFix(s3, new Set(['B', 'C']))) === '["k2"]', 'çizginin otomatik yatay kısıtı: iki ucu birden sabitlenince düşer'); }
+  const skSrc = src('src/ui/sketcher.js');
+  ok(/s\.kind === 'align'\) \{ if \(autoOn\('hv'\)\) for \(const \[ty, a, b\] of alignTraceCons/.test(skSrc), 'sketcher _ptFor hizalama izinden kısıt ekler (otomatik H/V ayarına bağlı)');
+  ok(/autoHvRedundantAfterFix\(s, ids\)/.test(skSrc) && /sk\.fix_auto_dropped/.test(skSrc), 'sketcher Sabitle otomatik kısıtları düşürür ve bildirir');
+  for (const l of ['tr', 'en']) ok(tLang(l, 'sk.fix_auto_dropped') !== 'sk.fix_auto_dropped', `${l}: sk.fix_auto_dropped`);
 });
 
 console.log(`${pass} geçti, ${fail} kaldı`);

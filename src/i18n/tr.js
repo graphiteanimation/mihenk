@@ -394,6 +394,7 @@ const base = {
   "sk.c_concentric": "Eş merkez kısıtı için iki daire/yay seçin.",
   "sk.c_symmetric": "Simetri kısıtı için iki nokta ve simetri ekseni olacak bir çizgi seçin.",
   "sk.c_pointOn": "Nokta üstünde kısıtı için bir nokta ve bir çizgi, daire ya da yay seçin.",
+  "sk.fix_auto_dropped": "{n} otomatik yatay/dikey kısıt kaldırıldı (sabit noktalar zaten belirliyor).",
   "sk.c_fix": "Sabitlemek için en az bir nokta (ya da çizgi, daire, yay) seçin.",
   "sk.c_unknown": "Bilinmeyen kısıt: {type}",
   "sk.c_exists": "Bu kısıt zaten var.",
