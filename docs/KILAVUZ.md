@@ -670,14 +670,14 @@ Parça: 100 × 60 × 20 mm alüminyum blok. Üstte 60 × 30 mm, 8 mm derin cep. 
 **Takımlar** → **Yeni takım**:
 
 - **Takım 1**: Tür **Parmak freze (düz)**, Çap 10, Kesici boy 25, Tutucudan çıkıntı 45, **Merkezden keser: işaretli** (katalog doğruysa), Tutucu çapı/boyu girin. T numarasını program verir. **Kesme verisi** sekmesinde **Preset ekle** ve **kendi** devir/ilerleme değerlerinizi yazın.
-- **Takım 2**: Tür **Matkap**, Çap 6.6, uç açısı 118°, Kesici boy 40, Tutucudan çıkıntı 60. T numarası 4 olur (3 korunan). **Preset** ekleyin ve kendi değerlerinizi yazın.
+- **Takım 2**: Tür **Matkap**, Çap 6.6, uç açısı 118°, Kesici boy 40, Tutucudan çıkıntı 60. T numarasını program verir (dokunulmaz listenizdeki numaralar atlanır; boş listede en küçük serbest numara). **Preset** ekleyin ve kendi değerlerinizi yazın.
 
 ### 6.4 Setup
 
 1. **Yeni setup**. Ad: `Üst`.
 2. **Gövdeler**: bloğu işaretleyin.
 3. Z yönü **+Z (üstten)**, X yönü **+X (sağdan)**, Orijin **Stok köşesi** (Sol, Ön, Üst).
-4. İş sıfırı: panel varsayılan olarak **G55** seçer (G54 korunur). Tezgâhta bu sıfırı o bağlamaya göre ayarlayacağınızı unutmayın.
+4. İş sıfırı: panel dokunulmaz listenizde olmayan ilk iş sıfırını seçer (liste boşsa G54). Seçilen sıfırı tezgâhta o bağlamaya göre ayarlayacağınızı unutmayın.
 5. Stok: **Modelden pay**, yanlarda 2, üstte 2, altta 0. A ekseninde işle: **kapalı**.
 6. Özet satırını kontrol edin: "Stok 104 × 64 × 22 mm". **Tamam**.
 
@@ -697,7 +697,7 @@ Parça: 100 × 60 × 20 mm alüminyum blok. Üstte 60 × 30 mm, 8 mm derin cep. 
 
 ### 6.7 Tezgâha gitmeden önce
 
-- NC'yi okuyun: takım sırası, devirler, ilerlemeler, sıfır (G55), Z yükseklikleri.
+- NC'yi okuyun: takım sırası, devirler, ilerlemeler, seçtiğiniz iş sıfırı (G54…G59), Z yükseklikleri.
 - Kuru çalıştırma ve ilk parça işlemlerini **makine projesindeki prosedürle** yapın. Bu program o prosedürü içermez.
 - Doğruladıysanız **Post: DOĞRULANMADI** düğmesinden beyanınızı kaydedin.
 
@@ -752,7 +752,7 @@ Bilinen ve **ertelenmiş** bulgular (CAM-VERIFY / CAM-FIXES):
 - **Yanal oyma çözünürlüğü** (V-24): yukarıdaki tablo.
 - **Cep köşe kalıntısı** (V-28): yüksek yanal adımda halka köşeleri arasında işlenmemiş bölge kalabilir. Program bunu "Cepte işlenemeyen … alan" ve "ulaşılamayan" uyarısıyla bildirir ama köşe temizleme hareketi üretmez.
 - **Cep/iç kontur kesme yönü** (V-29): Cep ve iç konturda duvar örneklerinin çok küçük bir kısmı (özellikle yıldız/dambıl gibi şekillerde) istenen tırmanma/geleneksel yönün tersinde çıkmıştır. Nedeni incelenmedi. **Yüzey kalitesi önemli işlerde NC'yi okuyun.**
-- **Program numarası** (V-21): O8000/O9000 gibi korunan program numarası aralıkları denetlenmez.
+- **Program numarası** (V-21): Tezgâhınızda ayrılmış program numarası aralıkları denetlenmez.
 - **Satır numarası** (V-22): N numaraları 99999'u aşarsa başa sarar (uyarı verir); M80V'de bu sınır teyit edilmedi.
 
 ### 7.5 Doğrulanamayanlar (tezgâh davranışı)
@@ -762,7 +762,7 @@ Aşağıdakiler yazılımla sınanamaz; makine projesinde işaretli parçayla te
 - A yönü ve A kelimesinin fiziksel anlamı
 - Güvenli Z çekilme yöntemi (G28 / G53)
 - G04 adres ve birimi
-- N ve O numarası sınırları, korunan program aralıkları (8000/9000)
+- N ve O numarası sınırları, tezgâha ayrılmış program numarası aralıkları
 - G05 P10000 çıktısı
 - Soğutma kodları: sis, hava, mil içi
 - Aşınma telafisinde D'ye yarıçap mı yoksa yalnız aşınma mı yazılacağı

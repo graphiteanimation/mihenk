@@ -1,6 +1,7 @@
 // Delik islemleri: rebuild holes[] (O-008) ya da verilen noktalar -> cevrim hareketleri (IR 'cycle').
 // Ekseni takim eksenine (setup -Z) paralel olmayan delik bu setup'ta listelenmez (uyari). Takim capi/hatvesi denetlenir.
-// R duzlemi = delik ustu + heights.retract. Noktalar ayni cevrimde yalniz R duzlemi stok ustundeyse birlesir (G99 ile
+// Boydan boya delik dibi = delik ekseninde modelden son cikis (geom.holes[].exits, T-14) - breakThrough - uc boyu; cikis
+// bilinmiyorsa model kutusunun tabani (uyari). R duzlemi = delik ustu + heights.retract. Noktalar ayni cevrimde yalniz R duzlemi stok ustundeyse birlesir (G99 ile
 // noktalar arasi gecis stok icinden gecmesin); degilse her nokta kendi cevrimidir (ustteki duzleme doner).
 import { cerr } from '../geom/err.js';
 import { tipLength } from '../tools.js';
@@ -8,6 +9,24 @@ import { need, opt, posNum, nonNeg, anyNum, cutting, Builder, finishToolpath, wa
 
 export const CYCLE_TOOLS = { drill: ['drill'], peck: ['drill'], chipbreak: ['drill'], spot: ['spot', 'drill', 'chamfer'], tap: ['tap'], ream: ['reamer'], bore: ['bore'] };
 const DIA_TOL = 0.01;
+const TRANSIT_GAP = 0.1; // mm: G99 gecisinde R ile stok arasinda istenen en kucuk bosluk
+
+// (a -> b) dogru parcasi boyunca, rad + yarim hucre koseni kadar bantta her stok hucresi z'nin altinda mi (harita disi: bos).
+export function segClear(hm, a, b, z, rad) {
+  const rs = hm.res, pad = rad + rs * Math.SQRT1_2;
+  const i0 = Math.max(0, Math.floor((Math.min(a.x, b.x) - pad - hm.x0) / rs)), i1 = Math.min(hm.nx - 1, Math.floor((Math.max(a.x, b.x) + pad - hm.x0) / rs));
+  const j0 = Math.max(0, Math.floor((Math.min(a.y, b.y) - pad - hm.y0) / rs)), j1 = Math.min(hm.ny - 1, Math.floor((Math.max(a.y, b.y) + pad - hm.y0) / rs));
+  const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+  for (let j = j0; j <= j1; j++) {
+    const cy = hm.y0 + (j + 0.5) * rs;
+    for (let i = i0; i <= i1; i++) {
+      const h = hm.data[j * hm.nx + i]; if (!(h >= z)) { if (h === h) continue; return false; } // NaN: bilinmiyor -> guvenli degil
+      const cx = hm.x0 + (i + 0.5) * rs; const t = L2 > 0 ? Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - a.y) * dy) / L2)) : 0;
+      if (Math.hypot(cx - a.x - dx * t, cy - a.y - dy * t) <= pad) return false;
+    }
+  }
+  return true;
+}
 
 // model uzayi -> setup uzayi
 const toS = (F, p) => { const d = [p[0] - F.o[0], p[1] - F.o[1], p[2] - F.o[2]]; return [d[0] * F.x[0] + d[1] * F.x[1] + d[2] * F.x[2], d[0] * F.y[0] + d[1] * F.y[1] + d[2] * F.y[2], d[0] * F.z[0] + d[1] * F.z[1] + d[2] * F.z[2]]; };
@@ -23,9 +42,14 @@ export function collectHoles(op, S, geom) {
       if (f.feature != null && h.feature !== f.feature && h.patternOf !== f.feature && h.copyOf !== f.feature) continue;
       if (f.dia != null && Math.abs(h.dia - f.dia) > 1e-6) continue;
       h.positions.forEach((p, i) => {
-        const d = toSd(S.frame, h.dirs[i] || h.dir); const q = toS(S.frame, p);
-        if (Math.abs(d[2] + 1) > 1e-6) { skipped++; return; }
-        out.push({ x: q[0], y: q[1], top: q[2], dia: h.dia, depth: h.depth, through: !!h.through, thread: h.thread || null, tipAngle: h.tipAngle, feature: h.feature });
+        const dm = h.dirs[i] || h.dir; const d = toSd(S.frame, dm); let q = toS(S.frame, p);
+        const exit = Number.isFinite(h.exits?.[i]) ? h.exits[i] : null;
+        if (Math.abs(d[2] + 1) > 1e-6) {
+          // T-05b: boyu bilinen boydan boya delik karsi uctan da delinir (ust = p + d*boy)
+          if (h.through && exit != null && Math.abs(d[2] - 1) <= 1e-6) q = toS(S.frame, [p[0] + dm[0] * exit, p[1] + dm[1] * exit, p[2] + dm[2] * exit]);
+          else { skipped++; return; }
+        }
+        out.push({ x: q[0], y: q[1], top: q[2], dia: h.dia, depth: h.depth, through: !!h.through, thread: h.thread || null, tipAngle: h.tipAngle, feature: h.feature, exit });
       });
     }
   } else if (sel.kind === 'points') {
@@ -79,7 +103,9 @@ export function computeDrill(op, ctx) {
     if (dep.from === 'abs') bottom = need(op, 'depth.z', anyNum, 'number');
     else if (dep.from === 'hole') {
       if (h.dia == null) throw cerr('cam.drill.depth_from_hole_needs_feature');
-      if (h.through || h.depth == null) { bottom = S.modelBBox.min[2] - brk - tipL; thru++; }
+      // T-14: boydan boya dip = delik ekseninde modelden son cikis (annotateHoleExits); bilinmiyorsa model tabani (uyari)
+      if ((h.through || h.depth == null) && h.exit != null) bottom = h.top - h.exit - brk - tipL;
+      else if (h.through || h.depth == null) { bottom = S.modelBBox.min[2] - brk - tipL; thru++; }
       else bottom = h.top - h.depth - tipL;
     } else throw cerr('cam.op.bad_field', { field: 'depth.from', expect: 'hole/abs', op: op.name || op.id });
     if (h.dia != null) {
@@ -97,22 +123,24 @@ export function computeDrill(op, ctx) {
   if (pmism) warnings.push(warn('cam.drill.pitch_mismatch', { n: pmism, pitch: tool.pitch }));
   if (nothread) warnings.push(warn('cam.drill.no_thread', { n: nothread }));
   const order = op.order ?? 'asis'; if (!['asis', 'shortest'].includes(order)) throw cerr('cam.op.bad_field', { field: 'order', expect: 'asis/shortest', op: op.name || op.id });
-  // gruplama: ayni ust z ve dip, R stok ustunde -> tek cevrim (noktalar arasi gecis R'de stok ustunde); aksi halde her nokta ayri
-  const groups = []; const byKey = new Map();
-  for (const p of pts) {
-    const shared = p.R >= stockTop - 1e-9; const key = shared ? `${Math.round(p.top * 1e6)}|${Math.round(p.bottom * 1e6)}` : null;
-    if (key && byKey.has(key)) { byKey.get(key).pts.push(p); continue; }
-    const g = { top: p.top, bottom: p.bottom, R: p.R, pts: [p] }; groups.push(g); if (key) byKey.set(key, g);
-  }
+  // T-23 gruplama: anahtar (ust z, dip, R). Ayni anahtarli ardisik noktalar tek cevrimde (G99: gecis R'de) yalniz gecis
+  // guvenliyse: R stok kutusunun ustunde, ya da islem basi stok haritasinda (ctx.stockMap, generateProgram'in sim'i) gecis
+  // bandindaki her hucre R'nin altinda; model ust haritasi (ctx.modelMap, ince duvar guvencesi) da ayni. Haritalardan biri yoksa ya da bant disi/bilinmeyen hucre varsa gecis guvenli SAYILMAZ (ayri cevrim).
+  const stockMap = ctx.stockMap?.data ? ctx.stockMap : null, modelMap = ctx.modelMap?.data ? ctx.modelMap : null;
+  const clearAt = (a, b, z) => (z >= stockTop - 1e-9) || (stockMap && modelMap ? segClear(stockMap, a, b, z - TRANSIT_GAP, tool.dia / 2) && segClear(modelMap, a, b, z - TRANSIT_GAP, tool.dia / 2) : false);
+  const byKey = new Map(); const keyed = [];
+  for (const p of pts) { const key = `${Math.round(p.top * 1e6)}|${Math.round(p.bottom * 1e6)}|${Math.round(p.R * 1e6)}`; if (!byKey.has(key)) { const k = { top: p.top, bottom: p.bottom, R: p.R, pts: [] }; byKey.set(key, k); keyed.push(k); } byKey.get(key).pts.push(p); }
+  const groups = [];
+  const chains = (k, list) => { let g = null; for (const p of list) { if (g && clearAt(g.pts[g.pts.length - 1], p, k.R)) g.pts.push(p); else { g = { top: k.top, bottom: k.bottom, R: k.R, pts: [p] }; groups.push(g); } } };
   let cur = null;
-  if (order === 'shortest') { // gruplar en yakin komsu sirasiyla, grup ici en kisa yol
-    const rest = groups.slice(); groups.length = 0;
+  if (order === 'shortest') { // anahtar gruplari en yakin komsu sirasiyla, grup ici en kisa yol, sonra guvenli gecis zincirleri
+    const rest = keyed.slice();
     while (rest.length) {
       let bi = 0, bd = Infinity; rest.forEach((g, i) => { const d = cur ? Math.min(...g.pts.map((p) => Math.hypot(p.x - cur[0], p.y - cur[1]))) : 0; if (d < bd) { bd = d; bi = i; } });
-      const g = rest.splice(bi, 1)[0]; const start = cur ? g.pts.reduce((a, p) => (Math.hypot(p.x - cur[0], p.y - cur[1]) < Math.hypot(a.x - cur[0], a.y - cur[1]) ? p : a)) : g.pts[0];
-      g.pts = orderPoints(g.pts, [start.x, start.y]); groups.push(g); const l = g.pts[g.pts.length - 1]; cur = [l.x, l.y];
+      const k = rest.splice(bi, 1)[0]; const start = cur ? k.pts.reduce((a, p) => (Math.hypot(p.x - cur[0], p.y - cur[1]) < Math.hypot(a.x - cur[0], a.y - cur[1]) ? p : a)) : k.pts[0];
+      chains(k, orderPoints(k.pts, [start.x, start.y])); const l = groups[groups.length - 1].pts.slice(-1)[0]; cur = [l.x, l.y];
     }
-  }
+  } else for (const k of keyed) chains(k, k.pts);
   for (const g of groups) g.points = g.pts.map((p) => [p.x, p.y]);
   const zCyc = Math.max(zSafe, ...groups.map((g) => g.R)); // cevrim baslangic (ilk) duzlemi: stok ustu ve tum R'lerin ustu
   if (zCyc > zClr + 1e-9) throw cerr('cam.heights.retract_above_clearance', { retract: r3(zCyc - stockTop), clearance: clr });
@@ -129,5 +157,5 @@ export function computeDrill(op, ctx) {
   }
   const passDepth = Math.max(...pts.map((p) => p.top - p.bottom));
   const hh = { zClr, zRet: zCyc, zTop: Math.max(...pts.map((p) => p.top)), zBot: Math.min(...pts.map((p) => p.bottom)), stockTop };
-  return finishToolpath(op, tool, { ...cut }, hh, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { holes: pts.length, cycles: groups.length, belowStock: thru ? Math.max(0, S.stockBox.min[2] - Math.min(...pts.filter((p) => p.through || p.depth == null).map((p) => p.bottom))) : 0 } });
+  return finishToolpath(op, tool, { ...cut }, hh, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { holes: pts.length, cycles: groups.length, drillAllow: brk + tipL, belowStock: pts.some((p) => p.through || p.depth == null) ? Math.min(brk + tipL, Math.max(0, S.stockBox.min[2] - Math.min(...pts.filter((p) => p.through || p.depth == null).map((p) => p.bottom)))) : 0 } });
 }

@@ -34,6 +34,7 @@ export default {
   "err.cam.drill.bottom_above_r": "Delik dibi ({bottom}) R düzleminin ({r}) üstünde. Derinliği kontrol edin.",
   "err.cam.drill.depth_from_hole_needs_feature": "\"Delikten\" derinlik yalnız modeldeki delik özelliğiyle kullanılabilir. Mutlak derinlik girin.",
   "err.cam.drill.dia_mismatch": "{n} deliğin çapı takım çapından (Ø{dia}) farklı. Takımı kontrol edin.",
+  "err.cam.drill.point_missing": "Delik noktası bulunamadı: sketch {sketch} içinde {ent} öğesi yok ya da nokta/daire değil.",
   "err.cam.drill.no_holes": "Bu setup'ta delinecek delik yok (seçim boş ya da delik ekseni takım eksenine paralel değil).",
   "err.cam.drill.no_thread": "{n} delikte diş bilgisi yok; kılavuz çekilecek delik doğru mu kontrol edin.",
   "err.cam.drill.pitch_mismatch": "{n} deliğin diş adımı kılavuz adımından ({pitch} mm) farklı.",

@@ -4,17 +4,11 @@ import os, re, socket, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PORT = int(os.environ.get("MIHENK_TEST_PORT2", 4193))
 passed = failed = 0
 def check(name, cond, detail=''):
     global passed, failed
     if cond: passed += 1; print('  ok   ', name)
     else: failed += 1; print('  FAIL ', name, detail)
-def port_open():
-    s = socket.socket(); s.settimeout(0.3)
-    try: s.connect(('127.0.0.1', PORT)); return True
-    except OSError: return False
-    finally: s.close()
 
 print('statik denetimler')
 r = subprocess.run([sys.executable, os.path.join(ROOT, 'design/tools/contrast.py')], capture_output=True, text=True, cwd=ROOT)
@@ -32,12 +26,9 @@ for f in os.listdir(os.path.join(ROOT, 'src/ui')):
 check('tokens.css dışında ham HEX renk yok', not bad, bad[:5])
 check('azaltılmış hareket desteği (prefers-reduced-motion)', 'prefers-reduced-motion' in open(os.path.join(ROOT, 'src/ui/components.css')).read() + open(os.path.join(ROOT, 'src/ui/style.css')).read())
 
-server = None
-if not port_open():
-    server = subprocess.Popen(['npx', 'vite', 'preview', '--port', str(PORT)], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(100):
-        if port_open(): break
-        time.sleep(0.2)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _srv
+PORT, server = _srv.start(ROOT, ['preview'])  # her koşu kendi boş portunda kendi sunucusunu açar (test/_srv.py)
 URL = f'http://127.0.0.1:{PORT}/'
 try:
   with sync_playwright() as p:
@@ -145,5 +136,5 @@ try:
     ctx.close()
     br.close()
 finally:
-    if server: server.terminate()
+    _srv.stop(server)
 print(f'\n{passed} geçti, {failed} kaldı'); sys.exit(1 if failed else 0)

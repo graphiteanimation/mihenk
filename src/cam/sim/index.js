@@ -1,12 +1,19 @@
 // Stok simulasyonu: yukseklik haritasi (tek degerli dexel) + takim sweep. Saf JS (three.js yok).
 // API: simulate(input, opts) -> sonuc;  createSim(input, opts) -> adim adim oynatici ({step(n), run(), state(), heightmap(), reset()}).
-// Denetimler: hizlinin stok icine girmesi, oyma (gouge), takim boyu asimi (flute), saft/tutucu carpmasi, stok tabaninin altina inis.
+// Denetimler: serbest/kopmus parca (T-15, sim sonu), hizlinin stok icine girmesi, oyma (gouge), takim boyu asimi (flute), saft/tutucu carpmasi, stok tabaninin altina inis.
+// Setup'lar arasi stok (T-04): bolum setup'inda frame (model uzayi) varsa yeni setup'in baslangic stogu onceki setup'larin son
+// haritalarindan (chain.js; ayni govde + ortusen kutu; setup.stockFrom 'blank' ya da opts.chain:false kapatir; initialHeightmaps once gelir).
+// stockFrom:'blank' yalniz o setup'i degil SONRAKILERI de etkiler: zincir kaynagi son 'blank' setup'tan baslar, ondan onceki
+// setup'larin kesimleri unutulur (yeni ham parca bagli sayilir).
 // SINIRLAR: yalniz ustten (takim ekseni +Z) kesilen tek degerli stok; alt kesme (undercut) ve ters yuz modellenmez; tutucu/saft
 // yalniz silindir olarak modellenir; kesit disi fikstur yok. Ayrintilar docs/POST.md.
 import { KErr } from '../../shared/errors.js';
 import { validateProgram, validateToolpath, splitRapid, sampleArc } from '../ir.js';
 import { createHeightmap, cloneHeightmap } from './heightmap.js';
 import { toolGeom } from './tool.js';
+import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './chain.js';
+import { freePieces } from './free.js';
+export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom } from './tool.js';
 
@@ -33,17 +40,22 @@ export function createSim(input, opts = {}) {
   const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
   reset();
 
-  function setupFor(id) {
+  function setupFor(id, sset) {
     if (setups.has(id)) return setups.get(id);
     const box = opts.stockBoxes?.[id] ?? opts.stockBox;
     if (!box || !box.min || !box.max) throw err('cam.sim.no_stock', { setup: id });
-    let hm;
+    let hm; let chained = false;
     const init = opts.initialHeightmaps?.[id] ?? (opts.stockHeightmap?.data ? opts.stockHeightmap : null);
+    const frame = sset?.frame ?? null; const stockFrom = sset?.stockFrom ?? 'previous', bodies = sset?.bodies ?? null;
+    const src = opts.chain !== false && !init ? chainSources([...setups.values()], { frame, box, stockFrom, bodies }) : [];
     if (init) hm = cloneHeightmap(init);
-    else hm = createHeightmap([box.min[0], box.min[1]], [box.max[0], box.max[1]], res, box.max[2]);
+    else if (src.length) { // T-04: onceki setup'larin son stogu (yalniz malzeme cikarir; B1)
+      const sl = src.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box }));
+      hm = stockFromPrevious(sl, { frame, box }, res); chained = prepareSources(sl);
+    } else hm = createHeightmap([box.min[0], box.min[1]], [box.max[0], box.max[1]], res, box.max[2]);
     let hmax = -Infinity; for (let k = 0; k < hm.data.length; k++) if (hm.data[k] > hmax) hmax = hm.data[k];
     const mh = opts.modelHeightmaps?.[id] ?? (opts.modelHeightmap?.data ? opts.modelHeightmap : null);
-    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0 };
+    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies };
     setups.set(id, s); return s;
   }
 
@@ -53,10 +65,13 @@ export function createSim(input, opts = {}) {
     const id = sec.setup?.id ?? 'default';
     const tool = { ...tp.tool, ...(opts.tools?.[tp.tool.number] || {}), ...(opts.tool || {}) };
     const allow = Number.isFinite(tp.meta?.belowStock) && tp.meta.belowStock > 0 ? tp.meta.belowStock : 0;
-    const S = setupFor(id), geom = toolGeom(tool);
+    // B2: delme cevriminde stok alti pay en cok breakThrough + uc boyu (meta.drillAllow; yoksa yalniz takim uc boyu)
+    const tipL = tool.tipAngle > 0 && tool.tipAngle < 180 ? (tool.dia / 2) / Math.tan(tool.tipAngle * Math.PI / 360) : 0;
+    const cycAllow = Math.min(allow, Number.isFinite(tp.meta?.drillAllow) ? tp.meta.drillAllow : tipL);
+    const S = setupFor(id, sec.setup), geom = toolGeom(tool);
     // T-08: islem basi stok (yerel stok yuksekligi icin) ve yol izi maskesi; tutucu boslugu
     let preMax = -Infinity; for (let k = 0; k < S.hm.data.length; k++) if (S.hm.data[k] > preMax) preMax = S.hm.data[k];
-    cur = { si, tp, allow, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
+    cur = { si, tp, allow, cycAllow, allowNow: allow, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
       pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
   }
   // T-08: islemin yol bandi (takim merkezinin stok yuksekliginin altindaki izi, en buyuk zarf yaricapi kadar kare genisletme:
@@ -88,6 +103,22 @@ export function createSim(input, opts = {}) {
       else issues.push({ level: key === 'holder_contact' ? 'error' : 'warn', code: CODE(key), params: { x: c.clrAt.x, y: c.clrAt.y, z: c.clrAt.z, clearance: Math.max(0, st.holderClearance), min: key === 'holder_contact' ? clrContact : clrLow, op: c.tp.opId }, moveIndex: c.clrAt.k, section: c.si });
     }
     c.pre = null; c.mask = null;
+  }
+
+  // T-15: sim sonu her setup'in son haritasinda serbest/kopmus parca (uyari; opts.freePieceBlock ile engel; opts.freePieces:false kapali)
+  function freeCheck() {
+    if (opts.freePieces === false) return;
+    const lastSec = new Map(); sections.forEach((sec, si) => lastSec.set(sec.setup?.id ?? 'default', si));
+    for (const [id, st] of setups) {
+      const hm = st.hm, F = st.frame, cs = st.chained;
+      const empty = cs && F ? (k) => { const i = k % hm.nx, j = (k - i) / hm.nx; return columnEmpty(cs, F, hm.x0 + (i + 0.5) * hm.res, hm.y0 + (j + 0.5) * hm.res, st.zFloor, hm.data[k]); } : null;
+      const r = freePieces(hm, st.zFloor, { minArea: opts.freePieceMinArea ?? 1, empty });
+      for (const c of r.free) {
+        counts.free_piece = (counts.free_piece || 0) + 1; if (counts.free_piece > capPerCode) { suppressed++; continue; }
+        const si = lastSec.get(id) ?? 0;
+        issues.push({ level: opts.freePieceBlock ? 'error' : 'warn', code: CODE('free_piece'), params: { area: Math.round(c.area * 100) / 100, x: c.x, y: c.y, z: c.top, n: r.free.length, setup: id, op: sections[si].toolpath.opId }, moveIndex: sections[si].toolpath.moves.length - 1, section: si });
+      }
+    }
   }
 
   function note(code, depth, px, py, pz) {
@@ -246,20 +277,26 @@ export function createSim(input, opts = {}) {
         // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
         if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
         rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance ? m.clearance : m.retract });
+        // T-23: cok noktali cevrimde sorunlar NOKTA basina yazilir (hangi delik; tek noktali cevrimlerle ayni sayim)
+        if (m.points.length > 1) { cur.cycFresh.push(...flush(cur.si, cur.move, n)); cur.acc = {}; }
       });
       const lp = m.points[m.points.length - 1]; cur.prog = { x: lp[0], y: lp[1], z: m.clearance };
     }
   }
 
-  function flush(si, k) {
+  function flush(si, k, point = null) {
     const acc = cur.acc; const fresh = [];
     for (const key of Object.keys(acc)) {
       const a = acc[key], code = CODE(key);
       counts[key] = (counts[key] || 0) + 1;
       if (counts[key] > capPerCode) { suppressed++; continue; }
-      const lvl = key === 'below_stock' && a.depth <= cur.allow + belowTol ? 'warn' : LEVEL[key];
-      const it = { level: lvl, code, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
+      // below_stock: bildirilen pay icinde uyari; pay varken asan kisim ayri kod (below_stock_excess, engel); pay yoksa engel
+      let lvl = LEVEL[key], code2 = code;
+      if (key === 'below_stock') { if (a.depth <= cur.allowNow + belowTol) lvl = 'warn'; else if (cur.allowNow > 0) code2 = CODE('below_stock_excess'); }
+      const it = { level: lvl, code: code2, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
       if (a.vertical != null) it.params.vertical = a.vertical;
+      if (point != null) it.params.point = point;
+      if (key === 'below_stock') it.params.allow = Math.round(cur.allowNow * 1000) / 1000;
       issues.push(it); fresh.push(it);
     }
     return fresh;
@@ -268,11 +305,12 @@ export function createSim(input, opts = {}) {
   function stepOne() {
     const [si, k] = steps[idx];
     if (!cur || cur.si !== si) enterSection(si);
-    cur.acc = {}; cur.move = k;
-    doMove(sections[si].toolpath.moves[k]);
-    const fresh = flush(si, k);
+    cur.acc = {}; cur.move = k; cur.cycFresh = [];
+    const mv = sections[si].toolpath.moves[k]; cur.allowNow = mv.t === 'cycle' ? cur.cycAllow : cur.allow;
+    doMove(mv);
+    const fresh = [...cur.cycFresh, ...flush(si, k)];
     idx++;
-    if (idx >= steps.length) { const n0 = issues.length; closeSection(); fresh.push(...issues.slice(n0)); }
+    if (idx >= steps.length) { const n0 = issues.length; closeSection(); freeCheck(); fresh.push(...issues.slice(n0)); }
     if (opts.frames > 0 && idx % opts.frames === 0) frames.push({ index: idx, section: si, moveIndex: k, removedVolume: removedTotal, heightmap: new Float32Array(cur.setup.hm.data) });
     return fresh;
   }
@@ -300,7 +338,7 @@ export function createSim(input, opts = {}) {
     },
     result() {
       const remainBySetup = {}; for (const [id, s] of setups) remainBySetup[id] = s.hm;
-      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples, sections: secStats.slice() };
+      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => !!x.chained).map((x) => x.id) };
       if (opts.frames > 0) out.frames = frames;
       return out;
     },

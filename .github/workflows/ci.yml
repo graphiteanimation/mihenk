@@ -22,10 +22,10 @@ jobs:
     steps:
       # Altın dosya karşılaştırmaları satır sonuna duyarlı: Windows'ta CRLF'ye çevrilmesin
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with: { python-version: '3.12' }
       - name: Python playwright
         run: python -m pip install --disable-pip-version-check playwright
@@ -41,7 +41,7 @@ jobs:
         run: npm run test:all
       - name: Test günlükleri
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-gunlukleri
           path: |
@@ -55,15 +55,30 @@ jobs:
     timeout-minutes: 45
     steps:
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - name: NSIS (makensis) hazırla
+      - name: NSIS (makensis) hazırla (sürüm sabit)
         shell: pwsh
+        env:
+          NSIS_VERSION: '3.13.0'
         run: |
-          $found = (Get-Command makensis -ErrorAction SilentlyContinue) -or (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe") -or (Test-Path "$env:ProgramFiles\NSIS\makensis.exe")
-          if ($found) { "NSIS hazır" } else { "NSIS yok, choco ile kuruluyor"; choco install nsis --no-progress -y; if ($LASTEXITCODE -ne 0) { exit 1 } }
+          # Sürüm sabitlenir: kurulum dosyası koşudan koşuya aynı derleyiciyle üretilsin. Yoksa sabit sürüm kurulur; sonunda sürüm doğrulanır.
+          # makensis /VERSION yalnız "v3.13" gibi ana.alt sürümü yazar
+          $want = $env:NSIS_VERSION -replace '^(\d+\.\d+).*', '$1'
+          $mk = (Get-Command makensis -ErrorAction SilentlyContinue).Source
+          if (-not $mk) { foreach ($d in @("${env:ProgramFiles(x86)}\NSIS", "$env:ProgramFiles\NSIS")) { if (Test-Path "$d\makensis.exe") { $mk = "$d\makensis.exe" } } }
+          $ver = if ($mk) { (& $mk /VERSION).Trim().TrimStart('v') } else { '' }
+          if ($ver -ne $want) {
+            "NSIS '$ver' (istenen $env:NSIS_VERSION), choco ile sabit sürüm kuruluyor"
+            choco install nsis --version $env:NSIS_VERSION --allow-downgrade --no-progress -y
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+            $mk = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"; if (-not (Test-Path $mk)) { $mk = "$env:ProgramFiles\NSIS\makensis.exe" }
+            $ver = (& $mk /VERSION).Trim().TrimStart('v')
+            if ($ver -ne $want) { "NSIS sürümü uyuşmuyor: $ver"; exit 1 }
+          }
+          "NSIS $ver"
       - name: npm run dist
         run: npm run dist
       - name: Kurulum dosyası ve SHA-256
@@ -74,7 +89,7 @@ jobs:
       - name: Kurulu sürüm duman testi (sessiz kur, aç, kaydet, NC/DXF kaydet, kaldır)
         run: npm run test:installed
       - name: Kurulum + SHA-256 (ham, yalnız yayin işi için)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kurulum-ham
           path: |
@@ -87,7 +102,7 @@ jobs:
     needs: [test, paket]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with: { name: kurulum-ham, path: kurulum }
       - name: SHA-256 doğrula
         working-directory: kurulum
@@ -95,7 +110,7 @@ jobs:
           sha256sum -c SHA256SUMS.txt
           ls -l
           { echo '### Kurulum çıktısı'; echo '```'; cat SHA256SUMS.txt; ls -l Mihenk-Kurulum-*.exe; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Mihenk-Kurulum
           path: |

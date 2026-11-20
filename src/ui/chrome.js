@@ -291,10 +291,54 @@ export function initChrome(app) {
     $('#viewbtns').replaceChildren(vb('view-front', 'view-front', tk('view.front'), 'front'), vb('view-top', 'view-top', tk('view.top'), 'top'), vb('view-right', 'view-right', tk('view.right'), 'right'), vb('view-iso', 'view-iso', tk('view.iso'), 'iso'), vb('fit', 'fit', tk('view.fit'), 'fit'));
     const tg = (id, ic, nm, on) => { const b = h('button', { 'data-cmd': id, 'aria-label': t(nm), 'aria-pressed': on ? 'true' : 'false', onclick: () => C.run(id), html: icon(ic) }); tip(b, { name: t(nm), body: t('tip.' + id) }); return b; };
     $('#viewtoggles').replaceChildren(tg('planes', 'planes', tk('menu.planes'), app.planesVisible), tg('section', 'section', tk('tb.section'), !!app.sectionPanel));
-    // küp: üç görünür yüz tıklanabilir (Üst, Ön, Sağ)
-    const face = (pts, cls, view, txt, tx, ty, rot) => `<g class="cube-face ${cls}" data-view="${view}" tabindex="0" role="button" aria-label="${t('view.' + view)}"><polygon points="${pts}"/><text x="${tx}" y="${ty}" text-anchor="middle"${rot ? ` transform="rotate(${rot} ${tx} ${ty})"` : ''}>${txt}</text></g>`;
-    $('#viewcube').innerHTML = `<svg viewBox="0 0 80 80" aria-hidden="false">${face('40,8 68,24 40,40 12,24', 'f-top', 'top', t('view.top'), 40, 29)}${face('12,24 40,40 40,72 12,56', 'f-front', 'front', t('view.front'), 26, 52, 26)}${face('68,24 40,40 40,72 68,56', 'f-right', 'right', t('view.right'), 54, 52, -26)}</svg>`;
-    for (const g of $('#viewcube').querySelectorAll('.cube-face')) { const go = () => app.viewport.view(g.dataset.view); g.addEventListener('click', go); g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }); }
+    // C-05: yönelimi izleyen görünüm küpü. Altı yüz (Üst/Alt/Ön/Arka/Sağ/Sol), on iki kenar ve sekiz köşe tıklanır (Fusion gibi).
+    // Elemanlar bir kez kurulur, kamera değişince yalnız noktalar ve görünürlük güncellenir (klavye odağı kaybolmaz).
+    const NS = 'http://www.w3.org/2000/svg'; const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); return e; };
+    const AX = ['x', 'y', 'z']; const FACES = [['right', 0, 1], ['left', 0, -1], ['back', 1, 1], ['front', 1, -1], ['top', 2, 1], ['bottom', 2, -1]]; // [ad, eksen, işaret]
+    const vname = (a, sg) => FACES.find((f) => f[1] === a && f[2] === sg)[0];
+    const svg = mk('svg', { viewBox: '0 0 80 80', 'aria-hidden': 'false' });
+    const faceEls = FACES.map(([name, a, sg]) => {
+      const g = mk('g', { class: `cube-face f-${name}`, 'data-view': name, tabindex: '0', role: 'button', 'aria-label': t('view.' + name) });
+      const poly = mk('polygon'); const txt = mk('text', { 'text-anchor': 'middle' }); txt.textContent = t('view.' + name); g.append(poly, txt);
+      const go = () => app.viewport.view(name); g.addEventListener('click', go); g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      svg.append(g); return { name, a, sg, g, poly, txt };
+    });
+    const edgeEls = []; const cornerEls = [];
+    for (let a = 0; a < 3; a++) for (const s1 of [-1, 1]) for (const s2 of [-1, 1]) { // kenar: a ekseni boyunca; diğer iki eksenin işaretleri s1, s2
+      const b = (a + 1) % 3, c = (a + 2) % 3; const dir = [0, 0, 0]; dir[b] = s1; dir[c] = s2;
+      const l = mk('line', { class: 'cube-edge', 'data-dir': dir.join(','), 'data-edge': `${vname(b, s1)}-${vname(c, s2)}`, 'aria-hidden': 'true' }); l.append(Object.assign(mk('title'), { textContent: t('view.' + vname(b, s1)) + ' + ' + t('view.' + vname(c, s2)) }));
+      l.addEventListener('click', () => app.viewport.view(dir)); svg.append(l); edgeEls.push({ a, b, c, s1, s2, el: l });
+    }
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+      const dir = [sx, sy, sz]; const cEl = mk('circle', { class: 'cube-corner', r: '4', 'data-dir': dir.join(','), 'aria-hidden': 'true' });
+      cEl.append(Object.assign(mk('title'), { textContent: [vname(0, sx), vname(1, sy), vname(2, sz)].map((n) => t('view.' + n)).join(' + ') }));
+      cEl.addEventListener('click', () => app.viewport.view(dir)); svg.append(cEl); cornerEls.push({ dir, el: cEl });
+    }
+    const S = 18; // küp yarı kenarı (SVG birimi)
+    C.updateCube = () => {
+      const cam = app.viewport.camera; cam.updateMatrixWorld(); const m = cam.matrixWorld.elements;
+      const right = [m[0], m[1], m[2]], up = [m[4], m[5], m[6]], back = [m[8], m[9], m[10]];
+      const dot = (v, w) => v[0] * w[0] + v[1] * w[1] + v[2] * w[2];
+      const pt = (v) => [40 + S * dot(v, right), 40 - S * dot(v, up)];
+      const vis = {}; // yüz görünür mü
+      for (const f of faceEls) {
+        const n = [0, 0, 0]; n[f.a] = f.sg; const k = dot(n, back); vis[f.a + ':' + f.sg] = k > 0.02;
+        f.g.style.display = k > 0.02 ? '' : 'none';
+        const b = (f.a + 1) % 3, c = (f.a + 2) % 3; const ring = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, w]) => { const v = [0, 0, 0]; v[f.a] = f.sg; v[b] = u; v[c] = w; return pt(v); });
+        f.poly.setAttribute('points', ring.map((p) => p.map((x) => x.toFixed(1)).join(',')).join(' '));
+        const ctr = pt(n); f.txt.setAttribute('x', ctr[0].toFixed(1)); f.txt.setAttribute('y', (ctr[1] + 3).toFixed(1)); f.txt.style.opacity = k > 0.35 ? '1' : '0';
+      }
+      for (const e of edgeEls) {
+        const f1 = vis[e.b + ':' + e.s1], f2 = vis[e.c + ':' + e.s2]; e.el.style.display = f1 || f2 ? '' : 'none';
+        const p0 = [0, 0, 0], p1 = [0, 0, 0]; p0[e.b] = p1[e.b] = e.s1; p0[e.c] = p1[e.c] = e.s2; p0[e.a] = -1; p1[e.a] = 1;
+        const a0 = pt(p0), a1 = pt(p1); e.el.setAttribute('x1', a0[0].toFixed(1)); e.el.setAttribute('y1', a0[1].toFixed(1)); e.el.setAttribute('x2', a1[0].toFixed(1)); e.el.setAttribute('y2', a1[1].toFixed(1));
+      }
+      for (const c of cornerEls) {
+        c.el.style.display = [0, 1, 2].some((a) => vis[a + ':' + c.dir[a]]) ? '' : 'none';
+        const p = pt(c.dir); c.el.setAttribute('cx', p[0].toFixed(1)); c.el.setAttribute('cy', p[1].toFixed(1));
+      }
+    };
+    $('#viewcube').replaceChildren(svg); app.viewport.onView = C.updateCube; C.updateCube();
   };
 
   // ---------------------------------------------------------------- tarayıcı

@@ -6,7 +6,7 @@ import { t, errText, fmtNum } from '../../shared/i18n.js';
 import { checkMachine, copyMachine, builtinMachines, GENERIC_3AXIS_ID } from '../../cam/machines/builtin.js';
 import { exportMachines, importMachines } from '../../cam/machines/io.js';
 import { listPosts, getPost } from '../../cam/post/index.js';
-import { resolveProps } from '../../cam/post/engine.js';
+import { resolveProps, CONDITIONAL_PROPS } from '../../cam/post/engine.js';
 import { allMachines, saveUserMachines, userMachines, machineName } from './store.js';
 import { pickJson } from './toolui.js';
 import { clone, uid, parseIntList, numField, textField, selField, checkField, sec, callout, fld, unitBox, msgBox, setMsg, blockedByBadField } from './util.js';
@@ -36,7 +36,8 @@ function needMark(row, whyText, empty) {
 
 // Koşulsuz gerekli ama boş post özellikleri (U-04/U-05). Koşullu olanlar yalnız koşul doğruysa: safeRetractZ (G53), g541Range (A ekseni).
 // İsteğe bağlı (boş = yazma): rigidTapM, highSpeedOn/Off, soğutma M kodları (kullanılan soğutma türü için çekirdek ayrıca bildirir).
-const POST_OPTIONAL = new Set(['rigidTapM', 'highSpeedOn', 'highSpeedOff', 'safeRetractZ', 'g541Range', 'coolantCodes']);
+// Liste tek kaynaktan gelir: post motorunun CONDITIONAL_PROPS listesi (yalnız program kullanıyorsa gereken özellikler eksik sayılmaz).
+const POST_OPTIONAL = new Set(CONDITIONAL_PROPS);
 export function postMissing(machine) {
   if (!machine) return [];
   let props; try { props = resolveProps(getPost(machine.control), machine); } catch (e) { return []; }
@@ -82,13 +83,15 @@ export async function editMachine(machine, { isNew = false } = {}) {
         num(t('cam.mc.max'), () => a.max ?? null, (v) => { a.max = v; }, { unit: 'mm', min: -1e6, f: 'ax-' + k + '-max' }));
     }
     rows.push(sec(t('cam.mc.axis', { axis: 'A' })));
-    rows.push(checkField({ label: t('cam.mc.a_enabled'), value: !!d.axes.A, f: 'ax-A-on', set: (on) => { if (on) d.axes.A = { kind: 'rotary', about: 'X', dir: [-1, 0, 0], limits: null, shortest: true, rapid: null, feedMax: null, centerHeight: null, clamp: { lock: 'M10', unlock: 'M11', output: false } }; else delete d.axes.A; draw(); refreshErr(); } }));
+    rows.push(checkField({ label: t('cam.mc.a_enabled'), value: !!d.axes.A, f: 'ax-A-on', set: (on) => { if (on) d.axes.A = { kind: 'rotary', about: 'X', dir: [-1, 0, 0], limits: null, shortest: true, wrap: null, rapid: null, feedMax: null, centerHeight: null, clamp: { lock: 'M10', unlock: 'M11', output: false } }; else delete d.axes.A; draw(); refreshErr(); } }));
     const A = d.axes.A;
     if (A) {
       rows.push(selField({ label: t('cam.mc.a_dir'), value: A.dir[0] < 0 ? '-' : '+', f: 'ax-A-dir', opts: [['-', t('cam.mc.a_dir_neg')], ['+', t('cam.mc.a_dir_pos')]], hint: t('cam.mc.a_dir_hint'), set: (v) => { A.dir = [v === '-' ? -1 : 1, 0, 0]; refreshErr(); } }));
       rows.push(checkField({ label: t('cam.mc.a_unlimited'), value: A.limits == null, f: 'ax-A-unl', set: (on) => { A.limits = on ? null : [-360, 360]; draw(); refreshErr(); } }));
       if (A.limits) rows.push(num(t('cam.mc.a_lim_min'), () => A.limits[0], (v) => { if (v !== null) A.limits[0] = v; }, { unit: '°', nullable: false, min: -1e5, f: 'ax-A-lmin' }), num(t('cam.mc.a_lim_max'), () => A.limits[1], (v) => { if (v !== null) A.limits[1] = v; }, { unit: '°', nullable: false, min: -1e5, f: 'ax-A-lmax' }));
       rows.push(checkField({ label: t('cam.mc.a_shortest'), value: !!A.shortest, f: 'ax-A-short', set: (v) => { A.shortest = v; refreshErr(); } }));
+      // A.wrap: A kelimesinin yazım biçimi (boş = yukarıdaki "kısa yoldan dön" seçeneğine göre)
+      rows.push(selField({ label: t('cam.mc.a_wrap'), value: A.wrap ?? '', f: 'ax-A-wrap', hint: t('cam.mc.a_wrap_hint'), opts: [['', t('cam.mc.a_wrap_auto')], ['shortest', t('cam.mc.a_wrap_shortest')], ['signed', t('cam.mc.a_wrap_signed')], ['0-360', t('cam.mc.a_wrap_abs')]], set: (v) => { A.wrap = v || null; refreshErr(); } }));
       rows.push(num(t('cam.mc.a_rapid'), () => A.rapid ?? null, (v) => { A.rapid = v; }, { unit: t('cam.u.deg_min'), min: 0.001, f: 'ax-A-rapid' }), num(t('cam.mc.a_feedmax'), () => A.feedMax ?? null, (v) => { A.feedMax = v; }, { unit: t('cam.u.deg_min'), min: 0.001, f: 'ax-A-feedmax' }),
         num(t('cam.mc.a_center'), () => A.centerHeight ?? null, (v) => { A.centerHeight = v; }, { unit: 'mm', min: 0.001, f: 'ax-A-center' }));
       A.clamp = A.clamp || { lock: 'M10', unlock: 'M11', output: false };

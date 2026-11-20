@@ -6,12 +6,12 @@
 // Çalıştır: node test/i18n.test.mjs
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const { default: tr } = await import(path.join(ROOT, 'src/i18n/tr.js'));
-const { default: en } = await import(path.join(ROOT, 'src/i18n/en.js'));
-const i18n = await import(path.join(ROOT, 'src/shared/i18n.js'));
+const { default: tr } = await import(pathToFileURL(path.join(ROOT, 'src/i18n/tr.js')).href);
+const { default: en } = await import(pathToFileURL(path.join(ROOT, 'src/i18n/en.js')).href);
+const i18n = await import(pathToFileURL(path.join(ROOT, 'src/shared/i18n.js')).href);
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL:', m); } };
@@ -193,7 +193,7 @@ off();
 ok(i18n.setLang('xx', false) === false && i18n.getLang() === 'en', 'geçersiz dil reddedilir');
 
 // ifade değerlendirici hataları {code, params} taşır
-const { evalExpr } = await import(path.join(ROOT, 'src/shared/expr.js'));
+const { evalExpr } = await import(pathToFileURL(path.join(ROOT, 'src/shared/expr.js')).href);
 try { evalExpr('2+*', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'expr.syntax' && typeof e.params === 'object', 'evalExpr hatası KErr: ' + e.code); }
 try { evalExpr('abc', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'expr.unknown_param' && e.params.name === 'abc', 'unknown_param'); }
 
