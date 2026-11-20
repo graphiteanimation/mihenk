@@ -281,15 +281,16 @@ class App {
       const ss = this.sketchSession;
       if (ss && !ss.isNew && !(e && !e.closed)) {
         const d = this.cloneDoc(this.doc); d.rollback = ss.idx;
-        const res = await this.rebuildDoc(d, null, true); if (this.sketchSession === ss) this.applyResult(res, true);
+        const res = await this.rebuildDoc(d, null, true); if (seq !== this._seq) return; if (this.sketchSession === ss) this.applyResult(res, true);
         return;
       }
       if (e && !e.closed) {
         const err = e.validate();
         let full = null;
-        if (!err) { full = await this.rebuildDoc(e.makeDoc(e.at + 1), null, true); e.setStatus(full.status[e.draft.id]); this.lastMs = performance.now() - t0; }
+        // WP-10 devri: yalnız en son isteğin sonucu uygulanır (eski uzun hesap yeni düzenlemeden sonra dönerse atılır)
+        if (!err) { full = await this.rebuildDoc(e.makeDoc(e.at + 1), null, true); if (seq !== this._seq) return; e.setStatus(full.status[e.draft.id]); this.lastMs = performance.now() - t0; }
         else e.setStatus({ ok: false, error: err });
-        if (e.pickBase() || err) this.applyResult(await this.rebuildDoc(e.makeDoc(e.at), null, true), true); else this.applyResult(full, true);
+        if (e.pickBase() || err) { const base = await this.rebuildDoc(e.makeDoc(e.at), null, true); if (seq !== this._seq) return; this.applyResult(base, true); } else this.applyResult(full, true);
         // WP-02 "Son hali göster": aynı değişiklik arka planda sona kadar hesaplanır (önbellek yalnız değişen işlemden sonrasını
         // yeniden hesaplar); yeni bir değişiklik gelirse eski sonuç atılır.
         if (this.showFinal && !err && e.hasAfter() && seq === this._seq && !e.closed) {
@@ -302,6 +303,7 @@ class App {
       // WP-02 güncelleme süpürmesi: çekirdek her işlemi bitirdikçe şerit soldan sağa durumunu alır
       if (sw) { this.sweep = { at: sw.at, base: this.sums ? new Map(this.sums) : new Map(), done: new Map(), order: [], cur: doc.features[sw.at]?.id ?? null }; this.C.renderTimeline(); }
       const res = await this.rebuildDoc(doc, sw ? (p) => this.onSweep(p) : null);
+      if (seq !== this._seq) { this.staleDropped = (this.staleDropped || 0) + 1; return; } // daha yeni istek var: eski sonuç uygulanmaz
       this.lastMs = performance.now() - t0; if (doc.rollback == null) this.lastFullMs = this.lastMs;
       const done = this.sweep; this.sweep = null;
       this.applyResult(res, false);
