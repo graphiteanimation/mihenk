@@ -37,7 +37,10 @@ export function stockFromPrevious(prev, target, res) {
       // kutu icinde ama izgara yuvarlamasiyla disari tasan (en cok bir hucre): kenar hucresi
       if (i === -1 || i === H.nx) i = Math.min(H.nx - 1, Math.max(0, i)); if (j === -1 || j === H.ny) j = Math.min(H.ny - 1, Math.max(0, j));
       if (i < 0 || j < 0 || i >= H.nx || j >= H.ny) continue;
-      if (q[2] > H.data[j * H.nx + i] + eps) return false;
+      // tabana kadar kesilmis sutun (h <= kutu tabani, sim V-13: BOS): sinir duzlemi (z_k = taban) dahil malzeme yok. Ters
+      // cevrilmis setup'in tavani tam bu duzlemde ornekler; esitlik 'dolu' sayilirsa boydan boya pencere hic gorulmez.
+      const h = H.data[j * H.nx + i];
+      if (h <= B.min[2] + eps || q[2] > h + eps) return false;
     }
     return true;
   };
@@ -57,7 +60,8 @@ export function boxesOverlap(a, b) {
   const wb = (s) => { const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity]; for (const x of [s.box.min[0], s.box.max[0]]) for (const y of [s.box.min[1], s.box.max[1]]) for (const z of [s.box.min[2], s.box.max[2]]) { const P = fromF(s.frame, [x, y, z]); for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], P[k]); mx[k] = Math.max(mx[k], P[k]); } } return { mn, mx }; };
   const A = wb(a), B = wb(b); for (let k = 0; k < 3; k++) if (Math.min(A.mx[k], B.mx[k]) - Math.max(A.mn[k], B.mn[k]) <= 1e-6) return false; return true;
 }
-// Zincir kaynagi: hedef setup 'blank' degilse, son 'blank' setup'tan bu yana gelen, ayni govdeli ve kutusu ortusen onceki setup'lar
+// Zincir kaynagi: hedef setup 'blank' degilse, son 'blank' setup'tan bu yana gelen (bir ara setup 'blank' ise ONDAN ONCEKI
+// setup'larin kesimleri sonrakiler icin unutulur: yeni ham parca), ayni govdeli ve kutusu ortusen onceki setup'lar
 export function chainSources(prev, target) {
   if (target.stockFrom === 'blank' || !target.frame) return [];
   let start = 0; prev.forEach((p, i) => { if (p.stockFrom === 'blank') start = i; });

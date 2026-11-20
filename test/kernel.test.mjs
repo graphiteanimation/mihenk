@@ -323,6 +323,16 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   r = await imp(box(40, 40, 30).cut(cyl(4, 12, [20, 20, 18], [0, 0, 1])).cut(cyl(2.5, 6, [20, 20, 0], [0, 0, 1])));
   ok(r.holes.length === 2 && !r.holes.some((h) => h.kind === 'cbore' || h.through) && r.holes.some((h) => near(h.dia, 8) && near(h.depth, 12)) && r.holes.some((h) => near(h.dia, 5) && near(h.depth, 6)), 'H1b: Ø8×12 üst + Ø5×6 alt ayrı kör (cbore/boydan boya değil): ' + r.holes.map((h) => h.kind + h.dia + 'd' + h.depth));
   e = KH.camHoleExit({ bodies: [r.bodies[0].id], p: [20, 20, 30], d: [0, 0, -1], r: 4 }); ok(near(e.t, 12) && !e.through, 'H1b çıkış 12, kör');
+  for (const web of [0.05, 0.01]) { // 2. tur: ince web (ornekleme degil, eksen dogrusu-ag kesisimi)
+    const hh = (40 - web) / 2; r = await imp(RR.makeBox([0, 0, 0], [80, 80, 40]).cut(cyl(3, hh, [40, 40, 20 + web / 2], [0, 0, 1])).cut(cyl(3, hh, [40, 40, 0], [0, 0, 1])));
+    ok(r.holes.length === 2 && r.holes.every((h) => !h.through && near(h.depth, hh)), `ince web ${web} mm: iki kor delik (through degil): ` + r.holes.map((h) => (h.through ? 'T' : 'K') + h.depth));
+    e = KH.camHoleExit({ bodies: [r.bodies[0].id], p: [40, 40, 40], d: [0, 0, -1], r: 3 }); ok(near(e.t, hh) && !e.through, `ince web ${web}: cikis web'de durur`);
+  }
+  { // N1: kor + 0,05 web + capraz Ø19,9 boydan boya + 0,05 web + kor
+    let sN = box(40, 40, 30).cut(cyl(3, 5, [20, 20, 25], [0, 0, 1])).cut(cyl(3, 5, [20, 20, 0], [0, 0, 1])).cut(cyl(9.95, 40, [0, 20, 15], [1, 0, 0]));
+    r = await imp(sN); const vz = r.holes.filter((h) => Math.abs(h.dir[2]) === 1);
+    ok(vz.length === 2 && vz.every((h) => !h.through && near(h.depth, 5)) && r.holes.some((h) => h.dir[0] === 1 && h.through), 'ince web + capraz delik: dusey ikisi kor (5), capraz boydan boya: ' + r.holes.map((h) => h.kind + h.dia + (h.through ? 'T' : 'K')));
+  }
   r = await imp(box(40, 40, 30).cut(cyl(4, 10, [20, 20, 20], [0, 0, 1])).cut(cyl(2.5, 30, [20, 20, 0], [0, 0, 1])));
   ok(r.holes.length === 1 && r.holes[0].kind === 'cbore' && r.holes[0].through && near(r.holes[0].exits[0], 30), 'kademeli Ø8×10 + Ø5 boydan boya: tek cbore delik korunur');
   r = await imp(box(40, 40, 30).cut(cyl(3, 40, [20, 20, -5], [0, 0, 1])).cut(cyl(3, 50, [-5, 20, 15], [1, 0, 0])));

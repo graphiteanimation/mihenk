@@ -6,7 +6,8 @@
 // silindir/koni disi yuzler (BSPLINE, torus) yok sayilir; govde ici kapali bosluk delik degildir.
 import * as TP from './topo.js';
 
-const MIN_COVER = 300;     // derece: delik sayilmak icin eksen cevresinde dolu acisal kapsam
+const MIN_COVER = 300;
+const END_TOL = 1e-4;     // mm: ag (Float32) koselerinde uc kapagi siniri bu kadar kayabilir     // derece: delik sayilmak icin eksen cevresinde dolu acisal kapsam
 const BINS = 72;
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -30,6 +31,43 @@ export function insideMesh(mesh, p) {
   let ins = 0;
   for (const d of dirs) { let n = 0; for (let k = 0; k < T.length; k += 3) if (rayTri(p, d, P(T[k]), P(T[k + 1]), P(T[k + 2])) != null) n++; if (n % 2) ins++; }
   return ins >= 2;
+}
+
+
+// Eksen dogrusu (o + t d) ile gorunum aginin kesisimleri: sinirlar KESIN (duzlemsel uc kapaklari agda tam), aralik durumu
+// (malzeme/hava) her aralik ortasinda insideMesh ile. Ayni t'deki (kose/kenar) tekrarli kesisimler tek sinir sayilir.
+// air(a, b): [a, b] boyunca hicbir aralik malzeme degil mi; state(t): t'nin bulundugu araligin durumu.
+export function axisLine(mesh, o, d) {
+  const V3 = mesh.vertices, T = mesh.triangles; const P = (i) => [V3[3 * i], V3[3 * i + 1], V3[3 * i + 2]];
+  const big = 1e6; const o2 = add(o, d, -big); const hs = [];
+  for (let k = 0; k < T.length; k += 3) { const t = rayTri(o2, d, P(T[k]), P(T[k + 1]), P(T[k + 2])); if (t != null) hs.push(t - big); }
+  hs.sort((a, b) => a - b); const bnd = []; for (const t of hs) if (!bnd.length || t - bnd[bnd.length - 1] > 1e-5) bnd.push(t);
+  // aralik durumu: orta nokta VE iki ucun yakini (en cok 0,02 mm iceri). Kose/kenardan gecen dogruda kacirilmis sinir olabilir:
+  // "hava" icin uc ornegin de hava olmasi gerekir (malzeme gormek muhafazakar yon).
+  const at = (t) => insideMesh(mesh, add(o, d, t));
+  const near = (a, b, fromA) => { const h = Math.min((b - a) / 2, 0.02); return fromA ? a + h : b - h; };
+  const cache = new Map();
+  const segIn = (k) => { // k: bnd[k-1]..bnd[k]; k=0 / k=n: govde disi sonsuz uclar (uca yakin ornek yine bakilir)
+    if (cache.has(k)) return cache.get(k);
+    const a = k > 0 ? bnd[k - 1] : -Infinity, b = k < bnd.length ? bnd[k] : Infinity; let v;
+    if (a === -Infinity && b === Infinity) v = false;
+    else if (a === -Infinity) v = at(b - 0.02); else if (b === Infinity) v = at(a + 0.02);
+    else v = at((a + b) / 2) || at(near(a, b, true)) || at(near(a, b, false));
+    cache.set(k, v); return v;
+  };
+  const idx = (t) => { let k = 0; while (k < bnd.length && bnd[k] <= t) k++; return k; };
+  return {
+    bnd,
+    state: (t) => segIn(idx(t)),
+    air: (a, b) => { const lo = Math.min(a, b), hi = Math.max(a, b); for (let k = idx(lo); k <= idx(hi); k++) { const s0 = k > 0 ? bnd[k - 1] : -Infinity, s1 = k < bnd.length ? bnd[k] : Infinity; if (s1 <= lo + 1e-9 || s0 >= hi - 1e-9) continue; if (segIn(k)) return false; } return !at(lo + Math.min(0.02, (hi - lo) / 2)) && !at(hi - Math.min(0.02, (hi - lo) / 2)); },
+    // t ucunun hemen otesi (yon sgn). Ag koseleri Float32: uca END_TOL icindeki sinir ucun kendisi. Sonraki aralik cok kisaysa
+    // (< 1e-3, belirsiz) malzeme say (kor). Ucun hemen otesindeki nokta (en cok 0,02 mm) da ayrica sinanir.
+    beyond: (t, sgn) => {
+      let k = 0;
+      if (sgn > 0) { while (k < bnd.length && bnd[k] <= t + END_TOL) k++; const nx = k < bnd.length ? bnd[k] : Infinity; if (nx - t < 1e-3) return true; return at(t + Math.min(0.02, (nx - t) / 2)) || segIn(k); }
+      while (k < bnd.length && bnd[k] < t - END_TOL) k++; const pv = k > 0 ? bnd[k - 1] : -Infinity; if (t - pv < 1e-3) return true; return at(t - Math.min(0.02, (t - pv) / 2)) || segIn(k);
+    },
+  };
 }
 
 // Govdenin eksenli yuzleri: [{fi, kind:'cyl'|'cone', ...}] (yalniz ic silindirler; koniler eksen sonra eslenir)
@@ -105,16 +143,16 @@ export function recognizeBody(b, mesh) {
       if (!cyls.some((s) => Math.abs(s.t0 - tmax) < 1e-3 || Math.abs(s.t1 - tmin) < 1e-3 || Math.abs(s.t0 - tmin) < 1e-3 || Math.abs(s.t1 - tmax) < 1e-3)) continue;
       cones.push({ kind: 'cone', r0: ak + bk * tmin, r1: ak + bk * tmax, t0: tmin, t1: tmax });
     }
-    // eksen boyunca kumeler: ortusen/bitisik parcalar bir kume; iki kume arasindaki bosluk eksen uzerinde ornekleniyor:
-    // her ornek govde disindaysa (capraz delik, ic bosluk) kumeler birlesir, bir ornek bile malzemedeyse AYRI delikler.
+    // eksen boyunca kumeler: ortusen/bitisik parcalar bir kume; iki kume arasindaki bosluk eksen dogrusu-ag kesisimiyle (kesin
+    // sinirlar) sinanir: tum araliklar havaysa (capraz delik, ic bosluk) birlesir, herhangi biri malzemeyse (ince web dahil) AYRI.
     const all = [...cyls, ...cones].sort((p, q) => p.t0 - q.t0);
+    const axl = axisLine(mesh, ax.o, ax.d);
     const clusters = [];
     for (const sg of all) {
       const c = clusters[clusters.length - 1];
       if (c && sg.t0 <= c.t1 + 1e-3) { c.segs.push(sg); c.t1 = Math.max(c.t1, sg.t1); continue; }
       if (c) {
-        let air = true; for (let k = 1; k <= 9 && air; k++) if (insideMesh(mesh, add(ax.o, ax.d, c.t1 + (sg.t0 - c.t1) * k / 10))) air = false;
-        if (air) { c.segs.push(sg); c.t1 = Math.max(c.t1, sg.t1); continue; }
+        if (axl.air(c.t1, sg.t0)) { c.segs.push(sg); c.t1 = Math.max(c.t1, sg.t1); continue; }
       }
       clusters.push({ segs: [sg], t0: sg.t0, t1: sg.t1 });
     }
@@ -122,8 +160,9 @@ export function recognizeBody(b, mesh) {
       const segs = cl.segs; if (!segs.some((x) => x.kind === 'cyl')) continue;
       const t0 = cl.t0, t1 = cl.t1;
       const rEnd = (t) => Math.max(...segs.filter((x) => Math.abs(x.t0 - t) < 1e-6 || Math.abs(x.t1 - t) < 1e-6).map((x) => (Math.abs(x.t0 - t) < 1e-6 ? x.r0 : x.r1)));
-      const dl = Math.max(0.05, 0.02 * Math.max(...segs.map((x) => Math.max(x.r0, x.r1))));
-      const open0 = !insideMesh(mesh, add(ax.o, ax.d, t0 - dl)), open1 = !insideMesh(mesh, add(ax.o, ax.d, t1 + dl));
+      // uc acik mi: eksen dogrusunun uctan hemen otesindeki araligi (kesin sinirlar; ince web/kapak gorulur). Uca 1e-6 icindeki
+      // sinir (kapak yuzu) o ucun kendisidir; sonraki aralik malzemeyse kapali.
+      const open0 = !axl.beyond(t0, -1), open1 = !axl.beyond(t1, 1);
       out.push({ axis: ax, segs, t0, t1, r0: rEnd(t0), r1: rEnd(t1), open0, open1 });
     }
   }

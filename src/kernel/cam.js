@@ -8,7 +8,7 @@ import * as V from '../shared/vec.js';
 import * as G from '../shared/geom2d.js';
 import * as TP from './topo.js';
 import * as R from 'replicad';
-import { recognizeBody, holeExit, insideMesh } from './holes.js';
+import { recognizeBody, holeExit, axisLine } from './holes.js';
 
 export const CHORD_TOL = 0.005;  // mm
 export const OPEN_TOL = 1e-4;    // mm: komsu yuz bu kadar yukselmiyorsa kenar acik
@@ -279,7 +279,9 @@ export function camHoleExit(K, { bodies, p, d, r = null }) {
     const b = K.last?.bodies.get(id); if (!b) throw E('cam.body_missing', { body: String(id) });
     const mesh = K.mesh(b); if (mesh.error) throw E('cam.mesh_failed');
     const bb = b.shape.boundingBox; const scale = Math.max(1, Math.hypot(bb.width, bb.height, bb.depth));
-    const air = (a, c) => { for (let k = 0; k <= 20; k++) { const q = [0, 1, 2].map((i) => a[i] + (c[i] - a[i]) * k / 20); if (insideMesh(mesh, q)) return false; } return true; };
+    // giris ile delik arasi hava: p'den gecen eksen dogrusu-ag kesisimi (kesin sinirlar; ince deri gorulur)
+    const dn = Math.hypot(...d); const du = d.map((x) => x / dn); const axl = axisLine(mesh, p, du);
+    const air = (a, c) => axl.air(0, (c[0] - p[0]) * du[0] + (c[1] - p[1]) * du[1] + (c[2] - p[2]) * du[2]);
     const h = holeExit(recognizeBody(b, mesh), p, d, r, scale, air);
     if (h && (!best || h.t > best.t)) best = h;
   }

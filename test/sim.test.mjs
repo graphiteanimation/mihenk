@@ -365,6 +365,18 @@ console.log('9. T-04 setup zinciri: onceki setup stogu (cerceve donusumu, alt ke
   r = run(p, { initialHeightmaps: { B: full } }); ok(rin(r, 1).length === 1 && !r.chainedSetups.includes('B'), 'initialHeightmaps zinciri ezer');
   // cerceve yoksa zincir yok (eski programlar)
   r = run(prog(sec('A', null, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-5, -10)))); ok(rin(r, 1).length === 1 && !r.chainedSetups.length, 'onceki setup cercevesiz -> zincir yok (muhafazakar)');
+  // 2. tur: 180 derece ters setup (ayni kutu) S1'in boydan boya penceresini gormeli; kesilmemis bolge ve kor cep tabani dolu
+  {
+    const t4 = { number: 5, H: 5, D: 5, type: 'flat', dia: 4, cornerR: 0, tipAngle: null, fluteLen: 60, bodyLen: 70, centerCutting: true, pitch: null };
+    const T4 = (moves) => TP(t4, moves);
+    const rows = (zb) => { const m = []; for (const y of [-4, -2, 0, 2, 4]) { m.push(mk.rapid(-4, y, 10)); m.push(mk.feed(-4, y, zb, 500, 'plunge')); m.push(mk.feed(4, y, zb, 500)); m.push(mk.rapid(4, y, 10)); } return m; };
+    const vert = (x, y) => T4([mk.rapid(x, y, 10), mk.rapid(x, y, -10), mk.rapid(x, y, 10)]);
+    const FC2 = { o: [0, 0, -30], x: [1, 0, 0], y: [0, -1, 0], z: [0, 0, -1] };
+    const rr = (zb, x) => simulate(prog(sec('A', FA, boxA, T4(rows(zb))), sec('C', FC2, boxA, vert(x, 0))), { res: 0.5, stockBoxes: { A: boxA, C: boxA } }).issues.filter((i) => i.section === 1 && i.code === 'cam.sim.rapid_in_stock');
+    ok(rr(-30, 0).length === 0, 'ters setup (ayni kutu): S1 boydan boya penceresinden dusey hizli temiz (tavan = S1 tabani esitligi)');
+    ok(rr(-30, 15).length > 0, 'ters setup: pencere disi (kesilmemis) hizli engel');
+    ok(rr(-29.5, 0).length > 0, 'ters setup: kor cep (0,5 mm taban kaldi) ters taraftan DOLU -> engel');
+  }
   // B1 karsi-ornekleri: zincir yalniz malzeme cikarir; onceki stogun bilgi vermedigi yer bu setup'in ham stogu
   {
     const nop = tp([mk.rapid(0, 0, 10)]);
