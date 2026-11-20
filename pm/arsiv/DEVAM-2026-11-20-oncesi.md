@@ -136,6 +136,58 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - Bilgisayar: klasör Documents\Fusion-Klon-Spec\Mihenk (eski AtolyeCAD); AtolyeCAD-Kurulum-0.1.0.exe, AtolyeCAD-kaynak-*.zip, Roaming\AtolyeCAD içeriği ve iç içe 3 eski Mihenk kurulumu silindi; Belge.acad → Belge.mhnk. Boş Roaming\AtolyeCAD klasörü duruyor (erişim kökü olduğu için silinemedi).
 - Bilgisayardaki kurulu 0.3.0 hâlâ eski adları kullanır; temizlik 0.3.1 kurulumuyla gelir.
 
+## Durum — 2026-11-19 akşam (Fusion–Mihenk karşılaştırma testi başladı)
+- Çerçeve: https://claude.ai/artifact/5BrBbZJKEPQU9izqKuNrNe (parçalar, sabitler, ölçütler, prompt). Parçalar: Documents\Fusion-Klon-Spec\Mihenk\test-fusion-karsilastirma\parcalar (P1 SK8 CC-BY; P2 FTC-08, P3 FTC-06, P4 FTC-10 NIST kamu malı).
+- Fusion: tam özellikli DENEME lisansı, 23 Kasım 2026'da bitiyor. P1 açıldı, setup 1 kuruldu (kaydedilmedi).
+- Yöntem kararı: GUI çok yavaş → Fusion API (Python) betiği + Mihenk CAM çekirdeğine doğrudan aynı parametreler; GUI yalnız kontrol. SIRADAKİ: Fusion betiğini yaz (setup/takım/işlem/sim/post), P1 ile dene, sonra P2–P4; 23 Kasım'dan önce.
+
+## Durum — 2026-11-19 gece (P1 Fusion tarafı BİTTİ)
+- Fusion betiği: test-fusion-karsilastirma\fusion-betik\MihenkKarsilastirma\ (Yardımcı Programlar → Betikler ve Eklentiler'e eklendi; aramaya "Mihenk" yaz, ▶). Veri güdümlü: PARTS sözlüğüne P2–P4 eklenecek, PART sabiti seçer. Plan: test-fusion-karsilastirma\P1-PLAN.md.
+- P1 sonucu: 12/12 işlem; NC + P1_fusion_rapor.json + log sonuclar\P1\ (ilk deneme sonuclar\P1_deneme1\). S1+S2 sim 15:43, 8,63 m. Fusion sim: T29 Ø2 sapı yarıkta stoğa 17 kez çarpıyor (beklenen plan sorunu; Mihenk de yakalamalı). 3+1: S3 A0 (yanlış), S3b A90 + G43.4.
+- Betik dersleri: yüze açılan eskiz kenarları otomatik izdüşürür (oluşturulan çizgiyi seç); kontur = siluet; dış boşaltma = stok+takım paylı dikdörtgen + parça adası (AllLoops/StartInside); yarık = açık çizgide contour2d compensationType 'off'; pah = taraf 'dis', chamferClearance 0.
+- Bulutta "Mihenk-Test" projesi yok → tasarım kaydedilmedi.
+- SIRADAKİ: P2–P4 için geometri analizi + PARTS girdisi + Fusion koşusu (deneme 23 Kasım'da biter) → sonra Mihenk tarafı (P1'den başla; aynı plan, test makine kopyası).
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19b.zip'ten geri yükle, karşılaştırma testinde P2'yi Fusion betiğiyle koş."
+
+## Durum — 2026-11-19 gece (P2 Fusion tarafı BİTTİ)
+- Plan: test-fusion-karsilastirma\P2-PLAN.md (geometri OpenCascade ile okundu). Betikte PART = "P2"; PARTS'a P2 girdisi, yeni seçici `halka_eskizi` (yüzün seçili iç halkaları, 0 ofsetli yapı düzleminde eskiz → otomatik izdüşüm yok), `delik_yuzleri` artık r listesi + merkez süzgeci alır, strateji adı 'a|b' alternatifli.
+- Eklenen takımlar (Mihenk'e de aynı): T31 Ø12 uzun (taşma 55), T32 Ø12 R3 köşe radyuslu uzun, T33 Ø6,1 matkap; ortak listeden T20/T22/T24/T28.
+- Sonuç (sonuclar\P2\, ilk deneme P2_deneme1\): 14/14 işlem, param hatası 0, betik 470 s. S1 iç taraf (G55, 2001): yüzey, 3D adaptive, yatay, 3D kontur, punta, G83 delme — tahmini 11 144 s, NC 200 224 satır. S2 üst (G57, 2002, önceki stok): yüzey, 3D adaptive, yatay, 3D kontur, 2D kontur ×3 (pencere+yuvarlak, kanal, kare+anahtar T28), bore 16 delik T28 — 8 432 s, NC 130 929 satır. Toplam ≈ 5 sa 26 dk (adaptive baskın: 13 488 s).
+- Ders: Fusion API'de 3D Kontur stratejisi 'contour' DEĞİL 'contour_new'; 'adaptive' ve 'horizontal' kabul edildi.
+- Kapsam dışı / Kısmen: +X duvarındaki "NIST" yazısı (X normalli, divizör ekseni → erişilemez); boşluk dikey köşe R3,05 (~0,24 mm artık); duvar dibi R1,52; kanal tabanı R0,76 (2D düz uç keser); S2 bağlaması flanş deliklerinden fikstüre cıvata varsayımı.
+- GUI simülasyonu P2 için HENÜZ BAKILMADI (özellikle S1 derin boşlukta T31/T32 tutucu çarpışması ve S2'de serbest kalan pencere parçaları).
+- SIRADAKİ: P2 sim kontrolü (Fusion GUI) → P3 ve P4 geometri analizi + PARTS + Fusion koşusu (deneme 23 Kasım'da biter) → Mihenk tarafı P1'den.
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19b.zip'ten geri yükle, P2 Fusion simülasyonuna bak, sonra P3'ü Fusion betiğiyle koş."
+
+## Durum — 2026-11-19 akşam (P2 sim kontrol edildi, P3 Fusion tarafı BİTTİ)
+- P2 sim (S1+S2): 14 işlem, 9 takım değişimi, 5:26:31, 584,9 m; zaman çizelgesinde çarpışma işareti YOK (S1 derin boşlukta T31/T32 tutucu temiz). Bulgu: S2'de T28 2D konturla kesilen iki anahtar deliğinin (ve muhtemelen Ø30,56'nın) içindeki parçacıklar serbest kalıyor; Fusion sim yerinde bırakıyor. Mihenk de yakalamalı (serbest parça uyarısı).
+- P3 planı: test-fusion-karsilastirma\P3-PLAN.md (alt ajan, OpenCascade). 4 setup: S1 üst +Y G55/2003, S2 ön −Z A G57/2004, S3 arka +Z A G58/2005, S4 alt −Y G59/2006. 18 işlem. Yeni takımlar T34 Ø12 uzun (taşma 105), T35 Ø12 R3 (80), T36 Ø10,5 matkap, T37 Ø7,1 matkap (Mihenk'e de aynı).
+- Betik: PART = "P3"; yeni: merkezler 3B nokta, siluet `sadece_dis`, setup `stok_ust_s`; GEN_TIMEOUT_S 900. P2 hali yedek: fusion-betik\MihenkKarsilastirma_P2-yedek.py.txt.
+- Ders: önceki-setup stokunda "from stock top" = stok KUTUSU üstü (bbox+pay), kalan stok değil.
+- P3 sonuç (sonuclar\P3; denemeler P3_deneme1/2): 18/18, ≈ 7 sa 51 dk (S1 adaptive 5,2 sa baskın). NC 699 610 / 59 788 / 1 659 / 71 satır. S2/S3'te yalnız A0 (P1-S3 gibi; açı postta yok) → Kısmen. GUI sim bakılmadı.
+- Kapsam dışı/Kısmen (P3): NIST yazısı, arka Ø20,64 havşa, küre alt yarısı/boyun, iç köşe artıkları (P3-PLAN.md).
+- SIRADAKİ: P4 geometri analizi + PARTS + Fusion koşusu (deneme 23 Kasım'da biter); isterse P3 sim kontrolü → Mihenk tarafı P1'den.
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19b.zip'ten geri yükle, P4'ü Fusion betiğiyle koş."
+
+## Durum — 2026-11-19 gece (P4 Fusion tarafı BİTTİ)
+- Plan: test-fusion-karsilastirma\P4-PLAN.md (alt ajan, OpenCascade). 4 setup: S1 üst +Y G55/2007, S2 −Z A G57/2008, S3 +Z A G58/2009, S4 alt −Y G59/2010 (cep/delikler önce, yüzey en son). 25 işlem. Yeni takımlar T38 Ø4 küre, T39 Ø2,5 matkap, T40 M3×0,5 kılavuz, T41 Ø3,5 matkap (Mihenk'e de aynı).
+- Betik: PART = "P4"; yeni seçici `cokgen_yapi` (yapı düzleminde kapalı çokgen), `eksen_aralik` (±Z havşa ayrımı), find_axis_map'e kütle merkezi doğrulaması (P4 kutusu X/Z simetrik; Fusion KM okundu, eşleme birim). P3 hali yedek: fusion-betik\MihenkKarsilastirma_P3-yedek.py.txt.
+- 1. koşu (sonuclar\P4_deneme1): 24/25; op 6 kaide kanalları (3 mm kanal, T29 Ø2) adaptive2d "Generated toolpath is empty". Düzeltme: pocket2d + rampType 'plunge', paso 0,5.
+- P4 sonuç (sonuclar\P4): 25/25, param hatası 0, betik 359 s. İşleme ≈ 1 sa 23 dk (S1 2026 s / S2 155 s / S3 952 s / S4 1838 s). NC 56 761 / 392 / 10 398 / 22 244 satır. G84 kılavuz döngüsü S1'de çıktı (tap 'tapping' çalıştı). S2/S3'te yine yalnız A0 → Kısmen. GUI sim bakılmadı.
+- Ders: 2D adaptive, takım çapına yakın genişlikteki kapalı kanalda yol üretmiyor → 2D cep + dalma.
+- Kapsam dışı/Kısmen (P4): 2× X yönlü Ø5,5 delik (erişilemez; Ø3,5'ler kör kalır), R1 iç fileler, dalga yüzeyi tarak izi, cep R2 taban filesi, girinti köşesi çizimde R0,2 MAX (P4-PLAN.md).
+- SIRADAKİ: Fusion tarafı 4 parçada bitti (lisans 23 Kasım). İsteğe bağlı: P3/P4 GUI sim kontrolü (lisans bitmeden) → karşılaştırma testi Sonuçlar'a P2 sim, P3 ve P4 satırları → Mihenk tarafı (P1'den; aynı plan, test makine kopyası).
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19b.zip'ten geri yükle, karşılaştırma testinde Mihenk tarafına P1'den başla."
+
+## Durum — 2026-11-19 gece (P1 Mihenk tarafı BİTTİ; kod kopyası Mihenk-repo-2026-11-19c.zip)
+- Betik test/compare/P1/run-p1.mjs (src/** değişmedi, commit 3a9a8e6; 2 s'de koşar). Rapor + NC: test-fusion-karsilastirma\sonuclar\P1\P1-MIHENK-RAPOR.md.
+- STEP içe aktarma çalıştı (45 yüz, kutu plana birebir). Kapsama: Tam 4 (yüzey ×2, kontur, bore helis cep), Kısmen 4 (adaptive→cep, yarık açık zincir elle, punta/delme delikler elle), Yapılamadı 2 (pah ×2).
+- NC: S2 temiz (58 satır); S1/S3 kapılar BLOCK → yalnız yapı kıyası için *_BLOKLU_* kopyalar. S3'te A90/A0 doğru (Fusion A0 yazmıştı).
+- Bulgular: T-01 HATA (teyitli): ilk dalma clearance Z15'ten ilerlemeyle (common.js linkTo, ilk konumlanmada retract'a hızlı iniş atlanıyor; S1 NC 1708–1710). T-02 chain seçimi resolveGeom'da yok; T-03 pah yok; T-04 önceki setup stoku yok (S3 hayalet stok block'ları); T-05 STEP'te delik tanıma yok; T-06 Ø2 yarık body_short + holder_collision yakalandı (+ STEP'te yarık içinde Ø4 katı çubuk → sim.gouge ×19, kasıtlı mı bilinmiyor); T-07 aynı takımda gereksiz M5/M9/M3/M8; T-08 T30 taşma 35 < derinlik 36,8, Mihenk yakaladı, Fusion yakalamadı.
+- Süre tahmini S1/S2/S3: Mihenk 747/22/7,5 s (hesaplandı, hızlı 24000 varsayımı) — Fusion 896/33/24 s.
+- SIRADAKİ: P2 Mihenk tarafı (P2-PLAN.md; aynı yöntem, test/compare/P2). Düzeltmeler test bitince toplu.
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19c.zip'ten geri yükle, karşılaştırma testinde Mihenk tarafında P2'yi koş."
+
 ## Durum — 2026-11-19 gece (P2 Mihenk tarafı BİTTİ; kod kopyası Mihenk-repo-2026-11-19d.zip)
 - Betik test/compare/P2/run-p2.mjs (src/** değişmedi, commit d8ea40c; ≈21 s). Rapor + NC: test-fusion-karsilastirma\sonuclar\P2\P2-MIHENK-RAPOR.md.
 - STEP içe aktarma: 270 yüz, 503 592 mm³. Kapsama: Tam 5 / Kısmen 9 / Yapılamadı 0 (3D adaptive/yatay/3D kontur yok → 2,5D cep/kontur kademeleri); alt kalem Yapılamadı: S1 tavan R3,05, S2 üst kenar R3,05.
@@ -167,3 +219,19 @@ Sketch BİTTİ. Tasarım uygulaması (Mihenk) YARIM: durum docs/UI-IMPL.md'de ("
 - Yöntem notu: S1 adaları "dolgu" yardımcı gövdesinden alındı → köprü alanlarında S1'de 4–7,5 mm artık (kasıtlı, raporda ölçüldü).
 - Karşılaştırma testi Mihenk tarafı 4 parçada BİTTİ. SIRADAKİ: karşılaştırma testi artifact'ine P2 Mihenk, P2 sim, P3, P4 satırlarını işle + genel sonuç → T-01…T-24 toplu düzeltme planı (öncelik: T-01, T-14, T-22, T-04, T-15, A işareti teyidi).
 - Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19f.zip'ten geri yükle, karşılaştırma testi artifact'ine P2–P4 satırlarını işle ve genel sonucu yaz."
+
+## 2026-11-19 gece-2 — Karşılaştırma testi dokümanı tamamlandı
+- Karşılaştırma testi artifact'ine P2–P4 satırları (Durum/Fusion/Mihenk/bulgular) ve "Genel sonuç" bölümü işlendi: 67 işlem → Tam 19 / Kısmen 46 / Yapılamadı 2; temiz NC 7/13 setup. 6 kök neden grubu: (1) sim kapısı yanlış/aşırı BLOCK T-22,T-17,T-06,T-24; (2) 3D strateji yok T-13,T-09,T-20; (3) setup'lar arası stok/delik T-04,T-05,T-14,T-15,T-23; (4) NC verimi/biçimi T-01,T-07,T-18; (5) A işareti T-21; (6) T-02,T-03,T-19. Kod değişmedi (21363ba). T-10/T-11 içeriği P1 raporunda.
+- SIRADAKİ: T-01…T-24 toplu düzeltme planı; öncelik 1 ve 5 → 3 ve 4 → 2. Fusion denemesi 23 Kasım'da biter.
+
+## 2026-11-19 gece-3 — T-01…T-24 toplu düzeltme planı yazıldı (O-029, onay bekliyor)
+- Kod 21363ba'dan geri yüklendi; `npm run test:all` temel çizgi geçiyor. Kod değişmedi.
+- Plan: `DUZELTME-PLANI-T01-T24.md` (bu klasör + proje dokümanı). Dalga 1 = grup 1 (T-22, T-17, T-08, T-06 teyit, T-24 önce test) + grup 5 (T-21; A işareti tezgâh teyidi olmadan değişmez). Dalga 2 = grup 3 (T-04, T-14, T-05, T-15, T-23) + grup 4 (T-01, T-07, T-18) + grup 6 önerisi (T-02, T-10, T-11, T-03, T-19). Dalga 3 = 3D (T-20, T-09, T-13).
+- Kullanıcıdan bekleniyor: O-029 onayı; A+ yön teyidi (makine projesi); P1 STEP Ø4 çubuk kasıtlı mı; Fusion A0 betiği 23 Kasım öncesi düzeltilsin mi.
+- Yeni oturum mesajı: "fusion-klon-spec: DEVAM.md'yi oku, Mihenk-repo-2026-11-19f.zip'ten geri yükle, düzeltme planı Dalga 1'i uygula."
+
+## 2026-11-20 — P1 arayüz testi (çizim + CAM, Mihenk 0.3.0, Claude ekran kontrolüyle)
+- Kullanıcı kararı (K-025, spesifikasyon dokümanına henüz işlenmedi): "ilk parçayı sen arayüzle çiz, ona göre diğer parçalara karar vereceğim. yine ilk parçanın devamında cam işlemini de arayüzde yap." + çizim testi Dalga 1'in önünde.
+- Sonuçlar: test-fusion-karsilastirma\sonuclar\P1_cizim\ (P1_SK8_mihenk_cizim.mhnk, P1-takimlar.json, P1-CIZIM-NOTLAR.md). Çizim: kutu STEP ile birebir, hacim 9016,05 (STEP 8958,26; fark = X yönlü vida bölgesi, çizilmedi). CAM: S1 5 işlemden 4'ü, S2 yüzey, S3 punta+delme hesaplandı; NC üretilmedi (11 engel: T-04 hayalet stok, T-08, boş post alanları dwell/g541Range).
+- Yeni bulgular C-01…C-12, M-01…M-03 (notlarda). Düzeltme planına eklenmeli.
+- SIRADAKİ: kullanıcı P2–P4 çizim testine ve post alanlarının teyidine karar verecek; sonra Dalga 1.
