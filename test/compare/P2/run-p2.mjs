@@ -98,6 +98,14 @@ const tR = now(); const rb = await K.rebuild(doc); R.import.rebuild_eskizlerle_s
 // delik tanima: ice aktarilan govdede 'holes' yok -> 4 flans deligi elle sentezlenir
 const FH = [[142.875, 98.425], [-142.875, 98.425], [-142.875, -98.425], [142.875, -98.425]];
 const rbX = { ...rb, holes: [{ feature: 'P2flansDelik', kind: 'simple', dia: 6.045, depth: 11.16, through: false, tipAngle: 118, thread: null, dir: [0, 0, 1], positions: FH.map((p) => [p[0], p[1], 0]), dirs: FH.map(() => [0, 0, 1]), bodies: FH.map(() => [bid]), count: 4, lost: 0 }] };
+// T-05b: elle girilen delik kayitlari ile B-rep taniyicinin (rb.holes, recognized) eslesmesi: ayni eksen (<0,05 mm), cap farki <= 0,1
+{
+  const recH = (rb.holes || []).filter((h) => h.recognized); const unit = (d) => { const l = Math.hypot(...d); return d.map((x) => x / l); };
+  const same = (p, d, q, e) => { const u = unit(d), v = unit(e); if (Math.abs(Math.abs(u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) - 1) > 1e-6) return false; const w = [p[0] - q[0], p[1] - q[1], p[2] - q[2]]; const t = w[0] * v[0] + w[1] * v[1] + w[2] * v[2]; return Math.hypot(w[0] - v[0] * t, w[1] - v[1] * t, w[2] - v[2] * t) < 0.05; };
+  const kayit = rbX.holes.map((m) => { const bul = m.positions.map((p, i) => recH.find((r) => Math.abs(r.dia - m.dia) <= 0.1 && r.positions.some((q, j) => same(p, m.dirs[i] || m.dir, q, r.dirs[j] || r.dir)))); return { feature: m.feature, dia: m.dia, konum: m.positions.length, bulunan: bul.filter(Boolean).length, taninan: [...new Set(bul.filter(Boolean).map((r) => `${r.feature} ${r.kind} D${r.dia} ${r.through ? 'thru' : 'd' + r.depth}`))] }; });
+  R.delik_tanima = { taninan_kayit: recH.length, taninan_konum: recH.reduce((a, h) => a + h.count, 0), elle_kayit: kayit.length, elle_konum: kayit.reduce((a, k) => a + k.konum, 0), bulunan_konum: kayit.reduce((a, k) => a + k.bulunan, 0), bulunan_kayit: kayit.filter((k) => k.bulunan === k.konum).length, kayit };
+  log('delik tanima', JSON.stringify(R.delik_tanima));
+}
 ASSUME('rebuild.holes (S1 flans delikleri)', '4x Ø6,045 (X +-142,875, Y +-98,425), giris Z=0, yon +Z (S1 takim ekseni -Z), derinlik 11,16 = flans 10,16 + 1 mm kirilma (blind kaydi; breakThrough yalniz through deliklerde isler, drill.js:82-83)', 'STEP ice aktarmada delik ozelligi tanimaz; through:true olsaydi Mihenk model tabanina kadar (Z48,26) deler (deney asagida)');
 
 // ------------------------------------------------------------------ 3. makine (Neway fixture KOPYASI)

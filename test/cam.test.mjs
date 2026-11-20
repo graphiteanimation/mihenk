@@ -160,6 +160,13 @@ section('3. yuzey frezeleme ve delme');
     const sr3 = simulate(tpBad, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(true) });
     ok(sr3.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23 kontrol: kaburgayi R\'de gecen birlesik cevrim sim\'de rapid_in_stock (gecis denetimi gercek)');
   }
+  // T-05b: boyu bilinen boydan boya delik (taninan, alttan yonlu) ustten delinir; boyu bilinmeyen ters delik atlanir
+  {
+    const up = [{ feature: 'r', dia: 6.8, depth: null, through: true, tipAngle: null, thread: null, dir: [0, 0, 1], positions: [[50, 30, -30]], dirs: [[0, 0, 1]], exits: [30] }];
+    const c = CAM.computeOp({ ...dop, depth: { from: 'hole', tipComp: false, breakThrough: 1 }, order: 'asis' }, { setup: S0, tool: drill, geom: { holes: up } }).moves.filter((m) => m.t === 'cycle');
+    ok(c.length === 1 && Math.abs(c[0].top) < 1e-9 && Math.abs(c[0].bottom + 31) < 1e-9, 'T-05b: ters yonlu boydan boya delik karsi uctan: ust 0, dip -31: ' + JSON.stringify(c.map((m) => [m.top, m.bottom])));
+    throwsCode(() => CAM.computeOp(dop, { setup: S0, tool: drill, geom: { holes: [{ ...up[0], exits: undefined }] } }), 'cam.drill.no_holes', 'T-05b: boyu bilinmeyen ters delik atlanir');
+  }
 }
 
 // ================================================================== 4. kontur

@@ -42,9 +42,14 @@ export function collectHoles(op, S, geom) {
       if (f.feature != null && h.feature !== f.feature && h.patternOf !== f.feature && h.copyOf !== f.feature) continue;
       if (f.dia != null && Math.abs(h.dia - f.dia) > 1e-6) continue;
       h.positions.forEach((p, i) => {
-        const d = toSd(S.frame, h.dirs[i] || h.dir); const q = toS(S.frame, p);
-        if (Math.abs(d[2] + 1) > 1e-6) { skipped++; return; }
-        out.push({ x: q[0], y: q[1], top: q[2], dia: h.dia, depth: h.depth, through: !!h.through, thread: h.thread || null, tipAngle: h.tipAngle, feature: h.feature, exit: Number.isFinite(h.exits?.[i]) ? h.exits[i] : null });
+        const dm = h.dirs[i] || h.dir; const d = toSd(S.frame, dm); let q = toS(S.frame, p);
+        const exit = Number.isFinite(h.exits?.[i]) ? h.exits[i] : null;
+        if (Math.abs(d[2] + 1) > 1e-6) {
+          // T-05b: boyu bilinen boydan boya delik karsi uctan da delinir (ust = p + d*boy)
+          if (h.through && exit != null && Math.abs(d[2] - 1) <= 1e-6) q = toS(S.frame, [p[0] + dm[0] * exit, p[1] + dm[1] * exit, p[2] + dm[2] * exit]);
+          else { skipped++; return; }
+        }
+        out.push({ x: q[0], y: q[1], top: q[2], dia: h.dia, depth: h.depth, through: !!h.through, thread: h.thread || null, tipAngle: h.tipAngle, feature: h.feature, exit });
       });
     }
   } else if (sel.kind === 'points') {

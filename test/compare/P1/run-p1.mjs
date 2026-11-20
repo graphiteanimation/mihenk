@@ -70,6 +70,14 @@ const bid = rb.bodies[0]?.id; if (!bid) { console.log('STEP icerisi basarisiz', 
 // delik tanima: ice aktarilan govdede 'holes' yok -> elle sentezlenir (Eksik bulgusu)
 R.import.rebuild_holes_sayisi = (rb.holes || []).length;
 const rbX = { ...rb, holes: [{ feature: 'P1holes', kind: 'simple', dia: 5.5, depth: null, through: true, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: [[16, -7, 6], [-16, -7, 6]], dirs: [[0, 0, -1], [0, 0, -1]], bodies: [[bid], [bid]], count: 2, lost: 0 }] };
+// T-05b: elle girilen delik kayitlari ile B-rep taniyicinin (rb.holes, recognized) eslesmesi: ayni eksen (<0,05 mm), cap farki <= 0,1
+{
+  const recH = (rb.holes || []).filter((h) => h.recognized); const unit = (d) => { const l = Math.hypot(...d); return d.map((x) => x / l); };
+  const same = (p, d, q, e) => { const u = unit(d), v = unit(e); if (Math.abs(Math.abs(u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) - 1) > 1e-6) return false; const w = [p[0] - q[0], p[1] - q[1], p[2] - q[2]]; const t = w[0] * v[0] + w[1] * v[1] + w[2] * v[2]; return Math.hypot(w[0] - v[0] * t, w[1] - v[1] * t, w[2] - v[2] * t) < 0.05; };
+  const kayit = rbX.holes.map((m) => { const bul = m.positions.map((p, i) => recH.find((r) => Math.abs(r.dia - m.dia) <= 0.1 && r.positions.some((q, j) => same(p, m.dirs[i] || m.dir, q, r.dirs[j] || r.dir)))); return { feature: m.feature, dia: m.dia, konum: m.positions.length, bulunan: bul.filter(Boolean).length, taninan: [...new Set(bul.filter(Boolean).map((r) => `${r.feature} ${r.kind} D${r.dia} ${r.through ? 'thru' : 'd' + r.depth}`))] }; });
+  R.delik_tanima = { taninan_kayit: recH.length, taninan_konum: recH.reduce((a, h) => a + h.count, 0), elle_kayit: kayit.length, elle_konum: kayit.reduce((a, k) => a + k.konum, 0), bulunan_konum: kayit.reduce((a, k) => a + k.bulunan, 0), bulunan_kayit: kayit.filter((k) => k.bulunan === k.konum).length, kayit };
+  log('delik tanima', JSON.stringify(R.delik_tanima));
+}
 ASSUME('rebuild.holes (S3 delikleri)', '2x D5.5 (X +-16, Y -7, Z ust 6, yon -Z) elle sentezlendi', 'STEP ice aktarmada delik ozelligi tanimaz; Plan koordinatlari kullanildi');
 
 // ------------------------------------------------------------------ 2. makine (Neway fixture KOPYASI)

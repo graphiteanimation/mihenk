@@ -126,3 +126,65 @@ export function holeExit(groups, p, d, r, scale = 1) {
   }
   return best;
 }
+
+// ISO metrik kaba dis: [major, pitch]. Oneri (threadHint) yalniz bilgi: delik capi dis dibi capina (major - 1,0825 P) ya da
+// kilavuz matkap capina (major - P) 0,03 mm icinde ise. Kullanici onaylamadan thread alanina yazilmaz.
+const ISO = [[1.6, 0.35], [2, 0.4], [2.5, 0.45], [3, 0.5], [4, 0.7], [5, 0.8], [6, 1], [8, 1.25], [10, 1.5], [12, 1.75], [14, 2], [16, 2], [20, 2.5], [24, 3]];
+export function threadHint(dia) {
+  for (const [M, P] of ISO) { const minor = M - 1.0825 * P, drill = M - P; if (Math.abs(dia - minor) <= 0.03 || Math.abs(dia - drill) <= 0.03) return { major: M, pitch: P, from: Math.abs(dia - minor) <= Math.abs(dia - drill) ? 'minor' : 'tapDrill' }; }
+  return null;
+}
+const r4 = (v) => Math.round(v * 1e4) / 1e4;
+
+// Taninan grup -> delik tanimi (model uzayi). null: delik degil (iki ucu da kapali / tanimsiz).
+// Delme yonu: kor delikte acik uctan iceri; boydan boyada havsa/kademe olan uctan (yoksa eksenin t0 ucundan).
+export function holeOfGroup(g) {
+  if (!g.open0 && !g.open1) return null;
+  const ax = g.axis; const cyl = g.segs.filter((s) => s.kind === 'cyl'); if (!cyl.length) return null;
+  const through = g.open0 && g.open1;
+  // bir uctan bakis: from0 = t0 acik uc (t artarak iceri)
+  const view = (from0) => {
+    const T = (t) => (from0 ? t - g.t0 : g.t1 - t); // ustten derinlik
+    const segs = g.segs.map((s) => ({ ...s, a: Math.min(T(s.t0), T(s.t1)), b: Math.max(T(s.t0), T(s.t1)), ra: from0 ? s.r0 : s.r1, rb: from0 ? s.r1 : s.r0 })).sort((p, q) => p.a - q.a);
+    const cs = segs.filter((s) => s.kind === 'cyl');
+    const main = through ? cs.reduce((p, q) => (q.r0 < p.r0 ? q : p)) : cs[cs.length - 1]; // kor: en derindeki silindir
+    const out = { dia: 2 * main.r0, kind: 'simple', top: from0 ? g.t0 : g.t1, depth: through ? null : main.b, length: g.t1 - g.t0 };
+    const above = segs.filter((s) => s.b <= main.a + 1e-6);
+    const cb = above.filter((s) => s.kind === 'cyl' && s.r0 > main.r0 + 1e-6);
+    const cn = above.filter((s) => s.kind === 'cone' && s.a < 1e-3 && s.ra > s.rb + 1e-6);
+    if (cb.length) { const c = cb[0]; out.kind = 'cbore'; out.cboreDia = 2 * c.r0; out.cboreDepth = c.b; }
+    else if (cn.length) { const c = cn[0]; out.kind = 'csink'; out.csinkDia = 2 * c.ra; out.csinkAngle = 2 * Math.atan2(c.ra - c.rb, c.b - c.a) * 180 / Math.PI; }
+    if (!through) { const tip = segs.find((s) => s.kind === 'cone' && s.a >= main.b - 1e-3 && s.rb < 1e-3); out.tipAngle = tip ? 2 * Math.atan2(tip.ra - tip.rb, tip.b - tip.a) * 180 / Math.PI : 180; }
+    return out;
+  };
+  let from0 = g.open0;
+  if (through) { const v0 = view(true), v1 = view(false); from0 = !(v1.kind !== 'simple' && v0.kind === 'simple'); }
+  const v = view(from0);
+  const d = from0 ? ax.d : ax.d.map((x) => -x); const p = add(ax.o, ax.d, v.top);
+  const h = { kind: v.kind, dia: r4(v.dia), depth: v.depth == null ? null : r4(v.depth), through, tipAngle: through ? null : r4(v.tipAngle), p, d, length: r4(v.length) };
+  if (v.kind === 'cbore') { h.cboreDia = r4(v.cboreDia); h.cboreDepth = r4(v.cboreDepth); }
+  if (v.kind === 'csink') { h.csinkDia = r4(v.csinkDia); h.csinkAngle = r4(v.csinkAngle); }
+  const th = threadHint(h.dia); if (th) h.threadHint = th;
+  return h;
+}
+
+// Govdeler -> rebuild.holes kayitlari (ozellik deliklerinin bicimi; feature = 'rec:...'; recognized: true; exits = boy).
+// skip(p, d): mevcut (ozellik) delik ekseniyle cakisan konum atlanir.
+export function recognizedHoles(list, skip = () => false) {
+  const recs = new Map();
+  for (const { id, groups } of list) for (const g of groups) {
+    const h = holeOfGroup(g); if (!h || skip(h.p, h.d)) continue;
+    const dk = h.d.map((x) => Math.round(x * 1e6) / 1e6);
+    const key = [h.kind, h.dia, h.depth, h.through, h.tipAngle, h.cboreDia, h.cboreDepth, h.csinkDia, h.csinkAngle, dk.join(',')].join('|');
+    let r = recs.get(key);
+    if (!r) {
+      r = { feature: 'rec:' + (recs.size + 1), kind: h.kind, dia: h.dia, depth: h.depth, through: h.through, tipAngle: h.tipAngle, thread: null, dir: dk, positions: [], dirs: [], bodies: [], count: 0, lost: 0, recognized: true, exits: [] };
+      for (const k of ['cboreDia', 'cboreDepth', 'csinkDia', 'csinkAngle', 'threadHint']) if (h[k] != null) r[k] = h[k];
+      recs.set(key, r);
+    }
+    r.positions.push(h.p.map((x) => Math.round(x * 1e6) / 1e6)); r.dirs.push(dk); r.bodies.push([id]); r.exits.push(h.through ? h.length : null); r.count++;
+  }
+  const out = [...recs.values()].sort((a, b) => a.dia - b.dia || (a.depth ?? 1e9) - (b.depth ?? 1e9));
+  out.forEach((r, i) => { r.feature = 'rec:' + (i + 1); });
+  return out;
+}

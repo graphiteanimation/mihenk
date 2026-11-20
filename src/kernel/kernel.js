@@ -9,6 +9,7 @@ import * as TP from './topo.js';
 import { faceName, edgeName, resolveName, aliasSet, faceKey, vertKey } from './naming.js';
 import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
+import { recognizeBody, recognizedHoles } from './holes.js';
 
 export { KErr };
 export const LIMITS = { minDim: 1e-3, maxDim: 1e5, maxPattern: 2000, maxStlTris: 50000 };
@@ -515,7 +516,15 @@ export class Kernel {
     }
     const sketches = {};
     for (const [id, s] of state.sketches) sketches[id] = { plane: s.plane };
-    return { bodies, status, sketches, vars, paramErrors: perr, holes: holesOut(state), refUpgrades: upgrades, docErrors, featInfo, rev };
+    const holes = holesOut(state);
+    // T-05b: ice aktarilan (STEP) govdelerde delik ozelligi yok -> B-rep delik tanima (ozellik delikleriyle es eksenli olanlar atlanir)
+    if (feats.some((f) => f && f.type === 'import' && !f.suppressed)) {
+      const list = []; for (const bo of bodies) { const b = state.bodies.get(bo.id); try { list.push({ id: bo.id, groups: recognizeBody(b, this.mesh(b)) }); } catch (e) { docErrors.push({ code: 'hole.recognize_failed', params: { body: bo.id } }); } }
+      const known = holes.flatMap((h) => h.positions.map((p, i) => [p, h.dirs[i]])).filter(([, d]) => d);
+      const onAxis = (p, d) => known.some(([q, e]) => { const l = Math.hypot(...e); const u = e.map((x) => x / l); if (Math.abs(Math.abs(V.dot(u, d)) - 1) > 1e-6) return false; const w = V.sub(p, q); const t = V.dot(w, u); return Math.hypot(w[0] - u[0] * t, w[1] - u[1] * t, w[2] - u[2] * t) < 1e-3; });
+      holes.push(...recognizedHoles(list, onAxis));
+    }
+    return { bodies, status, sketches, vars, paramErrors: perr, holes, refUpgrades: upgrades, docErrors, featInfo, rev };
   }
   // işlem izi: changed = sonuç özeti bir önceki hesaplamadakinden farklı (ilk hesapta false)
   info(id, ce, cached) {

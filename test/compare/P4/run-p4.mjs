@@ -277,6 +277,14 @@ const rbX = { ...rb, holes: [
   hrec('P4caprazZarti', 7, CX.map((x) => [x, 23, 27.5]), [0, 0, -1], { through: true }),
   hrec('P4taban25', 2.5, CX.flatMap((x) => [[x, 17, 15.5], [x, 17, -15.5]]), [0, 1, 0], { depth: 3.73 }),
 ] };
+// T-05b: elle girilen delik kayitlari ile B-rep taniyicinin (rb.holes, recognized) eslesmesi: ayni eksen (<0,05 mm), cap farki <= 0,1
+{
+  const recH = (rb.holes || []).filter((h) => h.recognized); const unit = (d) => { const l = Math.hypot(...d); return d.map((x) => x / l); };
+  const same = (p, d, q, e) => { const u = unit(d), v = unit(e); if (Math.abs(Math.abs(u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) - 1) > 1e-6) return false; const w = [p[0] - q[0], p[1] - q[1], p[2] - q[2]]; const t = w[0] * v[0] + w[1] * v[1] + w[2] * v[2]; return Math.hypot(w[0] - v[0] * t, w[1] - v[1] * t, w[2] - v[2] * t) < 0.05; };
+  const kayit = rbX.holes.map((m) => { const bul = m.positions.map((p, i) => recH.find((r) => Math.abs(r.dia - m.dia) <= 0.1 && r.positions.some((q, j) => same(p, m.dirs[i] || m.dir, q, r.dirs[j] || r.dir)))); return { feature: m.feature, dia: m.dia, konum: m.positions.length, bulunan: bul.filter(Boolean).length, taninan: [...new Set(bul.filter(Boolean).map((r) => `${r.feature} ${r.kind} D${r.dia} ${r.through ? 'thru' : 'd' + r.depth}`))] }; });
+  R.delik_tanima = { taninan_kayit: recH.length, taninan_konum: recH.reduce((a, h) => a + h.count, 0), elle_kayit: kayit.length, elle_konum: kayit.reduce((a, k) => a + k.konum, 0), bulunan_konum: kayit.reduce((a, k) => a + k.bulunan, 0), bulunan_kayit: kayit.filter((k) => k.bulunan === k.konum).length, kayit };
+  log('delik tanima', JSON.stringify(R.delik_tanima));
+}
 ASSUME('rebuild.holes', 'P4kulak 4x O6 (+-70,Y6,+-28,5) through yon -Y; P4d35kaide/boss 3+3x O3,5 kor; P4m3 6x O2,459 (dis M3x0,5) ust Y27 derinlik 12; P4capraz 4+4x O7 (X-52/-30/-8/14, Y23) ust Z-+27,5 yon +-Z; P4taban25 8x O2,5 ust Y17 yon +Y derinlik 3,73', 'STEP ice aktarmada delik ozelligi tanimaz (T-05); konumlar Plan + kesit olcumu');
 
 const cam = { machineId: M.id, tools, setups: [S1, S2, S3, S4].filter((s) => ONLY.includes(s.id)), verified: null };

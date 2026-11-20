@@ -291,6 +291,14 @@ const rbX = { ...rb, holes: [
   { feature: 'P3plakaDelik', kind: 'simple', dia: 10.54, depth: null, through: true, tipAngle: 118, thread: null, dir: [0, -1, 0], positions: PH.map((p) => [p[0], 19.05, p[1]]), dirs: PH.map(() => [0, -1, 0]), bodies: PH.map(() => [bid]), count: 4, lost: 0 },
   { feature: 'P3bossDelik', kind: 'simple', dia: 7.14, depth: 31.16, through: false, tipAngle: 118, thread: null, dir: [0, 0, 1], positions: BH.map((p) => [p[0], p[1], -239.71]), dirs: BH.map(() => [0, 0, 1]), bodies: BH.map(() => [bid]), count: 4, lost: 0 },
 ] };
+// T-05b: elle girilen delik kayitlari ile B-rep taniyicinin (rb.holes, recognized) eslesmesi: ayni eksen (<0,05 mm), cap farki <= 0,1
+{
+  const recH = (rb.holes || []).filter((h) => h.recognized); const unit = (d) => { const l = Math.hypot(...d); return d.map((x) => x / l); };
+  const same = (p, d, q, e) => { const u = unit(d), v = unit(e); if (Math.abs(Math.abs(u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) - 1) > 1e-6) return false; const w = [p[0] - q[0], p[1] - q[1], p[2] - q[2]]; const t = w[0] * v[0] + w[1] * v[1] + w[2] * v[2]; return Math.hypot(w[0] - v[0] * t, w[1] - v[1] * t, w[2] - v[2] * t) < 0.05; };
+  const kayit = rbX.holes.map((m) => { const bul = m.positions.map((p, i) => recH.find((r) => Math.abs(r.dia - m.dia) <= 0.1 && r.positions.some((q, j) => same(p, m.dirs[i] || m.dir, q, r.dirs[j] || r.dir)))); return { feature: m.feature, dia: m.dia, konum: m.positions.length, bulunan: bul.filter(Boolean).length, taninan: [...new Set(bul.filter(Boolean).map((r) => `${r.feature} ${r.kind} D${r.dia} ${r.through ? 'thru' : 'd' + r.depth}`))] }; });
+  R.delik_tanima = { taninan_kayit: recH.length, taninan_konum: recH.reduce((a, h) => a + h.count, 0), elle_kayit: kayit.length, elle_konum: kayit.reduce((a, k) => a + k.konum, 0), bulunan_konum: kayit.reduce((a, k) => a + k.bulunan, 0), bulunan_kayit: kayit.filter((k) => k.bulunan === k.konum).length, kayit };
+  log('delik tanima', JSON.stringify(R.delik_tanima));
+}
 ASSUME('rebuild.holes S1 plaka deligi', '4x O10,54 (X +-133,35, Z -57,15/-184,15), giris Y=19,05 (havsa tabani), yon -Y, through:true (model tabani Y=0 = plaka alti: T-14 burada dogru calisir)', 'STEP ice aktarmada delik ozelligi tanimaz');
 ASSUME('rebuild.holes S2 boss deligi', '4x O7,14 (X +-36,2/+-108,59, Y 50,8), giris Z=-239,71 (havsa tabani), yon +Z, blind derinlik 31,16 = (239,71-209,55)+1', 'through:true olsaydi model tabanina (Z0) kadar iner (T-14); blind kayitta breakThrough etkisiz (P2 ile ayni yontem)');
 

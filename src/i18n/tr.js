@@ -573,6 +573,7 @@ const base = {
   "err.import.stl_empty": "STL dosyasında üçgen yok",
   "err.import.stl_not_closed": "STL kapalı bir katı değil",
   "err.import.stl_too_big": "STL çok büyük (en çok 50000 üçgen; içe aktarma yaklaşık 1 sn / 1000 üçgen)",
+  "err.hole.recognize_failed": "Gövdede delik tanıma yapılamadı ({body}); delikler elle seçilmeli",
   "err.mesh.failed": "Gövde görüntüsü oluşturulamadı ({body})",
   "err.op.failed": "Geometri işlemi başarısız",
   "err.op.no_effect": "İşlem gövdeyi değiştirmedi (takım malzemeye değmiyor ya da tamamen içinde); konumu ya da işlemi düzeltin",
