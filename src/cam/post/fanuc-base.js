@@ -6,7 +6,7 @@ import { describeIssue } from './describe.js';
 
 export const FANUC_DEFAULT_PROPS = {
   lineNumbers: false, lineNumberStart: 10, lineNumberStep: 10,
-  programNumberDigits: 4, percentLeader: false,
+  programNumberDigits: 4, percentLeader: false, modelSummary: true,
   decimals: 3,
   safeRetract: 'G28',            // 'G28' | 'G53' | null (null -> prop_missing)
   safeRetractZ: null,            // yalniz G53: makine Z konumu (mm)
@@ -86,6 +86,22 @@ export function createFanucPost(over = {}) {
       this.pos = null; this.v.x.reset(); this.v.y.reset(); this.v.z.reset(); this.g.motion.reset(); this.state.positioned = false;
     },
 
+    // NC basligi model ozeti: belge adi (opts.modelSummary.doc), parca kutusu (opts.modelSummary.bbox [min,max] model uzayi), setup'lar (stok, parca, WCS, A), uretim zamani.
+    // Her satir sanitizeComment'ten gecer (ASCII); kisisel veri/yol yazilmaz (belge adi yalniz dosya adidir: yol kisimlari atilir).
+    _modelSummary() {
+      const o = this.opts, prog = this.program, ms = o.modelSummary || {}, f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+      const size = (b) => (b && b.min && b.max ? [0, 1, 2].map((k) => f1(b.max[k] - b.min[k])).join(' x ') : null);
+      if (ms.doc) this.writeComment(`MODEL ${String(ms.doc).split(/[\\/]/).pop()}`);
+      const pb = size(ms.bbox); if (pb) this.writeComment(`PART SIZE ${pb} MM`);
+      const seen = new Set();
+      prog.sections.forEach((sec) => {
+        const st = sec.setup, id = st.id ?? st.name ?? ''; if (seen.has(id)) return; seen.add(id);
+        const stock = size(st.stockBox), part = size(st.modelBBox);
+        this.writeComment(`SETUP ${seen.size} ${st.name ?? id}${st.workOffset?.kind ? ' WCS ' + st.workOffset.kind : ''}${stock ? ' STOCK ' + stock : ''}${part ? ' PART ' + part : ''}${st.aAngle != null ? ' A ' + f1(st.aAngle) : ''}`);
+      });
+      this.writeComment(`GENERATED ${o.generatedAt || o.date || new Date().toISOString()}`);
+    },
+
     // ------------------------------------------------------------ giris fonksiyonlari
     onOpen() {
       post._init.call(this);
@@ -100,6 +116,7 @@ export function createFanucPost(over = {}) {
       this.writeComment(`PROGRAM ${prog.name}`);
       this.writeComment(`DATE ${o.date || new Date().toISOString().slice(0, 10)}`);
       if (this.machine) this.writeComment(`MACHINE ${this.machine.name ?? this.machine.id} REV ${this.machine.rev ?? '?'} CONTROL ${this.machine.control ?? '?'}`);
+      if (p.modelSummary !== false) post._modelSummary.call(this); // WP-10: model ozeti (profilde post.props.modelSummary=false ile kapatilir)
       if (o.verified) this.writeComment(`VERIFIED BY ${o.verified.by} ON ${o.verified.date}`);
       const seen = new Map();
       for (const s of prog.sections) { const t = s.toolpath.tool; if (!seen.has(t.number)) seen.set(t.number, t); }
