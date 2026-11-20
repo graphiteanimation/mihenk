@@ -4,6 +4,10 @@
 // Takim kenar boyunca TEK z'de gezer: konik yan yuzey kenarin ustundeki noktadan (kenar, zEdge) gecer; takim ucu pahin alt
 // kosesinin `tipClearance` altinda. Takim merkezi kenardan `needR` = tipDia/2 + (dz + pay)*tan(beta) uzakta (malzeme disinda).
 // Mevcut kontur altyapisi: contourInputs, offsetRegions, extendChain.
+// WP-07 KESKIN KENAR KIPI (op.sharp = true): secilen kenar modelin KESKIN kosesidir (modelde pah yok). Pah bu kenardan malzemenin
+// ICINE `width` kadar yatay, `width/tan(beta)` kadar dikey kesilir: konik yuzey (kenar, zEdge - dz) noktasindan ve kenardan `width`
+// iceride (zEdge) noktasindan gecer. Takim merkezi kenardan bosluga dogru tipDia/2 + tipClearance*tan(beta) uzakta (= kenarin dz altindaki
+// konik yaricap). Sim'e `meta.chamferSharp` ile bildirilen hacim disinda oyma yine engeldir.
 import { cerr } from '../geom/err.js';
 import * as P from '../geom/path2d.js';
 import { opt, posNum, nonNeg, cutting, heights, Builder, finishToolpath, warn, r3 } from './common.js';
@@ -70,6 +74,10 @@ export function computeChamfer(op, ctx) {
   const dir = op.dir ?? 'climb'; if (!['climb', 'conv'].includes(dir)) throw cerr('cam.op.bad_field', { field: 'dir', expect: 'climb/conv', op: op.name || op.id });
   const exS = opt(op, 'extendStart', nonNeg, 'number >= 0', 0), exE = opt(op, 'extendEnd', nonNeg, 'number >= 0', 0);
   const g = chamferGeom(tool, width, clear);
+  if (op.sharp !== undefined && typeof op.sharp !== 'boolean') throw cerr('cam.op.bad_field', { field: 'sharp', expect: 'true/false', op: op.name || op.id });
+  const sharp = op.sharp === true;
+  // keskin kenarda merkez kenardan yalniz konigin (kenar, zEdge - dz) noktasindaki yaricap kadar uzakta
+  if (sharp) g.off = (tool.tipDia ?? 0) / 2 + clear * Math.tan((tool.tipAngle * Math.PI) / 360);
   if (g.needR > tool.dia / 2 + 1e-9) throw cerr('cam.chamfer.tool_small', { width: r3(width), need: r3(2 * g.needR), dia: r3(tool.dia) });
   const items = contourInputs(op, geom);
   const stockTop = S.stockBox.max[2];
@@ -77,7 +85,7 @@ export function computeChamfer(op, ctx) {
   const zSel = items.find((it) => Number.isFinite(it.z))?.z;
   const h = heights({ ...op, heights: { top: { from: 'selection', off: 0 }, bottom: { from: 'selection', off: 0 }, ...op.heights } }, S, { bottom: zSel, top: zSel });
   const b = new Builder({ zClr: h.zClr, zRet: h.zRet, feed: cut.feedCut, tool });
-  let zLow = Infinity; const probes = [];
+  let zLow = Infinity; const probes = []; const sharpItems = [];
 
   for (const it of items) {
     const zEdge = Number.isFinite(it.z) ? it.z : h.zTop; // pahin ust kenari
@@ -90,7 +98,8 @@ export function computeChamfer(op, ctx) {
       // tirmanma: malzeme gidis yonunun sagi = takim solda (side 'left') zincir yonunde; conv ya da sag taraf ters
       const rev = (side === 'left') !== (dir === 'climb');
       if (rev) ch = P.reverseLoop(ch);
-      try { probes.push({ paths: [P.offsetChainOpen(ch0, side === 'left' ? width / 2 : -width / 2)], zEdge }); } catch (e) { /* kontrol yapilamaz: uyari yok */ }
+      if (sharp) sharpItems.push({ pts: P.polygon(ch0, 0.002).concat([ch0[ch0.length - 1].b.slice()]), closed: false, matLeft: side === 'right', zEdge });
+      else try { probes.push({ paths: [P.offsetChainOpen(ch0, side === 'left' ? width / 2 : -width / 2)], zEdge }); } catch (e) { /* kontrol yapilamaz: uyari yok */ }
       b.linkTo(ch[0].a[0], ch[0].a[1], zt, cut.feedPlunge);
       b.segs(ch, zt, cut.feedCut, 'cut'); b.up();
       continue;
@@ -99,7 +108,8 @@ export function computeChamfer(op, ctx) {
     const outside = side === 'outside';
     const regs = P.offsetRegions([{ outer: it.loop, holes: [] }], outside ? -g.off : g.off);
     if (!regs.length) throw cerr('cam.contour.tool_too_big', { dia: tool.dia });
-    try { probes.push({ paths: P.offsetRegions([{ outer: it.loop, holes: [] }], outside ? -width / 2 : width / 2).map((r) => r.outer), zEdge }); } catch (e) { /* kontrol yapilamaz */ }
+    if (sharp) { const ccw = P.area(it.loop) >= 0; sharpItems.push({ pts: P.polygon(ccw ? it.loop : P.reverseLoop(it.loop), 0.002), closed: true, matLeft: outside, zEdge }); }
+    else try { probes.push({ paths: P.offsetRegions([{ outer: it.loop, holes: [] }], outside ? -width / 2 : width / 2).map((r) => r.outer), zEdge }); } catch (e) { /* kontrol yapilamaz */ }
     if (!outside && regs.length > 1) warnings.push(warn('cam.contour.split', { n: regs.length }));
     // CCW dongu (bolge solda): disari -> malzeme solda; tirmanma icin CW (ters). Iceri: malzeme sagda; tirmanma CCW
     const flip = outside ? dir === 'climb' : dir === 'conv';
@@ -113,5 +123,5 @@ export function computeChamfer(op, ctx) {
   // model o kenarda pahli degil (keskin kenar): islem modele gore pah kesmez -> sessizlik yerine uyari (WP-07: keskin kenara pah atma kipi)
   if (probes.some((pr) => modelChamfered(ctx.modelMap, pr.paths, pr.zEdge, g.dz) === false)) warnings.push(warn('cam.chamfer.model_sharp', {}));
   if (!b.moves.length) throw cerr('cam.contour.nothing', { top: r3(h.zTop), bottom: r3(h.zBot) });
-  return finishToolpath(op, tool, cut, { ...h, zBot: zLow }, b, { warnings, passDepth: g.tipDrop, comp: 'computer', rapidFeed: machine?.feed?.rapid ?? undefined, meta: { chamfer: { width: r3(width), depth: r3(g.dz), tipDia: tool.tipDia ?? 0 } } });
+  return finishToolpath(op, tool, cut, { ...h, zBot: zLow }, b, { warnings, passDepth: g.tipDrop, comp: 'computer', rapidFeed: machine?.feed?.rapid ?? undefined, meta: { chamfer: { width: r3(width), depth: r3(g.dz), tipDia: tool.tipDia ?? 0, ...(sharp ? { sharp: true } : {}) }, ...(sharp ? { chamferSharp: { width: r3(width), dz: r3(g.dz), items: sharpItems.map((x) => ({ closed: x.closed, matLeft: x.matLeft, zEdge: r3(x.zEdge), pts: x.pts.map((q) => [r3(q[0]), r3(q[1])]) })) } } : {}) } });
 }

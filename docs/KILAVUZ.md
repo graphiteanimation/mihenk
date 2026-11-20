@@ -575,6 +575,10 @@ Kılavuz çevrimi: **Diş** komutu Delik delme ile aynı paneli "Kılavuz" çevr
 - **Kanal**: seçilen eskiz zinciri orta çizgidir; genişlik takım çapına eşitse tek paso, büyükse duvar pasosu eklenir (en çok 3 × çap). **İz**: takım merkezi zinciri izler (oyma).
 - Kontur **helis girişi**, cepte **ön delikten giriş** ve setup'ta **eksenleri yüzden/kenardan seçme**, işlemde **A açısı** (bir setup'ta birden çok açı) ve **yuvarlak stok** için ilgili panel alanlarının ipuçlarına bakın.
 
+#### Pah: keskin kenar kipi
+
+Modelinizde pah yoksa (düz blok, keskin köşe) pah işleminin panelinde **Keskin kenar (modelde pah yok)** kutusunu işaretleyin. Seçtiğiniz kenar modelin keskin köşesi sayılır; verdiğiniz **Pah genişliği** bu kenardan malzemenin içine doğru ölçülür ve takım pahı bu kenardan keser. Kutu kapalıyken seçilen kenar, modeldeki pahın üst kenarı olmalıdır. Simülasyon yalnızca bu pahın hacmine izin verir; genişlikten fazla kesim (ya da takım ucunun daha derine inmesi) yine oyma olarak engellenir. Kutuyu işaretlediğinizde "model bu kenarda pahlı değil" uyarısı çıkmaz.
+
 #### Kesme verisi önerisi ve hesaplayıcı
 
 **Kesme verisi** komutu (ve işlem panelindeki **Kesme verisi önerisi…** düğmesi) malzeme, takım türü ve çapa göre devir ve ilerleme için **başlangıç önerisi** verir. Yerleşik değerler yalnız tek parça karbür parmak freze için genel ve muhafazakâr değerlerdir (kaynakları kodda yazılıdır); matkap, kılavuz, titan vb. için yerleşik değer yoktur, kendi satırınızı eklersiniz. Satırlar belgede ya da kullanıcı ayarında saklanır. Hesaplayıcı Vc, S, z, fz, F arasında çevirir.

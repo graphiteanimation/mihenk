@@ -490,5 +490,25 @@ console.log('13. WP-07 dilim 3: bir setup\'ta iki A acisi: bolumler arasi guvenl
   const back = readNC(res.text, { machine: M }); ok(back.program.sections.map((q) => q.setup.aAngle).join() === '0,90,0', 'cok-A NC: geri okunan A: ' + back.program.sections.map((q) => q.setup.aAngle).join());
 }
 
+console.log('14. WP-07 dilim 5: pah keskin kenar kipi NC (konik takim, tek z, kenardan 1,2)');
+{
+  const CAM = await import('../src/cam/index.js');
+  const M = S.testMachine();
+  const S0 = { id: 's1', name: 'S1', workOffset: { kind: 'G54' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min: [0, 0, -30], max: [100, 60, 0] }, modelBBox: { min: [0, 0, -30], max: [100, 60, 0] } };
+  const ch = { id: 'ch90', number: 9, lengthOffset: 9, diaOffset: 9, type: 'chamfer', dia: 12, tipAngle: 90, tipDia: 2, fluteLen: 6, bodyLen: 40, flutes: 3, centerCutting: false, shaftDia: 10 };
+  const G = await import('../src/shared/geom2d.js');
+  const sq = (x0, y0, x1, y1) => [G.mkLine([x0, y0], [x1, y0]), G.mkLine([x1, y0], [x1, y1]), G.mkLine([x1, y1], [x0, y1]), G.mkLine([x0, y1], [x0, y0])].map((s) => ({ ...s, fwd: true }));
+  const op = { id: 'c', type: 'chamfer', rpm: 6000, feedCut: 600, feedPlunge: 200, coolant: 'flood', heights: { clearance: 10, retract: 2 }, geom: [{ kind: 'face', loops: 'outer' }], width: 1.5, sharp: true };
+  const tp = CAM.computeOp(op, { setup: S0, tool: ch, geom: { faces: [{ z: 0, outer: sq(20, 15, 80, 45), inners: [] }] } });
+  const prog = CAM.buildProgram({ name: 'T', machine: M, sections: [{ setup: S0, toolpaths: [tp] }] });
+  const res = postProgram(prog, M, OPTS); const L = res.text.split('\n').map((l) => l.trim());
+  // el hesabi: uc z = 0 - 1,5 - 0,2 = -1,7; merkez kenardan 1,2: dikdortgen x 18,8..81,2 ; y 13,8..46,2 (koseler sivri: 18,8 / 13,8)
+  ok(L.some((l) => /Z-1\.7(\s|$)/.test(l)), 'pah keskin NC: kesme z -1.7: ' + L.filter((l) => /Z-1\./.test(l)).slice(0, 3).join(' | '));
+  ok(L.some((l) => /X18\.8/.test(l)) && L.some((l) => /X81\.2/.test(l)) && L.some((l) => /Y13\.8/.test(l)) && L.some((l) => /Y46\.2/.test(l)), 'pah keskin NC: yol kenardan 1,2 dista (X18.8 X81.2 Y13.8 Y46.2)');
+  ok(!L.some((l) => /Z-1\.7/.test(l) && /X(1[0-7]|[0-9])\./.test(l)) && !L.some((l) => /^G[23]\b/.test(l)), 'pah keskin NC: yaysiz (sivri koseler), cok uzak X yok');
+  ok(L.some((l) => /^G1\b.*F600/.test(l) || /F600/.test(l)), 'pah keskin NC: kesme beslemesi F600');
+  const back = readNC(res.text, { machine: M }); ok(back.program.sections.length >= 1, 'pah keskin NC: geri okunur');
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

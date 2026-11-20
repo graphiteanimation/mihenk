@@ -223,7 +223,8 @@ export class OpPanel {
     if (!(d.geom || []).length) list.append(h('div', { class: 'note', 'data-testid': 'op-geom-empty', text: t('cam.op.g_empty') }));
     rows.push(sec(t('cam.op.g_selected')), list);
     if (d.type === 'chamfer') {
-      rows.push(callout('info', null, t('cam.op.ch_model_note')));
+      rows.push(callout('info', null, t(d.sharp ? 'cam.op.ch_sharp_note' : 'cam.op.ch_model_note')));
+      rows.push(checkField({ label: t('cam.op.ch_sharp'), value: !!d.sharp, f: 'op-sharp', hint: t('cam.op.ch_sharp_hint'), set: (v) => { if (v) d.sharp = true; else delete d.sharp; this.invalidate(); this.render(); this.showResult(); } }));
       const hasCh = (d.geom || []).some((g) => g.kind === 'chain');
       rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ...(hasCh ? [['left', t('cam.op.side_left')], ['right', t('cam.op.side_right')]] : [])], { f: 'side', hint: t('cam.op.chamfer_side_hint') }));
     }

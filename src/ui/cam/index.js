@@ -149,7 +149,7 @@ export class CamCtl {
   ribbon(R) {
     const { group, toolBtn } = R; const b = (id) => toolBtn(id);
     return [
-      group('cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools', 'cam-cutdata'].map(b), { items: ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools', 'cam-cutdata'] }),
+      group('cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools'].map(b), { items: ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools'] }),
       group('cam-2d', 'cam.grp.2d', ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'].map(b), { items: ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'] }),
       group('cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'].map(b), { items: ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'] }),
       group('cam-3d', 'cam.grp.3d', [b('cam-op-surface')], { items: ['cam-op-surface'] }),

@@ -13,6 +13,7 @@ import { createHeightmap, cloneHeightmap, stockHeightmap } from './heightmap.js'
 import { toolGeom } from './tool.js';
 import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './chain.js';
 import { freePieces } from './free.js';
+import { lowerForChamfer } from './chamfer.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, stockHeightmap, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom } from './tool.js';
@@ -71,7 +72,8 @@ export function createSim(input, opts = {}) {
     const S = setupFor(id, sec.setup), geom = toolGeom(tool);
     // T-08: islem basi stok (yerel stok yuksekligi icin) ve yol izi maskesi; tutucu boslugu
     let preMax = -Infinity; for (let k = 0; k < S.hm.data.length; k++) if (S.hm.data[k] > preMax) preMax = S.hm.data[k];
-    cur = { si, tp, allow, cycAllow, allowNow: allow, zones: Array.isArray(tp.meta?.threadZones) && tp.meta.threadZones.length ? tp.meta.threadZones : null, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
+    const mhCh = tp.meta?.chamferSharp && S.mh ? lowerForChamfer(S.mh, tp.meta.chamferSharp) : null; // WP-07: keskin kenar pahi - bildirilen hacim
+    cur = { si, tp, mhCh, allow, cycAllow, allowNow: allow, zones: Array.isArray(tp.meta?.threadZones) && tp.meta.threadZones.length ? tp.meta.threadZones : null, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
       pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
   }
   // T-08: islemin yol bandi (takim merkezinin stok yuksekliginin altindaki izi, en buyuk zarf yaricapi kadar kare genisletme:
@@ -138,7 +140,7 @@ export function createSim(input, opts = {}) {
     const Rmax = Math.max(R, shaftR, holderR), Rmax2 = Rmax * Rmax, rs = hm.res;
     const i0 = Math.max(0, Math.floor((px - Rmax - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((px + Rmax - hm.x0) / rs));
     const j0 = Math.max(0, Math.floor((py - Rmax - hm.y0) / rs)), j1 = Math.min(ny - 1, Math.floor((py + Rmax - hm.y0) / rs));
-    const zFlute = pz + g.fluteLen + tol, zBody = pz + g.bodyLen + tol, mh = S.mh, gtol = gtolBase + (mh?.err ?? 0);
+    const zFlute = pz + g.fluteLen + tol, zBody = pz + g.bodyLen + tol, mh = cur.mhCh || S.mh, gtol = gtolBase + (mh?.err ?? 0);
     for (let j = j0; j <= j1; j++) {
       const cy = hm.y0 + (j + 0.5) * rs, dy = cy - py;
       for (let i = i0; i <= i1; i++) {
@@ -187,9 +189,9 @@ export function createSim(input, opts = {}) {
   let gc = null;
   function finishGouge() {
     const c = gc; gc = null; const a = cur.acc.gouge; if (!c || !a) return;
-    const lim = Math.min(c.v, 2 * c.g.R + cur.setup.mh.res);
+    const lim = Math.min(c.v, 2 * c.g.R + (cur.mhCh || cur.setup.mh).res);
     if (!(lim > a.depth)) return;
-    const lat = Math.min(c.v, lateralFree(cur.setup.mh, c.cx, c.cy, c.zb, lim));
+    const lat = Math.min(c.v, lateralFree(cur.mhCh || cur.setup.mh, c.cx, c.cy, c.zb, lim));
     if (lat > a.depth) { a.depth = lat; a.x = c.px; a.y = c.py; a.z = c.pz; }
   }
   // (x,y) hucresinden, model ustu zb'nin altinda kalan (bos) en yakin hucreye uzaklik - res (alt sinir). Halka halka aranir, ilk

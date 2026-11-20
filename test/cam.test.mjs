@@ -1310,5 +1310,70 @@ section('WP-07 dilim 4. kesme verisi: hesaplayici, yerlesik oneri, kullanici sat
     let bad = false; try { validateDoc(mk({ cutLib: [{ id: 'a', material: 'x', type: 'laser', vc: 1, fz: 1 }] })); } catch (e) { bad = true; } ok(bad, 'sema: gecersiz tur reddedilir'); }
 }
 
+// ------------------------------------------------------------------ WP-07 dilim 5: pah keskin kenar kipi
+section('WP-07 dilim 5. pah: keskin kenar kipi (modelde pah yok, pah secilen kenardan malzemeye kesilir)');
+{
+  const { simulate } = await import('../src/cam/sim/index.js');
+  const ch90 = { id: 'ch90', number: 9, lengthOffset: 9, diaOffset: 9, type: 'chamfer', dia: 12, tipAngle: 90, tipDia: 2, fluteLen: 6, bodyLen: 40, flutes: 3, centerCutting: false, shaftDia: 10 };
+  const cop = { id: 'p', type: 'chamfer', ...base, geom: [{ kind: 'face', loops: 'outer' }], width: 1.5, sharp: true, heights: { clearance: 10, retract: 2 } };
+  const geom = { faces: [{ z: 0, outer: sq(20, 15, 80, 45), inners: [] }] };
+  const rect = [P.line([20, 15], [80, 15]), P.line([80, 15], [80, 45]), P.line([80, 45], [20, 45]), P.line([20, 45], [20, 15])];
+  const tp = CAM.computeOp(cop, { setup: S0, tool: ch90, geom });
+  // el hesabi: beta = 45, dz = 1,5/tan45 = 1,5; uc z = 0 - 1,5 - 0,2 = -1,7; merkez kenardan tipDia/2 + 0,2*tan45 = 1,2 (kenarin dz altindaki konik yaricap)
+  const cutZ = []; walk(tp, (m, k, from) => { if (from && m.t === 'feed' && m.kind === 'cut') cutZ.push(m.z); });
+  ok(cutZ.length > 4 && cutZ.every((z) => Math.abs(z + 1.7) < 1e-9), 'dilim5: tek z = kenar - dz - uc payi (-1,7)');
+  const pts = cutPoints(tp, () => true, 0.2); const dd = pts.map((q) => P.distTo(q, rect));
+  ok(pts.length > 100 && dd.every((x) => x > 1.2 - 1e-6 && x < 1.2 * Math.SQRT2 + 1e-6) && dd.filter((x) => Math.abs(x - 1.2) < 1e-6).length > pts.length * 0.8, 'dilim5: takim merkezi kenardan tam 1,2 (normal kipte 2,7)');
+  ok(tp.meta.chamfer.sharp === true && tp.meta.chamferSharp.width === 1.5 && tp.meta.chamferSharp.dz === 1.5 && tp.meta.chamferSharp.items.length === 1 && tp.meta.chamferSharp.items[0].matLeft === true && tp.meta.chamferSharp.items[0].closed === true && tp.meta.chamferSharp.items[0].zEdge === 0, 'dilim5: meta.chamferSharp bildirimi (genislik, dz, malzeme solda, kapali, zEdge)');
+  ok(CAM.computeOp({ ...cop, sharp: false }, { setup: S0, tool: ch90, geom }).meta.chamferSharp === undefined, 'dilim5: sharp=false -> bildirim yok (eski davranis)');
+  throwsCode(() => CAM.computeOp({ ...cop, sharp: 'evet' }, { setup: S0, tool: ch90, geom }), 'cam.op.bad_field', 'dilim5: sharp mantiksal olmali');
+  throwsCode(() => CAM.computeOp({ ...cop, width: 8 }, { setup: S0, tool: ch90, geom }), 'cam.chamfer.tool_small', 'dilim5: takim konigi yetmez (keskin kipte de)');
+  // uyari: keskin modelde normal kipte model_sharp uyarisi vardir, keskin kipte yoktur
+  const mapOf = (fn, res = 0.1) => heightmapFromFn([0, 0], [100, 60], res, fn);
+  const inRect = (x, y) => x >= 20 && x <= 80 && y >= 15 && y <= 45;
+  const mS = mapOf((x, y) => (inRect(x, y) ? 0 : -10));
+  const wn = (op, m) => CAM.computeOp(op, { setup: S0, tool: ch90, geom, modelMap: m }).warnings.some((x) => x.code === 'cam.chamfer.model_sharp');
+  ok(wn({ ...cop, sharp: false }, mS) && !wn(cop, mS), 'dilim5: keskin model - normal kip model_sharp uyarisi VAR, keskin kipte YOK');
+  // yon: tirmanma disari = CW, conv ters
+  const area = (t) => { const q = []; walk(t, (m, k, from) => { if (from && m.t === 'feed' && m.kind === 'cut') q.push([m.x, m.y]); }); let a = 0; for (let i = 0; i < q.length; i++) { const u = q[i], v = q[(i + 1) % q.length]; a += u[0] * v[1] - v[0] * u[1]; } return a; };
+  ok(area(tp) < 0 && area(CAM.computeOp({ ...cop, dir: 'conv' }, { setup: S0, tool: ch90, geom })) > 0, 'dilim5: tirmanma saat yonu, conv ters');
+  // SIM: model keskin kutu, stok = model. Hacim: V = dz*(P*w/2 - 8*w^2/6) = 1,5*(135 - 3) = 198 (4 dis kose, sivri)
+  const hmStock = mapOf((x, y) => (inRect(x, y) ? 0 : -10));
+  const sr = simulate(tp, { res: 0.1, stockBox: S0.stockBox, stockHeightmap: hmStock, modelHeightmap: mS });
+  ok(sr.issues.length === 0, 'dilim5: sim BLOCK 0 (deklare pah hacmi oyma sayilmaz): ' + sr.issues.map((i) => i.code));
+  ok(Math.abs(sr.removedVolume - 198) < 198 * 0.04, `dilim5: kaldirilan hacim el hesabi 198 mm3 (${sr.removedVolume.toFixed(1)})`);
+  // ARTIK ENGELDIR: deklare edilenden fazla kesim (genislik 1,0 ilan edilip 1,5 kesilirse) ve hic bildirim yoksa oyma
+  const lie = structuredClone(tp); lie.meta.chamferSharp.width = 1; lie.meta.chamferSharp.dz = 1;
+  const srL = simulate(lie, { res: 0.1, stockBox: S0.stockBox, stockHeightmap: hmStock, modelHeightmap: mS });
+  ok(srL.issues.some((i) => /gouge/.test(i.code)), 'dilim5: ilan edilenden (1,0) fazla kesim (1,5) oyma olarak kalir: ' + srL.issues.map((i) => i.code));
+  const none = structuredClone(tp); delete none.meta.chamferSharp;
+  const srN = simulate(none, { res: 0.1, stockBox: S0.stockBox, stockHeightmap: hmStock, modelHeightmap: mS });
+  ok(srN.issues.some((i) => /gouge/.test(i.code)), 'dilim5: bildirimsiz keskin kenara pah kesmek oyma (sim gevsetilmedi)');
+  // pahli (ilan edilen) model: bildirim ve modelde pah varsa da oyma yok (hava kesimi)
+  const mC = mapOf((x, y) => { if (!inRect(x, y)) return -10; const d = Math.min(x - 20, 80 - x, y - 15, 45 - y); return d >= 1.5 ? 0 : d - 1.5; });
+  const srC = simulate(tp, { res: 0.1, stockBox: S0.stockBox, stockHeightmap: mapOf((x, y) => (inRect(x, y) ? 0 : -10)), modelHeightmap: mC });
+  ok(!srC.issues.some((i) => /gouge/.test(i.code)), 'dilim5: model zaten pahli ise de oyma yok');
+  // sim kapilari (program + gates)
+  const prog = CAM.buildProgram({ name: 'O1', machine: builtinMachines()[0] ?? {}, sections: [{ setup: S0, toolpaths: [tp] }] });
+  const gs = CAM.gates(prog, structuredClone(NEWAY_FIXTURE), { sim: { res: 0.1, modelHeightmaps: { s1: mS }, stockHeightmaps: { s1: hmStock } } });
+  ok(!gs.some((x) => x.level === 'block' && x.code.startsWith('cam.sim.')), 'dilim5: kapilar BLOCK 0: ' + gs.filter((x) => x.level === 'block').map((x) => x.code));
+  // delik kenari: takim delikte, malzeme kenarin DISINDA; hacim = dz*(P*w/2 + 8*w^2/6) = 94,5
+  const hole = { z: 0, outer: sq(0, 0, 100, 60), inners: [sq(40, 20, 60, 40).reverse().map((x) => ({ ...x, fwd: false }))] };
+  const tpH = CAM.computeOp({ ...cop, geom: [{ kind: 'face', loops: 'inner' }] }, { setup: S0, tool: ch90, geom: { faces: [hole] } });
+  const sqIn = [P.line([40, 20], [60, 20]), P.line([60, 20], [60, 40]), P.line([60, 40], [40, 40]), P.line([40, 40], [40, 20])];
+  const ph = cutPoints(tpH, () => true, 0.2); ok(ph.length > 50 && ph.every((q) => Math.abs(P.distTo(q, sqIn) - 1.2) < 1e-6 && q[0] > 41 && q[0] < 59 && q[1] > 21 && q[1] < 39), 'dilim5: delik kenari: takim delik icinde, kenardan 1,2');
+  ok(tpH.meta.chamferSharp.items[0].matLeft === false, 'dilim5: delikte malzeme yolun sagi (matLeft false)');
+  const inHole = (x, y) => x > 40 && x < 60 && y > 20 && y < 40;
+  const mH = mapOf((x, y) => (inHole(x, y) ? -10 : 0)); const stH = mapOf((x, y) => (inHole(x, y) ? -10 : 0));
+  const srH = simulate(tpH, { res: 0.1, stockBox: S0.stockBox, stockHeightmap: stH, modelHeightmap: mH });
+  ok(srH.issues.length === 0, 'dilim5: delik sim BLOCK 0: ' + srH.issues.map((i) => i.code));
+  ok(srH.removedVolume > 94.5 * 0.9 && srH.removedVolume < 94.5 * 1.05, `dilim5: delik hacmi el hesabi 94,5 (${srH.removedVolume.toFixed(1)}; kose yuvarlagi biraz eksik)`);
+  // acik zincir (kenar): taraf secilmeli; malzeme yolun solunda ise takim sagda (kenardan 1,2 uzakta)
+  const cch = { items: [{ segs: [{ ...G.mkLine([10, 10], [50, 10]), fwd: true }], closed: false, z: 0 }] };
+  const tpC = CAM.computeOp({ id: 'c', type: 'chamfer', ...base, geom: [{ kind: 'chain' }], side: 'right', sharp: true, width: 1.5, heights: { clearance: 10, retract: 2 } }, { setup: S0, tool: ch90, geom: cch });
+  const pc = cutPoints(tpC, () => true, 0.2); ok(pc.length > 10 && pc.every((q) => Math.abs(q[1] - 8.8) < 1e-6), 'dilim5: zincir side right -> takim y=8,8 (kenar y=10, 1,2 sagda)');
+  ok(tpC.meta.chamferSharp.items[0].matLeft === true && tpC.meta.chamferSharp.items[0].closed === false, 'dilim5: zincir: malzeme solda, acik');
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
