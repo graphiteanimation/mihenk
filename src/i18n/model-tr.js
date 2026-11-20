@@ -103,4 +103,5 @@ export default {
   "err.sketch.proj_lost": "İzdüşüm kaynağı kenar bulunamadı ({n} grup): geometri yerinde bırakıldı; eskizi açıp yeniden bağlayın",
   "err.sketch.proj_failed": "İzdüşümler güncellenemedi",
   "fld.sketch_face": "Eskiz yüzü",
+  "msg.o044_changed": "Yeni ifade kuralına (tekli eksi üsten sonra: -2^2 = -4) göre değeri değişenler: {list}",
 };

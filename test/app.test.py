@@ -1388,6 +1388,10 @@ try:
     check('WP-08 7f: kayıp eskiz yüzü → onarım paneli, yüz seçimi etkin', bad0 is False and ev('app.edit && app.edit.activeSel') == 'sketchFace' and page.locator('[data-testid=repair]').count() == 1, [bad0, ev('app.edit && app.edit.activeSel')])
     w8_pick('b8', w8_face('b8', 'd => d.normal && d.normal[2] > 0.99')); idle(); ok()
     check('WP-08 7f: yeni yüz seçildi, eskiz geçerli (yüz düzlemi z=20)', ev('app.result.status.sf.ok') and abs(ev('app.result.sketches.sf.plane.o[2]') - 20) < 1e-9, ev('app.result.status.sf'))
+    # O-044 (F-15): eski belgede değeri değişen ifade açılışta bir kez bildirilir
+    ev('app.markDirty(false)')
+    ev("(async () => { const d = { app: 'Mihenk', version: 1, doc: { params: [{ name: 'a', expr: '-2^2' }, { name: 'L', expr: '50' }], features: [{ id: 'bx', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: 'L', d: '10', h: '10', op: 'new' }] } }; await app.openBytes(new TextEncoder().encode(JSON.stringify(d)), 'o044.mhnk', null); })()"); accept_modal(); idle()
+    check('O-044: eski belgede -2^2 kullanan parametre açılışta bildirilir (yalnız o)', ev('app.lastO044') == ['a'] and 'a' in toast_text() and ev('app.vars().a') == -4, [ev('app.lastO044'), toast_text()])
     check('CSP: dil değiştirme dahil son aşamada da ihlal yok', ev('window.__csp.length') == 0, str(ev('window.__csp')[:3]))
     print('\nkonsol hataları:', [e for e in errs if 'GL Driver' not in e][:5])
     check('konsolda sayfa hatası yok', not [e for e in errs if e.startswith('pageerror')], str([e for e in errs if e.startswith('pageerror')][:3]))

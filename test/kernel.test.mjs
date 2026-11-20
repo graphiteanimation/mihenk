@@ -681,4 +681,17 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   ok(v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b', proj: { ...proj, g: 'x' } }])) === 'schema.bad_field' && v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b', proj: { ...proj, c: [1, 2, 'z'] } }])) === 'schema.bad_field' && v(sk([{ id: 'l', type: 'line', a: 'a', b: 'b', proj: { ...proj, sig: { k: 'q' } } }])) === 'schema.bad_field', 'WP-08 şema: bozuk ent.proj reddedilir');
   ok(v({ features: [], views: ['Üst|0,0,1|0,0,0|0,1,0|1|50', ''] }) === 'ok' && v({ features: [], views: new Array(13).fill('') }) === 'schema.too_many' && v({ features: [], views: [3] }) === 'schema.bad_field', 'WP-08 şema: views (≤12 yuva, metin)');
 }
+
+// ------------------------------------------------------------------ O-044 (F-15): tekli eksi üsten sonra; tanımsız değer hata; pi gölgelenir; virgül ondalık
+{
+  const X = await import('../src/shared/expr.js');
+  const tv = (e, v) => { try { return X.evalExpr(e, v); } catch (x) { return x.code; } };
+  ok(tv('-2^2') === -4 && tv('-x^2', { x: 3 }) === -9 && tv('2*-3^2') === -18 && tv('-2^-2') === -0.25 && tv('2^-2') === 0.25 && tv('3-2^2') === -1 && tv('(-2)^2') === 4, 'O-044: tekli eksi üsten sonra (-2^2=-4, -x^2, 2*-3^2=-18, -2^-2=-0,25, (-2)^2=4)');
+  ok(tv('tan(90)') === 'expr.not_number' && tv('1/0') === 'expr.not_number' && Math.abs(tv('tan(45)') - 1) < 1e-12, 'O-044: tan(90), 1/0 → expr.not_number; tan(45)=1');
+  ok(tv('pi*2', { pi: 3 }) === 6 && Math.abs(tv('pi') - Math.PI) < 1e-15, 'O-044: kullanıcının pi parametresi yerleşik sabiti gölgeler');
+  ok(tv('1,5*2') === 3 && tv('max(10;5)') === 10 && tv('max(10,5)') === 10.5, 'O-044: virgül ondalık ayraç, fonksiyon ayracı ; (değişmedi)');
+  const ch = X.changedByO044({ params: [{ name: 'a', expr: '-2^2' }, { name: 'b', expr: 'a+1' }, { name: 'c', expr: '-2*3' }], features: [{ id: 'e', type: 'extrude', dist: '-3^2' }, { id: 'f', type: 'extrude', dist: '10' }] });
+  ok(JSON.stringify(ch) === JSON.stringify(['a', 'b', 'e.dist']), 'O-044: değeri değişen parametre/alan listesi (bağımlı parametre dahil): ' + JSON.stringify(ch));
+  ok(X.changedByO044({ params: [{ name: 'L', expr: '100' }, { name: 'H', expr: 'L/5' }], features: [] }).length === 0, 'O-044: etkilenmeyen belge için bildirim yok');
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

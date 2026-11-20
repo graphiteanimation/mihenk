@@ -103,4 +103,5 @@ export default {
   "err.sketch.proj_lost": "Projection source edge not found ({n} groups): geometry left in place; open the sketch and relink",
   "err.sketch.proj_failed": "Projections could not be updated",
   "fld.sketch_face": "Sketch face",
+  "msg.o044_changed": "Values changed by the new expression rule (unary minus after power: -2^2 = -4): {list}",
 };

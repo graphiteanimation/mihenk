@@ -7,7 +7,7 @@ import { Viewport, THREE, COL } from './viewport.js';
 import { SKO, onSkOptsChange } from './sketch/opts.js';
 import { paintFaces } from './viewport-hist.js';
 import { initSolver, solveSketch } from './solver.js';
-import { evalExpr, resolveParams } from '../shared/expr.js';
+import { evalExpr, resolveParams, changedByO044 } from '../shared/expr.js';
 import { basePlane } from '../shared/vec.js';
 import { h, $, toast, modal, modalOpen, promptText, confirmBox, esc, fmt } from './dom.js';
 import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared/i18n.js';
@@ -814,6 +814,9 @@ class App {
     toast(t('msg.opened', { name }));
     const bad = this.doc.features.filter((f) => this.result?.status[f.id]?.ok === false).length;
     if (bad) toast(t('msg.n_bad', { n: bad }), true);
+    // O-044 (F-15): yeni ifade kuralıyla değeri değişen parametre/alan varsa açılışta bir kez bildirilir
+    let ch = []; try { ch = changedByO044(j.doc); } catch (e) { ch = []; }
+    this.lastO044 = ch; if (ch.length) toast(t('msg.o044_changed', { list: ch.slice(0, 8).join(', ') + (ch.length > 8 ? ' …' : '') }), { kind: 'info' });
     return true;
   }
   async importFile(format) {
