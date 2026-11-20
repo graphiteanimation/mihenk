@@ -21,4 +21,12 @@ ok(!/MODEL |PART SIZE|SETUP \d|GENERATED/.test(head(kapali.text).join('\n')), 'p
 const yok = postProgram(sm.program, M, { gates: [], date: '2026-11-20' });
 ok(!/\(MODEL /.test(yok.text) && /\(SETUP 1 /.test(yok.text), 'belge adı verilmezse MODEL satırı yok, setup özeti var');
 ok(postProgram(sm.program, M, { gates: [], date: '2026-11-20', modelSummary: ms }).text === postProgram(sm.program, M, { gates: [], date: '2026-11-20', modelSummary: ms }).text, 'çıktı belirleyici');
+{ // 600 karakterlik belge adı ve çok uzun setup adı: başlık satırları 80 karakteri aşmaz, '...' ile kısalır
+  const uzun = 'Cok-uzun-belge-adi-' + 'X'.repeat(581) + '.mhnk'; const sp = structuredClone(sm.program); sp.sections[0].setup.name = 'S'.repeat(300);
+  const u = postProgram(sp, M, { gates: [], date: '2026-11-20', modelSummary: { ...ms, doc: 'D:\\\\klasor\\\\' + uzun } }); const UH = head(u.text);
+  const m = UH.find((l) => /^\(MODEL /.test(l)), st = UH.find((l) => /^\(SETUP 1/.test(l));
+  ok(m && m.length <= 80 && m.endsWith('...)') && m.startsWith('(MODEL Cok-uzun-belge-adi-'), '600 karakterlik belge adı kısalır: ' + (m || '').length);
+  ok(st && st.length <= 80 && st.endsWith('...)'), 'çok uzun setup adı kısalır: ' + (st || '').length);
+  ok(UH.filter((l) => /^\((MODEL|PART SIZE|SETUP|GENERATED)/.test(l)).every((l) => l.length <= 80), 'model özeti satırlarının hiçbiri 80 karakteri aşmaz');
+}
 console.log(`nc-baslik: ${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

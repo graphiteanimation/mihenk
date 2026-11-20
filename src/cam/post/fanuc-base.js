@@ -36,6 +36,7 @@ const ucfirst = (s) => String(s).toUpperCase();
 
 // Kapi sonucu -> NC basligi icin okunur metin (ASCII'ye writeComment cevirir). opts.gateText(g) verilirse o kullanilir
 // (arayuz kullanicinin dilinde verebilir; Turkce karakterler yorumda ASCII'ye donusur); yoksa Ingilizce sozluk.
+const COMMENT_MAX = 78; // model ozeti yorum metni ust siniri: parantezlerle satir en cok 80 karakter
 function gateText(g, fn) {
   if (typeof fn === 'function') { try { const t = fn(g); if (t) return String(t); } catch (e) { /* sozluge dus */ } }
   return describeIssue(g);
@@ -90,16 +91,18 @@ export function createFanucPost(over = {}) {
     // Her satir sanitizeComment'ten gecer (ASCII); kisisel veri/yol yazilmaz (belge adi yalniz dosya adidir: yol kisimlari atilir).
     _modelSummary() {
       const o = this.opts, prog = this.program, ms = o.modelSummary || {}, f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+      // Model ozeti satirlari en cok COMMENT_MAX karakter (profilde yorum uzunlugu alani yok; Fanuc bloklari 80 karakter civari): uzunsa '...' ile kisaltilir
+      const cm = (t) => { const a = sanitizeComment(t); this.writeComment(a.length > COMMENT_MAX ? a.slice(0, COMMENT_MAX - 3) + '...' : a); };
       const size = (b) => (b && b.min && b.max ? [0, 1, 2].map((k) => f1(b.max[k] - b.min[k])).join(' x ') : null);
-      if (ms.doc) this.writeComment(`MODEL ${String(ms.doc).split(/[\\/]/).pop()}`);
-      const pb = size(ms.bbox); if (pb) this.writeComment(`PART SIZE ${pb} MM`);
+      if (ms.doc) cm(`MODEL ${String(ms.doc).split(/[\\/]/).pop()}`);
+      const pb = size(ms.bbox); if (pb) cm(`PART SIZE ${pb} MM`);
       const seen = new Set();
       prog.sections.forEach((sec) => {
         const st = sec.setup, id = st.id ?? st.name ?? ''; if (seen.has(id)) return; seen.add(id);
         const stock = size(st.stockBox), part = size(st.modelBBox);
-        this.writeComment(`SETUP ${seen.size} ${st.name ?? id}${st.workOffset?.kind ? ' WCS ' + st.workOffset.kind : ''}${stock ? ' STOCK ' + stock : ''}${part ? ' PART ' + part : ''}${st.aAngle != null ? ' A ' + f1(st.aAngle) : ''}`);
+        cm(`SETUP ${seen.size} ${st.name ?? id}${st.workOffset?.kind ? ' WCS ' + st.workOffset.kind : ''}${stock ? ' STOCK ' + stock : ''}${part ? ' PART ' + part : ''}${st.aAngle != null ? ' A ' + f1(st.aAngle) : ''}`);
       });
-      this.writeComment(`GENERATED ${o.generatedAt || o.date || new Date().toISOString()}`);
+      cm(`GENERATED ${o.generatedAt || o.date || new Date().toISOString()}`);
     },
 
     // ------------------------------------------------------------ giris fonksiyonlari
