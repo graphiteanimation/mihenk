@@ -10,6 +10,8 @@ import { CAM_RIBBON } from '../src/ui/cam/ribbon.js';
 import { tLang } from '../src/shared/i18n.js';
 import { alignTraceCons, hvSame, autoHvRedundantAfterFix } from '../src/ui/sketch/autoalign.js';
 import { solveSketch } from '../src/ui/solver.js';
+import { createRequire } from 'node:module';
+import { exampleEntries, wrapExample } from '../src/ui/examples.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const src = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -88,6 +90,34 @@ await madde(3, 'hizalama izinden otomatik H/V kısıtı; Sabitle ile fazla kıs�
   ok(/s\.kind === 'align'\) \{ if \(autoOn\('hv'\)\) for \(const \[ty, a, b\] of alignTraceCons/.test(skSrc), 'sketcher _ptFor hizalama izinden kısıt ekler (otomatik H/V ayarına bağlı)');
   ok(/autoHvRedundantAfterFix\(s, ids\)/.test(skSrc) && /sk\.fix_auto_dropped/.test(skSrc), 'sketcher Sabitle otomatik kısıtları düşürür ve bildirir');
   for (const l of ['tr', 'en']) ok(tLang(l, 'sk.fix_auto_dropped') !== 'sk.fix_auto_dropped', `${l}: sk.fix_auto_dropped`);
+});
+
+await madde(4, 'kurulu sürümde Örnekler resources/ornekler’den', () => {
+  const EX = createRequire(import.meta.url)('../electron/examples.cjs');
+  ok(EX.examplesDir({ isPackaged: true, resourcesPath: path.join('K', 'resources'), appRoot: 'X' }) === path.join('K', 'resources', 'ornekler'), 'paketli: resources/ornekler');
+  ok(EX.examplesDir({ isPackaged: false, resourcesPath: 'K', appRoot: ROOT }) === path.join(ROOT, 'ornekler'), 'geliştirme: depo ornekler/');
+  const tmp = path.join(ROOT, 'test', 'tmp', 'wp21-ornek'); fs.rmSync(tmp, { recursive: true, force: true }); fs.mkdirSync(path.join(tmp, 'alt.mhnk'), { recursive: true });
+  fs.writeFileSync(path.join(tmp, 'b-iki.mhnk'), '{"features":[]}'); fs.writeFileSync(path.join(tmp, 'a-bir.mhnk'), '{"app":"Mihenk","version":1,"doc":{}}'); fs.writeFileSync(path.join(tmp, 'not.txt'), 'x');
+  const names = EX.listExamples(tmp);
+  ok(JSON.stringify(names) === '["a-bir.mhnk","b-iki.mhnk"]', 'yalnız *.mhnk dosyaları, sıralı (klasör ve başka uzantı yok): ' + JSON.stringify(names));
+  ok(EX.listExamples(path.join(tmp, 'yok')).length === 0, 'klasör yoksa boş liste');
+  ok(EX.readExample(tmp, 'b-iki.mhnk')?.name === 'b-iki.mhnk' && new TextDecoder().decode(EX.readExample(tmp, 'b-iki.mhnk').data) === '{"features":[]}', 'listedeki ad okunur');
+  for (const bad of ['../package.json', 'alt.mhnk', 'not.txt', path.join(tmp, 'a-bir.mhnk'), 'yok.mhnk', 5]) ok(EX.readExample(tmp, bad) === null, 'listede olmayan ad reddedilir: ' + bad);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  // gerçek depo örnekleri: kabuk listesi ile gömülü liste aynı anahtarları verir (menü komut kimlikleri değişmez)
+  const real = EX.listExamples(path.join(ROOT, 'ornekler'));
+  const nat = exampleEntries(real, 'native'), emb = exampleEntries(real.map((f) => '../../ornekler/' + f), 'embed');
+  ok(real.length >= 3 && JSON.stringify(nat.map((x) => x.key)) === JSON.stringify(emb.map((x) => x.key)), 'kabuk ve gömülü listede aynı anahtarlar: ' + nat.map((x) => x.key).join(','));
+  ok(nat.every((x) => x.file.endsWith('.mhnk') && !/[\\/]/.test(x.file)) && emb.every((x) => x.path.startsWith('../../ornekler/')), 'kabuk girdisi yalnız dosya adı taşır');
+  ok(JSON.parse(wrapExample('{"features":[]}', 'Mihenk', 1)).doc.features.length === 0 && wrapExample('{"doc":{"a":1}}', 'M', 1) === '{"doc":{"a":1}}', 'çıplak belge zarflanır, zarflı olduğu gibi');
+  // paketleme yapılandırması ve köprü
+  const pk = JSON.parse(src('package.json')); const er = (pk.build.extraResources || []).find((x) => x.from === 'ornekler');
+  ok(er && er.to === 'ornekler' && er.filter.includes('*.mhnk'), 'build.extraResources ornekler → resources/ornekler');
+  ok((pk.build.files || []).includes('electron/**'), 'electron/examples.cjs pakete girer (electron/**)');
+  const main = src('electron/main.cjs'), pre = src('electron/preload.cjs'), app = src('src/ui/app.js');
+  ok(/ipcMain\.handle\('native:examples', guarded\(/.test(main) && /ipcMain\.handle\('native:openExample', guarded\(/.test(main), 'IPC işleyicileri gönderen doğrulamalı (guarded)');
+  ok(/examplesList: \(\) => ipcRenderer\.invoke\('native:examples'\)/.test(pre) && /openExample: \(name\) => ipcRenderer\.invoke\('native:openExample', String\(name\)\)/.test(pre), 'köprüde yol parametresi yok (yalnız ad)');
+  ok(app.indexOf('await this.loadExamples()') > 0 && app.indexOf('await this.loadExamples()') < app.indexOf('this.C = initChrome(this)'), 'liste menü kurulmadan önce yüklenir');
 });
 
 console.log(`${pass} geçti, ${fail} kaldı`);

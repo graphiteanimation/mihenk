@@ -20,6 +20,7 @@ import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
 import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups, groupRanges, groupOf, moveUnit, groupUnit } from './features.js';
 import { initChrome } from './chrome.js';
+import { exampleEntries, wrapExample } from './examples.js';
 import { initCam } from './cam/index.js';
 import { onPrefsChange, getStr, setStr } from './prefs.js';
 import { showSettings, renderWelcome } from './screens.js';
@@ -61,6 +62,7 @@ class App {
   async init() {
     document.documentElement.lang = getLang(); applyI18n();
     this.cam = initCam(this);
+    await this.loadExamples(); // menü kurulmadan önce (Dosya → Örnekler)
     this.C = initChrome(this);
     onLangChange(() => this.relang());
     onPrefsChange(() => this.retheme());
@@ -174,11 +176,18 @@ class App {
   cloneDoc(d) { return clone(d); }
   vars() { try { return resolveParams(this.doc.params).vars; } catch (e) { return {}; } }
   // WP-10 devri: örnek belgeler (geliştirmede ve paketlenmiş uygulamada ornekler/*.mhnk derlemeye gömülür; yoksa liste boş, menü gizli)
-  exampleList() { return Object.keys(EXAMPLES).sort().map((p) => ({ key: p.split('/').pop().replace(/\.mhnk$/i, '').replace(/[^\w-]/g, '_'), name: p.split('/').pop().replace(/\.mhnk$/i, ''), path: p })); }
+  // WP-21: masaüstü kabuğu örnek listesi veriyorsa (kurulu sürüm: resources/ornekler) o kullanılır; yoksa derlemeye gömülü liste
+  exampleList() { return this._nativeExamples ? exampleEntries(this._nativeExamples, 'native') : exampleEntries(Object.keys(EXAMPLES), 'embed'); }
+  async loadExamples() { try { const l = window.native?.examplesList ? await window.native.examplesList() : null; this._nativeExamples = Array.isArray(l) ? l.filter((x) => typeof x === 'string') : null; } catch (e) { this._nativeExamples = null; } }
   async openExample(key) {
     const ex = this.exampleList().find((x) => x.key === key); if (!ex || this.guard()) return;
     if (!(await this.confirmDiscard())) return;
-    try { let txt = await EXAMPLES[ex.path](); const j = JSON.parse(txt); if (!(j && typeof j === 'object' && j.doc)) txt = JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: j }); /* örnek dosyalar çıplak belgedir: zarfa sarılır */ await this.openBytes(new TextEncoder().encode(txt), ex.name + '.mhnk', null); } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); }
+    try {
+      let txt;
+      if (ex.src === 'native') { const r = await window.native.openExample(ex.file); if (!r) throw new KErr('example_missing', { name: ex.name }); txt = new TextDecoder().decode(r.data); }
+      else txt = await EXAMPLES[ex.path]();
+      if (await this.openBytes(new TextEncoder().encode(wrapExample(txt, APP_NAME, FILE_VERSION)), ex.name + '.mhnk', null)) window.native?.docState('new'); // örnek salt okunur kaynaktır: belge yolu olmaz
+    } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); }
   }
   async saveViewPrompt() {
     const nm = await promptText(t('vd.name'), ''); if (!nm) return;

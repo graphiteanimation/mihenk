@@ -495,6 +495,7 @@ const base = {
   "about.shell": "Masaüstü kabuğu: Electron",
   "about.license": "Open CASCADE ve PlaneGCS, LGPL lisanslı kütüphanelerdir; kaynak kodları ilgili projelerin sayfalarında bulunur. three.js ve Electron MIT lisanslıdır.",
   // Hatalar (çekirdek, ifade, çözücü): err.<kod>
+  "err.example_missing": "Örnek belge bulunamadı: {name}",
   "err.occt": "Geometri çekirdeği bu işlemi yapamadı (OCCT hatası)",
   "err.internal": "Beklenmeyen hata: {message}",
   "err.worker.occt": "Geometri çekirdeği hatası (OCCT)",

@@ -495,6 +495,7 @@ const base = {
   "about.shell": "Desktop shell: Electron",
   "about.license": "Open CASCADE and PlaneGCS are LGPL-licensed libraries; their source code is available on the projects' pages. three.js and Electron are MIT-licensed.",
   // Hatalar (çekirdek, ifade, çözücü): err.<kod>
+  "err.example_missing": "Example document not found: {name}",
   "err.occt": "The geometry kernel could not perform this operation (OCCT error)",
   "err.internal": "Unexpected error: {message}",
   "err.worker.occt": "Geometry kernel error (OCCT)",

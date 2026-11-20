@@ -48,6 +48,7 @@ const R = await page.evaluate(async ([PORT, ASSETS]) => {
   const o = {};
   o.nodeGlobals = [typeof require, typeof process, typeof Buffer].join(',');
   o.nativeKeys = Object.keys(window.native).sort().join(',');
+  o.exList = await window.native.examplesList(); o.exBad = await window.native.openExample('../package.json'); o.exOk = o.exList.length ? (await window.native.openExample(o.exList[0]))?.data?.length || 0 : 0; o.exMenu = app.exampleList().map((x) => x.src + ':' + x.file).join(','); // WP-21
   const r = await fetch(location.href); o.csp = r.headers.get('content-security-policy');
   o.cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content;
   o.workerCsp = (await fetch('app://mihenk/assets/' + ASSETS.worker)).headers.get('content-security-policy');
@@ -72,7 +73,9 @@ const R = await page.evaluate(async ([PORT, ASSETS]) => {
   return o;
 }, [PORT, ASSETS]);
 check('Node globalleri renderer\'da yok', R.nodeGlobals === 'undefined,undefined,undefined', R.nodeGlobals);
-check('köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler', R.nativeKeys === 'argvFile,docState,getSetting,openFile,openLogFolder,openRecent,recentList,recoveryClear,recoveryLoad,recoverySave,saveFile,setDirty,setSetting,setStrings,setTitle,versions', R.nativeKeys);
+check('köprü yüzeyi: yol parametreli işlev yok, beklenen üyeler', R.nativeKeys === 'argvFile,docState,examplesList,getSetting,openExample,openFile,openLogFolder,openRecent,recentList,recoveryClear,recoveryLoad,recoverySave,saveFile,setDirty,setSetting,setStrings,setTitle,versions', R.nativeKeys);
+check('WP-21 örnekler: kabuk ornekler/*.mhnk adlarını verir, menü kabuk listesini kullanır', R.exList.length === fs.readdirSync(path.join(ROOT, 'ornekler')).filter((f) => f.endsWith('.mhnk')).length && R.exList.length > 0 && R.exMenu.startsWith('native:'), JSON.stringify([R.exList, R.exMenu]));
+check('WP-21 örnekler: listede olmayan ad (yol) açılmaz, listedeki açılır', R.exBad === null && R.exOk > 0, JSON.stringify([R.exBad, R.exOk]));
 check('CSP yanıt başlığı = electron/csp.cjs', R.csp === CSP, R.csp);
 check('CSP meta etiketi = başlık', R.cspMeta === CSP);
 check('ana betik de aynı sıkı CSP\'yi alır (unsafe-eval yok)', R.mainJsCsp === CSP && !/'unsafe-eval'/.test(R.mainJsCsp || ''), String(R.mainJsCsp));
