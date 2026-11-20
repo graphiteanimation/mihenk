@@ -568,6 +568,17 @@ Tamamen delip geçen delikte takım model tabanının altına iner. Programda **
 
 Kılavuz çevrimi: **Diş** komutu Delik delme ile aynı paneli "Kılavuz" çevrimiyle açar. Takım türü **Kılavuz** olmalı ve **Diş adımı** girilmelidir. İlerleme otomatik hesaplanır; M80V şablonunda senkron kılavuzda ilerleme = hatve olarak yazılır. Deliğin diş bilgisi yoksa uyarı verir ("deliklerde diş bilgisi yok"), adım uyuşmuyorsa uyarı verir.
 
+#### Dairesel, diş frezeleme, kanal, iz (WP-07)
+
+- **Dairesel**: delik ya da silindirik çıkıntıyı helisel inişle genişletir; kaba halkalar + bitirme, çap payı. Gaz telafisi (G41/G42) yok, bilgisayar telafisi kullanılır.
+- **Diş frezeleme**: tek noktalı diş frezesiyle iç/dış, sağ/sol diş; hatve ISO kaba tablosundan (ince hatveyi siz girin). İç dişte delik önceden açılmış olmalıdır; açık değilse yol üretilmez.
+- **Kanal**: seçilen eskiz zinciri orta çizgidir; genişlik takım çapına eşitse tek paso, büyükse duvar pasosu eklenir (en çok 3 × çap). **İz**: takım merkezi zinciri izler (oyma).
+- Kontur **helis girişi**, cepte **ön delikten giriş** ve setup'ta **eksenleri yüzden/kenardan seçme**, işlemde **A açısı** (bir setup'ta birden çok açı) ve **yuvarlak stok** için ilgili panel alanlarının ipuçlarına bakın.
+
+#### Kesme verisi önerisi ve hesaplayıcı
+
+**Kesme verisi** komutu (ve işlem panelindeki **Kesme verisi önerisi…** düğmesi) malzeme, takım türü ve çapa göre devir ve ilerleme için **başlangıç önerisi** verir. Yerleşik değerler yalnız tek parça karbür parmak freze için genel ve muhafazakâr değerlerdir (kaynakları kodda yazılıdır); matkap, kılavuz, titan vb. için yerleşik değer yoktur, kendi satırınızı eklersiniz. Satırlar belgede ya da kullanıcı ayarında saklanır. Hesaplayıcı Vc, S, z, fz, F arasında çevirir.
+
 #### Yok olanlar
 
 **Uyarlanır** (adaptif) boşaltma ve **3B yüzey işleme** bu sürümde yoktur; şeritte pasif görünür.

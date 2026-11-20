@@ -15,6 +15,7 @@ import { clone, uid, hidePanel } from './util.js';
 import { SetupPanel, defaultSetup } from './setup.js';
 import { openMachineManager } from './machines.js';
 import { openToolManager, protectedHits, toolLabel } from './toolui.js';
+import { openCutData } from './cutdata.js';
 import { CamView } from './view.js';
 import { CamOps } from './ops.js';
 
@@ -133,6 +134,7 @@ export class CamCtl {
     reg('cam-stock', 'cam.cmd.stock', 'cam-stock', () => this.editStock(), { off: needModel });
     reg('cam-machine', 'cam.cmd.machine', 'cam-machine', () => openMachineManager(this));
     reg('cam-tools', 'cam.cmd.tools', 'cam-tool-library', () => openToolManager(this, 'doc'));
+    reg('cam-cutdata', 'cam.cmd.cutdata', 'cam-tool-library', () => openCutData(this));
     const opcmd = (id, nm, ic, type, cycle) => reg(id, nm, ic, () => this.ops.create(type, cycle), { off: needSetup });
     opcmd('cam-op-face', 'cam.cmd.face', 'op-face', 'face'); opcmd('cam-op-contour', 'cam.cmd.contour', 'op-contour', 'contour'); opcmd('cam-op-pocket', 'cam.cmd.pocket', 'op-pocket', 'pocket'); opcmd('cam-op-chamfer', 'cam.cmd.chamfer', 'chamfer', 'chamfer');
     reg('cam-op-adaptive', 'cam.cmd.adaptive', 'op-adaptive', () => {}, { off: () => t('cam.soon_op') });
@@ -147,7 +149,7 @@ export class CamCtl {
   ribbon(R) {
     const { group, toolBtn } = R; const b = (id) => toolBtn(id);
     return [
-      group('cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools'].map(b), { items: ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools'] }),
+      group('cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools', 'cam-cutdata'].map(b), { items: ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools', 'cam-cutdata'] }),
       group('cam-2d', 'cam.grp.2d', ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'].map(b), { items: ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'] }),
       group('cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'].map(b), { items: ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'] }),
       group('cam-3d', 'cam.grp.3d', [b('cam-op-surface')], { items: ['cam-op-surface'] }),

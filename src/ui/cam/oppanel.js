@@ -9,6 +9,7 @@ import { findRegions, resolveProfiles, selectionFor, entSeg } from '../../shared
 import * as G from '../../shared/geom2d.js';
 import { clone, getP, setP, numField, textField, selField, checkField, sec, callout, panelShell, okCancel, panelKeys } from './util.js';
 import { protectedHits, toolLabel, openToolManager } from './toolui.js';
+import { openCutData } from './cutdata.js';
 
 const TABS = [['tool', 'cam.op.tab_tool'], ['geom', 'cam.op.tab_geom'], ['heights', 'cam.op.tab_heights'], ['passes', 'cam.op.tab_passes']];
 const TOOL_KINDS = { face: ['face', 'flat', 'bullnose'], contour: ['flat', 'bullnose', 'ball'], pocket: ['flat', 'bullnose', 'ball'], chamfer: ['chamfer', 'spot'], circular: ['flat', 'bullnose'], threadmill: ['threadmill'], slot: ['flat', 'bullnose'], trace: ['flat', 'bullnose', 'ball', 'chamfer', 'spot', 'drill', 'face'] };
@@ -176,6 +177,7 @@ export class OpPanel {
       this.num(t('cam.op.rpm'), 'rpm', { unit: t('cam.u.rpm'), min: 1, f: 'rpm', warn: (v) => { manual(); return v && this.cam.machine()?.spindle?.maxRpm && v > this.cam.machine().spindle.maxRpm ? t('cam.op.rpm_over', { max: this.cam.machine().spindle.maxRpm }) : null; } }),
       this.num(t('cam.op.feed_cut'), 'feedCut', { unit: t('cam.u.mm_min'), min: 0.001, f: 'feedCut', warn: () => { manual(); return null; } }),
       this.num(t('cam.op.feed_plunge'), 'feedPlunge', { unit: t('cam.u.mm_min'), min: 0.001, f: 'feedPlunge' }));
+    if (tl) rows.push(h('button', { class: 'btn ghost sm', type: 'button', 'data-testid': 'op-cutdata', onclick: () => openCutData(this.cam, { tool: tl, apply: (rpm, feed) => { delete d.preset; d.rpm = rpm; d.feedCut = feed; this.invalidate(); this.render(); this.showResult(); } }) }, t('cam.cd.open')));
     if (d.type === 'contour' || d.type === 'pocket') rows.push(this.num(t('cam.op.feed_ramp'), 'feedRamp', { unit: t('cam.u.mm_min'), min: 0.001, nullable: true, f: 'feedRamp', hint: t('cam.op.feed_ramp_hint') }));
     if (d.cycle === 'tap') rows.push(h('div', { class: 'note', text: t('cam.op.tap_feed') }));
     rows.push(this.sel(t('cam.op.coolant'), 'coolant', COOLANT.map((c) => [c, t('cam.cool.' + c)]), { f: 'coolant' }));

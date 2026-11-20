@@ -1270,5 +1270,45 @@ section('WP-07 dilim 3. setup eksenleri (yuz/kenar), eski x ekseni izdusumu, sil
     const flatTop = r.remainHeightmap.data[Math.floor(r.remainHeightmap.ny / 2) * r.remainHeightmap.nx + 100]; ok(Math.abs(flatTop - 15) < 0.05, 'silindir stok sim: orta cizgi z=15 e inmis: ' + flatTop); }
 }
 
+// ------------------------------------------------------------------ WP-07 dilim 4: kesme verisi kutuphanesi + hesaplayici
+section('WP-07 dilim 4. kesme verisi: hesaplayici, yerlesik oneri, kullanici satiri, makine siniri, sema');
+{
+  const CD = await import('../src/cam/cutdata.js');
+  // hesaplayici (elle): Vc 100 m/min, Ø10 -> S = 1000*100/(pi*10) = 3183.0989; 3 agiz, fz 0.05 -> F = 3183.0989*3*0.05 = 477.4648
+  ok(Math.abs(CD.rpmFromVc(100, 10) - 3183.0988618) < 1e-6, 'hesaplayici: S = 1000 Vc / (pi D) = 3183.099');
+  ok(Math.abs(CD.vcFromRpm(3183.0988618, 10) - 100) < 1e-6, 'hesaplayici: Vc = pi D S / 1000 (geri donus)');
+  ok(Math.abs(CD.feedFromFz(3183.0988618, 3, 0.05) - 477.46483) < 1e-4, 'hesaplayici: F = S z fz = 477.465');
+  ok(Math.abs(CD.fzFromFeed(3183.0988618, 3, 477.46483) - 0.05) < 1e-8, 'hesaplayici: fz = F / (S z) (geri donus)');
+  ok(CD.rpmFromVc(0, 10) === null && CD.rpmFromVc(100, 0) === null && CD.feedFromFz(1000, 2.5, 0.1) === null && CD.feedFromFz(1000, 0, 0.1) === null, 'hesaplayici: gecersiz girdi null');
+  // fz interpolasyonu: tablo [3.175: .0254, 6.35: .0508, 12.7: .1016, 25.4: .1778]
+  const T = CD.BUILTIN[0].fzTable;
+  ok(Math.abs(CD.fzAt(T, 6.35) - 0.0508) < 1e-12 && Math.abs(CD.fzAt(T, 9.525) - 0.0762) < 1e-9 && Math.abs(CD.fzAt(T, 40) - 0.1778) < 1e-12 && Math.abs(CD.fzAt(T, 1.5875) - 0.0127) < 1e-9, 'fz interpolasyonu: dugum, ara, ustu (son deger), alti (orantili)');
+  // yerlesik: aluminyum Ø6, 3 agiz. Vc = 800 SFM * 0.3048 = 243.84 -> 243.8; S = 1000*243.8/(pi*6) = 12933.99; fz(6) = .0254 + (.0508-.0254)*(6-3.175)/3.175 = .048000; F = S*3*fz
+  const a = CD.suggest({ material: 'aluminum', type: 'endmill', dia: 6, flutes: 3 });
+  ok(a && a.source === 'builtin' && Math.abs(a.vc - 243.8) < 1e-9 && Math.abs(a.rpm - 12933.9917) < 0.01 && Math.abs(a.fz - 0.048) < 1e-6 && Math.abs(a.feed - 12933.9917 * 3 * 0.048) < 0.5, `oneri: aluminyum Ø6 z3: Vc ${a?.vc} S ${a?.rpm?.toFixed(1)} fz ${a?.fz?.toFixed(5)} F ${a?.feed?.toFixed(1)}`);
+  // makine devir siniri: 8000 -> S 8000, Vc yeniden, fz korunur, F = 8000*3*.048 = 1152
+  const lim = CD.suggest({ material: 'aluminum', type: 'endmill', dia: 6, flutes: 3, maxRpm: 8000 });
+  ok(lim.limited === true && lim.rpm === 8000 && Math.abs(lim.fz - 0.048) < 1e-6 && Math.abs(lim.feed - 1152) < 0.5 && Math.abs(lim.vc - CD.vcFromRpm(8000, 6)) < 1e-9, 'oneri: devir makine sinirina kisilir, fz korunur, F = 1152');
+  // yerlesik degerlerin kaynaklarla bire bir uyumu (SFM -> m/min, IPT -> mm)
+  const by = (id) => CD.BUILTIN.find((x) => x.id === id);
+  ok(Math.abs(by('b-al').vc - 243.8) < 0.05 && Math.abs(by('b-brass').vc - 91.4) < 0.05 && Math.abs(by('b-mild').vc - 30.5) < 0.05 && Math.abs(by('b-ss').vc - 30.5) < 0.05 && Math.abs(by('b-ci').vc - 30.5) < 0.05 && Math.abs(by('b-plastic').vc - 61) < 0.05, 'yerlesik Vc: 800/300/100/100/100/200 SFM x 0.3048');
+  ok(Math.abs(by('b-ss').fzTable[0].fz - 0.00254) < 1e-9 && Math.abs(by('b-plastic').fzTable[3].fz - 0.381) < 1e-9 && Math.abs(by('b-mild').fzTable[2].fz - 0.0762) < 1e-9, 'yerlesik fz: paslanmaz 1/8" .0001 in = .00254 mm; plastik 1" .015 in = .381 mm; celik 1/2" .003 in = .0762 mm');
+  ok(CD.BUILTIN.every((b) => b.source && /\[H\]|\[U\]/.test(b.source) && b.type === 'endmill'), 'yerlesik: her satirda kaynak notu ve yalniz parmak freze (dogrulanamayan tur icin deger yok)');
+  ok(CD.suggest({ material: 'aluminum', type: 'drill', dia: 6, flutes: 2 }) === null && CD.suggest({ material: 'titanium', type: 'endmill', dia: 6, flutes: 3 }) === null && CD.suggest({ material: 'aluminum', type: 'endmill', dia: 0, flutes: 3 }) === null && CD.suggest({ material: 'aluminum', type: 'endmill', dia: 6, flutes: 0 }) === null, 'oneri: dogrulanamayan tur/malzeme ve gecersiz girdi icin yok (uydurma deger yok)');
+  ok(CD.typeOfTool({ type: 'flat' }) === 'endmill' && CD.typeOfTool({ type: 'drill' }) === 'drill' && CD.typeOfTool({ type: 'ball' }) === 'other', 'takim turu -> kutuphane turu');
+  // kullanici satiri yerlesigi gecer; belge satiri kullanici satirini gecer; cap araligi disinda yerlesige duser
+  const user = [{ id: 'u1', material: 'aluminum', type: 'endmill', diaMin: 5, diaMax: 8, vc: 300, fz: 0.04 }];
+  const docL = [{ id: 'd1', material: 'aluminum', type: 'endmill', diaMin: 5, diaMax: 8, vc: 200, fz: 0.03 }];
+  ok(CD.suggest({ userLib: user, material: 'aluminum', type: 'endmill', dia: 6, flutes: 2 }).source === 'user' && CD.suggest({ userLib: user, docLib: docL, material: 'aluminum', type: 'endmill', dia: 6, flutes: 2 }).source === 'doc' && CD.suggest({ userLib: user, material: 'aluminum', type: 'endmill', dia: 10, flutes: 2 }).source === 'builtin', 'oneri: oncelik belge > kullanici > yerlesik; cap araligi disinda yerlesik');
+  { const r = CD.suggest({ userLib: user, material: 'aluminum', type: 'endmill', dia: 6, flutes: 2 }); ok(Math.abs(r.vc - 300) < 1e-9 && Math.abs(r.fz - 0.04) < 1e-9 && Math.abs(r.rpm - 15915.494) < 0.01 && Math.abs(r.feed - 15915.494 * 2 * 0.04) < 0.01, 'oneri: kullanici satiri degerleri aynen'); }
+  const free = [{ id: 'u2', material: 'Delrin', type: 'endmill', diaMin: 0, diaMax: 100, vc: 150, fz: 0.05 }];
+  ok(CD.suggest({ userLib: free, material: 'Delrin', type: 'endmill', dia: 8, flutes: 2 })?.source === 'user', 'oneri: kullanicinin kendi malzeme adi');
+  ok(CD.suggest({ userLib: [{ id: 'bad', material: 'aluminum', type: 'endmill', diaMin: 0, diaMax: 100, vc: -5, fz: 0.04 }], material: 'aluminum', type: 'endmill', dia: 6, flutes: 2 }).source === 'builtin', 'oneri: gecersiz kullanici satiri yok sayilir');
+  ok(CD.entryIssues(CD.normalizeEntry({ material: '', vc: 1, fz: 1 })).includes('material') && CD.entryIssues(CD.normalizeEntry({ material: 'x', vc: 0, fz: 1 })).includes('vc') && CD.entryIssues(CD.normalizeEntry({ material: 'x', vc: 1, fz: 1, diaMin: 9, diaMax: 3 })).includes('dia') && CD.entryIssues(CD.normalizeEntry({ material: 'x', vc: 1, fz: 1 })).length === 0, 'satir dogrulama: malzeme, Vc, cap araligi');
+  // belge: cutLib + material semadan gecer, bozuk satir reddedilir
+  { const mk = (c) => ({ params: [], features: [], cam: { v: 1, ...c } }); let okv = true; try { validateDoc(mk({ material: 'aluminum', cutLib: [{ id: 'a', material: 'Delrin', type: 'endmill', diaMin: 0, diaMax: 50, vc: 100, fz: 0.05 }] })); } catch (e) { okv = false; } ok(okv, 'sema: cam.cutLib ve cam.material');
+    let bad = false; try { validateDoc(mk({ cutLib: [{ id: 'a', material: 'x', type: 'laser', vc: 1, fz: 1 }] })); } catch (e) { bad = true; } ok(bad, 'sema: gecersiz tur reddedilir'); }
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
