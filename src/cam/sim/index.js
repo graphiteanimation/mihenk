@@ -276,7 +276,7 @@ export function createSim(input, opts = {}) {
         const b = { x: p[0], y: p[1], z: m.bottom }; sweep(cur.pos, b, 1); cur.pos = b;
         // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
         if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
-        rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance ? m.clearance : m.retract });
+        rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance || m.returnTo === 'clearance' ? m.clearance : m.retract }); // WP-06: returnTo 'clearance' = her nokta G98
         // T-23: cok noktali cevrimde sorunlar NOKTA basina yazilir (hangi delik; tek noktali cevrimlerle ayni sayim)
         if (m.points.length > 1) { cur.cycFresh.push(...flush(cur.si, cur.move, n)); cur.acc = {}; }
       });

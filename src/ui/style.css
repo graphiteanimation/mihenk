@@ -290,3 +290,14 @@
 .welcome h1 + .lead { margin-top: var(--sp-3); }
 .input.pick > span[data-k=profiles] { flex: 1; color: var(--text); }
 .statusbar .sb-main > .seg-i.deps[hidden] { display: none; }
+/* WP-02: geçmiş bildirimi (taşıma/grup reddi) görünüm alanının sol altında; Geçmiş listesini ve şeridi örtmez */
+#hist-note-host { position: absolute; left: var(--sp-4); right: auto; bottom: var(--sp-4); z-index: var(--z-dock); max-width: calc(100% - 2 * var(--sp-4)); }
+#hist-note-host:empty { display: none; }
+/* WP-02 dilim 4: orta-geçmiş bandı (görünüm alanının altında, şeridin hemen üstünde) */
+.mid-band { position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--z-dock); display: flex; align-items: center; gap: var(--sp-3); min-height: var(--ctl-h); padding: 0 var(--sp-4); background: var(--warn-bg); color: var(--warn-fg); border-top: var(--bw) solid var(--warn-bd); font-size: var(--fs-sm); }
+.mid-band .mb-txt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mid-band .btn { flex: none; }
+#viewwrap.mid .vp-hint, #viewwrap.mid #hist-summary-host, #viewwrap.mid #hist-note-host { bottom: calc(var(--ctl-h) + var(--sp-4) + 4px); }
+#tl-marker { cursor: ew-resize; touch-action: none; flex: none; }
+
+#tl-marker.dragging { opacity: .5; } .tl-marker.ghost { opacity: .8; outline: var(--bw-strong) dashed var(--accent); outline-offset: 1px; pointer-events: none; }

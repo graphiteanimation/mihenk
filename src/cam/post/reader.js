@@ -64,6 +64,7 @@ export function readNC(text, opts = {}) {
     S.cycle = null;
     if (cy.lastRetr !== 98) fail('cam.post.read_cycle_end_g99', ln);
     const mv = { t: 'cycle', cycle: cy.kind, points: cy.points, top: cy.R, bottom: cy.Z, retract: cy.R, clearance: cy.startZ, f: cy.f };
+    if (cy.points.length > 1 && cy.modes.every((x) => x === 98) && cy.R < cy.startZ - 1e-9) mv.returnTo = 'clearance'; // her nokta G98: baslangic duzlemine donus
     if (cy.Q != null) mv.peck = cy.Q;
     if (cy.P != null) mv.dwell = cy.P;
     if (cy.kind === 'tap') {
@@ -189,7 +190,7 @@ export function readNC(text, opts = {}) {
         if (wantCycle === 82 || wantCycle === 89) { const a = props.cycleDwellAddress; const pw = a ? W(a) : null; if (a == null || props.cycleDwellUnit == null) fail('cam.post.read_prop_missing', ln, { prop: 'cycleDwellAddress' }); if (!pw) fail('cam.post.read_missing_word', ln, { word: a }); P = readDwell(a, props.cycleDwellUnit, pw, ln); }
         if ((wantCycle === 83 || wantCycle === 73) && !Qw) fail('cam.post.read_missing_word', ln, { word: 'Q' });
         if (wantCycle === 84 || wantCycle === 74) { if (!!words.find((w) => w.l === ',R') !== !!props.tapR1) fail('cam.post.read_tap_r1', ln); }
-        S.cycle = { kind, code: wantCycle, Z: Zw.v, R: Rw.v, Q: Qw ? Qw.v : null, P, f: Fw.v, points: [], lines: [], startZ: S.z, lastRetr: null };
+        S.cycle = { kind, code: wantCycle, Z: Zw.v, R: Rw.v, Q: Qw ? Qw.v : null, P, f: Fw.v, points: [], lines: [], startZ: S.z, lastRetr: null, modes: [] };
         S.f = Fw.v;
       }
       const cy = S.cycle;
@@ -197,7 +198,7 @@ export function readNC(text, opts = {}) {
       if (newMotion != null || compReq !== undefined) fail('cam.post.read_cycle_mix', ln);
       if (!X && !Y && wantCycle == null) { if (retrMode && !hasXYZ) { /* sadece mod degisimi */ } else fail('cam.post.read_missing_word', ln, { word: 'X' }); }
       if (X) S.x = X.v; if (Y) S.y = Y.v;
-      if (X || Y || wantCycle != null) { if (S.x == null || S.y == null) fail('cam.post.read_no_position', ln); cy.points.push([S.x, S.y]); cy.lines.push(ln); }
+      if (X || Y || wantCycle != null) { if (S.x == null || S.y == null) fail('cam.post.read_no_position', ln); cy.points.push([S.x, S.y]); cy.lines.push(ln); cy.modes.push(cy.lastRetr); }
       return;
     }
     if (retrMode) { /* hareketsiz G98/G99 */ }

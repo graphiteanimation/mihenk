@@ -378,3 +378,30 @@ svg.ic.sm { width: 16px; height: 16px; stroke-width: 2; }
 .hwhy { padding: 0 var(--sp-4) var(--sp-2) calc(var(--sp-3) + 52px); color: var(--err-fg); font-size: var(--fs-xs); line-height: var(--lh-base); }
 .seg-i.deps { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .chip.computing::before, .hrow.computing::before { animation: none; width: 100%; opacity: .5; } }
+/* WP-02 dilim 4: sürükleyerek sıra değiştirme. Bırakılabilir aralık düz yeşil çizgi, bağımlılığı bozacak aralık kesik kırmızı çizgi
+   (renk tek kanal değil: desen + ipucunda neden metni). Üstüne gelinen aralık kalın ve tam opak. */
+.hist-dragging .hrow[data-gap]::after { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 0; pointer-events: none; opacity: .55; }
+.hist-dragging .hrow[data-gap=ok]::after { border-top: var(--bw-strong) solid var(--ok-fg); }
+.hist-dragging .hrow[data-gap=no]::after { border-top: var(--bw-strong) dashed var(--err-fg); }
+.hist-dragging .hrow.drop-before::after { opacity: 1; border-top-width: 3px; }
+.hist-dragging .hrow.drop-after[data-gap-end=ok] { box-shadow: inset 0 -3px 0 var(--ok-fg); }
+.hist-dragging .hrow.drop-after.drop-no { box-shadow: inset 0 -3px 0 var(--err-fg); }
+.hist-dragging .chip[data-gap]::before { content: ""; position: absolute; left: -6px; top: 4px; bottom: 4px; width: 0; pointer-events: none; opacity: .55; }
+.hist-dragging .chip[data-gap=ok]::before { border-left: var(--bw-strong) solid var(--ok-fg); }
+.hist-dragging .chip[data-gap=no]::before { border-left: var(--bw-strong) dashed var(--err-fg); }
+.hist-dragging .chip.drop-before::before { opacity: 1; border-left-width: 3px; }
+.hist-dragging .chip.drop-after { box-shadow: inset -3px 0 0 var(--ok-fg); }
+.hist-dragging .chip.drop-after.drop-no { box-shadow: inset -3px 0 0 var(--err-fg); }
+.hrow[draggable=true], .chip[draggable=true] { -webkit-user-drag: element; }
+/* WP-02 dilim 4: gruplar ve aralık seçimi */
+.hrow.hgroup .hn { font-weight: var(--fw-semibold); }
+.hrow.hgroup .hic { color: var(--text-muted); }
+.hrow.insel, .chip.insel { background: var(--accent-tint); }
+.chip.gchip .gnm { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.chip.gchip.open { background: var(--bg-hover); }
+.chip.in-group { box-shadow: inset 0 3px 0 var(--line-strong); }
+.chip.in-group.sel { box-shadow: inset 0 3px 0 var(--line-strong), inset 0 -3px 0 var(--accent); }
+.callout.repair { display: flex; flex-direction: column; gap: var(--sp-2); } .callout.repair .rp-t { display: flex; align-items: center; gap: var(--sp-2); color: var(--c-fg); } .callout.repair .rp-a { display: flex; flex-wrap: wrap; gap: var(--sp-2); } .hwhy { display: flex; align-items: center; gap: var(--sp-3); } .hwhy > span { flex: 1 1 auto; min-width: 0; }
+/* sıraya duyarlı aralık: izinli ama aynı gövdeyi değiştiren işlemlerin yeri değişir (uyarı rengi, noktalı) */
+.hist-dragging .hrow[data-gap=warn]::after { border-top: var(--bw-strong) dotted var(--warn-fg); }
+.hist-dragging .chip[data-gap=warn]::before { border-left: var(--bw-strong) dotted var(--warn-fg); }

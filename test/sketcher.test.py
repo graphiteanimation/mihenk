@@ -556,6 +556,478 @@ try:
     check('pah: köşeye tıklayınca pah çizgisi + uzunluk ölçüsü (dist) eklendi', len(plain) == 1 and len(dc) == 1, (len(plain), s['cons']))
     if plain and dc: check('pah ölçüsü pah çizgisi uzunluğuna eşit (5 mm kol → 7,0711)', near(lens(s, plain[0]['id']), 5 * 2 ** 0.5, 1e-3) and near(lens(s, plain[0]['id']), float(dc[0]['expr']), 1e-3), (lens(s, plain[0]['id']), dc[0]))
 
+    # ---------------------------------------------------------------- WP-09 dilim 1: yakalama
+    print('WP-09 dilim 1: hizalama izi, çeyrek nokta, yakalama filtresi, ızgara aralığı')
+    def snap_reset(): ev("(() => { ['end','center','origin','mid','quad','int','tan','perp','ent','align','grid'].forEach((k) => sk.setSnapKind(k, true)); sk.setGridStep(1); })()")
+    def hover(u, v, dx=0, dy=0): x, y = P(u, v); page.mouse.move(x + dx, y + dy); page.wait_for_timeout(40)
+    def cur(): return ev('sk.cursor ? { kind: sk.cursor.kind, x: sk.cursor.x, y: sk.cursor.y, qi: sk.cursor.qi, n: (sk.cursor.refs || []).length } : null')
+    def dashed(): return ev("sk.gPrev.children.filter((c) => c.material.type === 'LineDashedMaterial').map((c) => Array.from(c.geometry.attributes.position.array))")
+    snap_reset(); fresh()
+    ev("sk._apply((q) => { const p = sk._newPt(20.5, 10.25); sk._addEnt({ type: 'point', p }); const r = sk._newPt(-40.5, -30.25); sk._addEnt({ type: 'point', p: r }); })"); idle()
+    tool('line'); click(-30, -40)
+    hover(20.5, -22.37, 2, 0); c = cur()
+    check('hizalama: başka noktayla dikey hizada imleç o x değerine oturur (20.5, ızgara 21 değil)', c and c['kind'] == 'align' and c['x'] == 20.5 and c['y'] == -22, c)
+    d = dashed()
+    check('hizalama: referans noktadan imlece kesikli iz çizilir', any(len(v) == 6 and v[0] == 20.5 and v[1] == 10.25 and v[3] == 20.5 and v[4] == -22 for v in d), d)
+    hover(-60.4, 10.25, 0, 2); c = cur()
+    check('hizalama: yatay hizada y değerine oturur (10.25)', c and c['kind'] == 'align' and c['y'] == 10.25 and c['x'] == -60, c)
+    hover(20.5, -30.25, 1, 1); c = cur()
+    check('hizalama: iki noktayla aynı anda hizalanınca (x biri, y diğeri) iki iz ve kesişim noktası', c and c['kind'] == 'align' and c['x'] == 20.5 and c['y'] == -30.25 and c['n'] == 2 and len(dashed()) == 2, (c, dashed()))
+    click(20.5, -22.37, ) if False else None
+    x, y = P(20.5, -22.37); page.mouse.move(x + 2, y); page.mouse.click(x + 2, y); idle()
+    ln = ents('line')[-1]; pb = S()['points'][ln['b']]
+    check('hizalama: tıklanan uç nokta tam hizada (x=20.5, y=-22)', pb['x'] == 20.5 and pb['y'] == -22, pb)
+    key('Escape')
+    ev("sk.setSnapKind('align', false)"); tool('line'); click(-30, -40); hover(20.5, -8.37, 2, 0); c = cur()
+    check('hizalama kapalıyken ızgaraya düşer (x=21)', c and c['kind'] == 'grid' and c['x'] == 21 and not dashed(), (c, dashed()))
+    key('Escape'); snap_reset()
+    # çeyrek nokta
+    fresh(); tool('circle'); click(-50, 30); click(-35, 30); tool('line'); click(-80, -40)
+    hover(-50, 45, 2, 2); c = cur()
+    check('çeyrek nokta: dairenin 90° noktası yakalanır', c and c['kind'] == 'quad' and c['qi'] == 1 and near(c['x'], -50) and near(c['y'], 45), c)
+    hover(-65, 30, -2, 1); c = cur()
+    check('çeyrek nokta: 180° noktası', c and c['kind'] == 'quad' and c['qi'] == 2 and near(c['x'], -65) and near(c['y'], 30), c)
+    hover(-50 + 15 * 0.7071, 30 + 15 * 0.7071, 1, 1); c = cur()
+    check('çeyrek nokta: 45° konumunda çeyrek nokta yok (nesne üstü)', c and c['kind'] == 'ent', c)
+    hover(-50, 45, 2, 2); x, y = P(-50, 45); page.mouse.click(x + 2, y + 2); idle()
+    s = S(); ln = ents('line')[-1]; pid = ln['b'] if ln['b'] in s['points'] and abs(s['points'][ln['b']]['y'] - 45) < 1e-6 else None
+    circ = ents('circle')[0]
+    cq = [c for c in s['cons'] if c['type'] == 'pointOn' and c['b'] == circ['id']]
+    cv = [c for c in s['cons'] if c['type'] == 'vertical_pp' and circ['c'] in (c.get('a'), c.get('b'))]
+    check('çeyrek nokta: tıklanan nokta daire üstünde ve merkezle dikey hizalı kısıtlandı', pid is not None and any(c['a'] == pid for c in cq) and any(pid in (c.get('a'), c.get('b')) for c in cv), (pid, cq, cv))
+    key('Escape')
+    ev("sk._apply((q) => { sk._addCon('radius', '%s', undefined, { expr: '20' }); }, { strict: true })" % circ['id']); idle()
+    s2 = S(); p2 = s2['points'].get(pid); cc = s2['points'][circ['c']]; r2 = next(e for e in s2['ents'] if e['id'] == circ['id'])['r']
+    check('çeyrek nokta: yarıçap 20 olunca nokta hâlâ daire üstünde ve merkezle dikey hizalı', near(r2, 20) and near(p2['x'], cc['x'], 1e-4) and near(((p2['x'] - cc['x']) ** 2 + (p2['y'] - cc['y']) ** 2) ** 0.5, 20, 1e-4) and p2['y'] > cc['y'], (p2, cc, r2))
+    # yarım yay: yalnız süpürme içindeki çeyrek nokta
+    fresh(); tool('arc'); click(0, -20); click(30, -20); click(-30, -20); tool('line'); click(60, 40)
+    hover(0, 10, 2, -1); c = cur()
+    check('çeyrek nokta: yarım yayın 90° noktası yakalanır', c and c['kind'] == 'quad' and c['qi'] == 1 and near(c['y'], 10), c)
+    hover(0, -50, 2, 0); c = cur()
+    check('çeyrek nokta: yayın süpürmesi dışındaki 270° noktası yakalanmaz', not c or c['kind'] != 'quad', c)
+    key('Escape')
+    # yakalama filtresi (arayüz) ve kalıcılık
+    fresh(); snap_reset(); tool('circle'); click(-50, 30); click(-35, 30); tool('line'); click(-80, -40)
+    page.click('.sk-cf .cf-btn'); page.wait_for_timeout(50)
+    check('ayarlar paneli açılır (aria-expanded)', ev("document.querySelector('.sk-cf .cf-btn').getAttribute('aria-expanded')") == 'true' and ev("!!document.querySelector('.sk-cf .pop [data-cf=snap-quad]')"))
+    page.click('.sk-cf [data-cf=snap-quad]'); page.wait_for_timeout(50)
+    hover(-50, 45, 2, 2); c = cur()
+    check('yakalama filtresi: çeyrek nokta kapatılınca yakalanmaz', c and c['kind'] != 'quad', c)
+    page.click('.sk-cf [data-cf=snap-quad]'); page.wait_for_timeout(50); hover(-50, 45, 2, 1); c = cur()
+    check('yakalama filtresi: yeniden açılınca yakalanır', c and c['kind'] == 'quad', c)
+    page.click('.sk-cf [data-cf=snap-ent]'); hover(-50 + 15 * 0.7071, 30 + 15 * 0.7071, 1, 1); c = cur()
+    check('yakalama filtresi: nesne üstü kapalıyken daire üzerinde ızgaraya düşer', c and c['kind'] == 'grid', c)
+    page.click('.sk-cf [data-cf=snap-ent]'); key('Escape')
+    # klavye erişimi: düğmeye odak, Enter ile aç, Tab ile onay kutusu, Boşluk ile değiştir
+    page.focus('.sk-cf .cf-btn'); page.keyboard.press('Enter'); page.keyboard.press('Enter'); page.wait_for_timeout(30)
+    page.keyboard.press('Enter'); page.wait_for_timeout(30)
+    check('klavye: Enter ayarlar panelini açar', ev("document.querySelector('.sk-cf .cf-btn').getAttribute('aria-expanded')") == 'true')
+    page.keyboard.press('Tab'); first = ev("document.activeElement.dataset.cf"); page.keyboard.press('Space'); page.wait_for_timeout(30)
+    check('klavye: Tab ile ilk onay kutusuna gidilir, Boşluk ile kapatılır', first == 'snap-end' and ev("sk.skOpts().snapOff.has('end')"), (first, ev('[...sk.skOpts().snapOff]')))
+    page.keyboard.press('Space'); page.keyboard.press('Escape'); page.wait_for_timeout(30)
+    check('klavye: Esc paneli kapatır ve düğmeye odak döner', ev("document.querySelector('.sk-cf .cf-btn').getAttribute('aria-expanded')") == 'false' and ev("document.activeElement.className") == 'cf-btn')
+    # ızgara aralığı
+    page.click('.sk-cf .cf-btn'); page.select_option('.sk-cf [data-cf=grid-step]', '0.5'); page.wait_for_timeout(50)
+    tool('point'); click(10.3, 5.8)
+    pts = [p for k, p in S()['points'].items() if k != 'O' and abs(p['x'] - 10.5) < 1e-9]
+    check('ızgara aralığı 0,5 mm: nokta (10.3; 5.8) → (10.5; 6)', len(pts) == 1 and pts[0]['y'] == 6, S()['points'])
+    page.select_option('.sk-cf [data-cf=grid-step]', '10'); click(23, 37); click(-47, 52)
+    pts = sorted((p['x'], p['y']) for k, p in S()['points'].items() if k != 'O' and k not in ('p1',) and p['x'] % 10 == 0 and p['y'] % 10 == 0)
+    check('ızgara aralığı 10 mm: (23; 37) → (20; 40), (-47; 52) → (-50; 50)', (20, 40) in pts and (-50, 50) in pts, pts)
+    # kalıcılık: sayfa yenilense de ayar korunur
+    ev("sk.setSnapKind('mid', false)")
+    stored = ev("localStorage.getItem('mihenk.skopt_snapoff')"), ev("localStorage.getItem('mihenk.skopt_grid')")
+    check('ayarlar kalıcı depoya yazılır', stored[0] and 'mid' in stored[0] and 'end' not in stored[0] and stored[1] == '10', stored)
+    page.reload(); page.wait_for_function('window.ready === true', timeout=60000)
+    check('ayarlar sayfa yenilenince geri yüklenir', ev("sk.skOpts().snapOff.has('mid') && sk.skOpts().grid === 10"), ev('[...sk.skOpts().snapOff]'))
+    snap_reset(); check('ayarlar sıfırlanınca varsayılan (ızgara 1)', ev('sk.skOpts().grid') == 1 and ev('sk.skOpts().snapOff.size') == 0)
+    fresh()
+
+    # ---------------------------------------------------------------- WP-09 dilim 2: giriş
+    print('WP-09 dilim 2: koordinat girişi, komut tekrarı, seçim filtresi')
+    def cbox(): return ev("!!document.querySelector('.sk-num [data-k=x]')")
+    def coord(x, y, rel=None, tabs=2):
+        key('n'); page.wait_for_timeout(30)
+        if rel is not None:
+            for _ in range(2): page.keyboard.press('Tab')
+            page.keyboard.press('Space')   # kip değişince odak x alanına döner
+        page.keyboard.type(str(x)); page.keyboard.press('Tab'); page.keyboard.type(str(y)); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(60)
+    snap_reset(); fresh(); tool('line')
+    key('n'); check('N: çizgi aracında koordinat kutusu açılır', cbox())
+    check('N: ilk noktada bağıl seçeneği kapalı (başvuru noktası yok)', ev("document.querySelector('.sk-num [data-k=rel]').disabled") is True)
+    page.keyboard.type('12.5'); page.keyboard.press('Tab'); page.keyboard.type('7.25'); page.keyboard.press('Enter'); idle()
+    st = ev('sk._ln && { x: sk._ln.start.x, y: sk._ln.start.y }')
+    check('mutlak koordinat: çizgi başlangıcı (12,5; 7,25) tam değerde (ızgaraya yuvarlanmaz)', st and st['x'] == 12.5 and st['y'] == 7.25, st)
+    check('koordinat girişi sonrası kutu kapanır', not cbox())
+    key('n')
+    check('ikinci noktada bağıl seçeneği açık ve varsayılan bağıl (ΔX etiketi)', ev("document.querySelector('.sk-num [data-k=rel]').checked") is True and 'ΔX' in ev("document.querySelector('.sk-num').innerText"))
+    page.keyboard.type('10'); page.keyboard.press('Tab'); page.keyboard.type('0'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(100); idle()
+    s = S(); ln = ents('line')
+    check('bağıl koordinat: (ΔX 10; ΔY 0) çizgi (12,5; 7,25) → (22,5; 7,25)', len(ln) == 1 and P_(s, ln[0]['b']) == (22.5, 7.25), [P_(s, l['b']) for l in ln])
+    check('tam yatay yazılan bağıl koordinat yatay kısıt ekler', any(c['type'] == 'horizontal' and c['a'] == ln[0]['id'] for c in s['cons']), s['cons'])
+    # ifade + bağıl dikey hareket (L = 60 değişkeni)
+    coord('L/2', '-4')
+    s = S(); ln = ents('line')
+    check('ifade ve değişken: ΔX = L/2 = 30, ΔY = -4', len(ln) == 2 and P_(s, ln[1]['b']) == (52.5, 3.25), [P_(s, l['b']) for l in ln])
+    # bağıl → mutlak geçiş (onay kutusu Tab+Boşluk) ve kalan alanlar yeniden dolar
+    coord(40, 30, rel=False)
+    s = S(); ln = ents('line')
+    check('mutlak kipe geçince koordinat dünya değeri (40; 30)', len(ln) == 3 and P_(s, ln[2]['b']) == (40, 30), [P_(s, l['b']) for l in ln])
+    # başlangıç noktasının koordinatını yazmak zinciri kapatır, yinelenen nokta oluşmaz
+    n0 = len(S()['points']); coord(12.5, 7.25, rel=False)
+    s = S(); ln = ents('line')
+    check('mevcut noktanın koordinatı yazılınca o nokta kullanılır (zincir kapanır, yeni nokta yok)', len(s['points']) == n0 and ln[3]['b'] == ln[0]['a'] and ev('sk._ln') is None, (n0, len(s['points'])))
+    # Esc vazgeçer
+    tool('line'); key('n'); page.keyboard.type('99'); page.keyboard.press('Escape'); idle()
+    check('koordinat kutusunda Esc: kutu kapanır, nokta eklenmez', not cbox() and ev('sk._ln') is None and len(ents('line')) == 4)
+    key('Escape')
+    # hatalı ifade kutuyu açık tutar
+    tool('line'); key('n'); page.keyboard.type('abc+'); page.keyboard.press('Tab'); page.keyboard.type('1'); page.keyboard.press('Enter'); idle()
+    check('hatalı ifade: kutu açık kalır ve hata gösterilir', cbox() and ev("document.querySelector('.sk-num').classList.contains('bad')"))
+    page.keyboard.press('Escape'); key('Escape')
+    # dikdörtgen ve daire
+    fresh(); tool('rect'); coord(-10, -5); coord(20, 15)
+    s = S(); xs = sorted({round(p['x'], 6) for k, p in s['points'].items() if k != 'O'}); ys = sorted({round(p['y'], 6) for k, p in s['points'].items() if k != 'O'})
+    check('dikdörtgen: köşe (-10;-5) + bağıl (20;15) → (-10..10, -5..10)', xs == [-10, 10] and ys == [-5, 10] and len(ents('line')) == 4, (xs, ys))
+    fresh(); tool('circle'); coord(5, 5); coord(0, 7)
+    c = ents('circle')[0]; s = S()
+    check('daire: merkez (5;5), bağıl nokta (0;7) → r = 7', near(c['r'], 7) and P_(s, c['c']) == (5, 5), (c, P_(s, c['c'])))
+    key('Escape')
+    # komut tekrarı
+    fresh(); tool('rect'); click(-20, -10); click(20, 10); key('Escape'); key('Escape')
+    check('Esc ile Seç aracına dönüldü', ev('sk.tool') == 'select')
+    key('Enter'); check('Enter son komutu (dikdörtgen) yineler', ev('sk.tool') == 'rect', ev('sk.tool'))
+    click(40, -10); click(60, 10)
+    check('yinelenen komut çalışır: ikinci dikdörtgen çizildi', len(ents('line')) == 8, len(ents('line')))
+    key('Escape'); key('Escape'); tool('select'); key('Space'); check('Boşluk da son komutu yineler', ev('sk.tool') == 'rect', ev('sk.tool'))
+    tool('circle'); key('Escape'); key('Enter'); check('son komut güncellenir (daire)', ev('sk.tool') == 'circle', ev('sk.tool'))
+    key('Escape'); key('Escape')
+    # seçim filtresi
+    fresh(); snap_reset(); tool('rect'); click(-30, -10); click(-10, 10); tool('circle'); click(30, 0); click(40, 0); tool('select')
+    page.click('.sk-cf .cf-btn'); page.wait_for_timeout(30)
+    click(-20, -10); line_sel = ev('sk.selection.map((s) => s.kind + ":" + s.id)')
+    check('önkoşul: filtre kapalıyken kenara tıklayınca çizgi seçilir', len(line_sel) == 1 and line_sel[0].startswith('ent:l'), line_sel)
+    page.click('.sk-cf [data-cf=sel-line]'); ev('sk._setSel([])'); click(-20, -10)
+    check('seçim filtresi: Çizgiler kapalıyken çizgi seçilmez', ev('sk.selection.length') == 0, ev('sk.selection'))
+    click(30, 10); sel = ev('sk.selection.map((s) => s.kind + ":" + s.id)')
+    check('seçim filtresi: daire hâlâ seçilir', len(sel) == 1 and sel[0].startswith('ent:c'), sel)
+    ev('sk._setSel([])'); click(-30, -10); sel = ev('sk.selection.map((s) => s.kind + ":" + s.id)')
+    check('seçim filtresi: Çizgiler kapalıyken köşe noktası seçilir', len(sel) == 1 and sel[0].startswith('point:'), sel)
+    page.click('.sk-cf [data-cf=sel-point]'); ev('sk._setSel([])'); click(-30, -10)
+    check('seçim filtresi: Noktalar ve Çizgiler kapalıyken köşe hiçbir şey seçmez', ev('sk.selection.length') == 0, ev('sk.selection'))
+    page.click('.sk-cf [data-cf=sel-point]')
+    ev('sk.selectAll()')
+    check('Tümünü seç (Ctrl+A) filtreye uyar: yalnız daire', ev('sk.selection.length') == 1 and ev("sk.selection[0].id.startsWith('c')"), ev('sk.selection'))
+    ev('sk._setSel([])'); x0, y0 = P(-35, -15); x1, y1 = P(45, 15); page.mouse.move(x0, y0); page.mouse.down(); page.mouse.move(x1, y1, steps=4); page.mouse.up(); idle()
+    sel = ev('sk.selection.map((s) => s.kind + ":" + s.id)')
+    check('kutuyla seçim filtreye uyar: çizgi yok, daire + noktalar var', sel and not any(x.startswith('ent:l') for x in sel) and any(x.startswith('ent:c') for x in sel), sel)
+    tool('dim'); click(-20, -10)
+    check('filtre ölçü aracını etkilemez: çizgi ölçülebilir', ev('!!sk._input'), None)
+    key('Escape'); tool('select')
+    page.click('.sk-cf [data-cf=sel-line]'); ev('sk._setSel([])'); click(-20, -10)
+    check('filtre yeniden açılınca çizgi seçilir', ev('sk.selection.length') == 1)
+    # ---------------------------------------------------------------- WP-09 dilim 3: kısıt
+    print('WP-09 dilim 3: otomatik kısıtlandırma (bugünkü davranış korunur, kapatılabilir), referans ölçü')
+    import math
+    def cf(k):
+        if not ev("!!document.querySelector('.sk-cf .pop')"): page.click('.sk-cf .cf-btn')
+        page.click(f'.sk-cf [data-cf={k}]')
+    def con_types(s): return sorted(c['type'] for c in s['cons'])
+    def auto_reset(): ev("(() => { sk.setAuto(true); ['hv','tan','perp','coin','on','mid'].forEach((k) => sk.setAutoKind(k, true)); sk.setAutoRef(false); })()")
+    def hv_line():
+        fresh(); tool('line'); click(-40, -40); click(20, -39); click(20, 10); key('Escape')   # 1/60 ~ 1 derece, sonra ~ -1,2 derece dikeye
+        return S()
+    auto_reset(); snap_reset()
+    s = hv_line(); ln = ents('line')
+    check('[bugünkü davranış] çizgi ~1° eğik çizilince yatay kısıtlanır ve y eşitlenir', len(ln) == 2 and any(c['type'] == 'horizontal' and c['a'] == ln[0]['id'] for c in s['cons']) and near(P_(s, ln[0]['b'])[1], -40), (s['cons'], ))
+    check('[bugünkü davranış] ikinci çizgi dikey kısıtlanır', any(c['type'] == 'vertical' and c['a'] == ln[1]['id'] for c in s['cons']), s['cons'])
+    # teğet: (30,60) noktasından r=10 daireye
+    fresh(); tool('circle'); click(30, 20); click(40, 20); tool('line'); click(30, 60)
+    ph = 0.25; T = (30 + 10 * math.sqrt(1 - ph * ph), 20 + 10 * ph)
+    hover(T[0], T[1], 1, 0); c = cur(); check('[bugünkü davranış] teğet noktası yakalanır', c and c['kind'] == 'tan', c)
+    x, y = P(T[0], T[1]); page.mouse.click(x + 1, y); idle(); s = S(); circ = ents('circle')[0]
+    check('[bugünkü davranış] çizgi daireye teğet kısıtlanır', any(c['type'] == 'tangent' and circ['id'] in (c['a'], c['b']) for c in s['cons']), s['cons'])
+    key('Escape')
+    # dik
+    fresh(); tool('line'); click(-40, 10); click(40, 10); key('Escape'); tool('line'); click(13, 40); hover(13, 10, 1, 1); c = cur()
+    check('[bugünkü davranış] dik ayak noktası yakalanır', c and c['kind'] == 'perp', c)
+    page.mouse.click(*[v + 1 for v in P(13, 10)]); idle(); s = S()
+    check('[bugünkü davranış] dik kısıtı eklenir', 'perpendicular' in con_types(s), s['cons']); key('Escape')
+    # çakışık (nokta paylaşımı), nesne üstü, orta nokta
+    fresh(); tool('rect'); click(-20, -10); click(20, 10); tool('line'); click(20, 10); click(50, 30); key('Escape'); s = S()
+    ln = [e for e in s['ents'] if e['type'] == 'line'][-1]; corner = [e for e in s['ents'] if e['type'] == 'line'][1]['b']
+    check('[bugünkü davranış] mevcut köşeye başlayan çizgi o noktayı paylaşır (çakışık)', ln['a'] in [e[k] for e in s['ents'] if e['type'] == 'line' and e is not ln for k in ('a', 'b')] and len(s['points']) == 1 + 4 + 1, (len(s['points']), ln))
+    tool('line'); click(7, -10); click(7, -40); key('Escape'); s = S()
+    check('[bugünkü davranış] çizgi üstüne başlayan çizgi pointOn kısıtı alır', 'pointOn' in con_types(s), s['cons'])
+    tool('line'); click(0, 10); click(0, 40); key('Escape'); s = S()
+    check('[bugünkü davranış] orta noktadan başlayan çizgi midpoint kısıtı alır', 'midpoint' in con_types(s), s['cons'])
+    # --- kapatma
+    cf('auto-hv'); s = hv_line(); ln = ents('line')
+    check('otomatik yatay/dikey kapalı: eğik çizgi eğik kalır, kısıt yok', not any(c['type'] in ('horizontal', 'vertical') for c in s['cons']) and not near(P_(s, ln[0]['b'])[1], -40), s['cons'])
+    cf('auto-hv')
+    cf('auto-tan'); fresh(); tool('circle'); click(30, 20); click(40, 20); tool('line'); click(30, 60); hover(T[0], T[1], 1, 0); page.mouse.click(*[v + d for v, d in zip(P(T[0], T[1]), (1, 0))]); idle(); s = S()
+    check('otomatik teğet kapalı: teğet kısıtı eklenmez', 'tangent' not in con_types(s) and len(ents('line')) == 1, s['cons']); key('Escape')
+    cf('auto-tan')
+    cf('auto-coin'); fresh(); tool('rect'); click(-20, -10); click(20, 10); tool('line'); click(20, 10); click(50, 30); key('Escape'); s = S()
+    check('otomatik çakışık kapalı: köşede yeni nokta açılır (paylaşım yok), aynı konumda', len(s['points']) == 1 + 4 + 2 and sum(1 for p in s['points'].values() if p['x'] == 20 and p['y'] == 10) == 2, (len(s['points']), s['points']))
+    cf('auto-coin')
+    cf('auto-on'); fresh(); tool('rect'); click(-20, -10); click(20, 10); tool('line'); click(7, -10); click(7, -40); key('Escape'); s = S()
+    check('otomatik nesne üstünde kapalı: pointOn eklenmez', 'pointOn' not in con_types(s), s['cons']); cf('auto-on')
+    cf('auto-mid'); fresh(); tool('rect'); click(-20, -10); click(20, 10); tool('line'); click(0, 10); click(0, 40); key('Escape'); s = S()
+    check('otomatik orta nokta kapalı: midpoint eklenmez', 'midpoint' not in con_types(s), s['cons']); cf('auto-mid')
+    cf('auto-all'); s = hv_line()
+    check('ana anahtar kapalı: hiçbir otomatik kısıt eklenmez', con_types(s) == [], s['cons'])
+    cf('auto-all'); s = hv_line()
+    check('ana anahtar açılınca eski davranış geri gelir', 'horizontal' in con_types(s) and 'vertical' in con_types(s), s['cons'])
+    # --- aşırı kısıtta referans ölçü
+    fresh(); line((-20, 5), (20, 5)); rl = ents('line')[0]
+    tool('hdim'); click(0, 5); page.keyboard.type('40'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(200); idle()
+    dims0 = [c for c in S()['cons'] if c['type'] == 'hdist']
+    check('önkoşul: 40 mm yatay ölçü sürücü olarak eklendi', len(dims0) == 1 and not dims0[0].get('ref'), S()['cons'])
+    tool('dim'); click(0, 5); page.keyboard.type('25'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(200); idle()
+    st = status() or ''
+    check('çelişen ölçü yine reddedilir; durum satırı Ctrl+Enter ipucunu verir', len([c for c in S()['cons'] if c['type'] in ('hdist', 'dist')]) == 1 and 'çelişiyor' in st and 'Ctrl+Enter' in st, st)
+    check('ret sonrası ölçü kutusu açık kalır', ev("!!document.querySelector('.sk-input')"))
+    page.keyboard.press('Control+Enter'); idle(); page.wait_for_timeout(250); idle()
+    ds = [c for c in S()['cons'] if c['type'] in ('hdist', 'dist')]
+    refs = [c for c in ds if c.get('ref')]
+    check('Ctrl+Enter: aşırı kısıtlayan ölçü referans (sürülen) ölçü olarak eklenir', len(ds) == 2 and len(refs) == 1 and near(float(refs[0]['expr']), 40, 1e-4), ds)
+    check('referans ölçü geometriyi etkilemez (uzunluk 40) ve çözüm geçerli', near(lens(S(), rl['id']), 40, 1e-4) and ev('sk.lastSolve.ok'), None)
+    check('referans ölçü etiketi parantezli', ev("[...document.querySelectorAll('.dim.ref')].some((e) => e.textContent.trim() === '(40)')"), ev("[...document.querySelectorAll('.dim')].map((e) => e.textContent)"))
+    # gereksiz (aynı değer) ölçü de aynı yolla referans olabilir; otomatik ayar sormadan çevirir
+    cf('auto-ref'); page.keyboard.press('Escape')
+    fresh(); line((-20, 5), (20, 5)); rl = ents('line')[0]
+    tool('hdim'); click(0, 5); page.keyboard.type('40'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(200); idle()
+    tool('dim'); click(0, 5); page.keyboard.type('40'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(250); idle()
+    ds = [c for c in S()['cons'] if c['type'] in ('hdist', 'dist')]
+    check('otomatik referans açıkken gereksiz ölçü sormadan referans olur', len(ds) == 2 and sum(1 for c in ds if c.get('ref')) == 1 and not ev("!!document.querySelector('.sk-input')") and 'referans' in (status() or ''), (len(ds), status()))
+    tool('select'); ev('sk.setAutoRef(false)')
+    ev("(() => { sk.setAuto(true); })()")
+    # ---------------------------------------------------------------- WP-09 dilim 4: ilişkisel izdüşüm
+    print('WP-09 dilim 4: ilişkisel izdüşüm (gövde kenarı eskize bağlı, model değişince güncellenir)')
+    ev("""(() => { window.mkBody = (segs) => { const lines = new Float32Array(segs.flatMap((s) => s.pts.flat())); let off = 0; const eg = segs.map((s) => { const g = { idx: s.idx, start: off, count: s.pts.length }; off += s.pts.length; return g; }); return { id: 'b1', lines, edgeGroups: eg }; }; })()""")
+    ev("window.body = mkBody([{ idx: 0, pts: [[10, 5, 0], [50, 5, 0]] }, { idx: 1, pts: [[50, 5, 0], [50, 25, 0]] }]); sk.getBodies = () => [window.body];")
+    fresh()
+    r = ev("sk._projectGo({ mode: 'all' })"); idle(); s = S()
+    pl = [e for e in s['ents'] if e['type'] == 'line' and e.get('proj')]
+    check('izdüşüm: iki kenar bağlı (proj) çizgi olarak geldi', len(pl) == 2 and all(e['proj']['b'] == 'b1' for e in pl) and sorted(e['proj']['g'] for e in pl) == [0, 1], s['ents'])
+    check('izdüşüm çizgileri sabit noktalı yapı geometrisi', all(e.get('cons') for e in pl) and all(s['points'][e['a']].get('fixed') for e in pl), None)
+    # izdüşüm ucundan çizgi çiz (çakışık), sonra gövde değişsin
+    tool('line'); click(50, 25); click(80, 40); key('Escape'); s = S()
+    own = [e for e in s['ents'] if e['type'] == 'line' and not e.get('proj')][0]
+    shared = own['a']
+    ev("window.body.lines.set([10, 5, 0, 70, 5, 0, 70, 5, 0, 70, 25, 0])")
+    r = ev("sk.refreshProjections()"); idle(); page.wait_for_timeout(150); idle(); s = S()
+    p0 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 0][0]; p1 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 1][0]
+    check('model değişince izdüşüm yeni kenara taşınır: (10;5)-(50;5) → (10;5)-(70;5) (aynı doğrultu)', P_(s, p0['a']) == (10, 5) and P_(s, p0['b']) == (70, 5), (P_(s, p0['a']), P_(s, p0['b'])))
+    check('ikinci kenar (70;5)→(70;25)', P_(s, p1['a']) == (70, 5) and P_(s, p1['b']) == (70, 25), (P_(s, p1['a']), P_(s, p1['b'])))
+    check('izdüşüm ucunu paylaşan kendi çizgisi uçla birlikte taşınır (50;25 → 70;25)', P_(s, shared) == (70, 25) and ev('sk.lastSolve.ok'), P_(s, shared))
+    check('güncelleme geri alınabilir', ev('sk._undo.length') > 0 and (ev('sk.undo()') is None or True) and (idle() or True) and P_(S(), p0['b']) == (50, 5), P_(S(), p0['b']))
+    ev("sk.redo()"); idle()
+    # düğme (arayüz) ve değişmemiş durum
+    page.click('.sk-cf .cf-btn') if not ev("!!document.querySelector('.sk-cf .pop')") else None
+    page.click('.sk-cf [data-cf=proj-refresh]'); idle(); st = status() or ''
+    check('değişiklik yokken güncelle düğmesi "zaten güncel" der', 'güncel' in st, st)
+    # eskiz yeniden açılırken otomatik güncelleme (kaydet-kapat-aç)
+    feat = ev("sk.stop()")
+    ev("window.body.lines.set([10, 5, 0, 94, 5, 0, 94, 5, 0, 94, 30, 0])")
+    ev("(f) => begin('XY', f)", feat); idle(); s = S()
+    p0 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 0][0]
+    check('eskiz yeniden açılınca bağlı izdüşüm gövdeden güncellenir', P_(s, p0['b']) == (94, 5), P_(s, p0['b']))
+    check('açılışta güncelleme bildirilir', 'güncellendi' in ' '.join(ev('window.statusLog.slice(-6)')), ev('window.statusLog.slice(-6)'))
+    # kenar numarası değişti (geometri aynı): kaynak kenar imzasıyla bulunur
+    ev("window.body = mkBody([{ idx: 7, pts: [[10, 5, 0], [94, 5, 0]] }, { idx: 9, pts: [[94, 5, 0], [94, 30, 0]] }]); sk.getBodies = () => [window.body];")
+    ev("sk.refreshProjections()"); idle(); s = S(); p0 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 7][0]
+    check('kenar numarası değişince imzaya uyan kenar izlenir (0 → 7, bağ güncellenir)', P_(s, p0['b']) == (94, 5) and not p0['proj'].get('lost') and p0['proj']['g'] == 7, (P_(s, p0['b']), p0['proj']))
+    # kenar yok olursa: nesne korunur, bağ kopuk işaretlenir
+    ev("window.body = mkBody([{ idx: 0, pts: [[300, 300, 0], [320, 300, 0]] }]); sk.getBodies = () => [window.body];")
+    ev("sk.refreshProjections()"); idle(); s = S(); p1 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 9][0]
+    check('kaynak kenar yoksa nesne olduğu gibi kalır, bağ korunur ve kullanıcı uyarılır', 'bulunamadı' in (status() or '') and P_(s, p1['a']) == (94, 5) and p1['proj']['g'] == 9, (status(), p1))
+    # doğru → daire: tür değişti, aynı kenar sayılmaz (bağ düzeltmesi): nesne yerinde kalır, grup lost; yeniden kurulmaz
+    ev("window.body = mkBody([{ idx: 7, pts: Array.from({ length: 73 }, (_, i) => [52 + 10 * Math.cos(i * Math.PI / 36), 5 + 10 * Math.sin(i * Math.PI / 36), 0]).flatMap((p, i, a) => i < a.length - 1 ? [p, a[i + 1]] : []) }]); sk.getBodies = () => [window.body];")
+    ev("sk.refreshProjections()"); idle(); s = S()
+    circ = [e for e in s['ents'] if e['type'] == 'circle']
+    check('doğru kenar daireye dönünce (tür değişti) bağlanmaz: daire üretilmez, nesne yerinde, lost', not circ and all(e['proj'].get('lost') for e in s['ents'] if e.get('proj')) and P_(s, p0['b']) == (94, 5), [e for e in s['ents'] if e.get('proj')])
+    ev("sk.getBodies = () => []"); fresh()
+    # ---------------------------------------------------------------- WP-09 dilim 5: görüntü modları, adlandırılmış görünüşler
+    print('WP-09 dilim 5: görüntü modları ve adlandırılmış görünüşler')
+    ev("""(() => {
+      window.mkTri = () => ({ id: 'bt', vertices: new Float32Array([-30, -30, 0, 30, -30, 0, 0, 30, 0]), normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), triangles: new Uint16Array([0, 1, 2]),
+        lines: new Float32Array([-30, -30, 0, 30, -30, 0, 30, -30, 0, 0, 30, 0, 0, 30, 0, -30, -30, 0]), edgeGroups: [{ idx: 0, start: 0, count: 6 }], bbox: [[-30, -30, 0], [30, 30, 0]] });
+      window.pix = (x, y) => { const c = vp.renderer.domElement, k = document.createElement('canvas'); k.width = c.width; k.height = c.height; const g = k.getContext('2d'); g.drawImage(c, 0, 0); const r = c.width / c.clientWidth; return Array.from(g.getImageData(Math.round(x * r), Math.round(y * r), 1, 1).data); };
+    })()""")
+    fresh(); ev("sk.cancel()"); ev("vp.setBodies([mkTri()]); vp.view('top', true)"); page.wait_for_timeout(250)
+    def center_pix():
+        pt = ev("(() => { const q = vp.project(new V.THREE_V3 ? 0 : 0); return null; })()") if False else None
+        xy = ev("(() => { const p = vp.project([0, -8, 0]); return p; })()")
+        return ev("(xy) => pix(xy[0], xy[1])", xy)
+    ev("vp.dirty = true"); page.wait_for_timeout(200)
+    px_shaded = center_pix()
+    check('varsayılan mod gölgeli+kenar: yüz çizilir (opak piksel)', ev('vp.displayMode()') == 'shaded' and px_shaded[3] == 255, px_shaded)
+    ev("vp.setDisplayMode('wire')"); page.wait_for_timeout(250)
+    px_wire = center_pix(); ev("vp.setBodies([])"); page.wait_for_timeout(250); px_empty = center_pix(); ev("vp.setBodies([mkTri()])"); page.wait_for_timeout(250)
+    check('tel kafes: yüz çizilmez (piksel gövdesiz görüntüyle aynı), kenarlar kalır', px_wire == px_empty and px_wire != px_shaded and ev("vp.bodies.get('bt').lines.material.depthTest") is False and ev("vp.bodies.get('bt').lines.visible") is True, px_wire)
+    ev("vp.setDisplayMode('ghost')"); page.wait_for_timeout(250)
+    px_ghost = center_pix()
+    check('saydam: yüz yarı saydam çizilir (0 < alfa < 255)', 0 < px_ghost[3] < 255, px_ghost)
+    ev("vp.setBodies([mkTri()])"); page.wait_for_timeout(250); px_re = center_pix()
+    check('gövdeler yeniden kurulunca (setBodies) seçili mod korunur', ev("vp.displayMode()") == 'ghost' and 0 < px_re[3] < 255 and ev("vp.bodies.get('bt').mesh.material.transparent") is True, px_re)
+    ev("vp.setDisplayMode('shaded')"); page.wait_for_timeout(250)
+    check('gölgeli+kenar moduna dönünce yüz yine opak', center_pix()[3] == 255)
+    check('geçersiz mod reddedilir', ev("vp.setDisplayMode('xyz')") is False and ev('vp.displayMode()') == 'shaded')
+    # arayüz: düğmeler, aria-pressed, kalıcılık
+    page.click('.vp-disp [data-vd=mode-wire]'); page.wait_for_timeout(200)
+    check('mod düğmesi tel kafesi seçer ve aria-pressed işaretlenir', ev("vp.displayMode()") == 'wire' and ev("document.querySelector('.vp-disp [data-vd=mode-wire]').getAttribute('aria-pressed')") == 'true' and ev("document.querySelector('.vp-disp [data-vd=mode-shaded]').getAttribute('aria-pressed')") == 'false')
+    check('görüntü modu kalıcı depoya yazıldı', ev("localStorage.getItem('mihenk.vp_display')") == 'wire')
+    page.focus('.vp-disp [data-vd=mode-ghost]'); page.keyboard.press('Enter'); page.wait_for_timeout(100)
+    check('klavye: odaktaki mod düğmesi Enter ile seçilir', ev('vp.displayMode()') == 'ghost')
+    # adlandırılmış görünüşler
+    ev("vp.view('top', true)"); ev("vp.camera.zoom = 2.5; vp.camera.updateProjectionMatrix(); vp.controls.update()")
+    a = ev('vp.viewState()')
+    r = ev("vp.saveNamedView('Üst yakın')")
+    check('görünüş kaydedilir', r['ok'] and r['slot'] == 1 and [v['name'] for v in ev('vp.namedViews()')] == ['Üst yakın'], r)
+    ev("vp.view('front', true)"); b = ev('vp.viewState()')
+    check('önkoşul: görünüş değişti', abs(b['p'][1] - a['p'][1]) > 1 or abs(b['z'] - a['z']) > 0.01, (a, b))
+    check('görünüş çağrılır: kamera konumu, hedef, yukarı yönü ve yakınlaştırma geri gelir', ev("vp.recallNamedView('üst YAKıN')") is True and all(abs(x - y) < 0.01 for x, y in zip(ev('vp.viewState()')['p'] + ev('vp.viewState()')['t'] + ev('vp.viewState()')['u'] + [ev('vp.viewState()')['z'], ev('vp.viewState()')['h']], a['p'] + a['t'] + a['u'] + [a['z'], a['h']])), (a, ev('vp.viewState()')))
+    r2 = ev("vp.saveNamedView('ÜST yakın')")
+    check('aynı ad (büyük/küçük harf farksız) üzerine yazar, yeni yuva açmaz', r2['ok'] and r2['replaced'] and len(ev('vp.namedViews()')) == 1, r2)
+    st = ev("localStorage.getItem('mihenk.nv_1')")
+    check('görünüş kalıcı depoda ve ayar sınırı (200 karakter) içinde', st and len(st) <= 200 and st.startswith('ÜST yakın|'), st)
+    check('boş ad reddedilir', ev("vp.saveNamedView('  ')")['ok'] is False)
+    # arayüzden kaydet / çağır / sil
+    page.click('.vp-disp [data-vd=views]'); page.wait_for_timeout(50)
+    check('görünüşler paneli açılır, kayıtlı görünüş listelenir', ev("[...document.querySelectorAll('.vp-disp .vd-go')].map((b) => b.textContent)") == ['ÜST yakın'])
+    page.fill('.vp-disp [data-vd=name]', 'Ön'); ev("vp.view('front', true)"); page.press('.vp-disp [data-vd=name]', 'Enter'); page.wait_for_timeout(80)
+    check('arayüz: ad yazıp Enter ile kaydedilir', [v['name'] for v in ev('vp.namedViews()')] == ['ÜST yakın', 'Ön'], ev('vp.namedViews()'))
+    ev("vp.view('top', true)"); page.click('.vp-disp .vd-go[data-vd=go-2]'); page.wait_for_timeout(80)
+    check('arayüz: listedeki ada tıklayınca görünüş çağrılır (ön görünüş)', abs(ev('vp.viewState()')['p'][1]) > 100, ev('vp.viewState()'))
+    page.keyboard.press('Escape') if False else None
+    page.focus('.vp-disp [data-vd=name]'); page.keyboard.press('Escape'); page.wait_for_timeout(50)
+    check('Esc paneli kapatır', ev("!document.querySelector('.vp-disp .vd-pop')"))
+    page.click('.vp-disp [data-vd=views]'); page.click('.vp-disp [data-vd=del-2]'); page.wait_for_timeout(50)
+    check('arayüz: × ile görünüş silinir', [v['name'] for v in ev('vp.namedViews()')] == ['ÜST yakın'])
+    for i in range(11): ev("(i) => vp.saveNamedView('v' + i)", i)
+    check('12 görünüşe kadar kaydedilir', len(ev('vp.namedViews()')) == 12)
+    r3 = ev("vp.saveNamedView('fazla')")
+    check('liste dolunca yeni kayıt reddedilir (hata anahtarı döner)', r3['ok'] is False and r3['err'] == 'vd.full', r3)
+    # kalıcılık: sayfa yenilense de mod ve görünüşler kalır
+    page.reload(); page.wait_for_function('window.ready === true', timeout=60000)
+    ev('begin("XY")'); ev("sk.cancel()")
+    check('sayfa yenilenince görüntü modu geri yüklenir', ev('vp.displayMode()') == 'ghost', ev('vp.displayMode()'))
+    check('sayfa yenilenince adlandırılmış görünüşler geri yüklenir', len(ev('vp.namedViews()')) == 12 and ev("vp.recallNamedView('ÜST yakın')") is True)
+    ev("vp.setDisplayMode('shaded'); [...vp.namedViews()].forEach((v) => vp.deleteNamedView(v.name))")
+    check('temizlik: görünüşler silindi', len(ev('vp.namedViews()')) == 0)
+
+    # ---------------------------------------------------------------- WP-09 düzeltme turu (bağımsız doğrulama RET'i)
+    print('WP-09 düzeltme: ilişkisel izdüşüm güvenliği (sabit nokta, düzenleme, eşleştirme, lost görünürlüğü)')
+    page.reload(); page.wait_for_function('window.ready === true', timeout=60000); ev('begin("XY")'); ev('sk.cancel()')
+    ev("""(() => { window.mkBody = (segs, id = 'b1') => { const lines = new Float32Array(segs.flatMap((s) => s.pts.flat())); let off = 0; const eg = segs.map((s) => { const g = { idx: s.idx, start: off, count: s.pts.length }; off += s.pts.length; return g; }); return { id, lines, edgeGroups: eg }; }; })()""")
+    def proj_ents(s): return [e for e in s['ents'] if e.get('proj')]
+    def refresh(): ev("sk.refreshProjections()"); idle(); page.wait_for_timeout(120); idle()
+    ev("(() => { for (const k of ['end','center','origin','mid','quad','int','tan','perp','ent','align','grid']) sk.setSnapKind(k, true); sk.setAuto(true); sk.setGridStep(1); })()")
+    # 1) orijin ve sabit noktalar taşınmaz
+    ev("window.body = mkBody([{ idx: 1, pts: [[0, 0, 0], [100, 0, 0]] }, { idx: 2, pts: [[0, 40, 0], [100, 40, 0]] }]); sk.getBodies = () => [window.body];")
+    fresh(); ev("sk._projectGo({ mode: 'all' })"); idle()
+    tool('line'); click(0, 0); click(0, -30); key('Escape'); s = S()
+    own = [e for e in s['ents'] if e['type'] == 'line' and not e.get('proj')][0]
+    check('[orijin] orijinden başlayan izdüşüm O ile paylaşılır', any(e['a'] == 'O' for e in proj_ents(s)) and own['a'] == 'O', s['ents'])
+    ev("window.body.lines.set([5, 0, 0, 105, 0, 0, 5, 40, 0, 105, 40, 0])"); refresh(); s = S()
+    p1 = [e for e in proj_ents(s) if e['proj']['g'] == 1][0]
+    check('[orijin] gövde kenarı 5 mm kayınca O (0;0) yerinde kalır', P_(s, 'O') == (0, 0) and s['points']['O'].get('fixed'), P_(s, 'O'))
+    check('[orijin] izdüşüm yeni kenara ayrı noktayla taşınır (5;0)-(105;0), kullanıcı çizgisi O\'da kalır', P_(s, p1['a']) == (5, 0) and P_(s, p1['b']) == (105, 0) and p1['a'] != 'O' and own['a'] == 'O' and P_(s, own['b']) == (0, -30), (p1, P_(s, p1['a'])))
+    # 2) düzenleme bağı düşürür
+    ev("window.body = mkBody([{ idx: 1, pts: [[0, 10, 0], [100, 10, 0]] }]); sk.getBodies = () => [window.body];")
+    fresh(); ev("sk._projectGo({ mode: 'all' })"); idle(); tool('break'); click(50, 10); key('Escape'); s = S()
+    check('[düzenleme] böl: iki parça da sıradan geometri, durum satırı bağın kalktığını söyler', len([e for e in s['ents'] if e['type'] == 'line']) == 2 and not proj_ents(s) and 'bağı kaldırıldı' in ' '.join(ev('window.statusLog.slice(-4)')), (proj_ents(s), ev('window.statusLog.slice(-4)')))
+    feat = ev("sk.stop()"); ev("window.body.lines.set([0, 10, 0, 120, 10, 0])"); ev("(f) => begin('XY', f)", feat); idle(); s = S(); lns = [e for e in s['ents'] if e['type'] == 'line']
+    xs = sorted(P_(s, e['a'])[0] for e in lns) + sorted(P_(s, e['b'])[0] for e in lns)
+    check('[düzenleme] yeniden açılışta düzenleme geri alınmaz, sıfır uzunluklu parça yok', len(lns) == 2 and all(abs(P_(s, e['a'])[0] - P_(s, e['b'])[0]) > 1 for e in lns) and max(xs) < 101, xs)
+    fresh(); ev("sk._projectGo({ mode: 'all' })"); idle(); lid = proj_ents(S())[0]['id']
+    ev("(id) => { sk._setSel([{ kind: 'ent', id }]); sk.setTool('move'); }", lid); ev("sk._xformGo({ dx: '7', dy: '3' })"); idle(); page.wait_for_timeout(150); idle(); s = S()
+    check('[düzenleme] taşı: bağ düşer', not proj_ents(s) and 'bağı kaldırıldı' in ' '.join(ev('window.statusLog.slice(-4)')), ev('window.statusLog.slice(-4)'))
+    fresh(); ev("sk._projectGo({ mode: 'all' })"); idle(); lid = proj_ents(S())[0]['id']
+    ev("(id) => { sk._setSel([{ kind: 'ent', id }]); sk.copyClip(); sk.pasteClip(); }", lid); idle(); page.wait_for_timeout(150); idle(); s = S()
+    check('[düzenleme] kopya/yapıştırma proj taşımaz, asıl bağlı kalır', len([e for e in s['ents'] if e['type'] == 'line']) == 2 and len(proj_ents(s)) == 1, [e.get('proj') for e in s['ents']])
+    # 3) kenar eşleştirme: uzak / belirsiz → lost, geometri yerinde
+    ev("window.body = mkBody([{ idx: 1, pts: [[0, 0, 0], [100, 0, 0]] }]); sk.getBodies = () => [window.body];")
+    fresh(); ev("sk._projectGo({ mode: 'all' })"); idle()
+    ev("window.body = mkBody([{ idx: 1, pts: [[0, 40, 0], [100, 40, 0]] }, { idx: 2, pts: [[0, 0, 0], [100, 0, 0]] }]); sk.getBodies = () => [window.body];"); refresh(); s = S(); pe = proj_ents(s)[0]
+    check('[eşleştirme] indeks kayınca birebir uyan kenar izlenir (1→2), 40 mm uzaktakine gidilmez', pe['proj']['g'] == 2 and P_(s, pe['a'])[1] == 0 and not pe['proj'].get('lost'), pe['proj'])
+    ev("window.body = mkBody([{ idx: 2, pts: [[0, 40, 0], [100, 40, 0]] }]); sk.getBodies = () => [window.body];"); refresh(); s = S(); pe = proj_ents(s)[0]
+    check('[eşleştirme] kenar silinip 40 mm uzakta kalan tek kenara bağlanmaz: geometri yerinde, lost', pe['proj'].get('lost') and P_(s, pe['a'])[1] == 0 and P_(s, pe['b'])[1] == 0, pe['proj'])
+    fresh(); ev("window.body = mkBody([{ idx: 1, pts: [[0, 0, 0], [100, 0, 0]] }, { idx: 2, pts: [[0, 3, 0], [100, 3, 0]] }]); sk.getBodies = () => [window.body];"); ev("sk._projectGo({ mode: 'all' })"); idle()
+    ev("window.body = mkBody([{ idx: 2, pts: [[0, 3, 0], [100, 3, 0]] }]); sk.getBodies = () => [window.body];"); refresh(); s = S()
+    pe1 = [e for e in proj_ents(s) if e['proj']['g'] == 1][0]; pe2 = [e for e in proj_ents(s) if e['proj']['g'] == 2][0]
+    check('[eşleştirme] 3 mm arayla paralel iki kenardan biri silinince diğerine bağlanmaz (lost), kalan kenarın kendi izdüşümü güncel', pe1['proj'].get('lost') and P_(s, pe1['a'])[1] == 0 and not pe2['proj'].get('lost'), (pe1['proj'], pe2['proj']))
+    # 4) lost görünür: renk, ayrı sayım, sağ tık
+    check('[lost] kayıp izdüşüm eskizde ayrı renkle (hata rengi) çizilir', ev("import('/src/ui/viewport.js').then((m) => { const l = sk.gMain.children.filter((c) => c.userData.lost); return l.length === 1 && l[0].material.color.getHex() === m.COL.err; })"), None)
+    ev("window.body = mkBody([{ idx: 2, pts: [[0, 8, 0], [100, 8, 0]] }]); sk.getBodies = () => [window.body];"); refresh(); st = ' '.join(ev('window.statusLog.slice(-3)'))
+    check('[lost] durum satırı güncellenen ve kaybolanı AYRI sayar ("1 güncellendi · 1 kaynağını yitirdi")', '1 güncellendi · 1 kaynağını yitirdi' in st, st)
+    x, y = P(50, 0); page.mouse.click(x, y, button='right'); idle()
+    check('[lost] sağ tık: "Bağı kaldır" ve "Yeniden bağla (kenar seç)" sunulur', ev("!!document.querySelector('.sk-ctx [data-act=ctx-unlink]') && !!document.querySelector('.sk-ctx [data-act=ctx-relink]')"), ev("[...document.querySelectorAll('.sk-ctx .it')].map(b => b.textContent)"))
+    page.click('.sk-ctx [data-act=ctx-relink]'); idle()
+    check('[lost] kenar seçili değilken "yeniden bağla" ne yapılacağını söyler', 'kenar seçin' in (status() or ''), status())
+    ev("window.body = mkBody([{ idx: 2, pts: [[0, 8, 0], [100, 8, 0]] }, { idx: 5, pts: [[0, 60, 0], [100, 60, 0]] }]); sk.getBodies = () => [window.body];")
+    ev("vp.selection = [{ kind: 'edge', body: 'b1', idx: 2 }]"); x, y = P(50, 0); page.mouse.click(x, y, button='right'); idle(); page.click('.sk-ctx [data-act=ctx-relink]'); idle(); page.wait_for_timeout(150); idle(); s = S()
+    pe1n = [e for e in s['ents'] if e['id'] == pe1['id']][0]
+    check('[lost] başka izdüşümün bağlı olduğu kenara yeniden bağlanmaz (nesne yerinde, lost)', pe1n['proj'].get('lost') and P_(s, pe1n['a'])[1] == 0, pe1n['proj'])
+    ev("vp.selection = [{ kind: 'edge', body: 'b1', idx: 5 }]"); x, y = P(50, 0); page.mouse.click(x, y, button='right'); idle(); page.click('.sk-ctx [data-act=ctx-relink]'); idle(); page.wait_for_timeout(150); idle(); s = S()
+    pe1n = [e for e in s['ents'] if e['id'] == pe1['id']][0]
+    check('[lost] yeniden bağla: seçili kenara taşınır (y=60), lost kalkar, bağ g=5', not pe1n['proj'].get('lost') and pe1n['proj']['g'] == 5 and P_(s, pe1n['a'])[1] == 60 and P_(s, pe1n['b'])[1] == 60, pe1n['proj'])
+    x, y = P(50, 60); page.mouse.click(x, y, button='right'); idle(); page.click('.sk-ctx [data-act=ctx-unlink]'); idle(); s = S()
+    check('[lost] "Bağı kaldır": nesne sıradan geometri olur', not [e for e in s['ents'] if e['id'] == pe1['id'] and e.get('proj')] and len([e for e in s['ents'] if e['id'] == pe1['id']]) == 1, None)
+    ev("vp.selection = []")
+    ev("sk.getBodies = () => []")
+    # gizli gövde lost sayılmaz
+    ev("window.mkTri2 = (id, x0) => ({ id, vertices: new Float32Array([x0, 0, 0, x0 + 20, 0, 0, x0, 20, 0]), normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), triangles: new Uint16Array([0, 1, 2]), lines: new Float32Array([x0, 0, 0, x0 + 20, 0, 0]), edgeGroups: [{ idx: 0, start: 0, count: 2 }], bbox: [[x0, 0, 0], [x0 + 20, 20, 0]] })")
+    fresh(); ev("vp.setBodies([mkTri2('ha', 0), mkTri2('hb', 50)])"); ev("sk.getBodies = () => [...vp.bodies.values()].filter((b) => b.grp.visible).map((b) => b.data)"); ev("sk._projectGo({ mode: 'all' })"); idle()
+    n0 = len(proj_ents(S())); ev("vp.bodies.get('ha').grp.visible = false"); refresh(); s = S()
+    check('[lost] gövde yalnız gizli diye lost işaretlenmez', n0 == 2 and not any(e['proj'].get('lost') for e in proj_ents(s)), (n0, [e['proj'] for e in proj_ents(s)]))
+    ev("vp.setBodies([]); sk.getBodies = () => []")
+    # 5) seçim filtresi
+    print('WP-09 düzeltme: seçim filtresi, görünüş kaydı, komut tekrarı, referans ölçü')
+    fresh(); key('r'); click(20, 10); click(80, 50); key('c'); click(-40, -30); click(-20, -30); tool('select'); key('Control+a')
+    n_all = ev('sk.selection.length'); ev("sk.setSelKind('line', false)")
+    check('[filtre] filtre kapatılınca seçimden o tür budanır (yalnız daire kalır)', n_all == 5 and ev("sk.selection.map((x) => x.kind + ':' + x.id).length") == 1 and ev("sk.sk.ents.find((e) => e.id === sk.selection[0].id).type") == 'circle', ev('sk.selection'))
+    ev("sk._setSel(sk.sk.ents.map((e) => ({ kind: 'ent', id: e.id })))"); key('Delete'); s = S()
+    check('[filtre] Delete filtreyi denetler: kapalı tür (çizgi) silinmez', len([e for e in s['ents'] if e['type'] == 'line']) == 4 and not [e for e in s['ents'] if e['type'] == 'circle'], [e['type'] for e in s['ents']])
+    ev("sk.setSelKind('line', true)")
+    # 6) görünüş kaydı
+    ev("vp.view('top', true)"); zoom0 = ev('vp.camera.zoom')
+    ev("vp.camera.zoom = 3e-6; vp.camera.updateProjectionMatrix()"); r = ev("vp.saveNamedView('çok uzak')")
+    nv = [v for v in ev('vp.namedViews()') if v['name'] == 'çok uzak']
+    check('[görünüş] çok küçük yakınlaştırma: ok:true ancak kayıt geri okunabiliyorsa', r['ok'] is True and len(nv) == 1 and abs(nv[0]['s']['z'] - 3e-6) < 1e-10, (r, nv))
+    n_nv = len(ev('vp.namedViews()')); ev("vp.camera.zoom = NaN")
+    r = ev("vp.saveNamedView('bozuk')"); ev("vp.camera.zoom = %r; vp.camera.updateProjectionMatrix()" % zoom0)
+    check('[görünüş] okunamayan kayıt ok:true dönmez ve liste değişmez', r['ok'] is False and r.get('err') == 'vd.save_failed' and len(ev('vp.namedViews()')) == n_nv, r)
+    ra = ev("vp.saveNamedView('x'.repeat(30) + 'A')"); rb = ev("vp.saveNamedView('x'.repeat(30) + 'B')"); names = [v['name'] for v in ev('vp.namedViews()')]
+    check('[görünüş] ilk 24 karakteri aynı adlar birbirini ezmez: ikincisi reddedilir (mesaj anahtarı)', ra['ok'] is True and rb['ok'] is False and rb['err'] == 'vd.name_clash' and len([n for n in names if n.startswith('xxxx')]) == 1, (ra, rb, names))
+    rc = ev("vp.saveNamedView('x'.repeat(30) + 'A')"); n2 = [v['name'] for v in ev('vp.namedViews()')]
+    check('[görünüş] 24 karakterden uzun adı AYNI adla yeniden kaydetmek üzerine yazar (kendi kendisiyle çakışmaz)', rc['ok'] is True and rc.get('replaced') is True and len([n for n in n2 if n.startswith('xxxx')]) == 1, (rc, n2))
+    ev("[...vp.namedViews()].forEach((v) => vp.deleteNamedView(v.name))")
+    # 7) komut tekrarı yalnız gövde/tuval odağında
+    fresh(); tool('line'); click(0, 0); click(30, 0); key('Escape'); key('Escape')
+    ev("(() => { const d = document.createElement('div'); d.tabIndex = 0; d.id = 'tdiv'; d.textContent = 'x'; document.body.appendChild(d); const r = document.createElement('span'); r.setAttribute('role', 'button'); r.tabIndex = -1; r.id = 'trole'; document.body.appendChild(r); })()")
+    res_t = {}
+    for fid in ('tdiv', 'trole'):
+        for k in ('Enter', ' '):
+            ev("(id) => { sk.setTool('select'); document.getElementById(id).focus(); }", fid); page.keyboard.press(k); idle(); res_t[fid + repr(k)] = ev('sk.tool')
+    ev("document.activeElement && document.activeElement.blur()"); ev("sk.setTool('select')"); page.keyboard.press(' '); idle(); body_t = ev('sk.tool')
+    check('[tekrar] tabindex/role taşıyan öğede Enter/Boşluk komut başlatmaz', all(v == 'select' for v in res_t.values()), res_t)
+    check('[tekrar] odak belge gövdesindeyken Boşluk son komutu yineler', body_t == 'line', body_t)
+    ev("document.getElementById('tdiv').remove(); document.getElementById('trole').remove(); sk.setTool('select')")
+    # 8) referans ölçü
+    fresh(); key('r'); click(20, 10); click(80, 50)
+    def dim(u, v, val, ctrl=False):
+        ev("sk.setTool('dim')"); click(u, v); page.keyboard.press('Control+a'); page.keyboard.type(val); page.keyboard.press('Control+Enter' if ctrl else 'Enter'); idle()
+    dim(50, 10, '60'); dim(80, 30, '40'); dim(50, 50, '70'); page.keyboard.press('Control+a'); page.keyboard.type('70'); page.keyboard.press('Control+Enter'); idle(); page.wait_for_timeout(150); idle()
+    s = S(); ref = [c for c in s['cons'] if c.get('ref')][0]; drv = [c for c in s['cons'] if c.get('expr') == '60'][0]
+    ev("(id) => sk._editDim(id)", drv['id']); page.keyboard.press('Control+a'); page.keyboard.type('50'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(150); idle(); s = S()
+    ref2 = [c for c in s['cons'] if c['id'] == ref['id']][0]
+    check('[referans] sürücü ölçü değişince kayıtlı referans ifadesi geometriyle güncellenir (60 → 50)', ref2['expr'] == '50', ref2)
+    ev("(id) => sk.toggleReference(id)", ref['id']); idle(); page.wait_for_timeout(150); idle(); s = S(); c3 = [c for c in s['cons'] if c['id'] == ref['id']][0]
+    check('[referans] sürücüye çevrilince o anki geometri değeri kullanılır (bayat 60 değil)', not c3.get('ref') and c3['expr'] == '50', c3)
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()

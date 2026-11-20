@@ -1,0 +1,12 @@
+/* WP-09 çizim konforu: ayarlar paneli ve yeni yakalama işaretleri */
+.sk-cf { position: absolute; left: 10px; bottom: 10px; pointer-events: auto; z-index: var(--z-viewport-overlay); font-size: var(--fs-sm); }
+.sk-cf > button { height: var(--ctl-h, 28px); padding: 0 var(--sp-4, 10px); border: var(--bw, 1px) solid var(--line-strong); border-radius: var(--r-md, 6px); background: var(--bg-surface); color: var(--text); cursor: pointer; }
+.sk-cf > button:hover, .sk-cf > button[aria-expanded="true"] { background: var(--accent-tint); }
+.sk-cf .pop { position: absolute; left: 0; bottom: calc(var(--ctl-h, 28px) + 6px); background: var(--bg-surface); border: var(--bw, 1px) solid var(--line-strong); border-radius: var(--r-md, 6px); box-shadow: var(--shadow-md); padding: var(--sp-3, 8px) var(--sp-4, 10px); min-width: 230px; max-height: 70vh; overflow: auto; }
+.sk-cf .pop h4 { margin: var(--sp-3, 8px) 0 var(--sp-2, 4px); font-size: var(--fs-xs); color: var(--text-muted); font-weight: var(--fw-semibold, 600); text-transform: none; }
+.sk-cf .pop h4:first-child { margin-top: 0; }
+.sk-cf .pop label { display: flex; align-items: center; gap: var(--sp-3, 8px); min-height: 24px; cursor: pointer; }
+.sk-cf .pop select { height: 26px; background: var(--bg-field); color: var(--text); border: var(--bw, 1px) solid var(--line-strong); border-radius: var(--r-sm, 4px); }
+.sk-snap.k-align { border: 2px dashed var(--vp-sk-sel); border-radius: 2px; }
+.sk-snap.k-quad { border: 2px solid var(--ok-fg); transform: translate(-50%,-50%) rotate(45deg); width: 10px; height: 10px; }
+.sk-snap.k-quad span { transform: rotate(-45deg); left: 17px; top: -4px; }

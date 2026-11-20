@@ -221,6 +221,7 @@ export function toolpathErrors(tp, firstOnly = false) {
         if (pos && Math.abs(pos.z - m.clearance) > EPS) { if (bad('cam.ir.cycle_start_z', { ...at, z: pos.z, clearance: m.clearance })) return errs; }
       }
       if (isNum(m.f) && m.f <= 0) { if (bad('cam.ir.field', { ...at, field: 'f' })) return errs; }
+      if (m.returnTo != null && m.returnTo !== 'r' && m.returnTo !== 'clearance') { if (bad('cam.ir.field', { ...at, field: 'returnTo' })) return errs; } // WP-06: 'clearance' = her nokta sonrasi G98 (baslangic duzlemine donus); 'r' (varsayilan) = G99 gecisleri
       if ((m.cycle === 'peck' || m.cycle === 'chipbreak') && !(isNum(m.peck) && m.peck > 0)) { if (bad('cam.ir.field', { ...at, field: 'peck' })) return errs; }
       if (m.dwell != null && (!isNum(m.dwell) || m.dwell < 0)) { if (bad('cam.ir.field', { ...at, field: 'dwell' })) return errs; }
       if (m.cycle === 'tap') {
@@ -272,6 +273,7 @@ export function validateProgram(p) {
 export function compareToolpaths(a, b, tol = 0.001) {
   const diffs = [];
   const canon = (c) => (c === 'spot' ? 'drill' : c);
+  const retToClr = (c) => c.returnTo === 'clearance' || Math.abs(c.retract - c.clearance) < 1e-9; // cok noktali cevrimde her nokta G98
   const ma = a.moves, mb = b.moves;
   const near = (u, v, t = tol) => Math.abs(u - v) <= t;
   if (ma.length !== mb.length) diffs.push(`move count ${ma.length} != ${mb.length}`);
@@ -289,6 +291,7 @@ export function compareToolpaths(a, b, tol = 0.001) {
       if (canon(p.cycle) !== canon(q.cycle)) diffs.push(`#${k} cycle ${p.cycle} != ${q.cycle}`);
       chk(['bottom', 'retract', 'clearance']); chk(['f'], 0.051);
       if (p.points.length !== q.points.length) diffs.push(`#${k} cycle points count`);
+      else if (p.points.length > 1 && retToClr(p) !== retToClr(q)) diffs.push(`#${k} cycle.returnTo ${retToClr(p) ? 'clearance' : 'r'} != ${retToClr(q) ? 'clearance' : 'r'}`);
       else p.points.forEach((pt, m) => { if (!near(pt[0], q.points[m][0]) || !near(pt[1], q.points[m][1])) diffs.push(`#${k} point ${m}`); });
       for (const key of ['peck', 'dwell', 'pitch']) if ((p[key] ?? null) !== null || (q[key] ?? null) !== null) { if (!(typeof p[key] === 'number' && typeof q[key] === 'number' && near(p[key], q[key], 0.0011))) { if (!(key === 'dwell' && !(p[key] > 0) && !(q[key] > 0))) diffs.push(`#${k} cycle.${key} ${p[key]} != ${q[key]}`); } }
     }

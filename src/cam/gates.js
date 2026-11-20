@@ -35,7 +35,7 @@ export function gates(program, machine, opts = {}) {
   }
   const prot = machine?.protected || { T: [], H: [], D: [], wcs: [] };
   const maxRpm = machine?.spindle?.maxRpm, minRpm = machine?.spindle?.minRpm, maxF = machine?.feed?.maxCut, maxTools = machine?.toolChange?.maxTools;
-  const absWarned = new Set();
+  const absWarned = new Set(); const geomWarned = new Set();
   const bodyCand = [];
   secs.forEach((s, si) => {
     const tp = s.toolpath || {}; const opId = tp.opId; const T = tp.tool || {}; const X = { opId, section: si };
@@ -49,6 +49,12 @@ export function gates(program, machine, opts = {}) {
     let fMax = 0; let fBad = false;
     walk(tp, (m) => { if (m.t === 'feed' || m.t === 'arc' || m.t === 'cycle') { if (!(isNum(m.f) && m.f > 0)) fBad = true; else fMax = Math.max(fMax, m.f); } });
     if (fBad) out.push(G('block', 'cam.gate.missing', { field: 'feed', op: tp.opName }, X));
+    // T-11: sap capi / uc duz capi verilmediyse simulasyon varsayim yapar (sap = kesici capi, uc keskin): takim basina bir kez uyar
+    if (Number.isInteger(T.number) && !geomWarned.has(T.number)) {
+      geomWarned.add(T.number); const st = opts.sim && typeof opts.sim === 'object' ? opts.sim.tools?.[T.number] : null;
+      if (!isNum(T.shaftDia) && !isNum(st?.shaftDia)) out.push(G('warn', 'cam.gate.tool_geom_assumed', { tool: T.number, field: 'shaftDia' }, { section: si }));
+      if (T.type === 'chamfer' && !isNum(T.tipDia) && !isNum(st?.tipDia)) out.push(G('warn', 'cam.gate.tool_geom_assumed', { tool: T.number, field: 'tipDia' }, { section: si }));
+    }
     // ---- 2: dokunulmaz numaralar
     if ((prot.T || []).includes(T.number)) out.push(G('block', 'cam.gate.protected', { kind: 'T', value: T.number, op: tp.opName }, X));
     if ((prot.H || []).includes(T.H)) out.push(G('block', 'cam.gate.protected', { kind: 'H', value: T.H, op: tp.opName }, X));

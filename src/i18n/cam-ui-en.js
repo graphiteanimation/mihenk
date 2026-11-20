@@ -402,4 +402,6 @@ export default {
   "cam.ppw.coolant.air": "Enter the M code if air blast will be used.",
   "cam.ppw.coolant.through": "Enter the M code if through-spindle coolant will be used.",
   "cam.ppw.coolant.off": "M code that turns coolant off.",
+  "cam.cmd.chamfer": "Chamfer",
+  "cam.tip.op-chamfer": "Chamfers an edge or chain with a conical tool.",
 };

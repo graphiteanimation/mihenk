@@ -4,6 +4,7 @@ import './style.css';
 import pkg from '../../package.json';
 import planegcsWasm from '@salusoft89/planegcs/dist/planegcs_dist/planegcs.wasm?url';
 import { Viewport, THREE, COL } from './viewport.js';
+import { paintFaces } from './viewport-hist.js';
 import { initSolver, solveSketch } from './solver.js';
 import { evalExpr, resolveParams } from '../shared/expr.js';
 import { basePlane } from '../shared/vec.js';
@@ -14,7 +15,7 @@ import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../s
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
-import { defaults, newId, autoName, featLabel, dependents, tn } from './features.js';
+import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups, groupRanges, groupOf, moveUnit } from './features.js';
 import { initChrome } from './chrome.js';
 import { initCam } from './cam/index.js';
 import { onPrefsChange, getStr, setStr } from './prefs.js';
@@ -48,7 +49,7 @@ class App {
     this.busy = false; this.stale = false; this.lastAutosave = null; this.welcome = false; this._cancelled = false;
     this.mode = 'design'; this.problems = {}; this._rev = 0; this._recRev = -1; this._resetP = Promise.resolve(); this.recoveryMs = RECOVERY_MS; this._recTimer = 0;
     // WP-02 geçmiş: geçici "değişti" işaretleri (bir sonraki güncellemede yenilenir), açık kaynaşmış eskizler, üstüne gelinen işlem
-    this.marks = { changed: new Set() }; this.histOpen = new Set(); this.hoverFeature = null; this.sums = null; this.sweep = null; this.showFinal = false;
+    this.marks = { changed: new Set() }; this.histOpen = new Set(); this.groupOpen = new Set(); this.selAnchor = null; this.selGroup = null; this._cancellable = null; this.cancelStats = { sent: 0, done: 0 }; this._paintSeq = 0; this.painted = null; this.hoverFeature = null; this.sums = null; this.sweep = null; this.showFinal = false;
     this.ready = new Promise((res, rej) => { this._readyRes = res; this._readyRej = rej; });
     this.ready.catch(() => {});
   }
@@ -200,7 +201,7 @@ class App {
     if (this.guard()) return; this.endTool(true); if (this.sectionPanel) { this.sectionPanel.close(); }
     if (m === 'cam') { this.mode = 'cam'; this.setHint(''); this.cam.enter(); }
     else { this.cam.leave(); this.mode = 'design'; this.idleView(); this.refreshSketches(); }
-    this.C.renderAll(); this.refreshLeft();
+    this.C.renderAll(); this.refreshLeft(); this.paintSel();
   }
   guard() {
     if (this.edit || this.sketchSession) { toast(t('msg.finish_first')); return true; }
@@ -223,13 +224,19 @@ class App {
     try { upgradeDocProfiles(doc); } catch (e) { console.error('profile upgrade failed', e); }
     if (this.welcome) this.showWelcome(false);
     this.doc = this.normalize(doc); this.undoStack = []; this.redoStack = []; this.fileName = name; this.filePath = path; this.selection = []; this.selFeature = null;
-    this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.marks.changed.clear(); this.histOpen.clear(); this.sums = null; this.needFit = true; this.markDirty(false); this.cam.onDocLoaded(); this.C.renderAll();
+    this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.marks.changed.clear(); this.histOpen.clear(); this.groupOpen.clear(); this.selAnchor = null; this.selGroup = null; this.sums = null; this.needFit = true; this.markDirty(false); this.cam.onDocLoaded(); this.C.renderAll();
     await this.requestRebuild();
   }
 
   // ------------------------------------------------------------ yeniden hesaplama
-  requestRebuild() { const seq = ++this._seq; this._chain = this._chain.then(() => this._rebuildTask(seq)).catch((e) => console.error(e)); return this.whenIdle(); }
-  previewSoon(ms = 250) { clearTimeout(this._timer); this._timer = setTimeout(() => { this._timer = 0; this.requestRebuild(); }, ms); }
+  // WP-02 dilim 5: yeni düzenleme gelince süren (iptal edilebilir) ön izleme / son hal hesabı işçide durdurulur
+  cancelInflight() {
+    const id = this._cancellable; if (id == null) return;
+    this._cancellable = null; this.cancelStats.sent++;
+    try { this.worker.postMessage({ id: 0, cmd: 'cancel', args: { id } }); } catch (e) { console.error(e); }
+  }
+  requestRebuild() { this.cancelInflight(); const seq = ++this._seq; this._chain = this._chain.then(() => this._rebuildTask(seq)).catch((e) => console.error(e)); return this.whenIdle(); }
+  previewSoon(ms = 250) { this.cancelInflight(); clearTimeout(this._timer); this._timer = setTimeout(() => { this._timer = 0; this.requestRebuild(); }, ms); }
   async flushPreview() { if (this._timer) { clearTimeout(this._timer); this._timer = 0; this.requestRebuild(); } return this.whenIdle(); }
   async whenIdle() { for (;;) { const r = this._resetP; await r; const c = this._chain; await c; if (r === this._resetP && c === this._chain && !this._timer) return; await sleep(0); } }
 
@@ -244,23 +251,35 @@ class App {
       this.problems[f.id] = msg;
     }
   }
-  async rebuildDoc(doc, onProgress = null) { await this.prepare(doc); return this.call('rebuild', onProgress ? { doc, progress: true } : { doc }, onProgress); }
+  async rebuildDoc(doc, onProgress = null, cancellable = false) {
+    await this.prepare(doc);
+    if (!cancellable) return this.call('rebuild', onProgress ? { doc, progress: true } : { doc }, onProgress);
+    const id = this._wid + 1; const p = this.call('rebuild', { doc, cancellable: true }); this._cancellable = id;
+    try { return await p; } finally { if (this._cancellable === id) this._cancellable = null; }
+  }
 
   async _rebuildTask(seq) {
     if (seq !== this._seq) return;
     const e = this.edit; const t0 = performance.now();
     clearTimeout(this._busyT); this._busyT = setTimeout(() => { this.busy = true; this.C.renderStatus(); }, 300);
     try {
+      // WP-02 dilim 5: var olan eskiz düzenlenirken model eskizin anına geri sarılı gösterilir (sağdakiler "bekliyor")
+      const ss = this.sketchSession;
+      if (ss && !ss.isNew && !(e && !e.closed)) {
+        const d = this.cloneDoc(this.doc); d.rollback = ss.idx;
+        const res = await this.rebuildDoc(d, null, true); if (this.sketchSession === ss) this.applyResult(res, true);
+        return;
+      }
       if (e && !e.closed) {
         const err = e.validate();
         let full = null;
-        if (!err) { full = await this.rebuildDoc(e.makeDoc(e.at + 1)); e.setStatus(full.status[e.draft.id]); this.lastMs = performance.now() - t0; }
+        if (!err) { full = await this.rebuildDoc(e.makeDoc(e.at + 1), null, true); e.setStatus(full.status[e.draft.id]); this.lastMs = performance.now() - t0; }
         else e.setStatus({ ok: false, error: err });
-        if (e.pickBase() || err) this.applyResult(await this.rebuildDoc(e.makeDoc(e.at)), true); else this.applyResult(full, true);
+        if (e.pickBase() || err) this.applyResult(await this.rebuildDoc(e.makeDoc(e.at), null, true), true); else this.applyResult(full, true);
         // WP-02 "Son hali göster": aynı değişiklik arka planda sona kadar hesaplanır (önbellek yalnız değişen işlemden sonrasını
         // yeniden hesaplar); yeni bir değişiklik gelirse eski sonuç atılır.
         if (this.showFinal && !err && e.hasAfter() && seq === this._seq && !e.closed) {
-          const rb = this.doc.rollback; const fin = await this.rebuildDoc(e.makeDoc(rb == null ? null : rb + (e.isNew ? 1 : 0)));
+          const rb = this.doc.rollback; const fin = await this.rebuildDoc(e.makeDoc(rb == null ? null : rb + (e.isNew ? 1 : 0)), null, true);
           if (seq === this._seq && !e.closed && this.edit === e) this.setFinal(fin);
         } else if (!this.showFinal) this.setFinal(null);
         return;
@@ -274,7 +293,8 @@ class App {
       this.applyResult(res, false);
       if (sw && done) this.sweepSummary(res, done);
     } catch (err) {
-      if (!this._cancelled) { console.error(err); toast(t('msg.rebuild_failed', { msg: errText(err) }), true); }
+      if (err?.code === 'rebuild.cancelled') this.cancelStats.done++;
+      else if (!this._cancelled) { console.error(err); toast(t('msg.rebuild_failed', { msg: errText(err) }), true); }
     } finally {
       clearTimeout(this._busyT); if (this.busy) { this.busy = false; this.C.renderStatus(); }
       if (this.sweep && seq === this._seq) { this.sweep = null; this.C.renderTimeline(); }
@@ -295,18 +315,32 @@ class App {
     const ch = feats.filter((f) => this.marks.changed.has(f.id));
     const sum = { n: feats.length, c: ch.length, w: warns.length, e: errs.length, order: S.order.slice(), errors: errs.map((f) => f.id), changed: ch.map((f) => f.id) };
     const first = errs[0];
+    // WP-02: sıra değişikliği sonucu değiştirdiyse açık uyarı + tek tıkla geri al
+    const mc = this._moveCheck; this._moveCheck = null; let mv = null;
+    if (mc) { const b = this.modelSig(res); if (Math.abs(b.vol - mc.vol) > 1e-6 * Math.max(1, mc.vol) || b.faces !== mc.faces || b.n !== mc.n) mv = { a: mc.vol, b: b.vol, fa: mc.faces, fb: b.faces }; }
+    sum.moveChanged = mv;
     const text = () => [tn('hs.sum_n', sum.n), tn('hs.sum_c', sum.c), tn('hs.sum_w', sum.w), tn('hs.sum_e', sum.e)].join(' · ') + (first ? t('hs.summary_err', { name: first.name || first.id, msg: errText(res.status[first.id].error) }) : '');
-    sum.text = text(); this.lastSummary = sum;
+    sum.text = text() + (mv ? ' · ' + t('hs.move_changed', { a: fmt(mv.a, 1), b: fmt(mv.b, 1) }) : ''); this.lastSummary = sum;
     // tek özet: yenisi öncekinin yerine geçer
     this._sumToast?.querySelector('[data-testid=toast-close]')?.click();
-    this._sumToast = toast(sum.text, { kind: errs.length ? 'err' : warns.length ? 'warn' : 'ok', title: t('hs.summary_title'), ...(first ? { action: { label: t('hs.repair'), run: () => this.repairFeature(first.id) } } : {}) });
+    const acts = []; if (mv) acts.push({ label: t('hs.undo_move'), run: () => this.undo() }); if (first) acts.push({ label: t('hs.repair'), run: () => this.repairFeature(first.id) }); // ikisi birlikte: sıra değişimi hem modeli değiştirdi hem hata verdiyse ikisi de çıkar
+    const act = acts.length ? { actions: acts } : {};
+    this._sumToast = toast(sum.text, { kind: errs.length ? 'err' : warns.length || mv ? 'warn' : 'ok', title: t('hs.summary_title'), ...(mv ? { ms: 0 } : {}), ...act });
     this._sumToast.setAttribute('data-testid', 'hist-summary');
     let host = document.getElementById('hist-summary-host');
     if (!host) { host = h('div', { id: 'hist-summary-host', class: 'toasts', 'aria-live': 'polite' }); document.getElementById('viewwrap').append(host); }
     host.append(this._sumToast); const root = document.getElementById('toast'); if (root && !root.children.length) root.classList.add('hidden');
   }
-  // Onarım kipi dilim 5'te; şimdilik hatalı işlem seçilir ve düzenleme paneli açılır
-  repairFeature(id) { const i = this.doc.features.findIndex((f) => f.id === id); if (i < 0) return; this.selectFeature(id); this.editFeature(i); }
+  // WP-02 dilim 5 onarım kipi: hatalı işlem, kaybolan başvuruları (son geçerli konumu hayalet çizgi, yakın adaylar)
+  // gösterilerek açılır; kullanıcı yeni kenarı/yüzü seçer ya da işlemi bastırır/siler; birden çok hatada "Sonraki hata".
+  async repairFeature(id) {
+    const i = this.doc.features.findIndex((f) => f.id === id); if (i < 0 || this.guard()) return;
+    const f = this.doc.features[i]; this.selectFeature(id);
+    if (f.type === 'sketch' || f.type === 'import') return this.editFeature(i);
+    let info = null; try { info = await this.query('repairInfo', { id }); } catch (e) { console.error(e); }
+    if (this.guard()) return; this.endTool(true);
+    new FeaturePanel(this, clone(f), i, info).open(); this.C.renderAll();
+  }
   setShowFinal(on) { this.showFinal = !!on; if (!on) this.setFinal(null); if (this.edit && !this.edit.closed) this.previewSoon(0); this.C.renderTimeline(); this.C.renderBrowser(); }
   // son modelin yarı saydam görüntüsü (görünüm üstünde ayrı grup; seçilemez)
   setFinal(fin) {
@@ -339,6 +373,7 @@ class App {
     if (!this.edit && !this.tool && !this.sketchSession) this.viewport.setSelection(this.selection);
     this.cam.onResult(); this.C.renderAll();
     if (this.edit && !this.edit.closed) this.edit.afterResult();
+    this.paintSel();
     if (!this.sketchSession) {
       const bad = this.doc.features.find((f) => res.status[f.id] && res.status[f.id].ok === false);
       this.setLeft(this.edit ? () => t('st.preview') : bad ? () => t('st.error', { name: bad.name || bad.id, msg: errText(this.result?.status[bad.id]?.error) }) : () => t('st.ready'));
@@ -419,6 +454,8 @@ class App {
     if (this.guard()) return; const f = this.doc.features[i]; if (!f) return; this.endTool(true);
     if (f.type === 'sketch') return this.editSketch(i);
     if (f.type === 'import') { toast(t('msg.import_noedit')); return; }
+    // kaybolan başvuru hatası olan işlem onarım kipinde açılır
+    const st = this.result?.status?.[f.id]; if (st && st.ok === false && /^ref\./.test(st.error?.code || '')) return this.repairFeature(f.id);
     this.selFeature = f.id; new FeaturePanel(this, clone(f), i).open(); this.C.renderAll();
   }
   async commitFeature(panel) {
@@ -429,7 +466,21 @@ class App {
     this.selFeature = d.id; this.idleView(); this.C.renderAll();
   }
   endEdit() { this.idleView(); this.C.renderAll(); return this.requestRebuild(); }
-  selectFeature(id) { this.selFeature = id; this.C.renderTimeline(); this.C.renderBrowser(); }
+  selectFeature(id) {
+    this.selFeature = id; this.selAnchor = null; this.selGroup = null;
+    // kapalı gruptaki işlem seçilince grup açılır (hata gezintisi, Onar)
+    const g = id && groupOf(this.doc, id); if (g && !this.groupOpen.has(g.id)) this.groupOpen.add(g.id);
+    this.C.renderTimeline(); this.C.renderBrowser(); this.paintSel();
+  }
+  // WP-02 dilim 5: seçili işlemin ürettiği yüzler 3B'de hafifçe boyanır (düzenleme/eskiz/İmalat dışında)
+  async paintSel() {
+    const id = this.selFeature; const vp = this.viewport; const seq = ++this._paintSeq;
+    if (!vp) return;
+    if (!id || this.edit || this.sketchSession || this.mode !== 'design') { paintFaces(vp, []); this.painted = null; return; }
+    let list = []; try { list = await this.query('featureFaces', { id }); } catch (e) { list = []; }
+    if (seq !== this._paintSeq || this.selFeature !== id || this.edit || this.sketchSession || this.mode !== 'design') return;
+    this.painted = { id, n: paintFaces(vp, list) };
+  }
   // "Değişti": son kesinleşmiş sonuca göre özeti (featInfo.sum) değişen işlemler. Ön izleme bu karşılaştırmayı bozmaz.
   updateMarks(res) {
     const info = res?.featInfo || {}; const prev = this.sums;
@@ -455,9 +506,65 @@ class App {
       const ok = await confirmBox(t('dlg.del_title'), t('dlg.del_body', { name: f.name || f.id, list: deps.map((x) => x.name || x.id).join('\n• ') }), t('dlg.del_yes'));
       if (!ok) return;
     }
-    await this.commit((d) => { d.features.splice(i, 1); if (d.rollback != null) { if (i < d.rollback) d.rollback--; if (d.rollback >= d.features.length) d.rollback = null; } });
+    await this.commit((d) => {
+      const before = { ...d, features: d.features.slice() }; // grup aralığı silme öncesi sıraya göre çözülür
+      d.features.splice(i, 1); if (d.rollback != null) { if (i < d.rollback) d.rollback--; if (d.rollback >= d.features.length) d.rollback = null; }
+      // grup kalan üyelerle sürer (sınır komşu üyeye kayar); tek üyesi silinen grup düşer; grup kalmazsa alan kaldırılır
+      if (Array.isArray(d.groups)) { const g = fixGroups(before, d.features); if (g && g.length) d.groups = g; else delete d.groups; }
+    });
     if (this.selFeature === f.id) this.selFeature = null;
     this.C.renderAll();
+  }
+
+  // ------------------------------------------------------------ WP-02 dilim 4: sıra değiştirme
+  // Bağımlılığı bozacak taşıma yapılmaz; neden bildirilir. Taşıma sonrası değişen ilk konumdan süpürme + özet.
+  // geçmiş bildirimi: görünüm alanının sol altında (Geçmiş listesini örtmez); ekran okuyucuya da bildirilir
+  histNote(msg, kind = 'err') {
+    const el = toast(msg, { kind, ms: 5000 }); el.setAttribute('data-testid', 'hist-note');
+    let host = document.getElementById('hist-note-host');
+    if (!host) { host = h('div', { id: 'hist-note-host', class: 'toasts', 'aria-live': 'polite' }); document.getElementById('viewwrap').append(host); }
+    host.replaceChildren(el); const root = document.getElementById('toast'); if (root && !root.children.length) root.classList.add('hidden');
+    this.C.announce(msg); return el;
+  }
+  // son modelin özeti (taşıma öncesi/sonrası karşılaştırma): toplam hacim ve yüz sayısı
+  modelSig(res) { const B = res?.bodies || []; return { vol: B.reduce((a, b) => a + (b.volume || 0), 0), faces: B.reduce((a, b) => a + (b.nFaces || 0), 0), n: B.length }; }
+  sensWhy(ids) { const nm = ids.map((id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }); return t('hs.move_sensitive', { list: nm.join(', ') }); }
+  moveWhy(why) { const nm = (id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }; return t('hs.move_blocked', { a: nm(why.feat), b: nm(why.dep) }); }
+  async moveFeature(i, to) {
+    if (this.guard()) return false; const f = this.doc.features[i]; if (!f) return false;
+    const p = planMove(this.doc, i, to, this.result?.status || {});
+    if (!p.ok) { this.histNote(this.moveWhy(p.why)); return false; }
+    if (p.noop) return true;
+    this._sweepNext = { at: p.at }; this._moveCheck = this.modelSig(this.result);
+    const done = this.commit((d) => { d.features = p.features; d.rollback = p.rollback; if (p.groups !== undefined) d.groups = p.groups; });
+    this.selFeature = f.id; this.C.renderAll();
+    const k = this.doc.features.findIndex((x) => x.id === f.id);
+    this.C.announce(t('hs.moved', { name: f.name || featLabel(f), n: k + 1, total: this.doc.features.length }));
+    await done; this._moveCheck = null; return true;
+  }
+
+  // ------------------------------------------------------------ WP-02 dilim 4: gruplar (belgede isteğe bağlı `groups`)
+  toggleGroup(gid) { if (this.groupOpen.has(gid)) this.groupOpen.delete(gid); else this.groupOpen.add(gid); this.C.renderTimeline(); this.C.renderBrowser(); }
+  async createGroup(ids) {
+    if (this.guard()) return null; const F = this.doc.features; const pos = ids.map((id) => F.findIndex((f) => f.id === id)).filter((i) => i >= 0); if (!pos.length) return null;
+    const a = Math.min(...pos.flatMap((i) => moveUnit(this.doc, i))), b = Math.max(...pos);
+    if (groupRanges(this.doc).some((r) => !(b < r.a || a > r.b))) { this.histNote(t('hs.group_overlap')); return null; }
+    const used = new Set((this.doc.groups || []).map((g) => g.id)); let n = 1; while (used.has('g' + n)) n++;
+    const nm = await promptText(t('hs.group_prompt'), t('hs.group_new_name', { n })); if (!nm) return null;
+    const g = { id: 'g' + n, name: nm, first: F[a].id, last: F[b].id };
+    this.commitMeta((d) => { d.groups = [...(Array.isArray(d.groups) ? d.groups : []), g]; });
+    this.selAnchor = null; this.selFeature = null; this.selGroup = g.id; this.C.renderAll(); this.C.announce(t('hs.grouped', { name: nm, n: b - a + 1 }));
+    return g.id;
+  }
+  async renameGroup(gid) {
+    const g = (this.doc.groups || []).find((x) => x.id === gid); if (!g || this.guard()) return;
+    const nm = await promptText(t('hs.group_prompt'), g.name || gid); if (!nm) return;
+    this.commitMeta((d) => { const x = d.groups.find((y) => y.id === gid); if (x) x.name = nm; });
+  }
+  async ungroup(gid) {
+    if (this.guard() || !(this.doc.groups || []).some((x) => x.id === gid)) return;
+    this.commitMeta((d) => { d.groups = d.groups.filter((y) => y.id !== gid); if (!d.groups.length) delete d.groups; });
+    this.groupOpen.delete(gid); if (this.selGroup === gid) this.selGroup = null; this.C.renderAll();
   }
 
   // ------------------------------------------------------------ sketch
@@ -496,6 +603,7 @@ class App {
     if (!plane && f.plane?.kind === 'base') { try { plane = this.planeOf(f.plane); } catch (e) { toast(t('msg.offset_failed', { msg: errText(e) }), true); return; } }
     if (!plane) { toast(t('msg.sketch_not_computed'), true); return; }
     await this.beginSketch(clone(f), plane, i);
+    if (this.sketchSession && !this.sketchSession.isNew) { this.C.renderAll(); this.requestRebuild(); }
   }
   onSketchChange() {
     if (this._skRaf) return;
@@ -521,7 +629,7 @@ class App {
       if (!merged.ents.length) { toast(t('msg.empty_sketch')); this.refreshSketches(); return; }
       const at = this.doc.rollback ?? this.doc.features.length;
       await this.commit((d) => { d.features.splice(at, 0, merged); if (d.rollback != null) d.rollback = at + 1; });
-    } else await this.commit((d) => { d.features[s.idx] = merged; });
+    } else { this._sweepNext = { at: s.idx }; await this.commit((d) => { d.features[s.idx] = merged; }); }
     this.selFeature = merged.id; this.setLeft(() => t('st.ready')); this.C.renderAll();
     if (warns.length) toast(t('sk.exit.title') + ' ' + warns.join(' · '));
   }
@@ -530,6 +638,7 @@ class App {
     try { this.sketcher.cancel(); } catch (e) { console.error(e); }
     this.sketchSession = null; this.sketchPanel?.close(); this.sketchPanel = null; this.setHint(''); this.setLeft(() => t('st.ready'));
     this.idleView(); this.refreshSketches(); this.C.renderAll();
+    if (!s.isNew) this.requestRebuild(); // geri sarılı görünümden düzenleme öncesine
   }
 
   // ------------------------------------------------------------ inceleme araçları
@@ -795,6 +904,11 @@ class App {
         return;
       }
       if (e.key === 'Escape') { if (this.tool) this.endTool(); else if (this.sectionPanel) this.toggleSection(); return; }
+      // WP-02: geri sarma işaretçisi Alt+←/→ bir adım, Alt+Home/End başa/sona
+      if (e.altKey && !ctrl && !e.shiftKey && !inField && this.mode === 'design' && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+        e.preventDefault(); const n = this.doc.features.length; const v = this.doc.rollback ?? n;
+        this.C.stepMarker(e.key === 'Home' ? 0 : e.key === 'End' ? n : v + (e.key === 'ArrowLeft' ? -1 : 1)); return;
+      }
       if (!inField && !ctrl && k === 'f') this.viewport.fit();
     });
   }

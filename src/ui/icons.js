@@ -25,6 +25,7 @@ const P = {
   "chevron-up": "<path d=\"M6 15l6-6 6 6\"/>",
   "circle": "<circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"12\" r=\"1.2\" fill=\"currentColor\" stroke=\"none\"/>",
   "circle-3pt": "<circle cx=\"12\" cy=\"12\" r=\"8.5\"/><circle cx=\"12\" cy=\"3.5\" r=\"1.7\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"4.6\" cy=\"16.2\" r=\"1.7\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"19.4\" cy=\"16.2\" r=\"1.7\" fill=\"currentColor\" stroke=\"none\"/>",
+  "folder": "<path d=\"M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z\"/>",
   "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5.2l3.2 2\"/>",
   "close": "<path d=\"M6 6l12 12M18 6L6 18\"/>",
   "coincident": "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M3 12h6M15 12h6\"/>",
