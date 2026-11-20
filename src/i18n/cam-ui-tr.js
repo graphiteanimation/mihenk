@@ -62,6 +62,7 @@ export default {
   "cam.fld.need": "Doldurulmalı:",
   "cam.fld.required": "Bu alan boş bırakılamaz.",
   "cam.grp.2d": "2B",
+  "cam.grp.library": "Kütüphane",
   "cam.grp.3d": "3B",
   "cam.grp.actions": "Eylemler",
   "cam.grp.drill": "Delme ve diş",

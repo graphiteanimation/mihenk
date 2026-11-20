@@ -62,6 +62,7 @@ export default {
   "cam.fld.need": "Must be filled in:",
   "cam.fld.required": "This field cannot be empty.",
   "cam.grp.2d": "2D",
+  "cam.grp.library": "Library",
   "cam.grp.3d": "3D",
   "cam.grp.actions": "Actions",
   "cam.grp.drill": "Drilling and threading",

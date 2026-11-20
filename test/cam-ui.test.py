@@ -634,7 +634,10 @@ try:
     pg.evaluate("""async () => { const b = app.fileBytes(); await app.openBytes(b, 'x.mhnk', null); }""")
     pg.wait_for_selector('[data-cmd=cam-post]'); pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=nc-text]', timeout=40000)
     nc2 = pg.evaluate('app.cam.ops.nc.text'); pg.click('[data-testid=nc-close]')
-    a1, a2 = nc1.split('\n'), nc2.split('\n')
+    # WP-21: NC başlığı model özeti belge adını (MODEL; kaydedilmemiş belgede yok) ve tam üretim zamanını (GENERATED) yazar
+    check('WP-21 NC başlığı: adsız belgede MODEL yok, adlı belgede belge adı; ikisinde de tam üretim zamanı', '(MODEL ' not in nc1 and '(MODEL x.mhnk)' in nc2 and re.search(r'\(GENERATED \d{4}-\d\d-\d\dT[\d:.]+Z\)', nc1) and re.search(r'\(GENERATED ', nc2), [l for l in nc2.split('\n')[:12] if 'MODEL' in l or 'GENERATED' in l or 'PART SIZE' in l])
+    strip = lambda t: [l for l in t.split('\n') if not l.startswith('(MODEL ') and not l.startswith('(GENERATED ')]
+    a1, a2 = strip(nc1), strip(nc2)
     diff = [(i, x, y) for i, (x, y) in enumerate(zip(a1, a2)) if x != y]
     check('U-19: kaydet/aç sonrası NC aynı (yalnız PROGRAM adı satırı belge adına göre değişir)', len(a1) == len(a2) and [d[0] for d in diff] == [2], (len(a1), len(a2), diff[:3]))
     # U-20: başlık metni dilden bağımsız (ASCII sabit); bilinçli

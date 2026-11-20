@@ -63,7 +63,8 @@ await madde(1, 'src/ui/cam devirleri: belge adı + model kutusu post seçenekler
   ok(src('src/ui/cam/machines.js').includes("import { PP, PP_ORDER } from './postopts.js'"), 'machines.js tanımları postopts.js’den alır');
   // şerit
   const all = CAM_RIBBON.flatMap((g) => g[2]);
-  ok(CAM_RIBBON.find((g) => g[0] === 'cam-setup')[2].includes('cam-cutdata'), 'Kesme verisi Hazırlık grubunda');
+  ok(CAM_RIBBON.find((g) => g[0] === 'cam-lib')?.[2].includes('cam-cutdata') && CAM_RIBBON[CAM_RIBBON.length - 2][0] === 'cam-lib', 'Kesme verisi şeritte (Kütüphane grubu, eylemlerden önce: dar şeritte önce o taşar, delik grubu görünür kalır)');
+  ok(tLang('tr', 'cam.grp.library') !== 'cam.grp.library' && tLang('en', 'cam.grp.library') !== 'cam.grp.library', 'grup etiketi TR/EN');
   ok(new Set(all).size === all.length, 'şeritte tekrar komut yok');
   const idx = src('src/ui/cam/index.js');
   const regs = new Set([...idx.matchAll(/reg\('([a-z0-9-]+)'/g)].map((m) => m[1]));
