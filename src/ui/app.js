@@ -926,9 +926,9 @@ class App {
   showAbout() {
     const dep = (n) => String(pkg.dependencies[n] || '').replace('^', '');
     const el = (window.native?.versions?.electron) || (/Electron\/([\d.]+)/.exec(navigator.userAgent) || [])[1];
-    const rows = [['Mihenk CAD/CAM', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`]];
+    const rows = [['Mihenk CAD/CAM', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`], [t('about.fonts'), 'Inter, JetBrains Mono — SIL OFL 1.1']];
     return modal({ title: t('about.title'), content: h('div', {}, h('div', { class: 'note', text: t('about.tagline') }), h('table', {}, rows.map(([k, v]) => h('tr', {}, h('td', { text: k }), h('td', { style: { fontWeight: 600 }, text: v })))),
-      h('div', { class: 'note', style: { marginTop: '8px' }, text: t('about.license') })), buttons: [{ label: t('common.close'), cls: 'pri', value: true }] });
+      h('div', { class: 'note', style: { marginTop: '8px' }, text: t('about.license') }), h('div', { class: 'note', 'data-testid': 'about-3p', text: t('about.third_party') })), buttons: [{ label: t('common.close'), cls: 'pri', value: true }] });
   }
 
   // ------------------------------------------------------------ klavye

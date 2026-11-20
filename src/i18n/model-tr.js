@@ -105,4 +105,6 @@ export default {
   "fld.sketch_face": "Eskiz yüzü",
   "msg.o044_changed": "Yeni ifade kuralına (tekli eksi üsten sonra: -2^2 = -4) göre değeri değişenler: {list}",
   "sk.text_max": "En çok {n} karakter.",
+  "about.fonts": "Yazı tipleri",
+  "about.third_party": "Üçüncü taraf lisans metinleri uygulama klasöründe licenses/ altındadır (Inter, Inter Regular eskiz yazı tipi, JetBrains Mono: SIL OFL 1.1).",
 };

@@ -1401,6 +1401,12 @@ try:
     ev('app.markDirty(false)')
     ev("(async () => { const d = { app: 'Mihenk', version: 1, doc: { params: [{ name: 'a', expr: '-2^2' }, { name: 'L', expr: '50' }], features: [{ id: 'bx', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: 'L', d: '10', h: '10', op: 'new' }] } }; await app.openBytes(new TextEncoder().encode(JSON.stringify(d)), 'o044.mhnk', null); })()"); accept_modal(); idle()
     check('O-044: eski belgede -2^2 kullanan parametre açılışta bildirilir (yalnız o)', ev('app.lastO044') == ['a'] and 'a' in toast_text() and ev('app.vars().a') == -4, [ev('app.lastO044'), toast_text()])
+    # yazı tipi lisansları dist'te (build çıktısı) ve Hakkında metninde
+    lic = ev("(async () => { const out = {}; for (const f of ['Inter-OFL.txt', 'Inter-Regular-sketch-OFL.txt', 'JetBrainsMono-OFL.txt']) { const r = await fetch('licenses/' + f); out[f] = r.ok && (await r.text()).includes('SIL OPEN FONT LICENSE'); } return out; })()")
+    check('WP-08: yazı tipi lisans metinleri dist içinde (licenses/)', all(lic.values()) and len(lic) == 3, lic)
+    ev('(() => { app.showAbout(); return true; })()'); page.wait_for_selector('[data-testid=about-3p]')
+    check('WP-08: Hakkında üçüncü taraf lisanslarını anıyor', 'OFL' in page.inner_text('[data-testid=about-3p]') and 'Inter' in page.inner_text('#modal'))
+    page.click('#modal button[data-v="true"]'); page.wait_for_timeout(150)
     check('CSP: dil değiştirme dahil son aşamada da ihlal yok', ev('window.__csp.length') == 0, str(ev('window.__csp')[:3]))
     print('\nkonsol hataları:', [e for e in errs if 'GL Driver' not in e][:5])
     check('konsolda sayfa hatası yok', not [e for e in errs if e.startswith('pageerror')], str([e for e in errs if e.startswith('pageerror')][:3]))

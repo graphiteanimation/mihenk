@@ -15,3 +15,4 @@ Notlar
 - Lisans metninin başlığında "Reserved Font Name" bildirilmemiştir. Dosya değiştirilmeden (alt küme alınmadan) dağıtılır; yazı tipi tek başına satılmaz.
 - Glif konturları çakışabildiğinden (Inter'de "k", "ş", "ç" gibi) metin eskize eklenirken sıfır olmayan sarım kuralıyla temizlenir (`src/ui/sketch/text.js` `cleanSegments`); eskizde yalnız dış sınır çizgileri kalır.
 - Metin eklendikten sonra çizgi konturudur; metin olarak yeniden düzenlenmez.
+- Dağıtım: lisans metinleri `public/licenses/` üzerinden `dist/licenses/` içine (dolayısıyla kurulum paketine) kopyalanır; Hakkında penceresi bunları anar.
