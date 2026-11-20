@@ -132,6 +132,7 @@ export function validateCam(cam) {
   if (cam.cutLib !== undefined) arrOf(obj({ id: idStr, material: str(60), type: oneOf(['endmill', 'drill', 'tap', 'chamfer', 'other']), diaMin: camNum(0), diaMax: camNum(0), vc: camNum(0), fz: camNum(0), note: str(200) }), 500)(cam.cutLib, CP + '.cutLib');
   if (cam.material !== undefined) str(60)(cam.material, CP + '.material');
   if (cam.units !== undefined) oneOf(['mm', 'inch'])(cam.units, CP + '.units'); // WP-14: belge birimi
+  if (cam.quote !== undefined && cam.quote !== null) obj({ no: str(80), customer: str(200), currency: str(8), qty: posInt(1000000), partsPerRun: posInt(48), validDays: posInt(3650), notes: str(2000), marginPct: camNum(0, 1000), vatPct: camNum(0, 1000), material: obj({ density: camNum(0, 100), pricePerKg: camNum(0, 1e9) }), rates: obj({ machinePerHour: camNum(0, 1e9), setup: camNum(0, 1e9), toolChangeSec: camNum(0, 3600) }), extras: arrOf(obj({ name: str(200), amount: camNum(0, 1e9), per: oneOf(['order', 'piece']) }), 30) })(cam.quote, CP + '.quote'); // WP-14: teklif girdileri (kullanici verisi)
   if (cam.parts !== undefined && cam.parts !== null) obj({ count: posInt(48), order: oneOf(['byOp', 'byPart']) })(cam.parts, CP + '.parts'); // WP-14: mengenede coklu parca
   if (cam.verified !== undefined && cam.verified !== null) obj({ by: str(LIMITS.shortStr), date: str(40), note: str(), hash: str(LIMITS.shortStr) })(cam.verified, CP + '.verified');
   const ids = new Set();

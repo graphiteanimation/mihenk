@@ -8,6 +8,9 @@ import * as S from './cam-samples/samples.mjs';
 import { mmToUnits, unitsToMm, parseLength, unitLabel, setUnits, getUnits } from '../src/shared/units.js';
 import { validateDoc } from '../src/shared/schema.js';
 import { replicateProgram, shiftOffset } from '../src/cam/multipart.js';
+import { summarizeForQuote, computeQuote, buildQuoteHtml, stockVolumeMm3, validateQuoteInput } from '../src/cam/report/quote.js';
+import { SHEET_CSS_HASH } from '../src/cam/report/setupsheet.js';
+import crypto from 'node:crypto';
 import { makeTemplate, instantiateTemplate, exportTemplates, importTemplates, matchTool, planHoleOps, checkHoleRules, DEFAULT_HOLE_RULES, classifyHole } from '../src/cam/templates.js';
 
 let pass = 0, fail = 0;
@@ -262,6 +265,46 @@ console.log('7. mengenede coklu parca');
   try { validateDoc({ cam: { parts: { count: 0, order: 'byOp' } } }); ok(false, 'sema parts count 0 reddedilir'); } catch (e) { ok(true, 'sema parts count 0 reddedilir'); }
 }
 function gatesBlockCount(prog, M) { return gates(prog, M, { sim: false }).filter((g) => g.level === 'block').length; }
+
+console.log('8. teklif yardimcisi');
+{
+  const tp = (T, min) => ({ tool: { number: T }, stats: { timeMin: min } });
+  const Sbox = { id: 's1', stockBox: { min: [0, 0, 0], max: [100, 50, 20] }, stock: { kind: 'box' } };
+  const Scyl = { id: 's2', stockBox: { min: [0, -10, -10], max: [50, 10, 10] }, stock: { kind: 'cyl', dia: 20, len: 50 } };
+  ok(stockVolumeMm3(Sbox) === 100000 && Math.abs(stockVolumeMm3(Scyl) - Math.PI * 100 * 50) < 1e-6, 'ham hacim: kutu ve silindir');
+  const sum = summarizeForQuote([{ S: Sbox, stockFrom: 'blank', tp: tp(1, 3.5) }, { S: Sbox, stockFrom: 'blank', tp: tp(2, 1.5) }, { S: Sbox, stockFrom: 'blank', tp: tp(2, 1) }, { S: { ...Sbox, id: 's2' }, stockFrom: 'previous', tp: tp(1, 2) }]);
+  ok(Math.abs(sum.timeMin - 8) < 1e-9 && sum.toolChanges === 3 && sum.setups === 2 && sum.rawVolumeMm3 === 100000 && sum.rawCount === 1, 'ozet: sure 8 dk, 3 takim degisimi, 2 kurulum, onceki stoktan gelen ham sayilmaz: ' + JSON.stringify(sum));
+  // girdi yok: hicbir fiyat varsayilmaz
+  const e0 = computeQuote({}, sum);
+  ok(e0.lines.length === 0 && e0.totalOrder === 0 && !e0.complete && e0.missing.includes('density') && e0.missing.includes('machinePerHour'), 'girdisiz: kalem yok, eksik isaretli, varsayilan fiyat yok: ' + e0.missing);
+  // alani alan: 100000 mm3 = 100 cm3 x 2.7 g/cm3 = 0.27 kg x 10/kg = 2.7 ; 8 dk x (60/saat) = 8 ; kurulum 2 x 5 = 10
+  const q = { qty: 10, partsPerRun: 2, material: { density: 2.7, pricePerKg: 10 }, rates: { machinePerHour: 60, setup: 5, toolChangeSec: 30 }, extras: [{ name: 'Eloksal', amount: 1.5, per: 'piece' }, { name: 'Nakliye', amount: 20, per: 'order' }], marginPct: 10, vatPct: 20 };
+  const r = computeQuote(q, sum);
+  const L = Object.fromEntries(r.lines.filter((l) => l.key !== 'extra').map((l) => [l.key, l]));
+  ok(Math.abs(L.material.kg - 0.27) < 1e-9 && L.material.unitAmount === 2.7 && L.material.amount === 27, 'malzeme: 0.27 kg x 10 = 2.70 /parca, 10 parca 27.00');
+  // 8 dk + 3 degisim x 30 sn / 2 parca = 8 + 0.75 = 8.75 dk -> 8.75/60*60 = 8.75
+  ok(L.machining.minutes === 8.75 && L.machining.unitAmount === 8.75 && L.machining.amount === 87.5, 'talasli imalat: 8.75 dk -> 8.75, x10 = 87.50: ' + JSON.stringify(L.machining));
+  ok(L.setup.qty === 5 * 2 && L.setup.amount === 50, 'kurulum: 5 calisma (10 adet / 2) x 2 kurulum x 5 = 50');
+  ok(r.subtotal === 27 + 87.5 + 50 + 15 + 20, 'ara toplam 199.50: ' + r.subtotal);
+  ok(r.margin === 19.95 && r.net === 219.45 && r.vat === 43.89 && r.totalOrder === 263.34 && r.totalPiece === 26.33 && r.complete, `kar %10, KDV %20: net ${r.net}, KDV ${r.vat}, toplam ${r.totalOrder}, parca ${r.totalPiece}`);
+  // eksik: yogunluk yok -> malzeme satiri yok
+  const r2 = computeQuote({ ...q, material: { pricePerKg: 10 } }, sum);
+  ok(!r2.lines.some((l) => l.key === 'material') && r2.missing.includes('density') && !r2.complete, 'yogunluk eksik: malzeme satiri hesaplanmaz');
+  ok(computeQuote({ rates: { machinePerHour: 0 } }, sum).lines.some((l) => l.key === 'machining' && l.amount === 0), 'saat ucreti 0 acikca girilmis -> 0 (eksik degil)');
+  // dogrulama
+  for (const [bad, f] of [[{ qty: 0 }, 'qty'], [{ marginPct: -1 }, 'marginPct'], [{ rates: { setup: -5 } }, 'setup'], [{ material: { density: 'x' } }, 'density']]) { try { validateQuoteInput(bad); ok(false, 'gecersiz girdi reddedilir ' + f); } catch (e) { ok(e.code === 'cam.quote.bad_input' && e.params.field === f, 'gecersiz girdi: ' + f); } }
+  // HTML
+  const tr = (k, p) => k + (p ? JSON.stringify(p) : '');
+  const html = buildQuoteHtml({ title: '<b>Parca</b>', date: '2026-11-20', quoteNo: 'T-1', customer: '<script>alert(1)</script>', currency: 'EUR', notes: 'a<b>\nsatir "2"', validDays: 30, input: q, summary: sum, result: r, tr, lang: 'tr' });
+  ok(!/<script/i.test(html) && !/<b>Parca/.test(html) && /&lt;script&gt;/.test(html) && /&lt;b&gt;Parca/.test(html) && /a&lt;b&gt;<br>satir &quot;2&quot;/.test(html), 'HTML: kullanici metinleri kacislanir');
+  ok(!/\son\w+=/i.test(html) && !/style=/i.test(html) && !/(src|href)=/i.test(html), 'HTML: olay/style/dis kaynak yok');
+  ok(html.includes("default-src 'none'") && html.includes(SHEET_CSS_HASH) && crypto.createHash('sha256').update(html.match(/<style>([\s\S]*?)<\/style>/)[1]).digest('base64') === SHEET_CSS_HASH.slice(7), 'HTML: CSP ozeti stil ile eslesir');
+  ok(html.includes('263.34') && html.includes('26.33') && html.includes('cam.quote.total_order'), 'HTML: toplamlar');
+  const html0 = buildQuoteHtml({ title: 'P', date: 'd', currency: '', input: {}, summary: sum, result: e0, tr, lang: 'en' });
+  ok(/class="warn"/.test(html0) && html0.includes('cam.quote.incomplete'), 'eksik girdi uyarisi HTML\'de');
+  try { validateDoc({ cam: { quote: { qty: 5, material: { density: 2.7, pricePerKg: 3 }, extras: [{ name: 'x', amount: 1, per: 'piece' }] } } }); ok(true, 'sema: quote'); } catch (e) { ok(false, 'sema quote: ' + e.code); }
+  try { validateDoc({ cam: { quote: { rates: { setup: -1 } } } }); ok(false, 'sema negatif ucret reddedilir'); } catch (e) { ok(true, 'sema negatif ucret reddedilir'); }
+}
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

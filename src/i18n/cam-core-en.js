@@ -60,6 +60,7 @@ export default {
   "err.cam.multi.mixed_offsets": "Multi-part: G54..G59 and G54.1 Pn are mixed in one program; use one kind.",
   "err.cam.multi.protected_wcs": "Multi-part: work offset {wcs} is protected in the machine profile.",
   "err.cam.multi.offset_clash": "Multi-part: work offset {wcs} is already used in the program.",
+  "err.cam.quote.bad_input": "Invalid quote input: {field}.",
   "err.cam.drill.no_holes": "No holes to drill in this setup (empty selection or hole axis not parallel to the tool axis).",
   "err.cam.drill.no_thread": "{n} holes have no thread data; check that these are the holes to tap.",
   "err.cam.drill.pitch_mismatch": "{n} holes have a thread pitch different from the tap pitch ({pitch} mm).",

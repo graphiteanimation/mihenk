@@ -61,6 +61,7 @@ export default {
   "err.cam.multi.mixed_offsets": "Çoklu parça: aynı programda G54..G59 ile G54.1 Pn karışık; hepsini aynı türe getirin.",
   "err.cam.multi.protected_wcs": "Çoklu parça: {wcs} iş sıfırı tezgâh profilinde korumalı.",
   "err.cam.multi.offset_clash": "Çoklu parça: {wcs} iş sıfırı programda zaten kullanılıyor.",
+  "err.cam.quote.bad_input": "Geçersiz teklif girdisi: {field}.",
   "err.cam.drill.no_holes": "Bu setup'ta delinecek delik yok (seçim boş ya da delik ekseni takım eksenine paralel değil).",
   "err.cam.drill.no_thread": "{n} delikte diş bilgisi yok; kılavuz çekilecek delik doğru mu kontrol edin.",
   "err.cam.drill.pitch_mismatch": "{n} deliğin diş adımı kılavuz adımından ({pitch} mm) farklı.",
