@@ -631,6 +631,10 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
     const cY = mkCam(yan); cY.setups[0].ops = [S1o[0]];
     const rY = await CAM.generateProgram(cY, { rebuild: rbP, machine: MA, query: async (c, a) => K[c](a), doc: dP, name: 'O1005', sim: { res: 0.5, modelHeightmaps: hmFor(cY) } });
     ok(ghost(rY.gates).length > 0, 'T-04: S1 yan stogu kaldirmadiysa S2 engel kalir (yanlis temiz yok)');
+    const cB = mkCam(yan); cB.setups[1].stockFrom = 'blank';
+    const rB = await CAM.generateProgram(cB, { rebuild: rbP, machine: MA, query: async (c, a) => K[c](a), doc: dP, name: 'O1006', sim: { res: 0.5, modelHeightmaps: hmFor(cB) } });
+    ok(rB.program.sections.find((x) => x.setup.id === 'T2').setup.stockFrom === 'blank' && ghost(rB.gates).length > 0, "T-04: setup stockFrom 'blank' -> zincir yok, S2 ham stokla (engel)");
+    ok(rY.program.sections.every((x) => x.setup.stockFrom === 'previous' && Array.isArray(x.setup.bodies)), "T-04: program setup'inda stockFrom (varsayilan 'previous') ve bodies");
     await K.rebuild(doc);
   }
 }

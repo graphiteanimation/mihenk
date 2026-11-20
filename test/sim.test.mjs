@@ -365,6 +365,28 @@ console.log('9. T-04 setup zinciri: onceki setup stogu (cerceve donusumu, alt ke
   r = run(p, { initialHeightmaps: { B: full } }); ok(rin(r, 1).length === 1 && !r.chainedSetups.includes('B'), 'initialHeightmaps zinciri ezer');
   // cerceve yoksa zincir yok (eski programlar)
   r = run(prog(sec('A', null, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-5, -10)))); ok(rin(r, 1).length === 1 && !r.chainedSetups.length, 'onceki setup cercevesiz -> zincir yok (muhafazakar)');
+  // B1 karsi-ornekleri: zincir yalniz malzeme cikarir; onceki stogun bilgi vermedigi yer bu setup'in ham stogu
+  {
+    const nop = tp([mk.rapid(0, 0, 10)]);
+    const bigB = { min: [-40, -30, -30], max: [40, 30, 0] }; // A'dan 20 mm genis
+    const sB = tp([mk.rapid(-35, 0, 10), mk.rapid(-35, 0, -10), mk.rapid(-25, 0, -10), mk.rapid(-25, 0, 10)]);
+    r = simulate(prog(sec('A', FA, boxA, nop), sec('B', FA, bigB, sB)), { res: 0.5, stockBoxes: { A: boxA, B: bigB } });
+    ok(r.issues.some((i) => i.code === 'cam.sim.rapid_in_stock' && i.section === 1), 'B1-B: 20 mm genis kutu, A kutusu disinda hizli -> zincirli sim de rapid_in_stock');
+    const FF = { o: [200, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+    r = simulate(prog(sec('A', FA, boxA, tp(mA)), sec('F', FF, boxA, tp([mk.rapid(-15, 0, 10), mk.rapid(-15, 0, -10), mk.rapid(15, 0, -10), mk.rapid(15, 0, 10)]))), { res: 0.5, stockBoxes: { A: boxA, F: boxA } });
+    ok(r.issues.some((i) => i.code === 'cam.sim.rapid_in_stock' && i.section === 1) && !r.chainedSetups.includes('F'), 'B1-A: 200 mm uzak setup (kutular ortusmez) zincirlenmez -> rapid_in_stock');
+    const secX = (id, frame, stockBox, toolpath, extra) => ({ setup: { id, name: id, workOffset: { kind: 'G54' }, aAngle: null, stockBox, frame, ...extra }, toolpath });
+    r = simulate(prog(secX('A', FA, boxA, tp(mA)), secX('B', FB, boxB, rapidY(-5, -10), { stockFrom: 'blank' })), { res: 0.5, stockBoxes });
+    ok(rin(r, 1).length === 1 && !r.chainedSetups.length, "setup stockFrom 'blank' -> zincir yok (ham stok)");
+    r = simulate(prog(secX('A', FA, boxA, tp(mA), { bodies: ['g1'] }), secX('B', FB, boxB, rapidY(-5, -10), { bodies: ['g2'] })), { res: 0.5, stockBoxes });
+    ok(rin(r, 1).length === 1 && !r.chainedSetups.length, 'farkli govdeli setup zincirlenmez');
+    r = simulate(prog(secX('A', FA, boxA, tp(mA), { bodies: ['g1'] }), secX('B', FB, boxB, rapidY(-5, -10), { bodies: ['g1'] })), { res: 0.5, stockBoxes });
+    ok(!rin(r, 1).length && r.chainedSetups.includes('B'), 'ayni govde: zincir (kontrol)');
+    // zincirli harita hicbir hucrede bu setup'in ham stogundan yuksek degil ve yalniz onceki kesimin oldugu yerde dusuk
+    const hB = simulate(prog(sec('A', FA, boxA, tp(mA)), sec('B', FA, bigB, nop)), { res: 0.5, stockBoxes: { A: boxA, B: bigB } }).remainBySetup.B;
+    let hi = 0, lowOut = 0; for (let j = 0; j < hB.ny; j++) for (let i = 0; i < hB.nx; i++) { const v = hB.data[j * hB.nx + i], x = hB.x0 + (i + 0.5) * 0.5, y = hB.y0 + (j + 0.5) * 0.5; if (v > 1e-6) hi++; if ((Math.abs(x) > 20 || Math.abs(y) > 20) && v < -1e-6) lowOut++; }
+    ok(hi === 0 && lowOut === 0, 'zincir uydurmaz: ham stoktan yuksek hucre 0, onceki kutu disinda alcaltilmis hucre 0: ' + hi + '/' + lowOut);
+  }
 }
 
 console.log('10. T-15 serbest/kopmus parca');

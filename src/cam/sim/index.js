@@ -2,16 +2,16 @@
 // API: simulate(input, opts) -> sonuc;  createSim(input, opts) -> adim adim oynatici ({step(n), run(), state(), heightmap(), reset()}).
 // Denetimler: serbest/kopmus parca (T-15, sim sonu), hizlinin stok icine girmesi, oyma (gouge), takim boyu asimi (flute), saft/tutucu carpmasi, stok tabaninin altina inis.
 // Setup'lar arasi stok (T-04): bolum setup'inda frame (model uzayi) varsa yeni setup'in baslangic stogu onceki setup'larin son
-// haritalarindan (chain.js; opts.chain:false ile kapali; opts.initialHeightmaps once gelir).
+// haritalarindan (chain.js; ayni govde + ortusen kutu; setup.stockFrom 'blank' ya da opts.chain:false kapatir; initialHeightmaps once gelir).
 // SINIRLAR: yalniz ustten (takim ekseni +Z) kesilen tek degerli stok; alt kesme (undercut) ve ters yuz modellenmez; tutucu/saft
 // yalniz silindir olarak modellenir; kesit disi fikstur yok. Ayrintilar docs/POST.md.
 import { KErr } from '../../shared/errors.js';
 import { validateProgram, validateToolpath, splitRapid, sampleArc } from '../ir.js';
 import { createHeightmap, cloneHeightmap } from './heightmap.js';
 import { toolGeom } from './tool.js';
-import { stockFromPrevious } from './chain.js';
+import { stockFromPrevious, chainSources } from './chain.js';
 import { freePieces } from './free.js';
-export { stockFromPrevious } from './chain.js';
+export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom } from './tool.js';
 
@@ -44,14 +44,15 @@ export function createSim(input, opts = {}) {
     if (!box || !box.min || !box.max) throw err('cam.sim.no_stock', { setup: id });
     let hm; let chained = false;
     const init = opts.initialHeightmaps?.[id] ?? (opts.stockHeightmap?.data ? opts.stockHeightmap : null);
-    const frame = sset?.frame ?? null; const prev = [...setups.values()];
+    const frame = sset?.frame ?? null; const stockFrom = sset?.stockFrom ?? 'previous', bodies = sset?.bodies ?? null;
+    const src = opts.chain !== false && !init ? chainSources([...setups.values()], { frame, box, stockFrom, bodies }) : [];
     if (init) hm = cloneHeightmap(init);
-    else if (opts.chain !== false && frame && prev.length && prev.every((p) => p.frame)) { // T-04: onceki setup'larin son stogu
-      hm = stockFromPrevious(prev.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box })), { frame, box }, res); chained = true;
+    else if (src.length) { // T-04: onceki setup'larin son stogu (yalniz malzeme cikarir; B1)
+      hm = stockFromPrevious(src.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box })), { frame, box }, res); chained = true;
     } else hm = createHeightmap([box.min[0], box.min[1]], [box.max[0], box.max[1]], res, box.max[2]);
     let hmax = -Infinity; for (let k = 0; k < hm.data.length; k++) if (hm.data[k] > hmax) hmax = hm.data[k];
     const mh = opts.modelHeightmaps?.[id] ?? (opts.modelHeightmap?.data ? opts.modelHeightmap : null);
-    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained };
+    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies };
     setups.set(id, s); return s;
   }
 
