@@ -290,5 +290,5 @@ const st = spawnSync('npx', ['electron', ...SANDBOX_ARGS, '.'], { cwd: ROOT, env
 const line = (st.stdout || '').split('\n').find((l) => l.startsWith('SELFTEST')) || '(çıktı yok)';
 check('Electron öz-testi (sandbox:true) GEÇTI', /^SELFTEST GEÇTI/.test(line) && /sandbox=true/.test(line) && /serverHits=0/.test(line), line.slice(0, 300));
 
-srv.close(); fs.rmSync(TMP, { recursive: true, force: true });
+srv.close(); try { fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }); } catch (e) { console.log('  (geçici klasör silinemedi, yok sayıldı: ' + e.code + ')'); } // Windows: Chromium birkaç yüz ms dosya tutabilir
 console.log(`\n${pass} geçti, ${failN} kaldı`); process.exit(failN ? 1 : 0);

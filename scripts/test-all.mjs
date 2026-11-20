@@ -2,7 +2,7 @@
 // Her adımın adı, süresi, sonucu ve özet satırı (varsa "N geçti, M kaldı") yazılır; hangi dosyanın kaldığı görünür.
 // Bir adım kalırsa sonrakiler yine koşar (yalnız `npm run build` kalırsa tarayıcı testleri atlanır); çıkış kodu tümü geçmişse 0'dır.
 // Günlükler release/test-logs/ altına (release/ git'te yok sayılır) yazılır. Ortam: PYTHON (python komutu), TEST_ONLY (virgülle ayrılmış ad parçaları, yalnız eşleşen adımlar).
-import { spawn, spawnSync } from 'node:child_process'; import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
+import { spawn, spawnSync } from 'node:child_process'; import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIN = process.platform === 'win32', CI = !!process.env.GITHUB_ACTIONS;
 const PY = process.env.PYTHON || (WIN ? 'python' : 'python3');
@@ -21,7 +21,9 @@ if (WIN) {
   try { fs.mkdirSync(path.join(path.parse(ROOT).root, 'tmp'), { recursive: true }); } catch (e) { /* yoksa test kendi hatasını verir */ }
 }
 
-const node = (f) => ({ name: f, cmd: process.execPath, args: [path.join(ROOT, f)] });
+// Windows: mutlak yolla `import()` eden testler için sürücü harfini file:// URL'ye çeviren kanca (scripts/win-esm-hook.mjs)
+const HOOK = WIN ? ['--import', pathToFileURL(path.join(ROOT, 'scripts', 'win-esm-hook.mjs')).href] : [];
+const node = (f) => ({ name: f, cmd: process.execPath, args: [...HOOK, path.join(ROOT, f)] });
 const py = (f, extra = {}) => ({ name: f, cmd: PY, args: [path.join(ROOT, f)], ...extra });
 const STEPS = [
   ...['test/i18n.test.mjs', 'test/security.test.mjs', 'test/kernel.test.mjs', 'test/solver.test.mjs', 'test/geom2d.test.mjs', 'test/profiles.test.mjs', 'test/sketchops.test.mjs', 'test/dxf.test.mjs', 'test/stability.test.mjs', 'test/models/run-all.mjs', 'test/cam.test.mjs', 'test/post.test.mjs', 'test/sim.test.mjs'].map(node),
@@ -50,7 +52,7 @@ function run(step, attempt) {
 }
 function summary(out) {
   const lines = out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const m = [...lines].reverse().map((l) => /(\d+)\s*(?:geçti|passed)\D+(\d+)\s*(?:kaldı|failed)/i.exec(l)).find(Boolean);
+  const m = [...lines].reverse().map((l) => /(\d+)\s*(?:geçti|gecti|passed)\D+(\d+)\s*(?:kaldı|kaldi|failed)/i.exec(l)).find(Boolean);
   if (m) return { pass: +m[1], fail: +m[2], line: m[0] };
   return { line: lines.length ? lines[lines.length - 1].slice(0, 160) : '(çıktı yok)' };
 }
@@ -67,7 +69,7 @@ for (const [i, step] of steps.entries()) {
     retried = { line: summary(r.out).line, ms: r.ms }; r = await run(step, 2); attempts = 2;
   }
   const s = summary(r.out); const ok = r.code === 0;
-  if (!ok) { console.log(r.out.split(/\r?\n/).slice(-40).join('\n')); if (r.err) console.log('başlatma hatası: ' + r.err); }
+  if (!ok) { const fl = r.out.split(/\r?\n/).filter((l) => /FAIL|KALDI|Error/.test(l)).slice(0, 60); if (fl.length) console.log('-- kalan denetimler --\n' + fl.join('\n') + '\n-- çıktının son 40 satırı --'); console.log(r.out.split(/\r?\n/).slice(-40).join('\n')); if (r.err) console.log('başlatma hatası: ' + r.err); }
   if (CI) console.log('::endgroup::');
   console.log(`${tag} ... ${ok ? 'GEÇTİ' : 'KALDI'} (${fmt(r.ms)}${attempts > 1 ? `, ${attempts}. denemede${ok ? ' geçti' : ' de kaldı'} — ${step.retryLabel}` : ''}) | ${s.line}`);
   results.push({ name: step.name, status: ok ? 'GEÇTİ' : 'KALDI', pass: s.pass, fail: s.fail, attempts, retried });

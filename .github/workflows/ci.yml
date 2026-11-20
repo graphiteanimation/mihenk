@@ -20,6 +20,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 75
     steps:
+      # Altın dosya karşılaştırmaları satır sonuna duyarlı: Windows'ta CRLF'ye çevrilmesin
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
@@ -52,6 +54,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
