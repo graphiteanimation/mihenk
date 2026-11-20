@@ -334,5 +334,53 @@ console.log('7. T-21b: A kelimesi bicimi profilden (A.wrap)');
   ok(back.sections.map((q) => q.setup.aAngle).join() === '0,90,-90,0', 'geri okunan A: ' + back.sections.map((q) => q.setup.aAngle).join());
 }
 
+console.log('9. WP-06 T-07 ardisik islemlerde mil/sogutma tekrari yok; T-18 yorum karakter eslemesi');
+{
+  const sm = S.surfaceSample().program; const B = sm.sections[0]; const M = S.testMachine();
+  const sec = (i, over = {}, setupOver = {}) => ({ setup: { ...B.setup, ...setupOver }, toolpath: { ...B.toolpath, opId: 'f' + i, opName: 'Yuzey ' + i, ...over } });
+  const run = (secs, o = {}) => { const prog = { ...sm, sections: secs }; const r = postProgram(prog, M, { ...OPTS, ...o }); return { r, lines: r.lines, cnt: (re) => r.lines.filter((l) => re.test(l)).length, back: readNC(r.text, { machine: M, props: o.props }).program }; };
+  const count = (lines, re) => lines.filter((l) => re.test(l)).length;
+  const S3 = [sec(1), sec(2), sec(3)];
+  { // ayni takim, devir, sogutma, setup: mil ve sogutma bir kez
+    const x = run(S3);
+    ok(x.cnt(/^M5$/) === 1 && x.cnt(/^M9$/) === 1, 'T-07: ayni takim/devir/sogutma: M5 ve M9 yalniz program sonunda: M5 ' + x.cnt(/^M5$/) + ' M9 ' + x.cnt(/^M9$/));
+    ok(x.cnt(/\bM8\b/) === 1 && x.cnt(/^S2500 M3$/) === 1 && x.cnt(/\bM6\b/) === 1, 'T-07: M8, S2500 M3, T M6 birer kez: ' + [x.cnt(/\bM8\b/), x.cnt(/^S2500 M3$/), x.cnt(/\bM6\b/)]);
+    ok(x.cnt(/^\(OP \d:/) === 3 && x.cnt(/^G43 H/) === 3, 'T-07: her islemde yorum ve G43 H yazilir (G28 Z0 G49 iptal eder): ' + x.cnt(/^G43 H/));
+    ok(x.back.sections.length === 3 && x.back.sections.every((q) => q.toolpath.rpm === 2500 && q.toolpath.coolant === 'flood' && q.toolpath.tool.number === B.toolpath.tool.number), "T-07: geri okuma: 3 bolum, devir/sogutma/takim modal tasinir");
+  }
+  { // yalniz devir degisir: M5 yok, yalniz S
+    const x = run([sec(1), sec(2, { rpm: 3000 }), sec(3, { rpm: 3000 })]);
+    ok(x.cnt(/^M5$/) === 1 && x.cnt(/^S3000$/) === 1 && x.cnt(/^S2500 M3$/) === 1 && x.cnt(/\bM8\b/) === 1, 'T-07: yalniz devir degisti: M5 yok, yalniz S3000 yazilir: ' + [x.cnt(/^M5$/), x.cnt(/^S3000$/)]);
+    ok(x.back.sections.map((q) => q.toolpath.rpm).join() === '2500,3000,3000', 'T-07: geri okuma devirleri: ' + x.back.sections.map((q) => q.toolpath.rpm));
+  }
+  { // yalniz sogutma degisir: M9 + yeni kod, mil acik
+    const x = run([sec(1), sec(2, { coolant: 'mist' })], { props: { coolantCodes: { flood: 'M8', mist: 'M7', air: null, through: null, off: 'M9' } } });
+    const i9 = x.lines.findIndex((l, k) => /^M9$/.test(l) && k < x.lines.length - 4);
+    ok(i9 > 0 && x.cnt(/^M5$/) === 1 && x.cnt(/\bM7\b/) === 1 && x.cnt(/\bM8\b/) === 1, 'T-07: yalniz sogutma degisti: M9 + M7, mil kapanmaz: ' + [i9, x.cnt(/^M5$/), x.cnt(/\bM7\b/)]);
+    ok(x.back.sections.map((q) => q.toolpath.coolant).join() === 'flood,mist', 'T-07: geri okuma sogutmalar: ' + x.back.sections.map((q) => q.toolpath.coolant));
+  }
+  { // takim degisir: tam dizi
+    const t2 = { ...B.toolpath.tool, number: 22, H: 22, D: 22 };
+    const x = run([sec(1), sec(2, { tool: t2 })]);
+    ok(x.cnt(/^M5$/) === 2 && x.cnt(/^M9$/) === 2 && x.cnt(/\bM6\b/) === 2 && x.cnt(/\bM8\b/) === 2 && x.cnt(/^S2500 M3$/) === 2, 'T-07: takim degisince tam dizi (M5, M9, M6, S M3, M8): ' + [x.cnt(/^M5$/), x.cnt(/\bM6\b/), x.cnt(/\bM8\b/)]);
+  }
+  { // ayni takim ama farkli A acisi: mil ve sogutma durdurulur (donmeden once)
+    const x = run([sec(1), sec(2, {}, { aAngle: 90 })]);
+    ok(x.cnt(/^M5$/) === 2 && x.cnt(/^M9$/) === 2, 'T-07: ayni takim, farkli setup (A): mil/sogutma tekrar baslatilir: ' + [x.cnt(/^M5$/), x.cnt(/^M9$/)]);
+    const y = run([sec(1), sec(2, {}, { workOffset: { kind: 'G56' } })]);
+    ok(y.cnt(/^M5$/) === 2, 'T-07: ayni takim, farkli is koordinati: tam dizi');
+  }
+  { // mil yonu degisir: once M5
+    const x = run([sec(1), sec(2, { spindleDir: 'ccw' })]);
+    ok(x.cnt(/^M5$/) === 2 && x.cnt(/^S2500 M4$/) === 1, 'T-07: mil yonu degisince M5 + S M4: ' + [x.cnt(/^M5$/), x.cnt(/^S2500 M4$/)]);
+  }
+  // opsiyonel durdurma her islemde korunur
+  { const x = run(S3, { props: { optionalStop: true } }); ok(x.cnt(/^M01$/) === 3, 'T-07: optionalStop her islemde M01: ' + x.cnt(/^M01$/)); }
+  // T-18
+  ok(sanitizeComment('Ø12 mm² 10³ µm ø5') === 'D12 mm2 103 um D5', 'T-18: ², ³, Ø/ø, µ eslemesi: ' + sanitizeComment('Ø12 mm² 10³ µm ø5'));
+  ok(!sanitizeComment('Ø6 R² ³ µ ± ≈').includes('?'), "T-18: bu karakterler '?' olmaz: " + sanitizeComment('Ø6 R² ³ µ ± ≈'));
+  { const x = run([sec(1, { opName: 'Ø8 kanal 5µm mm²' })]); ok(x.lines.some((l) => l.includes('D8 kanal 5um mm2')) && !x.lines.some((l) => /^\(OP.*\?/.test(l)), 'T-18: NC islem yorumunda ? yok'); }
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

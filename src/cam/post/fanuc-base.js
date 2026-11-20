@@ -120,17 +120,27 @@ export function createFanucPost(over = {}) {
     },
 
     onSection(sec) {
-      const tp = sec.toolpath, st = sec.setup, p = this.props;
+      const tp = sec.toolpath, st = sec.setup, p = this.props, S = this.state;
       this.writeComment(`OP ${sec.index + 1}: ${tp.opName} [${tp.opType}] SETUP ${st.name ?? st.id ?? ''}`);
       post._safeRetract.call(this);
-      if (this.state.spindle) this.writeBlock('M5');
-      if (this.state.coolant !== 'off') this.writeBlock(post._coolantCode.call(this, 'off'));
-      this.state.spindle = null; this.state.coolant = 'off';
+      // T-07: ayni takim + ayni setup (is koordinati ve A acisi) ve mil/sogutma zaten istenen durumdaysa M5/M9/S M3/M8
+      // tekrarlanmaz; devir ya da sogutma degisiyorsa yalniz degisen yazilir. Mil yonu degisiyorsa once M5.
+      const wo = st.workOffset, key = `${wo?.kind}|${wo?.p ?? ''}|${st.aAngle ?? 0}`;
+      const keep = S.tool === tp.tool.number && S.setupKey === key && !!S.spindle;
+      const dirSame = keep && S.spindle.dir === tp.spindleDir;
+      const rpmSame = dirSame && Math.round(S.spindle.rpm) === Math.round(tp.rpm);
+      const coolSame = keep && S.coolant === tp.coolant;
+      if (S.spindle && !dirSame) { this.writeBlock('M5'); S.spindle = null; }
+      if (S.coolant !== 'off' && !coolSame) { this.writeBlock(post._coolantCode.call(this, 'off')); S.coolant = 'off'; }
       if (p.optionalStop) this.writeBlock('M01');
-      if (this.state.tool !== tp.tool.number) { this.writeBlock('T' + tp.tool.number, p.toolChangeCode); this.state.tool = tp.tool.number; }
+      if (S.tool !== tp.tool.number) { this.writeBlock('T' + tp.tool.number, p.toolChangeCode); S.tool = tp.tool.number; }
       post._indexRotary.call(this, st.aAngle ?? 0);
-      this.call('onSpindleSpeed', tp.rpm, tp.spindleDir);
-      this.state.comp = false; this.state.compRequest = null; this.state.cycle = null;
+      if (!rpmSame) {
+        if (dirSame) { const sv = Math.round(tp.rpm); if (!(sv >= 1)) this.fail('cam.post.bad_rpm', { rpm: tp.rpm }); this.writeBlock('S' + sv); S.spindle = { rpm: tp.rpm, dir: tp.spindleDir }; }
+        else this.call('onSpindleSpeed', tp.rpm, tp.spindleDir);
+      }
+      S.setupKey = key;
+      S.comp = false; S.compRequest = null; S.cycle = null;
       this.v.f.reset(); // V-04: bolumun ilk kesmesinde F daima yazilir (onceki takimdan modal kalmaz)
     },
 
@@ -206,7 +216,7 @@ export function createFanucPost(over = {}) {
         this.g.motion.format(0);
         this.writeBlock('G43', 'H' + tp.tool.H, this.v.z.formatForced(z));
         const cc = tp.coolant;
-        if (cc !== 'off') { this.writeBlock(post._coolantCode.call(this, cc)); st.coolant = cc; }
+        if (cc !== 'off' && st.coolant !== cc) { this.writeBlock(post._coolantCode.call(this, cc)); st.coolant = cc; }
         st.positioned = true;
         return;
       }
