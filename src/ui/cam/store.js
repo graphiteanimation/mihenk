@@ -29,3 +29,9 @@ export const saveToolLibrary = (list) => write('toolLibrary', list);
 // WP-07: kullanici kesme verisi satirlari (tum belgelerde gecerli; belgeye ozel satirlar doc.cam.cutLib'te)
 export const userCutLib = () => { const l = read('cutLib'); return Array.isArray(l) ? l.filter((e) => e && typeof e === 'object') : []; };
 export const saveUserCutLib = (list) => write('cutLib', list);
+
+// WP-14: kullanici islem sablonlari ve delik sira kurallari (kullanici verisi; varsayilan sablon gomulmez, kural varsayilani kodda)
+export const userOpTemplates = () => { const l = read('opTemplates'); return Array.isArray(l) ? l.filter((e) => e && typeof e === 'object' && typeof e.name === 'string' && Array.isArray(e.ops)) : []; };
+export const saveUserOpTemplates = (list) => write('opTemplates', list);
+export const userHoleRules = () => { const l = read('holeRules'); return Array.isArray(l) && l.length ? l : null; };
+export const saveUserHoleRules = (list) => write('holeRules', list);
