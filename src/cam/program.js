@@ -2,7 +2,7 @@
 import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
-import { sketchFaces, sketchChain, silhouetteFace, midLevels } from './geom/select.js';
+import { sketchFaces, sketchChain, silhouetteFaces, midLevels } from './geom/select.js';
 import { simulate, createHeightmap, stockFromPrevious, chainSources } from './sim/index.js';
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
@@ -38,7 +38,7 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
       if (!S.bodies.includes(sel.body)) throw cerr('cam.setup.body_missing', { body: String(sel.body) });
       const zl = await query('camZLevels', { body: sel.body, frame: S.frame });
       const secs = []; for (const z of midLevels(zl.levels)) secs.push(await query('camSection', { body: sel.body, frame: S.frame, z }));
-      sels.push({ ...sel, kind: 'face', loops: sel.loops ?? 'outer' }); faces.push(silhouetteFace(zl, secs));
+      for (const f of silhouetteFaces(zl, secs)) { sels.push({ ...sel, kind: 'face', loops: sel.loops ?? 'outer' }); faces.push(f); } // T-19: her bolge ayri yuz, ayri islenir
     } else throw cerr('cam.geom.sel_unsupported', { kind: String(sel.kind) });
   }
   return { sels, faces };

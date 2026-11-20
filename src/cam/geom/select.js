@@ -93,28 +93,43 @@ export function sketchChain(sel, sk, plane, frame) {
 //   zl: camZLevels sonucu; sections: seviyeler arasi orta z'lerdeki camSection sonuclari
 //   Prizmatik olmayan yuzler (ornegin delik ucu konisi) yalniz XY kutulari dis sinirin KESIN icindeyse kabul edilir:
 //   boyle bir yuz dis siniri (kesitlerin birlesimini) genisletemez.
-export function silhouetteFace(zl, sections) {
+// T-19: kesitlerde birden cok bolge olabilir. Tum kesitlerin dis halkalari alana gore buyukten kucuge dizilir; bir halka daha
+// buyuk bir halkanin icindeyse (ornek: yatay tunelin kesiti bolmesi) o kumeye katilir, hicbirinin icinde degil ve hicbiriyle
+// kesismiyorsa YENI kume (ayri bolge) olur. Her kume en buyuk halkasiyla tek dis sinirdir. Kismen ortusen halkalar hata.
+// Donus: yuz nesneleri dizisi (konuma gore sirali); her biri ayri bolge, islemler ayri ayri isler.
+export function silhouetteFaces(zl, sections) {
   if (zl.levels.length < 2 || !sections.length) throw cerr('cam.silhouette.not_prismatic', { n: 0 });
   const outs = [];
   for (const sec of sections) {
     const loops = sec.loops.map((l) => P.closeItemLoop(l).flatMap((it) => P.fromGeom2d(it, it.fwd !== false))); // T-24: zincir acikliklari kapatilir
-    const o = loops.filter((l) => P.area(l) > 1e-9);
-    // her kesitte tek dis sinir ve o sinirin icinde olmayan baska dis halka olmamali
     const regs = P.regionsFromLoops(loops);
-    const top = regs.filter((g) => !regs.some((h) => h !== g && P.inRegion(P.probePoint(g.outer), { outer: h.outer, holes: [] })));
-    if (top.length !== 1) throw cerr('cam.silhouette.multiple', { n: top.length, z: Math.round(sec.z * 1000) / 1000 });
-    void o; outs.push(top[0].outer);
+    for (const g of regs) if (!regs.some((h) => h !== g && P.inRegion(P.probePoint(g.outer), { outer: h.outer, holes: [] }))) outs.push(g.outer);
   }
-  let big = outs[0]; for (const l of outs) if (P.area(l) > P.area(big)) big = l;
-  const R = { outer: big, holes: [] };
-  for (const l of outs) for (const s of l) for (const t of [0, 0.5]) { const p = P.pointAt(s, t); if (!P.inRegion(p, R) && P.distTo(p, big) > 1e-6) throw cerr('cam.silhouette.not_nested'); }
+  if (!outs.length) throw cerr('cam.silhouette.not_prismatic', { n: 0 });
+  outs.sort((a, b) => P.area(b) - P.area(a));
+  const clusters = [];
+  for (const l of outs) {
+    let home = null;
+    for (const c of clusters) {
+      const R = { outer: c.big, holes: [] };
+      const pts = []; for (const sg of l) for (const t of [0, 0.5]) pts.push(P.pointAt(sg, t));
+      const inside = pts.map((p) => P.inRegion(p, R) || P.distTo(p, c.big) <= 1e-6);
+      if (inside.every(Boolean)) { home = c; break; }
+      if (inside.some(Boolean) || l.some((sg) => c.big.some((q) => P.intersect(sg, q, 1e-9).length))) throw cerr('cam.silhouette.not_nested');
+    }
+    if (!home) clusters.push({ big: l });
+  }
   for (const b of zl.badBoxes || (zl.bad ? [null] : [])) {
     if (!b) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
     const cs = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
     const edges = cs.map((c, i) => P.line(c, cs[(i + 1) % 4]));
-    const inside = cs.every((c) => P.inRegion(c, R)) && !edges.some((e) => big.some((s) => P.intersect(e, s, 1e-9).length));
+    const inside = clusters.some((c) => { const R = { outer: c.big, holes: [] }; return cs.every((q) => P.inRegion(q, R)) && !edges.some((e) => c.big.some((sg) => P.intersect(e, sg, 1e-9).length)); });
     if (!inside) throw cerr('cam.silhouette.not_prismatic', { n: zl.bad });
   }
-  return { z: zl.levels[0], normalOk: true, outer: toItems(P.mergeLoop(big)), inners: [], open: false, above: null, src: 'silhouette' };
+  const key = (l) => { const bb = P.loopBBox([l]); return [Math.round(bb[0] * 1e6), Math.round(bb[1] * 1e6)]; };
+  clusters.sort((a, b) => { const ka = key(a.big), kb = key(b.big); return ka[0] - kb[0] || ka[1] - kb[1]; });
+  return clusters.map((c) => ({ z: zl.levels[0], normalOk: true, outer: toItems(P.mergeLoop(c.big)), inners: [], open: false, above: null, src: 'silhouette' }));
 }
+// Eski tekil API: tek bolge bekleyen cagiranlar icin ilk bolge (birden cok bolgede ilk bolge, hata atmaz)
+export function silhouetteFace(zl, sections) { return silhouetteFaces(zl, sections)[0]; }
 export const midLevels = (levels) => { const out = []; for (let i = 1; i < levels.length; i++) out.push((levels[i - 1] + levels[i]) / 2); return out; };

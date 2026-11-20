@@ -7,7 +7,7 @@ import * as P from '../src/cam/geom/path2d.js';
 import * as G from '../src/shared/geom2d.js';
 import { ringTree, pocketRegion, SegGrid } from '../src/cam/ops/pocket.js';
 import { loopFromKernel } from '../src/cam/ops/common.js';
-import { sketchFaces } from '../src/cam/geom/select.js';
+import { sketchFaces, silhouetteFaces } from '../src/cam/geom/select.js';
 import { NEWAY_FIXTURE } from './fixtures/machine-neway.mjs';
 import { exportMachines, importMachines, MACHINE_FORMAT } from '../src/cam/machines/io.js';
 import { builtinMachines, checkMachine, copyMachine } from '../src/cam/machines/builtin.js';
@@ -884,6 +884,45 @@ section('T-03. pah (chamfer)');
   const tr = CAM.computeOp({ ...cop, geom: [{ kind: 'chain' }], side: 'right' }, { setup: S0, tool: ch90, geom: open });
   ok(cutPoints(tr, () => true, 0.2).every((q) => Math.abs(q[1] - 7.3) < 1e-6), 'T-03: acik zincir sag: y = 10 - 2,7');
   ok(validateDoc({ cam: { v: 1, tools: [], setups: [{ id: 's', name: 'x', ops: [{ ...cop, id: 'p', toolId: 't' }] }] } }) !== undefined, 'T-03: sema cagrisi');
+}
+
+
+// ------------------------------------------------------------------ T-19 siluet: kesitte birden cok bolge
+section('T-19. siluet cok bolge');
+{
+  const zl = { levels: [0, -10, -20] };
+  const secAt = (z, ...loops) => ({ z, loops });
+  const bb = (f) => P.loopBBox([P.closeItemLoop(f.outer).flatMap((it) => P.fromGeom2d(it, it.fwd !== false))]).map((v) => Math.round(v * 1000) / 1000);
+  // iki ayri ada her kesitte: iki yuz (konuma gore sirali)
+  const two = silhouetteFaces(zl, [secAt(-5, sq(60, 0, 90, 30), sq(0, 0, 30, 30)), secAt(-15, sq(60, 0, 90, 30), sq(0, 0, 30, 30))]);
+  ok(two.length === 2 && JSON.stringify(bb(two[0])) === '[0,0,30,30]' && JSON.stringify(bb(two[1])) === '[60,0,90,30]', 'T-19: iki ayri bolge iki yuz (soldan saga): ' + two.length);
+  // P4 durumu: tunel bir kesitte govdeyi 3 parcaya boler, diger kesitte tek govde: tek siluet (buyuk dis sinir)
+  const split = silhouetteFaces(zl, [secAt(-5, sq(0, 0, 100, 40)), secAt(-15, sq(0, 0, 30, 40), sq(35, 0, 65, 40), sq(70, 0, 100, 40))]);
+  ok(split.length === 1 && JSON.stringify(bb(split[0])) === '[0,0,100,40]', 'T-19: tunelle bolunen kesit, baska kesitte tek govde -> tek bolge: ' + split.length);
+  // tum kesitlerde bolunmus (gercekten ayri parcalar): 3 bolge
+  const real = silhouetteFaces(zl, [secAt(-5, sq(0, 0, 30, 40), sq(35, 0, 65, 40), sq(70, 0, 100, 40)), secAt(-15, sq(0, 0, 30, 40), sq(35, 0, 65, 40), sq(70, 0, 100, 40))]);
+  ok(real.length === 3, 'T-19: her kesitte ayrik parcalar -> 3 bolge: ' + real.length);
+  // yalniz bir kesitte gorunen ada: ayri bolge; ic ice ise buyuge katilir
+  const isl = silhouetteFaces(zl, [secAt(-5, sq(0, 0, 50, 40)), secAt(-15, sq(0, 0, 50, 40), sq(70, 0, 90, 40))]);
+  ok(isl.length === 2, 'T-19: yalniz alt kesitte gorunen ada ayri bolge: ' + isl.length);
+  const nest = silhouetteFaces(zl, [secAt(-5, sq(0, 0, 50, 40)), secAt(-15, sq(10, 10, 40, 30))]);
+  ok(nest.length === 1 && JSON.stringify(bb(nest[0])) === '[0,0,50,40]', 'T-19: ic ice kesit buyuk dis sinira katilir');
+  throwsCode(() => silhouetteFaces(zl, [secAt(-5, sq(0, 0, 50, 40)), secAt(-15, sq(30, 10, 80, 30))]), 'cam.silhouette.not_nested', 'T-19: kismen ortusen kesit hata');
+  // islemler bolgeleri ayri ayri isler: kontur iki yuzde iki dongu
+  const cop = { id: 'sc', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }, { kind: 'face', loops: 'outer' }], side: 'outside', stepdown: 4, heights: { clearance: 10, retract: 2, bottom: { from: 'abs', off: -4 } } };
+  const tp = CAM.computeOp(cop, { setup: S0, tool: flat(6), geom: { faces: two } });
+  const ptsA = cutPoints(tp, () => true, 0.3);
+  const near0 = ptsA.filter((q) => q[0] < 45), near1 = ptsA.filter((q) => q[0] >= 45);
+  ok(near0.length > 50 && near1.length > 50 && near0.every((q) => Math.abs(P.distTo(q, [P.line([0, 0], [30, 0]), P.line([30, 0], [30, 30]), P.line([30, 30], [0, 30]), P.line([0, 30], [0, 0])]) - 3) < 1e-6), 'T-19: kontur her bolgeyi ayri ayri dolasir (r = 3 mesafe)');
+  // uctan uca (cekirdek): yatay kanal govdeyi z=8..12 bandinda iki parcaya boler (ortadaki kesit 2 bolge), diger kesitlerde tek govde -> tek siluet
+  const K = await initKernel(opencascade, () => path.join(ROOT, 'node_modules/replicad-opencascadejs/dist/replicad_single.wasm'));
+  const docT = { params: [], features: [{ id: 'tb', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '40', h: '20', op: 'new' },
+    { id: 'tc', type: 'primitive', kind: 'box', x: '45', y: '-1', z: '8', w: '10', d: '42', h: '4', op: 'cut', targets: ['tb'] }] };
+  const rbT = await K.rebuild(docT); const bT = rbT.bodies[0].id;
+  const queryT = async (cmd, args) => { if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+  const ST = CAM.resolveSetup({ id: 's1', name: 'S1', bodies: [bT], workOffset: { kind: 'G55' }, frame: { origin: { kind: 'stockCorner', corner: 'x-y-z+' }, zAxis: { kind: 'base', dir: '+Z' }, xAxis: { kind: 'base', dir: '+X' } }, stock: { kind: 'boxOffset', side: 0, top: 0, bottom: 0 } }, rbT, builtinMachines()[0]);
+  const rT = await CAM.resolveGeom({ geom: [{ kind: 'silhouette', body: bT }] }, ST, { rebuild: rbT, doc: null, query: queryT });
+  ok(rT.faces.length === 1 && rT.sels.length === 1, 'T-19: yatay kanalli govde (tek kesitte 2 parca) -> tek siluet: ' + rT.faces.length);
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
