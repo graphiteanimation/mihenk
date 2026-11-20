@@ -49,7 +49,7 @@ export async function editTool(tool, { isNew = false, prot = null, others = [], 
   const num = (label, key, o = {}) => numField({ label, value: d[key] ?? null, unit: o.unit ?? 'mm', min: o.min, max: o.max, int: o.int, nullable: o.nullable, f: 'tl-' + key, hint: o.hint, warn: o.warn, set: (v) => { if (v === null) delete d[key]; else d[key] = v; check(); } });
   const drawGeneral = () => [
     textField({ label: t('cam.tl.name'), value: d.name ?? '', f: 'tl-name', max: 120, set: (v) => { d.name = v; check(); } }),
-    selField({ label: t('cam.tl.type'), value: d.type, f: 'tl-type', opts: TOOL_TYPES.map((x) => [x, t('cam.tt.' + x)]), set: (v) => { d.type = v; if (v === 'ball') d.cornerR = d.dia / 2; if (v === 'bullnose' && !(d.cornerR > 0 && d.cornerR < d.dia / 2)) d.cornerR = Math.min(1, d.dia / 4); if (TIP.has(v) && !d.tipAngle) d.tipAngle = v === 'drill' ? 118 : 90; if (v === 'tap' && !d.pitch) d.pitch = 1.5; if (v === 'drill' || v === 'spot') d.centerCutting = true; draw(); } }),
+    selField({ label: t('cam.tl.type'), value: d.type, f: 'tl-type', opts: TOOL_TYPES.map((x) => [x, t('cam.tt.' + x)]), set: (v) => { d.type = v; if (!TIP.has(v)) delete d.tipDia; if (v === 'ball') d.cornerR = d.dia / 2; if (v === 'bullnose' && !(d.cornerR > 0 && d.cornerR < d.dia / 2)) d.cornerR = Math.min(1, d.dia / 4); if (TIP.has(v) && !d.tipAngle) d.tipAngle = v === 'drill' ? 118 : 90; if (v === 'tap' && !d.pitch) d.pitch = 1.5; if (v === 'drill' || v === 'spot') d.centerCutting = true; draw(); } }),
     sec(t('cam.tl.numbers')),
     num(t('cam.tl.number'), 'number', { unit: 'T', int: true, min: 1, max: 99999, warn: (v) => protWarn(prot, 'T', v) }),
     num(t('cam.tl.length_off'), 'lengthOffset', { unit: 'H', int: true, min: 1, max: 99999, warn: (v) => protWarn(prot, 'H', v) }),
@@ -61,6 +61,7 @@ export async function editTool(tool, { isNew = false, prot = null, others = [], 
     const r = [num(t('cam.tl.dia'), 'dia', { min: 0.001, max: 2000, int: false })];
     if (d.type === 'bullnose') r.push(num(t('cam.tl.corner_r'), 'cornerR', { min: 0.001 }));
     if (TIP.has(d.type)) r.push(num(t('cam.tl.tip_angle'), 'tipAngle', { unit: '°', min: 1, max: 179 }));
+    if (TIP.has(d.type)) r.push(num(t('cam.tl.tip_dia'), 'tipDia', { min: 0, nullable: true, hint: t('cam.tl.tip_dia_hint') }));
     if (d.type === 'tap') r.push(num(t('cam.tl.pitch'), 'pitch', { min: 0.01, max: 19.99 }));
     r.push(num(t('cam.tl.flute_len'), 'fluteLen', { min: 0.001 }), num(t('cam.tl.body_len'), 'bodyLen', { min: 0.001, hint: t('cam.tl.body_len_hint') }), num(t('cam.tl.shaft_dia'), 'shaftDia', { min: 0.001, nullable: true, hint: t('cam.tl.shaft_hint') }), num(t('cam.tl.flutes'), 'flutes', { unit: '', int: true, min: 1, max: 100 }));
     if (d.type !== 'drill' && d.type !== 'spot') r.push(checkField({ label: t('cam.tl.center_cutting'), value: !!d.centerCutting, f: 'tl-cc', hint: t('cam.tl.cc_hint'), set: (v) => { d.centerCutting = v; draw(); } }));

@@ -13,6 +13,7 @@ import { postProgram } from '../../../src/cam/post/index.js';
 import { initKernel } from '../../../src/kernel/kernel.js';
 import { validateDoc } from '../../../src/shared/schema.js';
 import { simulate } from '../../../src/cam/sim/index.js';
+import { airFeed } from '../air-feed.mjs';
 import { findRegions } from '../../../src/shared/profiles.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)); const ROOT = path.join(here, '..', '..', '..');
@@ -318,7 +319,7 @@ for (const setup of cam.setups) {
         const tp = await computeOne(S, op0, null, vi, { stk, tps, recs: RECS, ri });
         o.hesap_s = r3(now() - ta); o.ok = true; o.varyant = vi; o.varyant_deger = vi ? JSON.stringify(op0.alts[vi - 1]) : 'birincil';
         o.uyarilar = (tp.warnings || []).map((w) => ({ code: w.code, params: w.params }));
-        o.kesme_mm = r3(tp.stats.cutLen); o.hizli_mm = r3(tp.stats.rapidLen); o.sure_s = r3(tp.stats.timeMin * 60); o.zMin = tp.stats.zMin; o.hareket = tp.moves.length; o.passDepth = tp.meta?.passDepth ?? null;
+        o.kesme_mm = r3(tp.stats.cutLen); o.hizli_mm = r3(tp.stats.rapidLen); o.sure_s = r3(tp.stats.timeMin * 60); o.zMin = tp.stats.zMin; o.hareket = tp.moves.length; o.passDepth = tp.meta?.passDepth ?? null; o.hava_ilerleme_mm = airFeed(tp, S.stockBox.max[2]);
         if (op0.type === 'drill') o.delme = { cycles: tp.moves.filter((m) => m.t === 'cycle').map((m) => ({ cycle: m.cycle, n: m.points.length, top: r3(m.top), bottom: r3(m.bottom), retract: r3(m.retract), clearance: r3(m.clearance), f: m.f, pitch: m.pitch ?? null })) };
         tps.push(tp); break;
       } catch (e) { o.denemeler.push({ varyant: vi ? JSON.stringify(op0.alts[vi - 1]) : 'birincil', hata: opError(e) }); if (vi === nv - 1) { o.hesap_s = r3(now() - ta); o.ok = false; o.hata = opError(e); } }

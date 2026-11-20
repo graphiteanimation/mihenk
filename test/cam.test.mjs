@@ -7,7 +7,7 @@ import * as P from '../src/cam/geom/path2d.js';
 import * as G from '../src/shared/geom2d.js';
 import { ringTree, pocketRegion, SegGrid } from '../src/cam/ops/pocket.js';
 import { loopFromKernel } from '../src/cam/ops/common.js';
-import { sketchFaces } from '../src/cam/geom/select.js';
+import { sketchFaces, silhouetteFaces } from '../src/cam/geom/select.js';
 import { NEWAY_FIXTURE } from './fixtures/machine-neway.mjs';
 import { exportMachines, importMachines, MACHINE_FORMAT } from '../src/cam/machines/io.js';
 import { builtinMachines, checkMachine, copyMachine } from '../src/cam/machines/builtin.js';
@@ -144,11 +144,12 @@ section('3. yuzey frezeleme ve delme');
     const cyc = (ctx) => CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, ...ctx }).moves.filter((m) => m.t === 'cycle');
     const n0 = cyc({}), n1 = cyc({ stockMap: flatMap(false), modelMap: flatMap(false) }), n2 = cyc({ stockMap: flatMap(true), modelMap: flatMap(false) }), n3 = cyc({ stockMap: flatMap(false) });
     const n4 = cyc({ stockMap: flatMap(false), modelMap: flatMap(true) });
-    ok(n0.length === 3, 'T-23: harita yok + R stok altinda -> her nokta ayri cevrim (eski muhafazakar): ' + n0.length);
+    const g98 = (c) => c.length === 1 && c[0].points.length === 3 && c[0].returnTo === 'clearance';
+    ok(g98(n0), 'T-23/WP-06: harita yok + R stok altinda -> gecis dogrulanamaz: TEK cevrim, her nokta G98 (returnTo clearance): ' + n0.length);
     ok(n1.length === 1 && n1[0].points.length === 3 && n1[0].retract < n1[0].clearance, 'T-23: islenmis yuzey (stok + model R altinda) -> tek G99 cevrimi: ' + n1.length);
-    ok(n2.length === 2 && n2[0].points.length === 2 && n2[1].points.length === 1, 'T-23: stokta kaburga gecisi keser -> bolunur (2+1): ' + n2.map((c) => c.points.length));
-    ok(n3.length === 3, 'T-23: model haritasi yok -> gecis guvenli sayilmaz');
-    ok(n4.length === 2, 'T-23: model haritasinda kaburga (ince duvar guvencesi) -> bolunur');
+    ok(g98(n2), 'T-23/WP-06: stokta kaburga gecisi keser -> tek cevrim, G98 donusu (eskiden 2+1 ayri cevrim): ' + n2.map((c) => c.points.length));
+    ok(g98(n3), 'T-23/WP-06: model haritasi yok -> G99 gecisi guvenli sayilmaz -> G98');
+    ok(g98(n4), 'T-23/WP-06: model haritasinda kaburga (ince duvar guvencesi) -> G98');
     const { simulate } = await import('../src/cam/sim/index.js');
     const tp1 = CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, stockMap: flatMap(false), modelMap: flatMap(false) });
     const sr = simulate(tp1, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(false) });
@@ -156,7 +157,9 @@ section('3. yuzey frezeleme ve delme');
     const tp2 = CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, stockMap: flatMap(true), modelMap: flatMap(true) });
     const sr2 = simulate(tp2, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(true) });
     ok(!sr2.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23: kaburgali stokta bolunmus cevrim sim\'de temiz');
-    const tpBad = { ...tp2, moves: tp2.moves.map((m) => (m.t === 'cycle' && m.points.length === 2 ? { ...m, points: [...m.points, [80, 30]] } : m)).filter((m) => !(m.t === 'cycle' && m.points.length === 1)) };
+    ok(!sr2.issues.some((i) => i.code === 'cam.sim.below_stock' || i.code === 'cam.sim.gouge'), 'WP-06: G98 donuslu tek cevrim sim\'de temiz: ' + sr2.issues.map((i) => i.code));
+    // kontrol: ayni cevrim G98 bayragi olmadan (R'de G99 gecisleri) kaburgayi keser -> sim gecisi gorur
+    const tpBad = { ...tp2, moves: tp2.moves.map((m) => { if (m.t !== 'cycle') return m; const { returnTo, ...rest } = m; void returnTo; return rest; }) };
     const sr3 = simulate(tpBad, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(true) });
     ok(sr3.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23 kontrol: kaburgayi R\'de gecen birlesik cevrim sim\'de rapid_in_stock (gecis denetimi gercek)');
   }
@@ -614,7 +617,8 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
     const toolK = tools.find((t) => t.id === 'dr');
     const nOld = CAM.computeOp(opK, { setup: SK, tool: toolK, geom: { holes: hp }, stockMap, modelMap: center }).moves.filter((m) => m.t === 'cycle').length;
     const nNew = CAM.computeOp(opK, { setup: SK, tool: toolK, geom: { holes: hp }, ...maps }).moves.filter((m) => m.t === 'cycle').length;
-    ok(nOld === 1 && nNew === 2, 'T-23: merkez ornekli haritayla kanadi R13\'te gecen tek cevrim (eski) -> yeni haritayla ayri cevrim: ' + nOld + ' -> ' + nNew);
+    const cyN = CAM.computeOp(opK, { setup: SK, tool: toolK, geom: { holes: hp }, ...maps }).moves.filter((m) => m.t === 'cycle')[0];
+    ok(nOld === 1 && nNew === 1 && cyN.returnTo === 'clearance' && cyN.points.length === 2, 'T-23/WP-06: merkez ornekli haritayla kanadi R13\'te gecen G99 zinciri (eski) -> yeni haritayla ayni cevrim G98 donusu: ' + nOld + ' -> ' + nNew + ' ' + cyN.returnTo);
     await K.rebuild(doc);
   }
   // T-04: setup n'in son stogu setup n+1'in baslangic stogu (P1 S3 hayalet stok durumunu kuran sentetik cok-setup testi)
@@ -688,6 +692,291 @@ section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');
   const toSketch = (loop) => { const pts = {}, ents = []; const key = (p) => p[0].toFixed(9) + ',' + p[1].toFixed(9); const id = (p) => { const k = key(p); if (!pts['p' + k]) pts['p' + k] = { x: p[0], y: p[1] }; return 'p' + k; }; loop.forEach((g, i) => ents.push({ id: 'e' + i, type: 'line', a: id(g.p0), b: id(g.p1) })); return { points: pts, ents }; };
   ok(findRegions(toSketch(sqGap)).regions.length === 0, 'ham acik dongu eskizde bolge vermez (ada kaybi, T-24)');
   ok(findRegions(toSketch(c1)).regions.length === 1, 'kapatilmis dongu eskizde bir bolge');
+}
+
+section('10. WP-06 T-01 ilk dalma: guvenli yukseklikten retract\'a HIZLI inis');
+{
+  const { simulate } = await import('../src/cam/sim/index.js');
+  const tool = flat(10);
+  const firstFeed = (tp) => { let last = null; for (const m of tp.moves) { if (m.t === 'feed' || m.t === 'arc') return { m, from: last }; if (m.t === 'rapid') last = m; } return null; };
+  const mkC = () => CAM.computeOp({ id: 'c', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], stepdown: 4 }, { setup: S0, tool, geom: { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] } });
+  const mkP = () => CAM.computeOp({ id: 'p', type: 'pocket', ...base, geom: [{ kind: 'face' }], stepover: 4, stepdown: 4, entry: { kind: 'plunge' } }, { setup: S0, tool, geom: { faces: [{ z: -8, normalOk: true, outer: sq(20, 15, 80, 45), inners: [] }] } });
+  const mkF = () => CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, stepdown: 2, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -2 } } }, { setup: S0, tool });
+  for (const [nm, mk_] of [['kontur', mkC], ['cep', mkP], ['yuzey', mkF]]) {
+    const tp = mk_(); const ff = firstFeed(tp);
+    // clearance Z10 -> retract Z2 HIZLI; ilk ilerleme retract'tan (Z2) baslar
+    ok(ff && ff.from && Math.abs(ff.from.z - 2) < 1e-9, `T-01 ${nm}: ilk ilerleme retract'tan (Z2) baslar: ${ff?.from?.z}`);
+    ok(tp.moves[0].t === 'rapid' && Math.abs(tp.moves[0].z - 10) < 1e-9 && tp.moves[1].t === 'rapid' && Math.abs(tp.moves[1].z - 2) < 1e-9 && tp.moves[1].x === tp.moves[0].x, `T-01 ${nm}: ilk iki hareket hizli: clearance sonra retract`);
+    ok(validateToolpath(tp), `T-01 ${nm}: IR gecerli`);
+    // havada ilerleme: yalniz retract (2 mm) kadar (+ sonraki paso inisleri); clearance'tan (10 mm) degil
+    const firstAir = (() => { const f = firstFeed(tp); return f.from.z - 0; })();
+    ok(firstAir < 2 + 1e-9, `T-01 ${nm}: ilk dalmada havada ilerleme <= retract (2): ${firstAir}`);
+    // sim: stok ustunde hizli inis temiz; stoga hizli inis hala yakalanir
+    const flat0 = heightmapFromFn([0, 0], [100, 60], 0.5, () => 0);
+    const sr = simulate(tp, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flat0 });
+    ok(!sr.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), `T-01 ${nm}: yeni hizli inis sim rapid_in_stock vermez`);
+  }
+  // sim yeni hareketleri GORUR: retract stok icinde olsaydi (stoktan gecen hizli inis) rapid_in_stock cikar
+  {
+    const tp = mkC(); const bad = { ...tp, moves: tp.moves.map((m, i) => (i === 1 ? { ...m, z: -3 } : m)) };
+    const flat0 = heightmapFromFn([0, 0], [100, 60], 0.5, () => 0);
+    const sr = simulate(bad, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flat0 });
+    ok(sr.issues.some((i) => i.code === 'cam.sim.rapid_in_stock' && i.moveIndex === 1), "T-01: hizli inisin kendisi (hareket 1) stok icine kaydirilinca sim rapid_in_stock verir: " + JSON.stringify(sr.issues.map((i) => [i.code, i.moveIndex])));
+  }
+}
+
+section('11. WP-06 T-10 stockToLeave iki bicim; T-11 tipDia / shaftDia');
+{
+  const { toolGeom } = await import('../src/cam/sim/index.js');
+  const { irTool, tipLength } = await import('../src/cam/tools.js');
+  const tool = flat(10);
+  // ---- T-10
+  const faceZ = (sta) => CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, ...(sta === undefined ? {} : { stockToLeave: sta }), heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -2 } } }, { setup: S0, tool }).stats.zMin;
+  ok(Math.abs(faceZ(undefined) + 2) < 1e-9 && Math.abs(faceZ(0.5) + 1.5) < 1e-9 && Math.abs(faceZ({ radial: 0.2, axial: 0.5 }) + 1.5) < 1e-9 && Math.abs(faceZ({ radial: 0.3 }) + 2) < 1e-9, 'T-10 face: sayi = eksenel pay; {radial, axial} de kabul; yalniz radial -> eksenel 0');
+  throwsCode(() => faceZ(-1), 'cam.op.bad_field', 'T-10: negatif pay'); throwsCode(() => faceZ('x'), 'cam.op.bad_field', 'T-10: sayi/nesne olmayan pay');
+  throwsCode(() => faceZ({ axial: -0.1 }), 'cam.op.bad_field', 'T-10: negatif axial');
+  const cop = (sta) => ({ id: 'c', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], stepdown: 4, ...(sta === undefined ? {} : { stockToLeave: sta }) });
+  const cg = { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] };
+  const cdist = (tp) => { const lp = []; walk(tp, (m, k, from) => { if (!from || m.kind !== 'cut' || m.t !== 'feed' || m.z > -7.99) return; lp.push([m.x, m.y]); }); return Math.min(...lp.map((p) => P.distTo(p, kloop(sq(20, 15, 80, 45))))); };
+  const cN = CAM.computeOp(cop(0.3), { setup: S0, tool, geom: cg }), cO = CAM.computeOp(cop({ radial: 0.3, axial: 0.3 }), { setup: S0, tool, geom: cg });
+  ok(Math.abs(cdist(cN) - 5.3) < 1e-6 && Math.abs(cdist(cO) - 5.3) < 1e-6 && Math.abs(cN.stats.zMin + 9.7) < 1e-9 && Math.abs(cO.stats.zMin + 9.7) < 1e-9, 'T-10 kontur: sayi 0,3 = {radial 0,3, axial 0,3} (yanal r+0,3, taban -9,7)');
+  const cR = CAM.computeOp(cop({ radial: 0.3 }), { setup: S0, tool, geom: cg }); ok(Math.abs(cR.stats.zMin + 10) < 1e-9 && Math.abs(cdist(cR) - 5.3) < 1e-6, 'T-10 kontur: yalniz radial -> eksenel 0');
+  const pk = (sta) => CAM.computeOp({ id: 'p', type: 'pocket', ...base, geom: [{ kind: 'face' }], stepover: 4, stepdown: 4, entry: { kind: 'plunge' }, ...(sta === undefined ? {} : { stockToLeave: sta }) }, { setup: S0, tool, geom: { faces: [{ z: -8, normalOk: true, outer: sq(20, 15, 80, 45), inners: [] }] } });
+  ok(Math.abs(pk(0.5).stats.zMin + 7.5) < 1e-9 && Math.abs(pk({ radial: 0.5, axial: 0.5 }).stats.zMin + 7.5) < 1e-9, 'T-10 cep: sayi = {radial, axial} ayni');
+  // sema
+  { const old = { params: [], features: [] }; const mkd = (sta) => ({ ...old, cam: { machineId: null, tools: [flat(6)], setups: [{ id: 's', name: 'S', bodies: [], workOffset: { kind: 'G55' }, stock: { kind: 'box', min: [0, 0, 0], max: [1, 1, 1] }, ops: [{ id: 'o1', type: 'face', toolId: 't6', stockToLeave: sta }] }] } });
+    ok(validateDoc(mkd(0.2)) && validateDoc(mkd({ radial: 0.1, axial: 0.2 })), 'T-10 sema: iki bicim gecerli'); throwsCode(() => validateDoc(mkd('x')), 'schema.bad_field', 'T-10 sema: metin pay reddedilir'); throwsCode(() => validateDoc(mkd({ radial: -1 })), 'schema.bad_field', 'T-10 sema: negatif pay reddedilir'); }
+  // ---- T-11
+  const cham = { id: 'tc', number: 9, lengthOffset: 9, diaOffset: 9, type: 'chamfer', dia: 10, tipAngle: 90, fluteLen: 5, bodyLen: 30, flutes: 2, centerCutting: true };
+  ok(normalizeTool({ ...cham, tipDia: 2 }).tipDia === 2 && normalizeTool({ ...cham, tipDia: 0 }).tipDia === 0 && normalizeTool(cham).tipDia === undefined, 'T-11: tipDia 0 <= tipDia < dia kabul, verilmezse yok');
+  throwsCode(() => normalizeTool({ ...cham, tipDia: 10 }), 'cam.tool.bad_field', 'T-11: tipDia >= dia'); throwsCode(() => normalizeTool({ ...cham, tipDia: -1 }), 'cam.tool.bad_field', 'T-11: negatif tipDia');
+  throwsCode(() => normalizeTool({ ...flat(6), tipDia: 1 }), 'cam.tool.bad_field', 'T-11: duz uclu takimda tipDia anlamsiz -> hata');
+  { const d0 = { params: [], features: [], cam: { tools: [{ ...cham, tipDia: 2, shaftDia: 8 }] } }; ok(validateDoc(d0), 'T-11 sema: tipDia + shaftDia gecerli'); }
+  { const it = irTool(normalizeTool({ ...cham, tipDia: 2, shaftDia: 8 })); ok(it.tipDia === 2 && it.shaftDia === 8 && irTool(normalizeTool(cham)).tipDia === undefined, 'T-11: IR takiminda tipDia/shaftDia (varsa)'); }
+  ok(Math.abs(tipLength(normalizeTool({ ...cham, tipDia: 2 })) - 4) < 1e-9 && Math.abs(tipLength(normalizeTool(cham)) - 5) < 1e-9, 'T-11: uc boyu (90 derece, D10): sivri 5, tipDia 2 -> 4');
+  { const g = toolGeom({ ...irTool(normalizeTool({ ...cham, tipDia: 2 })), shaftDia: 8 }), g0 = toolGeom(irTool(normalizeTool(cham)));
+    ok(g.profile(0.5) === 0 && g.profile(1) === 0 && Math.abs(g.profile(3) - 2) < 1e-9 && Math.abs(g0.profile(3) - 3) < 1e-9 && g.shaftR === 4, 'T-11 sim: uc duz capi (r<=1 duz, sonra 45 derece) ve sap capi'); }
+  // kapi: sap/uc varsayim uyarisi
+  { const M = { ...structuredClone(NEWAY_FIXTURE), post: { props: { ...NEWAY_FIXTURE.post.props, safeRetract: 'G28' } } };
+    const mkp = (t) => CAM.buildProgram({ name: 'O1', machine: M, sections: [{ setup: S0, toolpaths: [CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -1 } } }, { setup: S0, tool: t })] }] });
+    const ga = (t, sim) => CAM.gates(mkp(t), M, sim ? { sim } : {}).filter((g) => g.code === 'cam.gate.tool_geom_assumed');
+    ok(ga(tool).length === 1 && ga(tool)[0].level === 'warn' && ga(tool)[0].params.field === 'shaftDia', 'T-11 kapi: sap capi yoksa tool_geom_assumed uyarisi (block degil)');
+    ok(ga({ ...tool, shaftDia: 10 }).length === 0, 'T-11 kapi: shaftDia varsa uyari yok'); ok(ga(tool, { res: 1, tools: { 5: { shaftDia: 10 } } }).length === 0, 'T-11 kapi: sim.tools ile gelen shaftDia da sayilir');
+  }
+}
+
+section('12. WP-06 T-02 acik zincir (sketch ogeleri): secim, taraf, uzatma, wear');
+{
+  const { simulate } = await import('../src/cam/sim/index.js');
+  const pt = (x, y) => ({ x, y });
+  const sk = { id: 'sk', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '-5' },
+    points: { p1: pt(10, 10), p2: pt(50, 10), c: pt(50, 20), p3: pt(60, 20), p4: pt(60, 40), q1: pt(80, 5), q2: pt(90, 5) },
+    ents: [{ id: 'l1', type: 'line', a: 'p1', b: 'p2' }, { id: 'a1', type: 'arc', c: 'c', a: 'p2', b: 'p3' }, { id: 'l2', type: 'line', a: 'p3', b: 'p4' }, { id: 'x1', type: 'line', a: 'q1', b: 'q2' }] };
+  const plane = { o: [0, 0, -5], x: [1, 0, 0], y: [0, 1, 0], n: [0, 0, 1] };
+  const body = { id: 'b', vertices: [0, 0, -10, 100, 60, 0].length ? [0, 0, -10, 100, 0, -10, 100, 60, -10, 0, 60, -10, 0, 0, 0, 100, 0, 0, 100, 60, 0, 0, 60, 0] : [] };
+  const nw = structuredClone(NEWAY_FIXTURE);
+  const M = { ...nw, id: 'm', spindle: { maxRpm: 12000, minRpm: 50 }, feed: { maxCut: 10000, rapid: 30000 }, post: { props: { ...nw.post.props, safeRetract: 'G28' } } };
+  const tool = flat(4, { id: 'em4', number: 7, lengthOffset: 7, diaOffset: 7 });
+  const camOf = (op) => ({ tools: [tool], setups: [{ id: 's1', name: 'S1', bodies: ['b'], workOffset: { kind: 'G55' }, frame: { origin: { kind: 'model' } }, stock: { kind: 'boxOffset', side: 0, top: 0, bottom: 0 }, ops: [op] }] });
+  const rebuild = { bodies: [body], sketches: { sk: { plane } }, holes: [] };
+  const run = (opx) => CAM.generateProgram(camOf({ id: 'ch', type: 'contour', name: 'Yarik', toolId: 'em4', ...base, stepdown: 2, heights: { clearance: 10, retract: 2 }, ...opx }), { rebuild, machine: M, query: async () => { throw new Error('yok'); }, doc: { features: [sk] }, name: 'O1' });
+  const cutPts = (tp, zf = (z) => z < -4.99) => cutPoints(tp, zf, 0.2).map((p) => [p[0], p[1]]);
+  const chain = (ents, extra = {}) => [{ kind: 'chain', sketch: 'sk', ents, ...extra }];
+  const full = ['l1', 'a1', 'l2'];
+  // secim -> zincir
+  { const f = CAM.resolveGeom; const S = CAM.resolveSetup(camOf({}).setups[0], rebuild, M, {});
+    const r = await f({ type: 'contour', geom: chain(['l2', 'l1', 'a1']) }, S, { rebuild, doc: { features: [sk] }, query: async () => null });
+    const c = r.faces[0]; ok(!c.closed && c.segs.length === 3 && Math.abs(c.z + 5) < 1e-9, 'T-02: 3 oge tek acik zincir (sira ogelerin listesinden bagimsiz), z = eskiz duzlemi: ' + c.segs.length);
+    const L = P.length; const ps = c.segs.flatMap((g) => P.fromGeom2d(g, g.fwd !== false)); ok(Math.abs(ps.reduce((a, q) => a + L(q), 0) - (40 + Math.PI * 5 + 20)) < 1e-6 && (P.dist(ps[0].a, [60, 40]) < 1e-9 || P.dist(ps[0].a, [10, 10]) < 1e-9), 'T-02: zincir uzunlugu 40 + 5pi + 20, serbest uctan baslar (ilk listelenen ogenin serbest ucu)');
+    const rv = await f({ type: 'contour', geom: chain(full, { reverse: true }) }, S, { rebuild, doc: { features: [sk] }, query: async () => null }); const pr = rv.faces[0].segs.flatMap((g) => P.fromGeom2d(g, g.fwd !== false));
+    ok(P.dist(pr[0].a, [60, 40]) < 1e-9 && P.dist(pr[pr.length - 1].b, [10, 10]) < 1e-9, 'T-02: reverse zincir yonunu cevirir');
+    for (const [e, code] of [[['l1', 'x1'], 'cam.geom.chain_broken'], [[], 'cam.geom.chain_empty'], [['l1', 'yok'], 'cam.geom.chain_ent_missing']]) { let er = null; try { await f({ type: 'contour', geom: chain(e) }, S, { rebuild, doc: { features: [sk] }, query: async () => null }); } catch (x) { er = x.code; } ok(er === code, `T-02: ${code} (${er})`); }
+    let er2 = null; try { await f({ type: 'pocket', geom: chain(full) }, S, { rebuild, doc: { features: [sk] }, query: async () => null }); } catch (x) { er2 = x.code; } ok(er2 === 'cam.geom.sel_unsupported', 'T-02: cep zincir secimi desteklenmez (hata): ' + er2);
+  }
+  const chainP = (tp) => { const out = []; return (() => { let q = null; for (const m of tp.moves) { if (m.t === 'rapid') q = m; } return out; })(); };
+  void chainP;
+  const base2 = (() => { const S = CAM.resolveSetup(camOf({}).setups[0], rebuild, M, {}); return S; })();
+  // on: merkez zincirde, uzatmalar
+  { const r = await run({ geom: chain(full), side: 'on', heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } });
+    const tp = r.ops[0].toolpath; ok(r.ops[0].ok && tp, 'T-02: zincir kontur hesaplandi: ' + JSON.stringify(r.ops[0].error));
+    const on = P.fromGeom2d; void on; const pts = cutPts(tp);
+    const refPath = [P.line([10, 10], [50, 10]), P.arc([50, 20], 10, -Math.PI / 2, Math.PI / 2), P.line([60, 20], [60, 40])];
+    ok(pts.length > 20 && pts.every((p) => P.distTo(p, refPath) < 1e-6), 'T-02 on: tum kesme noktalari zincir uzerinde');
+    ok(Math.abs(tp.stats.zMin + 5) < 1e-9, 'T-02: taban = eskiz duzlemi (Z-5), 2 mm pasolar');
+    const ex = (await run({ geom: chain(full), side: 'on', extendStart: 5, extendEnd: 3, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } })).ops[0].toolpath; const px = cutPts(ex);
+    ok(px.some((p) => p[0] >= 5 - 1e-6 && p[0] < 5.3 && Math.abs(p[1] - 10) < 1e-6) && !px.some((p) => p[0] < 5 - 1e-6) && px.some((p) => Math.abs(p[0] - 60) < 1e-6 && Math.abs(p[1] - 43) < 1e-6), 'T-02: extendStart 5 -> (5,10), extendEnd 3 -> (60,43) (teget dogrular)');
+    const sr = simulate(tp, { res: 0.5, stockBox: base2.stockBox, stockHeightmap: heightmapFromFn([0, 0], [100, 60], 0.5, () => 0) }); ok(sr.issues.length === 0 && sr.removedVolume > 0, 'T-02: sim temiz, malzeme kaldirir (yarik): ' + sr.issues.map((i) => i.code));
+  }
+  // sol / sag: r + pay kadar ofset, taraf zincir yonune gore
+  { const L = await run({ geom: chain(full), side: 'left', stockToLeave: { radial: 0.3, axial: 0 }, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } }), R = await run({ geom: chain(full), side: 'right', heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } });
+    const refPath = [P.line([10, 10], [50, 10]), P.arc([50, 20], 10, -Math.PI / 2, Math.PI / 2), P.line([60, 20], [60, 40])];
+    const pl = cutPts(L.ops[0].toolpath), pr = cutPts(R.ops[0].toolpath);
+    ok(L.ops[0].ok && pl.length > 20 && pl.every((p) => Math.abs(P.distTo(p, refPath) - 2.3) < 1e-6), 'T-02 sol: her nokta zincirden tam r + pay = 2,3: ' + L.ops[0].ok + JSON.stringify(L.ops[0].error));
+    ok(pl.some((p) => Math.abs(p[0] - 30) < 0.3 && p[1] > 10) && !pl.some((p) => Math.abs(p[0] - 30) < 0.3 && p[1] < 10), 'T-02 sol: zincir +X giderken sol = +Y tarafi');
+    ok(R.ops[0].ok && pr.every((p) => Math.abs(P.distTo(p, refPath) - 2) < 1e-6) && pr.some((p) => Math.abs(p[0] - 30) < 0.3 && p[1] < 10), 'T-02 sag: r = 2 ve -Y tarafi');
+    const g = CAM.gates(R.program, M, { sim: { res: 0.5, modelHeightmaps: { s1: heightmapFromFn([0, 0], [100, 60], 0.5, () => -Infinity) } } });
+    ok(!g.some((x) => x.level === 'block' && x.code.startsWith('cam.sim.')), 'T-02: sim kapilari engel vermez: ' + g.filter((x) => x.level === 'block').map((x) => x.code));
+  }
+  // wear
+  { const W = (extra) => run({ geom: chain(full), side: 'left', comp: 'wear', extendStart: 6, extendEnd: 6, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } }, ...extra });
+    const w = await W({}); const tp = w.ops[0].toolpath;
+    ok(w.ops[0].ok && tp.comp === 'wear' && tp.compSide === 'left' && tp.moves.filter((m) => m.t === 'comp' && m.on).length === tp.moves.filter((m) => m.t === 'comp' && !m.on).length && tp.moves.some((m) => m.t === 'comp'), 'T-02 wear: G41 (left), her derinlikte comp ac/kapa: ' + JSON.stringify(w.ops[0].error));
+    const wp = []; walk(tp, (m, k, from) => { if (from && m.kind === 'cut' && m.t === 'feed' && m.z < -4.99 && m.y > 9.99 && m.y < 10.01 && m.x > 5 && m.x < 55) wp.push([m.x, m.y]); }); ok(wp.length > 0, 'T-02 wear: programlanan yol zincirin kendisi (ofset yok)');
+    const w2 = await W({ extendStart: 1 }); ok(!w2.ops[0].ok && w2.ops[0].error.code === 'cam.contour.wear_lead_short', 'T-02 wear: kisa giris uzatmasi reddedilir: ' + w2.ops[0].error?.code);
+    const w3 = await W({ side: 'on' }); ok(!w3.ops[0].ok && w3.ops[0].error.code === 'cam.contour.wear_on', 'T-02 wear: side on reddedilir');
+    const bad = await run({ geom: chain(full), side: 'outside', heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } }); ok(!bad.ops[0].ok && bad.ops[0].error.code === 'cam.contour.open_needs_on', 'T-02: acik zincirde outside hala reddedilir');
+    const lead = await run({ geom: chain(full), side: 'on', leadIn: { kind: 'line', len: 3 }, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } }); ok(!lead.ops[0].ok && lead.ops[0].error.code === 'cam.contour.open_options', 'T-02: acik zincirde leadIn yerine extendStart');
+  }
+  // NC: post kodu G41 D
+  { const w = await run({ geom: chain(full), side: 'left', comp: 'wear', extendStart: 6, extendEnd: 6, heights: { clearance: 10, retract: 2, bottom: { from: 'selection', off: 0 } } });
+    const nc = (await import('../src/cam/post/index.js')).postProgram(w.program, M, { date: 'x', gates: [] }); ok(/G41 D7/.test(nc.text) && /G40/.test(nc.text), 'T-02: NC G41 D7 ... G40');
+  }
+}
+
+
+// ------------------------------------------------------------------ T-03 pah islemi
+section('T-03. pah (chamfer)');
+{
+  const { simulate } = await import('../src/cam/sim/index.js');
+  const ch90 = { id: 'ch90', number: 9, lengthOffset: 9, diaOffset: 9, type: 'chamfer', dia: 12, tipAngle: 90, tipDia: 2, fluteLen: 6, bodyLen: 40, flutes: 3, centerCutting: false, shaftDia: 10 };
+  const cop = { id: 'p', type: 'chamfer', ...base, geom: [{ kind: 'face', loops: 'outer' }], width: 1.5, heights: { clearance: 10, retract: 2 } };
+  const geom = { faces: [{ z: 0, outer: sq(20, 15, 80, 45), inners: [] }] };
+  const tp = CAM.computeOp(cop, { setup: S0, tool: ch90, geom });
+  const cutZ = []; walk(tp, (m, k, from) => { if (from && m.t === 'feed' && m.kind === 'cut') cutZ.push(m.z); });
+  const rect = [P.line([20, 15], [80, 15]), P.line([80, 15], [80, 45]), P.line([80, 45], [20, 45]), P.line([20, 45], [20, 15])];
+  // 90 derece takim, uc cap 2, genislik 1,5: dz = 1,5; uc z = 0 - 1,5 - 0,2 = -1,7; merkez secilen (ust) kenardan 1 + 1,7 = 2,7
+  ok(cutZ.length > 4 && cutZ.every((z) => Math.abs(z + 1.7) < 1e-9), 'T-03: tek z = kenar - derinlik - uc payi (-1,7): ' + cutZ.slice(0, 3));
+  const pts = cutPoints(tp, () => true, 0.2); const dd = pts.map((q) => P.distTo(q, rect));
+  ok(pts.length > 100 && dd.every((x) => x > 2.7 - 1e-6 && x < 2.7 * Math.SQRT2 + 1e-6) && dd.filter((x) => Math.abs(x - 2.7) < 1e-6).length > pts.length * 0.8, 'T-03: takim merkezi ust kenardan tam tipDia/2 + (dz + pay)*tan = 2,7 (koseler sivri)');
+  ok(pts.some((q) => Math.hypot(q[0] - 17.3, q[1] - 12.3) < 0.25) && pts.some((q) => Math.hypot(q[0] - 82.7, q[1] - 47.7) < 0.25), 'T-03: disbukey koseler sivri (miter), yuvarlak degil: kose noktasi (17,3 ; 12,3)');
+  ok(tp.meta.chamfer.depth === 1.5 && tp.opType === 'chamfer' && tp.tool.tipDia === 2, 'T-03: IR meta derinlik 1,5, takim tipDia IR\'de');
+  // yon: tirmanma disari = CW (malzeme gidisin sagi); conv ters
+  const area = (t) => { const q = []; walk(t, (m, k, from) => { if (from && m.t === 'feed' && m.kind === 'cut') q.push([m.x, m.y]); }); let a = 0; for (let i = 0; i < q.length; i++) { const u = q[i], v = q[(i + 1) % q.length]; a += u[0] * v[1] - v[0] * u[1]; } return a; };
+  const tpC = CAM.computeOp({ ...cop, dir: 'conv' }, { setup: S0, tool: ch90, geom });
+  ok(area(tp) < 0 && area(tpC) > 0, 'T-03: tirmanma = saat yonu, conv ters (disari kenar)');
+  // sim: stok islenmis yuzey (parca 0, cevre -10) ve modelde pahli parca -> engel yok, hacim ~ pah kesiti x cevre
+  // secilen kenar = pahin ust kenari (x 20..80, y 15..45). Ham stok kenardan 1,5 tasar; model: kenardan dd uzakta z = -dd (dd <= 1,5), sonra dik duvar
+  const dOut = (x, y) => Math.max(20 - x, 0, x - 80, 15 - y, 0, y - 45); // iki duzlemin sivri kesisimi (CAD pahi)
+  const hmStock = heightmapFromFn([0, 0], [100, 60], 0.25, (x, y) => (dOut(x, y) < 1.5 ? 0 : -10));
+  const hmModel = heightmapFromFn([0, 0], [100, 60], 0.25, (x, y) => { const d = dOut(x, y); return d <= 1.5 ? -d : -10; });
+  const sr = simulate(tp, { res: 0.25, stockBox: S0.stockBox, stockHeightmap: hmStock });
+  ok(sr.issues.length === 0, 'T-03: sim temiz: ' + sr.issues.map((i) => i.code));
+  const ideal = 180 * 1.5 * 1.5 / 2; ok(sr.removedVolume > ideal * 0.9 && sr.removedVolume < ideal * 1.2, `T-03: kaldirilan hacim ~ pah kesiti x cevre (${sr.removedVolume.toFixed(1)} / ${ideal})`);
+  const prog = CAM.buildProgram({ name: 'O1', machine: builtinMachines()[0] ?? {}, sections: [{ setup: S0, toolpaths: [tp] }] });
+  const gs = CAM.gates(prog, structuredClone(NEWAY_FIXTURE), { sim: { res: 0.25, modelHeightmaps: { s1: hmModel }, stockHeightmaps: { s1: hmStock } } });
+  ok(!gs.some((x) => x.level === 'block' && x.code.startsWith('cam.sim.')), 'T-03: sim kapilari (model pahli) engel vermez: ' + gs.filter((x) => x.level === 'block').map((x) => x.code));
+  // ici: delik kenari (takim delikte)
+  const hole = { z: 0, outer: sq(0, 0, 100, 60), inners: [sq(40, 20, 60, 40).reverse().map((x) => ({ ...x, fwd: false }))] };
+  const tpH = CAM.computeOp({ ...cop, geom: [{ kind: 'face', loops: 'inner' }] }, { setup: S0, tool: ch90, geom: { faces: [hole] } });
+  const sqIn = [P.line([40, 20], [60, 20]), P.line([60, 20], [60, 40]), P.line([60, 40], [40, 40]), P.line([40, 40], [40, 20])];
+  const ph = cutPoints(tpH, () => true, 0.2); ok(ph.length > 50 && ph.every((q) => Math.abs(P.distTo(q, sqIn) - 2.7) < 1e-6 && q[0] > 42 && q[0] < 58 && q[1] > 22 && q[1] < 38), 'T-03: delik kenari: takim delik icinde, kenardan 2,7');
+  // dar uc acisi: 60 derece takim, genislik 1: dz = 1/tan(30) = 1,732
+  const ch60 = { ...ch90, tipAngle: 60, tipDia: 0 }; const tp60 = CAM.computeOp({ ...cop, width: 1 }, { setup: S0, tool: ch60, geom });
+  ok(Math.abs(tp60.meta.chamfer.depth - 1.732) < 1e-3, 'T-03: 60 derece takim derinlik = w/tan(30): ' + tp60.meta.chamfer.depth);
+  // hatalar
+  throwsCode(() => CAM.computeOp(cop, { setup: S0, tool: flat(10), geom }), 'cam.chamfer.tool_type', 'pah icin duz freze olmaz');
+  throwsCode(() => CAM.computeOp({ ...cop, width: 8 }, { setup: S0, tool: ch90, geom }), 'cam.chamfer.tool_small', 'takim konigi yetmez');
+  throwsCode(() => CAM.computeOp({ ...cop, width: null }, { setup: S0, tool: ch90, geom }), 'cam.op.missing', 'genislik zorunlu');
+  throwsCode(() => CAM.computeOp(cop, { setup: S0, tool: ch90, geom: { faces: [{ ...geom.faces[0], z: 5 }] } }), 'cam.chamfer.above_stock', 'kenar stok ustunde');
+  throwsCode(() => CAM.computeOp({ ...cop, geom: [{ kind: 'chain' }] }, { setup: S0, tool: ch90, geom: { items: [{ segs: [{ ...G.mkLine([10, 10], [50, 10]), fwd: true }], closed: false, z: 0 }] } }), 'cam.chamfer.chain_side', 'acik zincir icin taraf secilmeli');
+  // model_sharp: pahli modelde uyari yok, keskin kenarda uyari
+  { const mapOf = (fn) => heightmapFromFn([0, 0], [100, 60], 0.1, fn);
+    const mC = mapOf((x, y) => { const d = dOut(x, y); return d <= 1.5 ? -d : -10; });
+    const mS = mapOf((x, y) => (dOut(x, y) > 0 ? -10 : 0));
+    const w = (m) => CAM.computeOp(cop, { setup: S0, tool: ch90, geom, modelMap: m }).warnings.some((x) => x.code === 'cam.chamfer.model_sharp');
+    ok(!w(mC), 'T-03: pahli model -> model_sharp uyarisi yok'); ok(w(mS), 'T-03: keskin kenarli (duz blok) model -> cam.chamfer.model_sharp uyarisi'); ok(!w(null), 'T-03: model haritasi yoksa uyari uretilmez (bilinmiyor)');
+    const tH = CAM.computeOp({ ...cop, geom: [{ kind: 'face', loops: 'inner' }] }, { setup: S0, tool: ch90, geom: { faces: [hole] }, modelMap: mapOf((x, y) => { const d = Math.max(0, Math.max(40 - x, x - 60, 20 - y, y - 40) * -1); void d; return -10; }) });
+    ok(tH.warnings.some((x) => x.code === 'cam.chamfer.model_sharp'), 'T-03: delik kenari keskin model -> uyari'); }
+  // acik zincir kontur: dir yok sayilir (yon zincir yonu); pah dir'e uyar
+  { const cch = { items: [{ segs: [{ ...G.mkLine([10, 10], [50, 10]), fwd: true }], closed: false, z: 0 }] };
+    const cc = (dir, type = 'contour', side = 'left') => CAM.computeOp({ id: 'c', type, ...base, geom: [{ kind: 'chain' }], side, dir, stepdown: 2, width: 1.5, heights: { clearance: 10, retract: 2, bottom: { from: 'abs', off: -2 } } }, { setup: S0, tool: type === 'chamfer' ? ch90 : flat(6), geom: cch });
+    ok(JSON.stringify(cc('climb').moves) === JSON.stringify(cc('conv').moves), 'T-02: acik zincir konturda dir yok sayilir (belgelendi, panelde gizli)');
+    ok(JSON.stringify(cc('climb', 'chamfer').moves) !== JSON.stringify(cc('conv', 'chamfer').moves), 'T-03: pahta dir zincir yonunu belirler'); }
+  // spot takimi da kabul
+  ok(CAM.computeOp(cop, { setup: S0, tool: { ...ch90, type: 'spot', centerCutting: true }, geom }).moves.length > 5, 'T-03: spot takimi ile de pah');
+  // acik zincir: iki taraf, uzatmalar
+  const open = { items: [{ segs: [{ ...G.mkLine([10, 10], [50, 10]), fwd: true }], closed: false, z: 0 }] };
+  const tl = CAM.computeOp({ ...cop, geom: [{ kind: 'chain' }], side: 'left', extendStart: 3, extendEnd: 2 }, { setup: S0, tool: ch90, geom: open });
+  const pl = cutPoints(tl, () => true, 0.2); ok(pl.every((q) => Math.abs(q[1] - 12.7) < 1e-6) && Math.min(...pl.map((q) => q[0])) < 7.5 && Math.max(...pl.map((q) => q[0])) > 51.99, 'T-03: acik zincir sol: y = 10 + 2,7, uzatmalar -3 / +2');
+  const tr = CAM.computeOp({ ...cop, geom: [{ kind: 'chain' }], side: 'right' }, { setup: S0, tool: ch90, geom: open });
+  ok(cutPoints(tr, () => true, 0.2).every((q) => Math.abs(q[1] - 7.3) < 1e-6), 'T-03: acik zincir sag: y = 10 - 2,7');
+  ok(validateDoc({ cam: { v: 1, tools: [], setups: [{ id: 's', name: 'x', ops: [{ ...cop, id: 'p', toolId: 't' }] }] } }) !== undefined, 'T-03: sema cagrisi');
+}
+
+
+// ------------------------------------------------------------------ T-19 siluet: kesitte birden cok bolge
+section('T-19. siluet cok bolge');
+{
+  const zl = { levels: [0, -10, -20] };
+  const secAt = (z, ...loops) => ({ z, loops });
+  const bb = (f) => P.loopBBox([P.closeItemLoop(f.outer).flatMap((it) => P.fromGeom2d(it, it.fwd !== false))]).map((v) => Math.round(v * 1000) / 1000);
+  // iki ayri ada her kesitte: iki yuz (konuma gore sirali)
+  const two = silhouetteFaces(zl, [secAt(-5, sq(60, 0, 90, 30), sq(0, 0, 30, 30)), secAt(-15, sq(60, 0, 90, 30), sq(0, 0, 30, 30))]);
+  ok(two.length === 2 && JSON.stringify(bb(two[0])) === '[0,0,30,30]' && JSON.stringify(bb(two[1])) === '[60,0,90,30]', 'T-19: iki ayri bolge iki yuz (soldan saga): ' + two.length);
+  // P4 durumu: tunel bir kesitte govdeyi 3 parcaya boler, diger kesitte tek govde: tek siluet (buyuk dis sinir)
+  const split = silhouetteFaces(zl, [secAt(-5, sq(0, 0, 100, 40)), secAt(-15, sq(0, 0, 30, 40), sq(35, 0, 65, 40), sq(70, 0, 100, 40))]);
+  ok(split.length === 1 && JSON.stringify(bb(split[0])) === '[0,0,100,40]', 'T-19: tunelle bolunen kesit, baska kesitte tek govde -> tek bolge: ' + split.length);
+  // tum kesitlerde bolunmus (gercekten ayri parcalar): 3 bolge
+  const real = silhouetteFaces(zl, [secAt(-5, sq(0, 0, 30, 40), sq(35, 0, 65, 40), sq(70, 0, 100, 40)), secAt(-15, sq(0, 0, 30, 40), sq(35, 0, 65, 40), sq(70, 0, 100, 40))]);
+  ok(real.length === 3, 'T-19: her kesitte ayrik parcalar -> 3 bolge: ' + real.length);
+  // yalniz bir kesitte gorunen ada: ayri bolge; ic ice ise buyuge katilir
+  const isl = silhouetteFaces(zl, [secAt(-5, sq(0, 0, 50, 40)), secAt(-15, sq(0, 0, 50, 40), sq(70, 0, 90, 40))]);
+  ok(isl.length === 2, 'T-19: yalniz alt kesitte gorunen ada ayri bolge: ' + isl.length);
+  const nest = silhouetteFaces(zl, [secAt(-5, sq(0, 0, 50, 40)), secAt(-15, sq(10, 10, 40, 30))]);
+  ok(nest.length === 1 && JSON.stringify(bb(nest[0])) === '[0,0,50,40]', 'T-19: ic ice kesit buyuk dis sinira katilir');
+  throwsCode(() => silhouetteFaces(zl, [secAt(-5, sq(0, 0, 50, 40)), secAt(-15, sq(30, 10, 80, 30))]), 'cam.silhouette.not_nested', 'T-19: kismen ortusen kesit hata');
+  // islemler bolgeleri ayri ayri isler: kontur iki yuzde iki dongu
+  const cop = { id: 'sc', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }, { kind: 'face', loops: 'outer' }], side: 'outside', stepdown: 4, heights: { clearance: 10, retract: 2, bottom: { from: 'abs', off: -4 } } };
+  const tp = CAM.computeOp(cop, { setup: S0, tool: flat(6), geom: { faces: two } });
+  const ptsA = cutPoints(tp, () => true, 0.3);
+  const near0 = ptsA.filter((q) => q[0] < 45), near1 = ptsA.filter((q) => q[0] >= 45);
+  ok(near0.length > 50 && near1.length > 50 && near0.every((q) => Math.abs(P.distTo(q, [P.line([0, 0], [30, 0]), P.line([30, 0], [30, 30]), P.line([30, 30], [0, 30]), P.line([0, 30], [0, 0])]) - 3) < 1e-6), 'T-19: kontur her bolgeyi ayri ayri dolasir (r = 3 mesafe)');
+  // uctan uca (cekirdek): yatay kanal govdeyi z=8..12 bandinda iki parcaya boler (ortadaki kesit 2 bolge), diger kesitlerde tek govde -> tek siluet
+  const K = await initKernel(opencascade, () => path.join(ROOT, 'node_modules/replicad-opencascadejs/dist/replicad_single.wasm'));
+  const docT = { params: [], features: [{ id: 'tb', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '40', h: '20', op: 'new' },
+    { id: 'tc', type: 'primitive', kind: 'box', x: '45', y: '-1', z: '8', w: '10', d: '42', h: '4', op: 'cut', targets: ['tb'] }] };
+  const rbT = await K.rebuild(docT); const bT = rbT.bodies[0].id;
+  const queryT = async (cmd, args) => { if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+  const ST = CAM.resolveSetup({ id: 's1', name: 'S1', bodies: [bT], workOffset: { kind: 'G55' }, frame: { origin: { kind: 'stockCorner', corner: 'x-y-z+' }, zAxis: { kind: 'base', dir: '+Z' }, xAxis: { kind: 'base', dir: '+X' } }, stock: { kind: 'boxOffset', side: 0, top: 0, bottom: 0 } }, rbT, builtinMachines()[0]);
+  const rT = await CAM.resolveGeom({ geom: [{ kind: 'silhouette', body: bT }] }, ST, { rebuild: rbT, doc: null, query: queryT });
+  ok(rT.faces.length === 1 && rT.sels.length === 1, 'T-19: yatay kanalli govde (tek kesitte 2 parca) -> tek siluet: ' + rT.faces.length);
+}
+
+
+// ------------------------------------------------------------------ WP-06 dilim 7: WP-05 devirleri
+section('WP-06 dilim 7. taninan delik secimi, diş onayi, stockFrom/freePieceBlock');
+{
+  const { collectHoles } = await import('../src/cam/ops/drill.js');
+  const drill = { id: 'd', number: 7, lengthOffset: 7, type: 'drill', dia: 6.8, tipAngle: 118, fluteLen: 40, bodyLen: 60, flutes: 2, centerCutting: true };
+  const tap = { id: 'k', number: 8, lengthOffset: 8, type: 'tap', dia: 8, pitch: 1.25, fluteLen: 20, bodyLen: 60, flutes: 3, centerCutting: false };
+  const mkH = (feature, x, extra = {}) => ({ feature, dia: 6.8, depth: 8, through: false, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: [[x, 10, 0]], dirs: [[0, 0, -1]], ...extra });
+  const holes = [mkH('f', 10), mkH('rec:1', 20, { recognized: true, threadHint: { major: 8, pitch: 1.25, from: 'minor' } }), mkH('rec:2', 50, { recognized: true, pocketLike: true, dia: 30, depth: 5 })];
+  const dop = { id: 'd', type: 'drill', ...base, holes: { kind: 'feature' }, cycle: 'drill', depth: { from: 'hole', tipComp: false }, order: 'asis' };
+  const ids = (o) => collectHoles({ ...dop, holes: { kind: 'feature', ...o } }, S0, { holes }).holes.map((h) => h.feature).join();
+  ok(ids({}) === 'f,rec:1', 'dilim 7: varsayilan: ozellik + taninan, pocketLike atlanir: ' + ids({}));
+  ok(collectHoles(dop, S0, { holes }).pocketLike === 1, 'dilim 7: atlanan pocketLike sayisi 1');
+  ok(ids({ rec: ['rec:2'] }) === 'f,rec:2', 'dilim 7: holes.rec yalniz listelenen taninanlari alir (pocketLike dahil): ' + ids({ rec: ['rec:2'] }));
+  ok(ids({ rec: [] }) === 'f', 'dilim 7: rec bos -> hic taninan delik yok');
+  ok(ids({ filter: { feature: 'rec:2' } }) === 'rec:2', 'dilim 7: filter.feature pocketLike delige acikca secilince dahil: ' + ids({ filter: { feature: 'rec:2' } }));
+  const tpD = CAM.computeOp(dop, { setup: S0, tool: drill, geom: { holes } });
+  ok(tpD.warnings.some((w) => w.code === 'cam.drill.pocketlike_skipped' && w.params.n === 1), 'dilim 7: cep benzeri atlandi uyarisi');
+  const tapOp = { ...dop, cycle: 'tap', depth: { from: 'hole', tipComp: false }, holes: { kind: 'feature', filter: { feature: 'rec:1' } } };
+  const tn = CAM.computeOp(tapOp, { setup: S0, tool: tap, geom: { holes } });
+  ok(tn.warnings.some((w) => w.code === 'cam.drill.no_thread'), 'dilim 7: diş onayi yok -> thread bos: kilavuzda no_thread uyarisi');
+  const ty = CAM.computeOp({ ...tapOp, holes: { ...tapOp.holes, acceptThread: ['rec:1'] } }, { setup: S0, tool: tap, geom: { holes } });
+  ok(!ty.warnings.some((w) => w.code === 'cam.drill.no_thread' || w.code === 'cam.drill.pitch_mismatch' || w.code === 'cam.drill.dia_mismatch'), 'dilim 7: onaylanan threadHint thread olur (M8x1,25 kilavuz uyar): ' + ty.warnings.map((w) => w.code));
+  ok(collectHoles({ ...tapOp, holes: { ...tapOp.holes, acceptThread: ['rec:1'] } }, S0, { holes }).holes[0].thread.pitch === 1.25 && holes[1].thread === null, 'dilim 7: thread yalniz op icinde; kaynak delik kaydi degismez');
+  // serbest parca: setup basina engel/uyari
+  { const fp = (setup, level = 'block') => ({ level, code: 'cam.sim.free_piece', params: { setup, area: 100 } });
+    const out = CAM.freePiecePolicy([fp('s1'), fp('s2'), { level: 'block', code: 'cam.sim.gouge', params: { setup: 's1' } }, fp('s2', 'warn')], new Set(['s2']));
+    ok(out[0].level === 'warn' && out[1].level === 'block' && out[2].level === 'block' && out[3].level === 'warn', 'dilim 7: free_piece yalniz freePieceBlock setup\'inda engel, digerinde uyari; baska kodlar degismez: ' + out.map((x) => x.level)); }
+  // sema
+  const old = { params: [], features: [{ id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '10', d: '10', h: '10', op: 'new' }] };
+  const cam = { machineId: 'm', tools: [], setups: [{ id: 's', name: 'S', bodies: ['b'], workOffset: { kind: 'G55' }, frame: { origin: { kind: 'model' } }, stock: { kind: 'boxOffset', side: 1, top: 1, bottom: 0 }, ops: [] }] };
+  ok(validateDoc({ ...old, cam: { ...cam, setups: [{ ...cam.setups[0], stockFrom: 'blank', freePieceBlock: true }] } }), 'dilim 7: sema stockFrom blank + freePieceBlock gecer');
+  throwsCode(() => validateDoc({ ...old, cam: { ...cam, setups: [{ ...cam.setups[0], stockFrom: 'oncekiler' }] } }), 'schema.bad_field', 'dilim 7: gecersiz stockFrom sema hatasi');
+  throwsCode(() => validateDoc({ ...old, cam: { ...cam, setups: [{ ...cam.setups[0], freePieceBlock: 'evet' }] } }), 'schema.bad_field', 'dilim 7: freePieceBlock bool olmali');
+  ok(validateDoc({ ...old, cam: { ...cam, setups: [{ ...cam.setups[0], ops: [{ id: 'o', type: 'drill', name: 'D', toolId: 't', holes: { kind: 'feature', rec: ['rec:1'], acceptThread: ['rec:1'] } }] }] } }), 'dilim 7: sema holes.rec / acceptThread gecer');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

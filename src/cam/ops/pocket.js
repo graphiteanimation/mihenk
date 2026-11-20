@@ -7,7 +7,7 @@
 import { cerr } from '../geom/err.js';
 import * as P from '../geom/path2d.js';
 import * as G from '../../shared/geom2d.js';
-import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3, belowStockAllow } from './common.js';
+import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, loopFromKernel, r3, belowStockAllow, stockToLeave } from './common.js';
 import { rampAlong } from './contour.js';
 
 const MAX_RINGS = 5000;
@@ -120,7 +120,7 @@ export function computePocket(op, ctx) {
   const cut = cutting(op); const r = tool.dia / 2; const warnings = [];
   const so = need(op, 'stepover'); if (!(so < tool.dia)) throw cerr('cam.op.stepover_too_big', { stepover: so, dia: tool.dia });
   const sd = need(op, 'stepdown'); const fsd = opt(op, 'finishStepdown', posNum, 'number > 0', null);
-  const stR = opt(op, 'stockToLeave.radial', nonNeg, 'number >= 0', 0), stA = opt(op, 'stockToLeave.axial', nonNeg, 'number >= 0', 0);
+  const { radial: stR, axial: stA } = stockToLeave(op);
   const dir = op.dir ?? 'climb'; if (!['climb', 'conv'].includes(dir)) throw cerr('cam.op.bad_field', { field: 'dir', expect: 'climb/conv', op: op.name || op.id });
   const entry = op.entry; if (!entry || typeof entry !== 'object') throw cerr('cam.op.missing', { field: 'entry', op: op.name || op.id });
   if (!['helix', 'ramp', 'plunge', 'predrill'].includes(entry.kind)) throw cerr('cam.op.bad_field', { field: 'entry.kind', expect: 'helix/ramp/plunge', op: op.name || op.id });

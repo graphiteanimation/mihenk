@@ -2,7 +2,7 @@
 import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
-import { sketchFaces, silhouetteFace, midLevels } from './geom/select.js';
+import { sketchFaces, sketchChain, silhouetteFaces, midLevels } from './geom/select.js';
 import { simulate, createHeightmap, stockFromPrevious, chainSources } from './sim/index.js';
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
@@ -29,11 +29,16 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
       const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
       const plane = rebuild?.sketches?.[sel.sketch]?.plane;
       for (const f of sketchFaces(sel, sk, plane, S.frame)) { sels.push({ ...sel, kind: 'face' }); faces.push(f); }
+    } else if (sel.kind === 'chain') { // T-02: eskiz ogelerinden acik/kapali zincir (yalniz kontur)
+      if (op.type !== 'contour' && op.type !== 'chamfer') throw cerr('cam.geom.sel_unsupported', { kind: 'chain' });
+      const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
+      const plane = rebuild?.sketches?.[sel.sketch]?.plane;
+      sels.push(sel); faces.push(sketchChain(sel, sk, plane, S.frame));
     } else if (sel.kind === 'silhouette') {
       if (!S.bodies.includes(sel.body)) throw cerr('cam.setup.body_missing', { body: String(sel.body) });
       const zl = await query('camZLevels', { body: sel.body, frame: S.frame });
       const secs = []; for (const z of midLevels(zl.levels)) secs.push(await query('camSection', { body: sel.body, frame: S.frame, z }));
-      sels.push({ ...sel, kind: 'face', loops: sel.loops ?? 'outer' }); faces.push(silhouetteFace(zl, secs));
+      for (const f of silhouetteFaces(zl, secs)) { sels.push({ ...sel, kind: 'face', loops: sel.loops ?? 'outer' }); faces.push(f); } // T-19: her bolge ayri yuz, ayri islenir
     } else throw cerr('cam.geom.sel_unsupported', { kind: String(sel.kind) });
   }
   return { sels, faces };
@@ -102,6 +107,18 @@ export function poolMax(fine, x0, y0, res, nx, ny) {
   }
   return out;
 }
+// WP-06 T-03: pah icin ince model haritasi (kenarin modelde pahli olup olmadigi). Cozunurluk width/4 (0,05..0,25); 3,5 M hucreyi asarsa
+// harita yok (kontrol yapilamaz, uyari uretilmez).
+export async function chamferMap(op, S, query) {
+  try {
+    const b = S.stockBox; const w = Number(op.width); const res = Math.min(0.25, Math.max(0.05, (w > 0 ? w : 1) / 4));
+    const m = (w > 0 ? w : 1) * 2 + 1; // kenar stokla ayniysa pah bolgesi stok kutusunun disinda kalir: kutu genisletilir
+    const bb = [b.min[0] - m, b.min[1] - m, b.max[0] + m, b.max[1] + m];
+    if (((bb[2] - bb[0]) / res) * ((bb[3] - bb[1]) / res) > 3.5e6) return {};
+    const fine = await query('camHeightmap', { bodies: S.bodies, frame: S.frame, res, bbox: bb });
+    return fine?.data ? { modelMap: fine } : {};
+  } catch (e) { return {}; }
+}
 export async function drillMaps(st, tps, S, { res, model, query }) {
   let hm = st.hm && st.done === tps.length ? st.hm : advanceStock(st, tps, S, res);
   if (!hm) { if (st.failed) return {}; const b = S.stockBox; hm = st.hm0 || (st.hm0 = createHeightmap([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, b.max[2])); }
@@ -139,6 +156,8 @@ export function chainStock(recs, idx, res) {
   try { rec.stk.hm = stockFromPrevious(src, { frame: rec.S.frame, box: rec.S.stockBox }, res); } catch (e) { rec.stk.hm = null; }
 }
 
+// WP-06: serbest parca bulgusu seviyesi setup'a gore: engel yalniz freePieceBlock'lu setup'ta, digerlerinde uyari.
+export const freePiecePolicy = (gates, blockSetups) => gates.map((x) => (String(x.code).endsWith('.free_piece') && x.level === 'block' && !blockSetups.has(x.params?.setup) ? { ...x, level: 'warn' } : x));
 // generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
 //   doc: sketch secimleri icin belge (sketch ozellikleri); query komutlari: camFaceLoops, camSection, camZLevels, facePlane
 //   query(cmd, args) -> Promise: cekirdek worker komutu ('camFaceLoops', 'facePlane')
@@ -168,9 +187,10 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         const geom = {};
         if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
-        if (op.type === 'contour' || op.type === 'pocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
+        if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
         if (op.type === 'drill') chainStock(recs, ri, mres);
-        const maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
+        let maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
+        if (op.type === 'chamfer') maps = await chamferMap(op, S, query);
         const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
       } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }
@@ -180,6 +200,10 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
   let program = null;
   if (sections.length) { try { program = buildProgram({ name: name || 'PROG', number, machine, sections }); } catch (e) { pre.push({ level: 'block', code: e.code || 'internal', params: e.params || {} }); } }
   else pre.push(issue('cam.program.empty', {}, { level: 'block' }));
-  const g = [...pre, ...(program ? runGates(program, machine, { sim }) : [])];
+  // WP-06 (WP-05 devri): serbest parca (free_piece) varsayilan UYARI; setup.freePieceBlock:true olan setup'ta ENGEL. Sim secenegi tek (genel):
+  // en az bir setup istiyorsa engel olarak calistirilir, istemeyen setup'larin bulgulari asagida uyariya indirilir.
+  const fpb = new Set((cam?.setups || []).filter((x) => x.freePieceBlock === true).map((x) => x.id));
+  const simOpt = sim && fpb.size ? { ...sim, freePieceBlock: true } : sim;
+  const g = freePiecePolicy([...pre, ...(program ? runGates(program, machine, { sim: simOpt }) : [])], fpb);
   return { program, ops, gates: g, blocked: blocked(g) };
 }

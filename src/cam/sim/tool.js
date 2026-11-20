@@ -19,7 +19,7 @@ export function toolGeom(tool) {
   if (!tool || !(tool.dia > 0)) throw bad('dia');
   const R = tool.dia / 2;
   let kind;
-  let cr = 0, tanHalf = 0;
+  let cr = 0, tanHalf = 0, tipR = 0;
   if (FLAT.has(tool.type)) kind = 'flat';
   else if (tool.type === 'ball') kind = 'ball';
   else if (tool.type === 'bullnose') {
@@ -28,6 +28,7 @@ export function toolGeom(tool) {
   } else if (CONE.has(tool.type)) {
     if (!(tool.tipAngle > 0 && tool.tipAngle < 180)) throw bad('tipAngle');
     kind = 'cone'; tanHalf = Math.tan((tool.tipAngle / 2) * Math.PI / 180);
+    if (tool.tipDia != null) { if (!(tool.tipDia >= 0 && tool.tipDia < tool.dia)) throw bad('tipDia'); tipR = tool.tipDia / 2; } // T-11: uc duz capi (WP-06)
   } else throw bad('type');
   if (!(tool.fluteLen > 0)) throw bad('fluteLen');
   if (!(tool.bodyLen >= tool.fluteLen)) throw bad('bodyLen');
@@ -39,7 +40,7 @@ export function toolGeom(tool) {
     if (kind === 'flat') return 0;
     if (kind === 'ball') { const q = R * R - r * r; return R - Math.sqrt(q > 0 ? q : 0); }
     if (kind === 'bull') { const d = r - (R - cr); if (d <= 0) return 0; const q = cr * cr - d * d; return cr - Math.sqrt(q > 0 ? q : 0); }
-    return r / tanHalf;
+    return r <= tipR ? 0 : (r - tipR) / tanHalf;
   };
   // cutR: kesme (talas kaldirma + oyma) yaricapi. Kilavuzda dis dibi; zarf (hizli/saft/tutucu denetimi) R (majör) kalir.
   const cutR = tool.type === 'tap' ? tapMinorDia(tool) / 2 : R;
