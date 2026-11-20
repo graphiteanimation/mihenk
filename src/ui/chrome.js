@@ -4,7 +4,7 @@
 // Test ve erişilebilirlik sözleşmesi: her komut düğmesi `data-cmd`, önemli parçalar `data-testid` taşır; metne bağlı seçici gerekmez.
 import { h, $, ctxMenu, fmt, tip, hideTip, modal } from './dom.js';
 import { icon, featureIcon } from './icons.js';
-import { featLabel, featSummary, historyGraph, fusedSketches, closure } from './features.js';
+import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn } from './features.js';
 import { t, tk, errText, getLang, LANGS, tLang } from '../shared/i18n.js';
 import { getStr, setStr, prefs, setPref } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
@@ -433,7 +433,7 @@ export function initChrome(app) {
     const by = new Map(); for (const x of D.down) { const g = app.doc.features.find((y) => y.id === x); if (!g) continue; const l = featLabel(g); by.set(l, (by.get(l) || 0) + 1); }
     const name = f.name || featLabel(f);
     if (!D.down.size) return t('hs.deps_none', { name });
-    return t('hs.deps', { name, n: D.down.size, list: [...by].map(([l, n]) => n + ' ' + l).join(', ') });
+    return tn('hs.deps', D.down.size, { name, list: [...by].map(([l, n]) => n + ' ' + l).join(', ') });
   };
 
   // ---------------------------------------------------------------- zaman çizelgesi

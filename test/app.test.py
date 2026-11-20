@@ -773,6 +773,11 @@ try:
     page.click('#browser [data-hist="e1"] [data-testid=hist-disc]')
     check('WP-02 panel: eskiz satırı açılır (çocuk satır)', ev('!!document.querySelector("#browser .hrow.child[data-hist=s1][data-sketch=s1]")') and ev('document.querySelector("#browser [data-hist=e1] [data-testid=hist-disc]").getAttribute("aria-expanded")') == 'true')
     page.click('#browser [data-hist="e1"] [data-testid=hist-disc]')
+    lang_menu('en'); page.wait_for_timeout(150)
+    check('WP-02 EN: tekil/çoğul ("1 edge", "4 items")', summ('fb') == 'R3 · 1 edge' and summ('ch') == '1 mm · 1 edge', [summ('fb'), summ('ch')])
+    page.hover('#timeline .chip[data-id="bx"]'); page.wait_for_timeout(100)
+    check('WP-02 EN: bağımlılık özeti çoğul', 'affects 3 features' in ev('document.querySelector("[data-testid=st-deps]").textContent'), ev('document.querySelector("[data-testid=st-deps]").textContent'))
+    page.mouse.move(700, 400); lang_menu('tr'); page.wait_for_timeout(150)
     # bağımlılık vurgusu: Kutu 1 → Fillet 1, cy, cz
     page.hover('#timeline .chip[data-id="bx"]'); page.wait_for_timeout(100)
     down = ev('[...document.querySelectorAll("#timeline .chip.dep-down")].map(c => c.dataset.id)'); dim = ev('[...document.querySelectorAll("#timeline .chip.dep-dim")].map(c => c.dataset.id)')

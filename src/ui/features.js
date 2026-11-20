@@ -181,15 +181,17 @@ export function fusedSketches(doc) {
   }
   return out;
 }
+// Tekil/çoğul: n === 1 ise '<anahtar>_one' (TR'de ikisi aynı metin; EN'de "1 edge" / "2 edges")
+export const tn = (key, n, p = {}) => t(n === 1 ? key + '_one' : key, { ...p, n });
 // Parametre özeti ("14 mm · Kes", "Ø5,5 · Tümü", "R1 · 4 kenar"). vars: çözülmüş parametreler.
 export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
   const n = (e) => { try { const v = evalExpr(e, vars); return Number.isFinite(v) ? fmt(v) : '?'; } catch (x) { return '?'; } };
   const mm = (e) => n(e) + ' mm';
   const op = (o) => (o && o !== 'new' ? t(OPS.find((x) => x[0] === o)?.[1] || 'op.new') : null);
-  const cnt = (k, a) => t(k, { n: Array.isArray(a) ? a.length : 0 });
+  const cnt = (k, a) => tn(k, Array.isArray(a) ? a.length : 0);
   const parts = [];
   switch (f.type) {
-    case 'sketch': parts.push(f.plane?.kind === 'face' ? t('hs.on_face') : String(f.plane?.name || '')); parts.push(t('hs.n_ents', { n: (f.ents || []).length })); break;
+    case 'sketch': parts.push(f.plane?.kind === 'face' ? t('hs.on_face') : String(f.plane?.name || '')); parts.push(tn('hs.n_ents', (f.ents || []).length)); break;
     case 'extrude': parts.push(f.extent === 'all' ? t('hs.all') : mm(f.dist)); if (f.dir === 'sym') parts.push(t('hs.sym')); parts.push(op(f.op)); break;
     case 'revolve': parts.push(n(f.angle) + '°'); parts.push(op(f.op)); break;
     case 'hole': parts.push(f.thread?.designation || 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;

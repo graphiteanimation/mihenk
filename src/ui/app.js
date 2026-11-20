@@ -14,7 +14,7 @@ import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../s
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
-import { defaults, newId, autoName, featLabel, dependents } from './features.js';
+import { defaults, newId, autoName, featLabel, dependents, tn } from './features.js';
 import { initChrome } from './chrome.js';
 import { initCam } from './cam/index.js';
 import { onPrefsChange, getStr, setStr } from './prefs.js';
@@ -295,7 +295,7 @@ class App {
     const ch = feats.filter((f) => this.marks.changed.has(f.id));
     const sum = { n: feats.length, c: ch.length, w: warns.length, e: errs.length, order: S.order.slice(), errors: errs.map((f) => f.id), changed: ch.map((f) => f.id) };
     const first = errs[0];
-    const text = () => t('hs.summary', { n: sum.n, c: sum.c, w: sum.w, e: sum.e }) + (first ? t('hs.summary_err', { name: first.name || first.id, msg: errText(res.status[first.id].error) }) : '');
+    const text = () => [tn('hs.sum_n', sum.n), tn('hs.sum_c', sum.c), tn('hs.sum_w', sum.w), tn('hs.sum_e', sum.e)].join(' · ') + (first ? t('hs.summary_err', { name: first.name || first.id, msg: errText(res.status[first.id].error) }) : '');
     sum.text = text(); this.lastSummary = sum;
     // tek özet: yenisi öncekinin yerine geçer
     this._sumToast?.querySelector('[data-testid=toast-close]')?.click();
