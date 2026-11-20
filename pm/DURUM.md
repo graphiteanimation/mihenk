@@ -13,11 +13,11 @@ Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARAR
 ## Sıradaki (paralel yürütülebilir, alanlar ayrık)
 1. WP-02 Geçmiş arayüzü, dilim 1–3 (`pm/tasarim/GECMIS.md`).
 2. WP-03 Sim/kapı doğruluğu.
-3. WP-20 GitHub Actions: Windows'ta test + deneme kurulumu.
+3. WP-20 GitHub Actions: Windows'ta test + deneme kurulumu (sürüm kapısı buna bağlı; ilk sırada).
 Ardından WP-04.
 
 ## Kullanıcıdan beklenen
-- Yok. İlk deneme kurulumu çıkınca Windows'ta kurup denemesi istenecek.
+- Yok (K-035). Açık varsayımlar: `pm/SORULAR.md`.
 
 ## Notlar
 - Kullanıcının tezgâh profili: `Mihenk\tezgahlar\Neway-VM1160H-M80V-GSA.mhnk-tezgah.json`.

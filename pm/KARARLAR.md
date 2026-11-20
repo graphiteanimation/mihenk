@@ -32,6 +32,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 - **K-032** — Geçmiş arayüzü sorusu: "sen bir karar mekanizmasıyla karar ver… nasıl iyi olacaksa öyle ilerle." Karar Claude'a devredildi → O-033.
 - **K-033** — "sürüm sırasına itirazım yok ama her sürüm fazladan iş demek…" O-030 onaylandı; sürüm yükü için O-034.
 - **K-034** — "github'da mihenk adında bir repo açtım." Ana depo `github.com/graphiteanimation/mihenk` (özel).
+- **K-035** — "0.6 sürümü de dahil herşey bitinceye kadar devam et. kurulumu yap, denemeleri yap, herşeyi yap." Saatte bir zamanlanmış oturum; sürüm kapılarında beklenmez (CALISMA-DUZENI §8).
+- **K-036** — "bu modelin [Fable 5.2] orkestrasyon, yönetim yapmasını istiyorum… diğer modellere ne iş yaptıracağına ve süreci nasıl yöneteceğine karar versin. az token harcamak için gerekli yol neyse öyle çalışsın." CALISMA-DUZENI §9.
 
 ## Öneriler
 | No | Öneri | Durum |
