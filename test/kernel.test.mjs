@@ -310,7 +310,7 @@ console.log('T-05b STEP/B-rep delik tanıma → rebuild.holes');
   ok(Object.values(rJ.status).every((x) => x.ok) && at9.length === 1 && at9[0].feature === 'h9', 'özellik deliği ile eş eksenli tanınan delik atlanır: ' + at9.map((q) => q.feature));
 }
 
-console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz delik');
+console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz delik; cep benzeri');
 {
   const RR = await import('replicad');
   const KH = await initKernel(opencascade, () => wasm);
@@ -329,5 +329,9 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   ok(r.holes.length === 2 && r.holes.every((h) => h.through) && r.holes.some((h) => h.dir[2] !== 0 && near(h.exits[0], 30)), 'çapraz kesişen Ø6 delikler: bölünen duvar hava boşluğundan birleşir, ikisi de boydan boya');
   e = KH.camHoleExit({ bodies: [r.bodies[0].id], p: [20, 20, 30], d: [0, 0, -1], r: 3 }); ok(near(e.t, 30) && e.through, 'çapraz delik çıkışı 30');
   e = KH.camHoleExit({ bodies: [r.bodies[0].id], p: [20, 20, 45], d: [0, 0, -1], r: 3 }); ok(near(e.t, 45) && e.through, 'giriş delikten 15 mm yukarıda (havada): çıkış 45');
+  r = await imp(box(60, 60, 20).cut(cyl(20, 10, [30, 30, 10], [0, 0, 1])));
+  ok(r.holes.length === 1 && r.holes[0].pocketLike === true && near(r.holes[0].dia, 40), 'Ø40×10 yuvarlak cep: pocketLike işaretli (silinmez)');
+  r = await imp(box(40, 40, 30).cut(cyl(3, 10, [20, 20, 20], [0, 0, 1])));
+  ok(r.holes.length === 1 && !r.holes[0].pocketLike, 'Ø6×10 delik pocketLike değil');
 }
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

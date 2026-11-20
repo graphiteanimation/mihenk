@@ -192,6 +192,8 @@ export function holeOfGroup(g) {
   if (v.kind === 'cbore') { h.cboreDia = r4(v.cboreDia); h.cboreDepth = r4(v.cboreDepth); }
   if (v.kind === 'csink') { h.csinkDia = r4(v.csinkDia); h.csinkAngle = r4(v.csinkAngle); }
   const th = threadHint(h.dia); if (th) h.threadHint = th;
+  // cep benzeri (genis/sig: cap >= 2 x derinlik ya da boy) silindirik oyuk: silinmez, delme paneli suzebilsin diye isaretlenir
+  if (h.dia >= 2 * (h.through ? h.length : h.depth)) h.pocketLike = true;
   return h;
 }
 
@@ -206,7 +208,7 @@ export function recognizedHoles(list, skip = () => false) {
     let r = recs.get(key);
     if (!r) {
       r = { feature: 'rec:' + (recs.size + 1), kind: h.kind, dia: h.dia, depth: h.depth, through: h.through, tipAngle: h.tipAngle, thread: null, dir: dk, positions: [], dirs: [], bodies: [], count: 0, lost: 0, recognized: true, exits: [] };
-      for (const k of ['cboreDia', 'cboreDepth', 'csinkDia', 'csinkAngle', 'threadHint']) if (h[k] != null) r[k] = h[k];
+      for (const k of ['cboreDia', 'cboreDepth', 'csinkDia', 'csinkAngle', 'threadHint', 'pocketLike']) if (h[k] != null) r[k] = h[k];
       recs.set(key, r);
     }
     r.positions.push(h.p.map((x) => Math.round(x * 1e6) / 1e6)); r.dirs.push(dk); r.bodies.push([id]); r.exits.push(h.through ? h.length : null); r.count++;
