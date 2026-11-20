@@ -4,7 +4,7 @@ import os, re, socket, subprocess, sys, time, json
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PORT = 4197
+PORT = int(os.environ.get('MIHENK_UI_PORT', '4197'))  # paralel calisma agaclari icin ortamdan degistirilebilir
 passed = failed = 0
 def check(name, cond, detail=''):
     global passed, failed
@@ -569,6 +569,7 @@ try:
     il = txt(pg, '#modal')
     check('U-06: ham alan yolu yok (machine.spindle.maxRpm → okunur ad)', 'machine.' not in il and 'en yüksek mil devri' in il, il[:400])
     check('U-05: boş post özellikleri tek listede (≥ 4 satır) ve ham ad yalnız parantezde', 'Güvenli Z çekilme yöntemi' in il and count(pg, '[data-testid=issue-row]') >= 6, il[:600])
+    check('M-03: programın kullanmadığı boş post alanları (G04 bekleme, G54.1 aralığı) engel listesinde yok', 'Bekleme (G04) adresi' not in il and 'G54.1 P aralığı' not in il, il.replace('\n', ' | '))
     wcs = [x for x in pg.evaluate("[...document.querySelectorAll('[data-testid=issue-row]')].map((e) => e.innerText)") if 'WCS' in x and 'dokunulmaz' in x]
     check('U-08: dokunulmaz WCS iletisi "WCS G56" (boşluklu) ve işlem başına tekrar yok', len(wcs) == 1 and 'WCS G56' in wcs[0], wcs)
     check('U-06: eksik i18n anahtarı konsol hatası yok', not [e for e in pg.errs[errs0:] if 'i18n' in e], pg.errs[errs0:])
