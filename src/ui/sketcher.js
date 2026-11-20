@@ -7,6 +7,7 @@ import { DEFS, DRAW_TOOLS } from './sketch/tools.js';
 import { snapAt, SNAP_LABEL } from './sketch/snap.js';
 import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
+import { COMFORT_METHODS } from './sketch/comfort.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
@@ -99,7 +100,7 @@ export class Sketcher {
     this.gMain = new THREE.Group(); this.gPrev = new THREE.Group(); this.root.add(this.gMain, this.gPrev);
     this.vp.editGroup.add(this.root);
     this.ovl = document.createElement('div'); this.ovl.className = 'sk-ovl'; this.ovl.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
-    this.overlayEl.appendChild(this.ovl);
+    this.overlayEl.appendChild(this.ovl); this._cfInit();
     this._prevPtr = this.vp.onPointer; this._prevCam = this.vp.onCamera; this.vp.leftLock++; // eskizde sol tuş çizime ayrılır (sol tuşla döndürme kapalı)
     this.vp.onPointer = (t, e) => this._pointer(t, e);
     this.vp.onCamera = () => { this._prevCam && this._prevCam(); this._onCamera(); };
@@ -125,7 +126,7 @@ export class Sketcher {
     this._closeInput(); this._closeDialog(); this._hideCtx(); clearTimeout(this._probeT); this._sid++;
     this.active = false;
     for (const g of [this.gMain, this.gPrev]) this._clearGroup(g);
-    this.vp.editGroup.remove(this.root); this.ovl.remove();
+    this._cfDispose(); this.vp.editGroup.remove(this.root); this.ovl.remove();
     this.vp.onPointer = this._prevPtr || null; this.vp.onCamera = this._prevCam || null; this.vp.leftLock = Math.max(0, this.vp.leftLock - 1);
     this.vp.renderer.domElement.style.cursor = '';
     this.selection = []; this._resetDraw(); this.setHint(''); this.vp.dirty = true; this.onChange();
@@ -166,7 +167,7 @@ export class Sketcher {
   retheme() { if (this.active) { this._renderGL(); this._renderPreview(); this._buildOverlay(); } }
   relang() {
     this.setHint(this._hintSpec); this._status(this._statusSpec);
-    if (this.active) { this._buildOverlay(); this.onChange(); }
+    if (this.active) { this.relangComfort(); this._buildOverlay(); this.onChange(); }
   }
   _statusDof(r, note) {
     if (!this.sk.ents.length) return this._status('sk.empty');
@@ -250,6 +251,10 @@ export class Sketcher {
     const id = this._newPt(s.x, s.y);
     const okOn = (eid) => { const e = this.sk.ents.find((x) => x.id === eid); return e && e.type !== 'spline' && e.type !== 'ellarc' && e.type !== 'point'; };
     if (s.kind === 'int' && s.ents) { for (const e of s.ents) if (okOn(e)) this._addCon('pointOn', id, e); }
+    else if (s.kind === 'quad' && s.ent) { // çeyrek nokta: daire/yayın üstünde ve merkezle yatay/dikey hizada
+      const e = this.sk.ents.find((x) => x.id === s.ent); if (okOn(s.ent)) this._addCon('pointOn', id, s.ent);
+      if (e && (e.type === 'circle' || e.type === 'arc') && e.c) this._addCon(s.qi % 2 === 0 ? 'horizontal_pp' : 'vertical_pp', id, e.c);
+    }
     else if (s.kind === 'mid' && s.ent) { const e = this.sk.ents.find((x) => x.id === s.ent); if (e && e.type === 'line') this._addCon('midpoint', id, s.ent); else if (okOn(s.ent)) this._addCon('pointOn', id, s.ent); }
     else if (s.ent && okOn(s.ent)) this._addCon('pointOn', id, s.ent);
     return id;
@@ -907,7 +912,7 @@ export class Sketcher {
       }
     }
     // yakalama işareti (uç, orta, merkez, kesişim, teğet, dik, nesne üstü)
-    this._showSnap(s);
+    this._showSnap(s); this._drawTraces(s);
     this._tipLoc = [s.x, s.y];
     if (tip) { this._showTip(tip); } else this._hideTip();
     this.vp.dirty = true;
@@ -959,7 +964,7 @@ export class Sketcher {
   }
   _buildOverlay() {
     if (!this.active) return;
-    for (const el of [...this.ovl.children]) if (el !== this._input && el !== this._tip && el !== this._snapEl && el !== this._dlg && el !== this._ctxEl) el.remove();
+    for (const el of [...this.ovl.children]) if (el !== this._input && el !== this._tip && el !== this._snapEl && el !== this._dlg && el !== this._ctxEl && el !== this._cfEl) el.remove();
     this._ovEls = [];
     for (const c of this.sk.cons) {
       if (!conRefs(c).every((r) => r in this.sk.points || this.sk.ents.some((e) => e.id === r))) continue;
@@ -1025,4 +1030,4 @@ export class Sketcher {
   }
 }
 
-Object.assign(Sketcher.prototype, EDIT_METHODS);
+Object.assign(Sketcher.prototype, EDIT_METHODS, COMFORT_METHODS);

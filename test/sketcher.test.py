@@ -556,6 +556,93 @@ try:
     check('pah: köşeye tıklayınca pah çizgisi + uzunluk ölçüsü (dist) eklendi', len(plain) == 1 and len(dc) == 1, (len(plain), s['cons']))
     if plain and dc: check('pah ölçüsü pah çizgisi uzunluğuna eşit (5 mm kol → 7,0711)', near(lens(s, plain[0]['id']), 5 * 2 ** 0.5, 1e-3) and near(lens(s, plain[0]['id']), float(dc[0]['expr']), 1e-3), (lens(s, plain[0]['id']), dc[0]))
 
+    # ---------------------------------------------------------------- WP-09 dilim 1: yakalama
+    print('WP-09 dilim 1: hizalama izi, çeyrek nokta, yakalama filtresi, ızgara aralığı')
+    def snap_reset(): ev("(() => { ['end','center','origin','mid','quad','int','tan','perp','ent','align','grid'].forEach((k) => sk.setSnapKind(k, true)); sk.setGridStep(1); })()")
+    def hover(u, v, dx=0, dy=0): x, y = P(u, v); page.mouse.move(x + dx, y + dy); page.wait_for_timeout(40)
+    def cur(): return ev('sk.cursor ? { kind: sk.cursor.kind, x: sk.cursor.x, y: sk.cursor.y, qi: sk.cursor.qi, n: (sk.cursor.refs || []).length } : null')
+    def dashed(): return ev("sk.gPrev.children.filter((c) => c.material.type === 'LineDashedMaterial').map((c) => Array.from(c.geometry.attributes.position.array))")
+    snap_reset(); fresh()
+    ev("sk._apply((q) => { const p = sk._newPt(20.5, 10.25); sk._addEnt({ type: 'point', p }); const r = sk._newPt(-40.5, -30.25); sk._addEnt({ type: 'point', p: r }); })"); idle()
+    tool('line'); click(-30, -40)
+    hover(20.5, -22.37, 2, 0); c = cur()
+    check('hizalama: başka noktayla dikey hizada imleç o x değerine oturur (20.5, ızgara 21 değil)', c and c['kind'] == 'align' and c['x'] == 20.5 and c['y'] == -22, c)
+    d = dashed()
+    check('hizalama: referans noktadan imlece kesikli iz çizilir', any(len(v) == 6 and v[0] == 20.5 and v[1] == 10.25 and v[3] == 20.5 and v[4] == -22 for v in d), d)
+    hover(-60.4, 10.25, 0, 2); c = cur()
+    check('hizalama: yatay hizada y değerine oturur (10.25)', c and c['kind'] == 'align' and c['y'] == 10.25 and c['x'] == -60, c)
+    hover(20.5, -30.25, 1, 1); c = cur()
+    check('hizalama: iki noktayla aynı anda hizalanınca (x biri, y diğeri) iki iz ve kesişim noktası', c and c['kind'] == 'align' and c['x'] == 20.5 and c['y'] == -30.25 and c['n'] == 2 and len(dashed()) == 2, (c, dashed()))
+    click(20.5, -22.37, ) if False else None
+    x, y = P(20.5, -22.37); page.mouse.move(x + 2, y); page.mouse.click(x + 2, y); idle()
+    ln = ents('line')[-1]; pb = S()['points'][ln['b']]
+    check('hizalama: tıklanan uç nokta tam hizada (x=20.5, y=-22)', pb['x'] == 20.5 and pb['y'] == -22, pb)
+    key('Escape')
+    ev("sk.setSnapKind('align', false)"); tool('line'); click(-30, -40); hover(20.5, -8.37, 2, 0); c = cur()
+    check('hizalama kapalıyken ızgaraya düşer (x=21)', c and c['kind'] == 'grid' and c['x'] == 21 and not dashed(), (c, dashed()))
+    key('Escape'); snap_reset()
+    # çeyrek nokta
+    fresh(); tool('circle'); click(-50, 30); click(-35, 30); tool('line'); click(-80, -40)
+    hover(-50, 45, 2, 2); c = cur()
+    check('çeyrek nokta: dairenin 90° noktası yakalanır', c and c['kind'] == 'quad' and c['qi'] == 1 and near(c['x'], -50) and near(c['y'], 45), c)
+    hover(-65, 30, -2, 1); c = cur()
+    check('çeyrek nokta: 180° noktası', c and c['kind'] == 'quad' and c['qi'] == 2 and near(c['x'], -65) and near(c['y'], 30), c)
+    hover(-50 + 15 * 0.7071, 30 + 15 * 0.7071, 1, 1); c = cur()
+    check('çeyrek nokta: 45° konumunda çeyrek nokta yok (nesne üstü)', c and c['kind'] == 'ent', c)
+    hover(-50, 45, 2, 2); x, y = P(-50, 45); page.mouse.click(x + 2, y + 2); idle()
+    s = S(); ln = ents('line')[-1]; pid = ln['b'] if ln['b'] in s['points'] and abs(s['points'][ln['b']]['y'] - 45) < 1e-6 else None
+    circ = ents('circle')[0]
+    cq = [c for c in s['cons'] if c['type'] == 'pointOn' and c['b'] == circ['id']]
+    cv = [c for c in s['cons'] if c['type'] == 'vertical_pp' and circ['c'] in (c.get('a'), c.get('b'))]
+    check('çeyrek nokta: tıklanan nokta daire üstünde ve merkezle dikey hizalı kısıtlandı', pid is not None and any(c['a'] == pid for c in cq) and any(pid in (c.get('a'), c.get('b')) for c in cv), (pid, cq, cv))
+    key('Escape')
+    ev("sk._apply((q) => { sk._addCon('radius', '%s', undefined, { expr: '20' }); }, { strict: true })" % circ['id']); idle()
+    s2 = S(); p2 = s2['points'].get(pid); cc = s2['points'][circ['c']]; r2 = next(e for e in s2['ents'] if e['id'] == circ['id'])['r']
+    check('çeyrek nokta: yarıçap 20 olunca nokta hâlâ daire üstünde ve merkezle dikey hizalı', near(r2, 20) and near(p2['x'], cc['x'], 1e-4) and near(((p2['x'] - cc['x']) ** 2 + (p2['y'] - cc['y']) ** 2) ** 0.5, 20, 1e-4) and p2['y'] > cc['y'], (p2, cc, r2))
+    # yarım yay: yalnız süpürme içindeki çeyrek nokta
+    fresh(); tool('arc'); click(0, -20); click(30, -20); click(-30, -20); tool('line'); click(60, 40)
+    hover(0, 10, 2, -1); c = cur()
+    check('çeyrek nokta: yarım yayın 90° noktası yakalanır', c and c['kind'] == 'quad' and c['qi'] == 1 and near(c['y'], 10), c)
+    hover(0, -50, 2, 0); c = cur()
+    check('çeyrek nokta: yayın süpürmesi dışındaki 270° noktası yakalanmaz', not c or c['kind'] != 'quad', c)
+    key('Escape')
+    # yakalama filtresi (arayüz) ve kalıcılık
+    fresh(); snap_reset(); tool('circle'); click(-50, 30); click(-35, 30); tool('line'); click(-80, -40)
+    page.click('.sk-cf .cf-btn'); page.wait_for_timeout(50)
+    check('ayarlar paneli açılır (aria-expanded)', ev("document.querySelector('.sk-cf .cf-btn').getAttribute('aria-expanded')") == 'true' and ev("!!document.querySelector('.sk-cf .pop [data-cf=snap-quad]')"))
+    page.click('.sk-cf [data-cf=snap-quad]'); page.wait_for_timeout(50)
+    hover(-50, 45, 2, 2); c = cur()
+    check('yakalama filtresi: çeyrek nokta kapatılınca yakalanmaz', c and c['kind'] != 'quad', c)
+    page.click('.sk-cf [data-cf=snap-quad]'); page.wait_for_timeout(50); hover(-50, 45, 2, 1); c = cur()
+    check('yakalama filtresi: yeniden açılınca yakalanır', c and c['kind'] == 'quad', c)
+    page.click('.sk-cf [data-cf=snap-ent]'); hover(-50 + 15 * 0.7071, 30 + 15 * 0.7071, 1, 1); c = cur()
+    check('yakalama filtresi: nesne üstü kapalıyken daire üzerinde ızgaraya düşer', c and c['kind'] == 'grid', c)
+    page.click('.sk-cf [data-cf=snap-ent]'); key('Escape')
+    # klavye erişimi: düğmeye odak, Enter ile aç, Tab ile onay kutusu, Boşluk ile değiştir
+    page.focus('.sk-cf .cf-btn'); page.keyboard.press('Enter'); page.keyboard.press('Enter'); page.wait_for_timeout(30)
+    page.keyboard.press('Enter'); page.wait_for_timeout(30)
+    check('klavye: Enter ayarlar panelini açar', ev("document.querySelector('.sk-cf .cf-btn').getAttribute('aria-expanded')") == 'true')
+    page.keyboard.press('Tab'); first = ev("document.activeElement.dataset.cf"); page.keyboard.press('Space'); page.wait_for_timeout(30)
+    check('klavye: Tab ile ilk onay kutusuna gidilir, Boşluk ile kapatılır', first == 'snap-end' and ev("sk.skOpts().snapOff.has('end')"), (first, ev('[...sk.skOpts().snapOff]')))
+    page.keyboard.press('Space'); page.keyboard.press('Escape'); page.wait_for_timeout(30)
+    check('klavye: Esc paneli kapatır ve düğmeye odak döner', ev("document.querySelector('.sk-cf .cf-btn').getAttribute('aria-expanded')") == 'false' and ev("document.activeElement.className") == 'cf-btn')
+    # ızgara aralığı
+    page.click('.sk-cf .cf-btn'); page.select_option('.sk-cf [data-cf=grid-step]', '0.5'); page.wait_for_timeout(50)
+    tool('point'); click(10.3, 5.8)
+    pts = [p for k, p in S()['points'].items() if k != 'O' and abs(p['x'] - 10.5) < 1e-9]
+    check('ızgara aralığı 0,5 mm: nokta (10.3; 5.8) → (10.5; 6)', len(pts) == 1 and pts[0]['y'] == 6, S()['points'])
+    page.select_option('.sk-cf [data-cf=grid-step]', '10'); click(23, 37); click(-47, 52)
+    pts = sorted((p['x'], p['y']) for k, p in S()['points'].items() if k != 'O' and k not in ('p1',) and p['x'] % 10 == 0 and p['y'] % 10 == 0)
+    check('ızgara aralığı 10 mm: (23; 37) → (20; 40), (-47; 52) → (-50; 50)', (20, 40) in pts and (-50, 50) in pts, pts)
+    # kalıcılık: sayfa yenilense de ayar korunur
+    ev("sk.setSnapKind('mid', false)")
+    stored = ev("localStorage.getItem('mihenk.skopt_snapoff')"), ev("localStorage.getItem('mihenk.skopt_grid')")
+    check('ayarlar kalıcı depoya yazılır', stored[0] and 'mid' in stored[0] and 'end' not in stored[0] and stored[1] == '10', stored)
+    page.reload(); page.wait_for_function('window.ready === true', timeout=60000)
+    check('ayarlar sayfa yenilenince geri yüklenir', ev("sk.skOpts().snapOff.has('mid') && sk.skOpts().grid === 10"), ev('[...sk.skOpts().snapOff]'))
+    snap_reset(); check('ayarlar sıfırlanınca varsayılan (ızgara 1)', ev('sk.skOpts().grid') == 1 and ev('sk.skOpts().snapOff.size') == 0)
+    fresh()
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()
