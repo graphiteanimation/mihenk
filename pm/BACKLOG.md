@@ -46,7 +46,7 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 ## 0.5 — Verim ve çarpışma güvenliği
 | WP | İş | Kaynak | Model |
 |---|---|---|---|
-| WP-11 | Açık kaynak takım yolu kütüphaneleri incelemesi (FreeCAD Adaptive/libarea, OpenCAMLib, Clipper2): lisans, WASM, kalite. Çıktı: seçim raporu | O-023 | S + ana |
+| WP-11 | Açık kaynak takım yolu kütüphaneleri incelemesi (FreeCAD Adaptive/libarea, OpenCAMLib, Clipper2): lisans, WASM, kalite. Çıktı: seçim raporu | O-023 | S + ana · ☑ (O-038) |
 | WP-12 | 2D adaptif kaba (açık kenar dahil), kalan malzeme (rest), yatay temizleme, aşağıda kalma, köşede ilerleme düşürme, çıkışta ilerleme düşürme, ince duvar | T-09, O-025, O-028 | O |
 | WP-13 | Çarpışma: fikstür/mengene/divizör modeli (montaj yerine "bağlama gövdeleri"), gerçek tutucu geometrisi, üç yönlü dexel simülasyon (alt kesme, yan yüz), sim'in worker'a taşınması, G-code üzerinden simülasyon | O-025; V-24, V-28 | O |
 | WP-14 | İş akışı: işlem şablonları, delik sıra şablonu, G76/G87, mengenede çoklu parça, teklif yardımcısı (süre + malzeme), PDF altlık, inç birimi | O-025, O-028 | S |
