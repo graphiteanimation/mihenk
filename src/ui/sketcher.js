@@ -8,7 +8,7 @@ import { snapAt, SNAP_LABEL } from './sketch/snap.js';
 import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
-import { TEXT_METHODS } from './sketch/text.js';
+import { TEXT_METHODS, pruneTexts } from './sketch/text.js';
 import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
 import { alignTraceCons, hvSame, autoHvRedundantAfterFix } from './sketch/autoalign.js';
 import { dropEditedLinks, syncRefs } from './sketch/ops.js';
@@ -98,6 +98,7 @@ export class Sketcher {
     this._sid++;
     this.feature = clone(feature || {}); this.plane = plane;
     const sk = { points: this.feature.points || {}, ents: this.feature.ents || [], cons: this.feature.cons || [] }; if (Number.isFinite(this.feature.seq)) sk.seq = this.feature.seq; seqOf(sk);
+    if (Array.isArray(this.feature.texts)) sk.texts = this.feature.texts; // WP-21: metin kayıtları (metin olarak yeniden düzenleme)
     if (!sk.points.O) sk.points.O = { x: 0, y: 0, fixed: true };
     sk.points.O.x = 0; sk.points.O.y = 0; sk.points.O.fixed = true;
     this.sk = sk; this._undo = []; this._redo = []; this.selection = []; this.hover = null; this.cursor = null; this.consMode = false; this.free = null; this._focusCons = new Set();
@@ -124,7 +125,9 @@ export class Sketcher {
   }
   stop() {
     if (!this.active) return null;
+    pruneTexts(this.sk);
     const out = { ...this.feature, points: clone(this.sk.points), ents: clone(this.sk.ents), cons: clone(this.sk.cons), seq: seqOf(this.sk) };
+    if (this.sk.texts) out.texts = clone(this.sk.texts); else delete out.texts;
     this._teardown(); return out;
   }
   cancel() { if (this.active) this._teardown(); }
@@ -194,7 +197,7 @@ export class Sketcher {
     const ids = [...new Set([...(r.conflicting || []), ...(r.redundant || [])].map(normId))];
     return ids.map((id) => { const c = this.sk.cons.find((k) => k.id === id); return c ? this._conLabel(c) : null; }).filter(Boolean);
   }
-  _snapStr() { return JSON.stringify({ points: this.sk.points, ents: this.sk.ents, cons: this.sk.cons, seq: this.sk.seq }); }
+  _snapStr() { return JSON.stringify({ points: this.sk.points, ents: this.sk.ents, cons: this.sk.cons, seq: this.sk.seq, ...(this.sk.texts ? { texts: this.sk.texts } : {}) }); }
   _restore(s) { const seq = this.sk.seq; this.sk = JSON.parse(s); this.sk.seq = Math.max(seq || 0, this.sk.seq || 0); this.selection = this.selection.filter((x) => this._exists(x)); this.hover = null; }
   _exists(x) { return x.kind === 'point' ? x.id in this.sk.points : this.sk.ents.some((e) => e.id === x.id); }
   _badSet() { const r = this.lastSolve; return new Set([...((r && r.conflicting) || []), ...((r && r.redundant) || [])].map(normId)); }

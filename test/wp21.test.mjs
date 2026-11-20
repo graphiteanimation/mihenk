@@ -13,6 +13,9 @@ import { solveSketch } from '../src/ui/solver.js';
 import { createRequire } from 'node:module';
 import opencascade from 'replicad-opencascadejs';
 import { initKernel } from '../src/kernel/kernel.js';
+import { parseFont, textOutlines, cleanSegments, writeText, pruneTexts, textOfEnt } from '../src/ui/sketch/text.js';
+import { validateDoc } from '../src/shared/schema.js';
+import { findRegions } from '../src/shared/profiles.js';
 import { exampleEntries, wrapExample } from '../src/ui/examples.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -154,6 +157,45 @@ await madde(5, 'eğri (silindirik, küresel) hedef yüze extrude ("yüze kadar")
   ok(r.status.e1.ok, 'küreye kadar: ' + JSON.stringify(r.status.e1.error)); near(e1()?.volume, V, 'küre alt yüzüne kadar hacim (sayısal tümlev)', 1e-5);
   // düzlemsel hedef davranışı değişmedi (kernel.test kapsar); konik açı eğri hedefte desteklenmez
   sk = rect('s1', 20, 20, 0, 0); r = await K.rebuild({ features: [cyl, sk, ex(sk, { taper: '3' })] }); ok(r.status.e1.error?.code === 'extrude.taper_mode', 'eğri hedef + konik açı açık hata: ' + r.status.e1.error?.code);
+});
+
+await madde(6, 'eskiz metnini metin olarak yeniden düzenleme', () => {
+  const font = parseFont(new Uint8Array(fs.readFileSync(path.join(ROOT, 'src/ui/sketch/fonts/Inter-Regular.ttf'))));
+  const segsOf = (txt, o) => cleanSegments(textOutlines(font, txt, o), Math.max(1e-4, o.height * 2e-5));
+  const sk = { points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [] }; let seq = 0; const nid = (p) => p + ++seq;
+  // kullanıcının kendi çizgisi (metin dışı) korunmalı
+  sk.points.u1 = { x: -50, y: -50 }; sk.points.u2 = { x: -40, y: -50 }; sk.ents.push({ id: 'ul', type: 'line', a: 'u1', b: 'u2' });
+  const P1 = { text: 'AB', height: 10, x: 0, y: 0, angle: 0 };
+  writeText(sk, segsOf('AB', P1), P1, nid, 2e-4);
+  ok(sk.texts?.length === 1 && sk.texts[0].text === 'AB' && sk.texts[0].ents.length > 10, 'metin kaydı: parametreler + çizgi kimlikleri');
+  const tid = sk.texts[0].id, firstLine = sk.texts[0].ents[0];
+  ok(textOfEnt(sk, firstLine)?.id === tid && textOfEnt(sk, 'ul') === null, 'çizgiden metin kaydı bulunur; kullanıcı çizgisi metin değil');
+  const regsAB = findRegions(sk).regions.length;
+  const P2 = { text: 'O', height: 20, x: 5, y: 5, angle: 15 };
+  const nPts0 = Object.keys(sk.points).length;
+  writeText(sk, segsOf('O', P2), P2, nid, 4e-4, tid);
+  ok(sk.texts.length === 1 && sk.texts[0].id === tid && sk.texts[0].text === 'O' && sk.texts[0].height === 20 && sk.texts[0].angle === 15, 'yerine yazma: aynı kayıt kimliği, yeni parametreler');
+  ok(!sk.ents.some((e) => e.id === firstLine), 'eski metin çizgileri silindi');
+  ok(sk.ents.some((e) => e.id === 'ul') && sk.points.u1 && sk.points.u2, 'metin dışı çizgi ve noktaları korunur');
+  ok(sk.texts[0].ents.every((id) => sk.ents.some((e) => e.id === id)), 'kayıttaki her kimlik eskizde var');
+  const used = new Set(sk.ents.flatMap((e) => [e.a, e.b])); ok(Object.keys(sk.points).every((k) => k === 'O' || used.has(k)), 'öksüz nokta kalmadı');
+  ok(findRegions(sk).regions.length === 2 && regsAB > 2, '"O" iki kapalı bölge (dış + iç) verir: ' + findRegions(sk).regions.length);
+  // kopyalanan çizgi metne ait sayılmaz; tek tek silinen parça listeden düşer; hepsi silinince kayıt kalkar
+  const one = sk.texts[0].ents[0]; const e1 = sk.ents.find((e) => e.id === one); sk.ents.push({ ...e1, id: 'kopya' });
+  ok(textOfEnt(sk, 'kopya') === null, 'kopya çizgi metin kaydına girmez');
+  sk.ents = sk.ents.filter((e) => e.id !== one); pruneTexts(sk); ok(!sk.texts[0].ents.includes(one), 'silinen çizgi kayıttan düşer');
+  sk.ents = sk.ents.filter((e) => !sk.texts[0].ents.includes(e.id)); pruneTexts(sk); ok(sk.texts === undefined, 'tüm çizgileri silinen metnin kaydı kalkar');
+  // şema: texts alanı isteğe bağlı ve doğrulanır
+  const sk2 = { points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [] }; writeText(sk2, segsOf('Mi', P1), { ...P1, text: 'Mi' }, nid, 2e-4);
+  const doc = { params: [], features: [{ id: 's1', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '0' }, ...sk2 }] };
+  let okv = true; try { validateDoc(doc); } catch (e) { okv = false; console.log(e); } ok(okv, 'metin kayıtlı eskiz şemadan geçer');
+  const bad = JSON.parse(JSON.stringify(doc)); bad.features[0].texts[0].height = 'x'; let rej = false; try { validateDoc(bad); } catch (e) { rej = true; } ok(rej, 'bozuk metin kaydı reddedilir');
+  const old = JSON.parse(JSON.stringify(doc)); delete old.features[0].texts; let okOld = true; try { validateDoc(old); } catch (e) { okOld = false; } ok(okOld, 'texts alanı olmayan eski belge değişmeden geçer');
+  // arayüz bağlantısı (DOM'lu dosyalar; kaynak denetimi)
+  const app = src('src/ui/app.js'), skr = src('src/ui/sketcher.js'), txs = src('src/ui/sketch/text.js');
+  ok(/const editing = this\.sketcher\.selectedText\(\)/.test(app) && /replace: editing \? editing\.id : null/.test(app), 'Metin komutu seçili metni düzenleme kipinde açar');
+  ok(/if \(f\.texts\) merged\.texts = f\.texts/.test(app) && /out\.texts = clone\(this\.sk\.texts\)/.test(skr) && /texts: this\.sk\.texts/.test(skr), 'metin kayıtları belgeye ve geri alma anlık görüntüsüne girer');
+  ok(/writeText\(sk, segs, \{ text, height, x, y, angle \}, \(pre\) => this\._id\(pre\), snap, replace\)/.test(txs), 'insertText tek geri alma adımında yerine yazar');
 });
 
 console.log(`${pass} geçti, ${fail} kaldı`);

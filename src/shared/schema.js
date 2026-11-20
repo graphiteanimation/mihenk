@@ -53,6 +53,8 @@ const sketchChk = {
   },
   ents: arrOf(obj({ id: str(LIMITS.shortStr), type: oneOf(['line', 'circle', 'arc', 'point', 'ellipse', 'ellarc', 'spline']), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), p: str(LIMITS.shortStr), f: str(LIMITS.shortStr), r: expr(), rmin: num(), pts: arrOf(str(LIMITS.shortStr), LIMITS.sketchItems), closed: bool(), cons: bool(), proj: projChk }), LIMITS.sketchItems),
   cons: arrOf(obj({ id: str(LIMITS.shortStr), type: str(40), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), expr: expr(), ref: bool(), lo: arrOf(num(), 2) }), LIMITS.sketchItems),
+  // WP-21: metin kayıtları (isteğe bağlı; eski belgelerde yok): metin olarak yeniden düzenleme için parametreler + çizgi kimlikleri
+  texts: arrOf(obj({ id: str(LIMITS.shortStr), text: str(LIMITS.shortStr * 4), height: num(), x: num(), y: num(), angle: num(), ents: arrOf(str(LIMITS.shortStr), LIMITS.sketchItems) }), 1000),
 };
 // Özellik türü → alan denetleyicileri. Listede olmayan alanlar genel denetimden (derinlik/uzunluk/boyut) geçer.
 const TYPES = {

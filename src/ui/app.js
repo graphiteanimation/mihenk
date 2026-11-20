@@ -651,7 +651,9 @@ class App {
   // WP-08: eskiz metni (uygulamayla gelen yazı tipi → kapalı çizgi konturları; çakışmalar çekirdekte temizlenir)
   async sketchText() {
     if (!this.sketchSession || !this.sketcher) return;
-    const prev = this._textOpts || { text: '', height: '10', x: '0', y: '0', angle: '0' };
+    // WP-21: seçili bir metin çizgisi varsa o metin, metin olarak yeniden düzenlenir (eski çizgiler aynı geri alma adımında yenisiyle değişir)
+    const editing = this.sketcher.selectedText();
+    const prev = editing ? { text: editing.text, height: String(editing.height), x: String(editing.x), y: String(editing.y), angle: String(editing.angle) } : this._textOpts || { text: '', height: '10', x: '0', y: '0', angle: '0' };
     const inp = (k, v, lbl) => { const e = h('input', { type: 'text', id: 'sktx-' + k, 'data-testid': 'sktx-' + k, value: v, autocomplete: 'off', spellcheck: 'false' }); return [e, h('div', { class: 'fld' }, h('label', { for: 'sktx-' + k, text: t(lbl) }), e)]; };
     const [eT, rT] = inp('text', prev.text, 'sk.text_text'), [eH, rH] = inp('height', prev.height, 'sk.text_size'), [eX, rX] = inp('x', prev.x, 'fld.pos_x'), [eY, rY] = inp('y', prev.y, 'fld.pos_y'), [eA, rA] = inp('angle', prev.angle, 'fld.angle');
     const num = (e) => { try { return Number(evalExpr(e.value, this.vars())); } catch (x) { return NaN; } };
@@ -660,7 +662,7 @@ class App {
     const msg = h('div', { class: 'callout err', role: 'alert', 'data-testid': 'sktx-msg', hidden: true });
     const say = (k, p) => { msg.textContent = t(k, p); msg.hidden = false; return false; };
     const ok = await modal({
-      title: t('sk.text_title'), content: h('div', {}, rT, rH, rX, rY, rA, msg, h('div', { class: 'note', text: t('sk.text_note') + ' ' + t('sk.text_max', { n: TEXT_MAX }) })),
+      title: t(editing ? 'sk.text_edit_title' : 'sk.text_title'), content: h('div', {}, rT, rH, rX, rY, rA, msg, h('div', { class: 'note', text: t('sk.text_note') + ' ' + t('sk.text_max', { n: TEXT_MAX }) })),
       buttons: [{ label: t('common.ok'), cls: 'pri', value: true, check: () => {
         vals = { text: eT.value, height: num(eH), x: num(eX), y: num(eY), angle: num(eA) };
         if (!vals.text.trim()) return say('sk.text_empty');
@@ -670,14 +672,14 @@ class App {
     });
     if (!ok || !vals) return;
     this._textOpts = { text: eT.value, height: eH.value, x: eX.value, y: eY.value, angle: eA.value };
-    const r = await this.sketcher.insertText(vals);
+    const r = await this.sketcher.insertText({ ...vals, replace: editing ? editing.id : null });
     toast(r.ok ? t('sk.text_done', { n: r.glyphs }) : r.msg || t('sk.text_failed'), !r.ok);
     this.onSketchChange();
   }
   sketchConstruction() { this.sketcher?.toggleConstruction(); this.onSketchChange(); }
   async setSketchOffset(expr) {
     const s = this.sketchSession; if (!s || s.draft.plane.kind !== 'base') return;
-    try { const pl = basePlane(s.draft.plane.name, evalExpr(expr, this.vars())); await this.sketcher.idle(); const f = this.sketcher.stop(); Object.assign(s.draft, { points: f.points, ents: f.ents, cons: f.cons || [], seq: f.seq }); s.draft.plane.offset = expr; s.plane = pl; this.sketcher.start(clone(s.draft), pl); }
+    try { const pl = basePlane(s.draft.plane.name, evalExpr(expr, this.vars())); await this.sketcher.idle(); const f = this.sketcher.stop(); Object.assign(s.draft, { points: f.points, ents: f.ents, cons: f.cons || [], seq: f.seq }); if (f.texts) s.draft.texts = f.texts; else delete s.draft.texts; s.draft.plane.offset = expr; s.plane = pl; this.sketcher.start(clone(s.draft), pl); }
     catch (e) { toast(t('msg.offset_invalid', { msg: errText(e) }), true); }
   }
   async finishSketch() {
@@ -686,7 +688,7 @@ class App {
     let warns = []; try { warns = this.sketcher.exitReport(); } catch (e) { /* bilgi amaçlı */ }
     const f = this.sketcher.stop() || s.draft;
     this.sketchSession = null; this.sketchPanel.close(); this.sketchPanel = null; this.setHint('');
-    const merged = { ...s.draft, points: f.points, ents: f.ents, cons: f.cons || [], seq: f.seq };
+    const merged = { ...s.draft, points: f.points, ents: f.ents, cons: f.cons || [], seq: f.seq }; if (f.texts) merged.texts = f.texts; else delete merged.texts; // WP-21: metin kayıtları
     this.idleView(); this.C.renderAll();
     if (s.isNew) {
       if (!merged.ents.length) { toast(t('msg.empty_sketch')); this.refreshSketches(); return; }

@@ -2,6 +2,7 @@
 // docs/YAZI-TIPI.md) okunur, glifler kapalı çokgen eğrilere (çizgi varlıkları) çevrilir; eskizde extrude/kazıma profili olur.
 // Sistem yazı tipi kullanılmaz (her makinede aynı geometri). Yalnız TrueType 'glyf' biçimi (bileşik glifler dahil) okunur.
 import { t, tk } from '../../shared/i18n.js';
+import { deleteItems } from './core.js';
 
 // ---------------------------------------------------------------- TrueType okuyucu (cmap 4/12, head, hhea, hmtx, loca, glyf, kern)
 export function parseFont(buf) {
@@ -181,12 +182,36 @@ export function loadFont() {
   return fontP;
 }
 
+// ---------------------------------------------------------------- metni metin olarak yeniden düzenleme (WP-21)
+// Eskiz isteğe bağlı `texts` alanı: [{id, text, height, x, y, angle, ents:[çizgi kimlikleri]}]. Üyelik yalnız kayıttaki kimlik listesidir:
+// kopyalanan/aynalanan çizgiler yeni kimlik aldığı için metne ait sayılmaz; tek tek silinen/düzenlenen parçalar listeden düşer.
+export function textOfEnt(sk, entId) { return (sk.texts || []).find((r) => Array.isArray(r.ents) && r.ents.includes(entId)) || null; }
+// var olmayan çizgileri listeden ayıkla, boş kalan kayıtları sil (yerinde); kalan kayıt sayısı
+export function pruneTexts(sk) {
+  if (!Array.isArray(sk.texts)) return 0;
+  const ids = new Set(sk.ents.map((e) => e.id));
+  sk.texts = sk.texts.map((r) => ({ ...r, ents: (r.ents || []).filter((id) => ids.has(id)) })).filter((r) => r.ents.length);
+  if (!sk.texts.length) delete sk.texts;
+  return sk.texts ? sk.texts.length : 0;
+}
+// Metni eskize yazar (yeni ya da `replace` kimlikli kaydın yerine). newId(önek) kimlik üretir. Döner eklenen parça sayısı.
+export function writeText(sk, segs, params, newId, snap, replace = null) {
+  let rec = replace ? (sk.texts || []).find((r) => r.id === replace) : null;
+  if (rec) { const live = new Set(sk.ents.map((e) => e.id)); deleteItems(sk, rec.ents.filter((id) => live.has(id)).map((id) => ({ kind: 'ent', id }))); }
+  const ents = [];
+  const n = segmentsToSketch(segs, (px, py) => { const id = newId('p'); sk.points[id] = { x: px, y: py }; return id; }, (a, b) => { const id = newId('l'); sk.ents.push({ id, type: 'line', a, b }); ents.push(id); }, snap);
+  const { text, height, x, y, angle } = params;
+  const next = { id: rec ? rec.id : newId('t'), text: String(text), height, x, y, angle, ents };
+  sk.texts = [...(sk.texts || []).filter((r) => r.id !== next.id), next];
+  return n;
+}
+
 // Arayüz kilitlenmesin: 500 karakter ~27 sn sürüyordu (çözücü + profil taraması); sınır 120 karakter
 export const TEXT_MAX = 120;
 // ---------------------------------------------------------------- Sketcher yöntemleri (Object.assign ile Sketcher.prototype'a)
 export const TEXT_METHODS = {
   // Metni etkin eskize çizgi varlıkları olarak ekler (tek geri alma adımı). Döner {ok, n (kontur), msg?}
-  async insertText({ text, height = 10, x = 0, y = 0, angle = 0 } = {}) {
+  async insertText({ text, height = 10, x = 0, y = 0, angle = 0, replace = null } = {}) {
     if (!text || !String(text).trim()) return { ok: false, msg: t('sk.text_empty') };
     if (!(height > 0 && height <= 10000) || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(angle)) return { ok: false, msg: t('sk.text_height') };
     if ([...String(text)].length > TEXT_MAX) return { ok: false, msg: t('sk.text_long', { n: TEXT_MAX }) };
@@ -197,9 +222,16 @@ export const TEXT_METHODS = {
     const segs = cleanSegments(glyphs, snap); if (!segs.length) return { ok: false, msg: t('sk.text_no_glyph') };
     let n = 0;
     const r = await this._apply((sk) => {
-      n = segmentsToSketch(segs, (px, py) => { const id = this._id('p'); sk.points[id] = { x: px, y: py }; return id; }, (a, b) => sk.ents.push({ id: this._id('l'), type: 'line', a, b }), snap);
+      if (replace && !(sk.texts || []).some((x) => x.id === replace)) return () => t('sk.text_gone');
+      n = writeText(sk, segs, { text, height, x, y, angle }, (pre) => this._id(pre), snap, replace);
     }, { kind: tk('sk.kind.text') });
     if (r.ok) { this._setSel([]); }
     return { ...r, n, glyphs: glyphs.length };
+  },
+  // seçili metin çizgisinin metin kaydı (düzenleme için) ya da null
+  selectedText() {
+    if (!this.active) return null;
+    for (const s of this.selection) if (s.kind === 'ent') { const r = textOfEnt(this.sk, s.id); if (r) return r; }
+    return null;
   },
 };
