@@ -7,9 +7,12 @@
    "setups": {
     "S1": {
      "block": 19,
-     "warn": 4,
+     "kodlar": {
+      "cam.sim.gouge": 19
+     },
+     "warn": 10,
      "temiz": false,
-     "estS": 747.28,
+     "estS": 728.88,
      "G81": 0,
      "G83": 0,
      "G84": 0,
@@ -17,9 +20,10 @@
     },
     "S2": {
      "block": 0,
-     "warn": 2,
+     "kodlar": {},
+     "warn": 5,
      "temiz": true,
-     "estS": 22.269,
+     "estS": 18.519,
      "G81": 0,
      "G83": 0,
      "G84": 0,
@@ -27,11 +31,16 @@
     },
     "S3": {
      "block": 5,
-     "warn": 3,
+     "kodlar": {
+      "cam.gate.body_short": 1,
+      "cam.sim.holder_collision": 2,
+      "cam.sim.rapid_in_stock": 2
+     },
+     "warn": 5,
      "temiz": false,
-     "estS": 7.46,
-     "G81": 2,
-     "G83": 2,
+     "estS": 7.3,
+     "G81": 1,
+     "G83": 1,
      "G84": 0,
      "opHata": 0
     }
@@ -46,7 +55,7 @@
     "bulunan": 2,
     "taninan": 5
    },
-   "hesapS": 2.902
+   "hesapS": 5.301
   },
   "P2": {
    "id": "P2",
@@ -54,9 +63,12 @@
    "setups": {
     "S1": {
      "block": 2,
-     "warn": 8,
+     "kodlar": {
+      "cam.sim.gouge": 2
+     },
+     "warn": 13,
      "temiz": false,
-     "estS": 11213.834,
+     "estS": 11206.009,
      "G81": 1,
      "G83": 1,
      "G84": 0,
@@ -64,9 +76,12 @@
     },
     "S2": {
      "block": 20,
-     "warn": 6,
+     "kodlar": {
+      "cam.sim.gouge": 20
+     },
+     "warn": 11,
      "temiz": false,
-     "estS": 4823.084,
+     "estS": 4801.959,
      "G81": 0,
      "G83": 0,
      "G84": 0,
@@ -79,7 +94,7 @@
     "bulunan": 4,
     "taninan": 21
    },
-   "hesapS": 74.554
+   "hesapS": 73.409
   },
   "P3": {
    "id": "P3",
@@ -87,29 +102,34 @@
    "setups": {
     "S1": {
      "block": 5,
-     "warn": 83,
+     "kodlar": {
+      "cam.sim.flute_exceeded": 5
+     },
+     "warn": 90,
      "temiz": false,
-     "estS": 30936.351,
-     "G81": 4,
-     "G83": 4,
+     "estS": 30826.604,
+     "G81": 1,
+     "G83": 1,
      "G84": 0,
      "opHata": 1
     },
     "S2": {
      "block": 0,
-     "warn": 6,
+     "kodlar": {},
+     "warn": 12,
      "temiz": true,
-     "estS": 2557.449,
-     "G81": 4,
-     "G83": 4,
+     "estS": 2550.013,
+     "G81": 1,
+     "G83": 1,
      "G84": 0,
      "opHata": 0
     },
     "S3": {
      "block": 0,
-     "warn": 4,
+     "kodlar": {},
+     "warn": 6,
      "temiz": true,
-     "estS": 527.304,
+     "estS": 524.954,
      "G81": 0,
      "G83": 0,
      "G84": 0,
@@ -117,9 +137,10 @@
     },
     "S4": {
      "block": 0,
-     "warn": 2,
+     "kodlar": {},
+     "warn": 3,
      "temiz": true,
-     "estS": 170.743,
+     "estS": 169.968,
      "G81": 0,
      "G83": 0,
      "G84": 0,
@@ -137,7 +158,7 @@
     "bulunan": 8,
     "taninan": 12
    },
-   "hesapS": 168.273
+   "hesapS": 164.323
   },
   "P4": {
    "id": "P4",
@@ -145,39 +166,46 @@
    "setups": {
     "S1": {
      "block": 11,
-     "warn": 29,
+     "kodlar": {
+      "cam.sim.gouge": 10,
+      "cam.sim.holder_contact": 1
+     },
+     "warn": 39,
      "temiz": false,
-     "estS": 2608.772,
-     "G81": 2,
-     "G83": 5,
+     "estS": 2570.741,
+     "G81": 1,
+     "G83": 4,
      "G84": 1,
      "opHata": 0
     },
     "S2": {
      "block": 0,
-     "warn": 4,
+     "kodlar": {},
+     "warn": 7,
      "temiz": true,
-     "estS": 242.154,
-     "G81": 4,
-     "G83": 4,
+     "estS": 239.974,
+     "G81": 1,
+     "G83": 1,
      "G84": 0,
      "opHata": 0
     },
     "S3": {
      "block": 0,
-     "warn": 6,
+     "kodlar": {},
+     "warn": 10,
      "temiz": true,
-     "estS": 464.259,
-     "G81": 4,
-     "G83": 4,
+     "estS": 450.129,
+     "G81": 1,
+     "G83": 1,
      "G84": 0,
      "opHata": 0
     },
     "S4": {
      "block": 0,
-     "warn": 8,
+     "kodlar": {},
+     "warn": 12,
      "temiz": true,
-     "estS": 1669.581,
+     "estS": 1646.981,
      "G81": 0,
      "G83": 1,
      "G84": 0,
@@ -195,7 +223,7 @@
     "bulunan": 32,
     "taninan": 30
    },
-   "hesapS": 183.031
+   "hesapS": 183.55
   },
   "01-Prizmatik-plaka": {
    "id": "01-Prizmatik-plaka",
@@ -203,9 +231,10 @@
    "setups": {
     "S1": {
      "block": 0,
-     "warn": 6,
+     "kodlar": {},
+     "warn": 9,
      "temiz": true,
-     "estS": 231.323,
+     "estS": 227.513,
      "G81": 0,
      "G83": 1,
      "G84": 0,
@@ -214,7 +243,7 @@
    },
    "zincir": null,
    "delik": null,
-   "hesapS": 1.266
+   "hesapS": 1.402
   },
   "02-Delikli-iki-setup": {
    "id": "02-Delikli-iki-setup",
@@ -222,9 +251,10 @@
    "setups": {
     "S1": {
      "block": 0,
-     "warn": 5,
+     "kodlar": {},
+     "warn": 8,
      "temiz": true,
-     "estS": 91.764,
+     "estS": 90.594,
      "G81": 0,
      "G83": 2,
      "G84": 0,
@@ -232,9 +262,10 @@
     },
     "S2": {
      "block": 0,
-     "warn": 2,
+     "kodlar": {},
+     "warn": 3,
      "temiz": true,
-     "estS": 167.843,
+     "estS": 164.033,
      "G81": 0,
      "G83": 0,
      "G84": 0,
@@ -243,7 +274,7 @@
    },
    "zincir": null,
    "delik": null,
-   "hesapS": 1.364
+   "hesapS": 1.253
   },
   "03-3p1-blok": {
    "id": "03-3p1-blok",
@@ -251,9 +282,10 @@
    "setups": {
     "S1": {
      "block": 0,
-     "warn": 2,
+     "kodlar": {},
+     "warn": 4,
      "temiz": true,
-     "estS": 88.575,
+     "estS": 85.935,
      "G81": 0,
      "G83": 0,
      "G84": 0,
@@ -261,7 +293,8 @@
     },
     "S2": {
      "block": 0,
-     "warn": 1,
+     "kodlar": {},
+     "warn": 2,
      "temiz": true,
      "estS": 7.581,
      "G81": 0,
@@ -271,6 +304,7 @@
     },
     "S3": {
      "block": 0,
+     "kodlar": {},
      "warn": 1,
      "temiz": true,
      "estS": 7.581,
@@ -282,7 +316,7 @@
    },
    "zincir": null,
    "delik": null,
-   "hesapS": 1.024
+   "hesapS": 0.823
   }
  }
 }
