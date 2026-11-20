@@ -43,4 +43,8 @@ export default {
   "hs.sum_w_one": "{n}\u00a0uyarı",
   "hs.sum_e": "{n}\u00a0hata",
   "hs.sum_e_one": "{n}\u00a0hata",
+  "hs.move_blocked": "Taşınamaz: {a}, {b} işlemine dayanıyor",
+  "hs.moved": "{name} taşındı ({n}/{total})",
+  "ctx.move_up": "Yukarı taşı",
+  "ctx.move_down": "Aşağı taşı",
 };

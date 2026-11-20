@@ -2,9 +2,9 @@
 // komut şeridi (gruplar, açılır alt menüler, son kullanılanlar, taşma menüsü), tarayıcı, zaman çizelgesi, durum çubuğu, görünüm küpü/düğmeleri,
 // komut paleti. Tüm komutlar tek kayıt defterinde (cmds) durur: şerit, Dosya menüsü, palet ve taşma menüsü aynı tanımı kullanır.
 // Test ve erişilebilirlik sözleşmesi: her komut düğmesi `data-cmd`, önemli parçalar `data-testid` taşır; metne bağlı seçici gerekmez.
-import { h, $, ctxMenu, fmt, tip, hideTip, modal } from './dom.js';
+import { h, $, ctxMenu, fmt, tip, hideTip, modal, modalOpen as modalUp } from './dom.js';
 import { icon, featureIcon } from './icons.js';
-import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn } from './features.js';
+import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn, moveUnit, dropTargets } from './features.js';
 import { t, tk, errText, getLang, LANGS, tLang } from '../shared/i18n.js';
 import { getStr, setStr, prefs, setPref } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
@@ -349,9 +349,17 @@ export function initChrome(app) {
     ctxMenu(e.clientX || 80, e.clientY || 80, [
       { id: 'ctx-edit', label: t('ctx.edit'), icon: 'sketch', run: () => app.editFeature(i) }, { id: 'ctx-rename', label: t('ctx.rename'), icon: 'rename', kbd: 'F2', run: () => app.renameFeature(i) },
       { id: 'ctx-suppress', label: f.suppressed ? t('ctx.unsuppress') : t('ctx.suppress'), icon: 'suppress', run: () => app.toggleSuppress(i) }, { id: 'ctx-rollback', label: t('ctx.rollback'), icon: 'rollback', run: () => app.rollbackTo(i + 1) },
+      { id: 'ctx-move-up', label: t('ctx.move_up'), icon: 'chevron-up', kbd: 'Alt+Shift+↑', run: () => C.moveBy(i, -1) }, { id: 'ctx-move-down', label: t('ctx.move_down'), icon: 'chevron-down', kbd: 'Alt+Shift+↓', run: () => C.moveBy(i, 1) },
       { sep: 1 }, { id: 'ctx-delete', label: t('ctx.delete'), icon: 'trash', danger: true, kbd: 'Del', run: () => app.deleteFeature(i) }]);
   };
   C.featureMenu = featureMenu;
+  // yeniden çizimde klavye odağı aynı geçmiş satırında / çipinde kalır
+  const focusKey = (el) => (el?.dataset ? ['hist', 'id', 'group', 'marker'].map((k) => (el.dataset[k] != null ? k + '=' + el.dataset[k] : '')).find(Boolean) : '');
+  const keepFocus = (root) => {
+    const a = document.activeElement; const el = a && a.closest && a.closest(root + ' [data-hist], ' + root + ' .chip[data-id], ' + root + ' [data-group], ' + root + ' [data-marker]');
+    const k = el && el === a ? focusKey(el) : '';
+    return () => { if (!k) return; const [n, v] = k.split('='); const css = n === 'id' ? '.chip[data-id' : '[data-' + n; const nx = document.querySelector(root + ' ' + css + '="' + CSS.escape(v) + '"]'); if (nx) nx.focus({ preventScroll: true }); };
+  };
   C.renderBrowser = () => {
     const br = $('#browser'); const doc = app.doc, res = app.result;
     if (app.mode === 'cam') { app.cam.renderBrowser(br); return; }
@@ -363,13 +371,14 @@ export function initChrome(app) {
     });
     const bodies = (res?.bodies || []).map((b) => { const r = h('div', { class: 'trow' + (app.selection.some((s) => s.kind === 'body' && s.body === b.id) ? ' sel' : '') + (app.hiddenBodies.has(b.id) ? ' hidden-item' : ''), 'data-body': b.id, 'data-testid': 'row-body', onclick: () => app.selectBody(b.id), ondblclick: () => app.renameBody(b.id) },
       eye(!app.hiddenBodies.has(b.id), () => app.toggleBody(b.id), tk('br.eye')), h('span', { class: 'nm', text: app.bodyName(b.id) }), h('span', { class: 'val num', text: fmt(b.volume / 1000, 2) + ' cm³' })); activate(r, () => app.selectBody(b.id)); return r; });
+    const fk = keepFocus('#browser');
     br.replaceChildren(
       sec(t('br.params'), h('button', { class: 'btn sm', id: 'br-params', 'data-cmd': 'params', onclick: () => C.run('params') }, t('br.edit'))), ...(params.length ? params : [note(t('br.no_params'))]),
       sec(t('br.origin')), (() => { const r = h('div', { class: 'trow' }, eye(app.planesVisible, () => app.togglePlanes(), tk('br.eye_planes')), h('span', { class: 'nm', text: t('br.planes_axes') })); return r; })(),
       sec(t('br.bodies')), ...(bodies.length ? bodies : [note(t('br.no_bodies'))]),
       sec(t('hs.title'), app.marks.changed.size ? h('button', { class: 'btn sm', 'data-testid': 'hist-clear', onclick: () => app.clearMarks(), title: t('hs.clear_tip') }, t('hs.clear')) : null),
       h('div', { class: 'hist', role: 'list', 'data-testid': 'hist', 'aria-label': t('hs.title') }, ...historyRows()));
-    C.markDeps();
+    fk(); C.markDeps();
   };
 
   // ---------------------------------------------------------------- geçmiş: ortak durum (şerit + panel aynı veriyi paylaşır)
@@ -437,7 +446,7 @@ export function initChrome(app) {
         h('span', { class: 'nm' }, h('span', { class: 'hn', text: f.name || featLabel(f) }), S.summary ? h('span', { class: 'hs', text: S.summary }) : null),
         ...(S.editing ? [h('span', { class: 'tag', text: t('tl.editing') })] : []),
         ...S.marks.filter((m) => m.k !== 'pending').map(markEl), msBar(S.ms));
-      activate(row, () => app.selectFeature(f.id));
+      activate(row, () => app.selectFeature(f.id)); bindDrag(row, i, false);
       rows.push(row);
       if (S.bad) rows.push(h('div', { class: 'hwhy', role: 'note', 'data-testid': 'hist-why', 'data-for': f.id, text: errText(S.st.error) }));
       if (open) {
@@ -480,6 +489,78 @@ export function initChrome(app) {
     return tn('hs.deps', D.down.size, { name, list: [...by].map(([l, n]) => n + ' ' + l).join(', ') });
   };
 
+  // ---------------------------------------------------------------- WP-02 dilim 4: sürükleyerek sıra değiştirme
+  // Bırakılabilir aralıklar yeşil (düz çizgi), bağımlılığı bozacak aralıklar kırmızı kesik çizgi + neden (ipucu ve ekran okuyucu).
+  const unitA = (i) => Math.min(...moveUnit(app.doc, i));
+  const dragList = (box) => [...box.querySelectorAll(box.id === 'timeline' ? '.chip[data-i]' : '.hrow[data-i]:not(.child)')];
+  const gapAt = (el, e, horiz) => {
+    const r = el.getBoundingClientRect(); const before = horiz ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2;
+    if (before) return { gap: unitA(+el.dataset.i), before: true };
+    const list = dragList(el.closest('#timeline, #browser')); const nx = list[list.indexOf(el) + 1];
+    return { gap: nx ? unitA(+nx.dataset.i) : app.doc.features.length, before: false };
+  };
+  C.announce = (txt) => {
+    let el = document.getElementById('hist-live');
+    if (!el) { el = h('div', { id: 'hist-live', class: 'sr-only', role: 'status', 'aria-live': 'polite', 'data-testid': 'hist-live' }); document.body.append(el); }
+    el.textContent = ''; el.textContent = txt;
+  };
+  const clearDrop = () => { for (const el of document.querySelectorAll('.drop-before, .drop-after')) el.classList.remove('drop-before', 'drop-after', 'drop-no'); };
+  const markGaps = () => {
+    const D = app.drag; if (!D) return;
+    for (const box of [$('#timeline'), $('#browser')]) {
+      const list = dragList(box);
+      list.forEach((el) => { const P = D.targets[unitA(+el.dataset.i)]; el.dataset.gap = !P || P.noop ? 'same' : P.ok ? 'ok' : 'no'; if (P && !P.ok) el.dataset.why = app.moveWhy(P.why); else delete el.dataset.why; });
+      const last = list[list.length - 1]; const P = D.targets[app.doc.features.length];
+      if (last) last.dataset.gapEnd = !P || P.noop ? 'same' : P.ok ? 'ok' : 'no';
+    }
+  };
+  const endDrag = () => {
+    if (!app.drag) return; app.drag = null; clearDrop(); document.body.classList.remove('hist-dragging');
+    for (const el of document.querySelectorAll('[data-gap], [data-gap-end]')) { delete el.dataset.gap; delete el.dataset.gapEnd; delete el.dataset.why; }
+    app.refreshHint();
+  };
+  C.endDrag = endDrag;
+  const bindDrag = (el, i, horiz) => {
+    el.draggable = true;
+    el.addEventListener('dragstart', (e) => {
+      if (app.edit || app.sketchSession || app.mode !== 'design' || app.welcome) { e.preventDefault(); return; }
+      const f = app.doc.features[i]; app.drag = { i, id: f.id, targets: dropTargets(app.doc, i, app.result?.status || {}) };
+      e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', f.id);
+      document.body.classList.add('hist-dragging'); markGaps();
+    });
+    el.addEventListener('dragover', (e) => {
+      const D = app.drag; if (!D) return;
+      const g = gapAt(el, e, horiz); const P = D.targets[g.gap];
+      clearDrop(); el.classList.add(g.before ? 'drop-before' : 'drop-after'); if (P && !P.ok) el.classList.add('drop-no');
+      const why = P && !P.ok ? app.moveWhy(P.why) : '';
+      if (why !== D.why) { D.why = why; app.setHint(why); if (why) C.announce(why); }
+      if (P && P.ok) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } else e.dataTransfer.dropEffect = 'none';
+    });
+    el.addEventListener('drop', (e) => {
+      const D = app.drag; if (!D) return; e.preventDefault();
+      const g = gapAt(el, e, horiz); const P = D.targets[g.gap]; endDrag();
+      if (P && P.ok && !P.noop) app.moveFeature(D.i, g.gap);
+    });
+    el.addEventListener('dragend', endDrag);
+    el.addEventListener('keydown', (e) => C.histKey(e, i, horiz));
+  };
+  // geçmiş satırı / çipi üzerinde klavye
+  C.histKey = (e, i, horiz) => {
+    if (app.edit || app.sketchSession || modalUp()) return;
+    const k = e.key;
+    if (e.altKey && e.shiftKey && ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(k)) { e.preventDefault(); e.stopPropagation(); C.moveBy(i, k === 'ArrowUp' || k === 'ArrowLeft' ? -1 : 1); }
+  };
+  // klavye: Alt+Shift+↑/← bir satır yukarı, Alt+Shift+↓/→ bir satır aşağı (kaynaşmış eskiz tüketicisiyle birlikte)
+  C.rowUnits = () => { const F = C.hist().fused; return app.doc.features.map((f, i) => i).filter((i) => !F.has(app.doc.features[i].id)); };
+  C.moveBy = (i, dir) => {
+    const f = app.doc.features[i]; if (!f) return; const H = C.hist();
+    if (H.fused.has(f.id)) i = app.doc.features.findIndex((x) => x.id === H.fused.get(f.id));
+    const U = C.rowUnits(); const r = U.indexOf(i); if (r < 0) return;
+    const n = app.doc.features.length;
+    if (dir < 0) { if (r === 0) return; return app.moveFeature(i, unitA(U[r - 1])); }
+    if (r >= U.length - 1) return; return app.moveFeature(i, r + 2 < U.length ? unitA(U[r + 2]) : n);
+  };
+
   // ---------------------------------------------------------------- zaman çizelgesi
   C.renderTimeline = () => {
     const tl = $('#timeline'); const doc = app.doc;
@@ -508,12 +589,13 @@ export function initChrome(app) {
       chip.addEventListener('contextmenu', (e) => featureMenu(e, f, i));
       chip.addEventListener('mouseenter', () => C.hoverFeature(f.id)); chip.addEventListener('mouseleave', () => C.hoverFeature(null));
       chip.addEventListener('focus', () => C.hoverFeature(f.id)); chip.addEventListener('blur', () => C.hoverFeature(null));
+      bindDrag(chip, i, true);
       kids.push(chip);
     });
     if (rb != null) kids.push(h('button', { class: 'btn sm', id: 'tl-end', 'data-testid': 'tl-end', onclick: () => app.rollbackTo(null) }, t('tl.end')));
     if (rb != null && rb >= doc.features.length) kids.push(h('span', { class: 'tl-marker', id: 'tl-marker' }));
     if (!doc.features.length) kids.push(h('span', { class: 'note', text: t('tl.empty') }));
-    tl.replaceChildren(...kids);
+    const fk = keepFocus('#timeline'); tl.replaceChildren(...kids); fk();
     tl.querySelector('.chip.sel')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     C.markDeps();
   };

@@ -14,7 +14,7 @@ import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../s
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
-import { defaults, newId, autoName, featLabel, dependents, tn } from './features.js';
+import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups } from './features.js';
 import { initChrome } from './chrome.js';
 import { initCam } from './cam/index.js';
 import { onPrefsChange, getStr, setStr } from './prefs.js';
@@ -455,9 +455,25 @@ class App {
       const ok = await confirmBox(t('dlg.del_title'), t('dlg.del_body', { name: f.name || f.id, list: deps.map((x) => x.name || x.id).join('\n• ') }), t('dlg.del_yes'));
       if (!ok) return;
     }
-    await this.commit((d) => { d.features.splice(i, 1); if (d.rollback != null) { if (i < d.rollback) d.rollback--; if (d.rollback >= d.features.length) d.rollback = null; } });
+    await this.commit((d) => { d.features.splice(i, 1); if (d.rollback != null) { if (i < d.rollback) d.rollback--; if (d.rollback >= d.features.length) d.rollback = null; } if (Array.isArray(d.groups)) d.groups = fixGroups(d, d.features); });
     if (this.selFeature === f.id) this.selFeature = null;
     this.C.renderAll();
+  }
+
+  // ------------------------------------------------------------ WP-02 dilim 4: sıra değiştirme
+  // Bağımlılığı bozacak taşıma yapılmaz; neden bildirilir. Taşıma sonrası değişen ilk konumdan süpürme + özet.
+  moveWhy(why) { const nm = (id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }; return t('hs.move_blocked', { a: nm(why.feat), b: nm(why.dep) }); }
+  async moveFeature(i, to) {
+    if (this.guard()) return false; const f = this.doc.features[i]; if (!f) return false;
+    const p = planMove(this.doc, i, to, this.result?.status || {});
+    if (!p.ok) { const why = this.moveWhy(p.why); toast(why, true); this.C.announce(why); return false; }
+    if (p.noop) return true;
+    this._sweepNext = { at: p.at };
+    const done = this.commit((d) => { d.features = p.features; d.rollback = p.rollback; if (p.groups !== undefined) d.groups = p.groups; });
+    this.selFeature = f.id; this.C.renderAll();
+    const k = this.doc.features.findIndex((x) => x.id === f.id);
+    this.C.announce(t('hs.moved', { name: f.name || featLabel(f), n: k + 1, total: this.doc.features.length }));
+    await done; return true;
   }
 
   // ------------------------------------------------------------ sketch

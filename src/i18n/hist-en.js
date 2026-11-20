@@ -43,4 +43,8 @@ export default {
   "hs.sum_w_one": "{n}\u00a0warning",
   "hs.sum_e": "{n}\u00a0errors",
   "hs.sum_e_one": "{n}\u00a0error",
+  "hs.move_blocked": "Cannot move: {a} depends on {b}",
+  "hs.moved": "{name} moved ({n}/{total})",
+  "ctx.move_up": "Move up",
+  "ctx.move_down": "Move down",
 };

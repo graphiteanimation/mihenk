@@ -239,6 +239,29 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   ok(o.featInfo.b.changed && o.featInfo.b.sum === 'sup' && o.status.b.suppressed, 'bastırma: sonuç değişti');
 }
 
+// --- WP-02 dilim 4: sıra değiştirme (arayüz planı, çekirdekle doğrulama)
+{
+  const { part12 } = await import('./models/part12.mjs');
+  const FS = await import('../src/ui/features.js');
+  const KM = await initKernel(opencascade, () => wasm);
+  const d = part12('30'); const ids = d.features.map((f) => f.id); const r0 = await KM.rebuild(d);
+  const vol = (r) => r.bodies.map((b) => b.volume).reduce((a, b) => a + b, 0);
+  let p = FS.planMove(d, ids.indexOf('k3'), ids.indexOf('bx'), r0.status);
+  ok(p.ok && p.features.map((f) => f.id).join() === 's1,e1,k3,bx,k1,k2,s2,e2,fb,ch,cy,cz' && p.at === 2, 'planMove: k3 Kutu 1 önüne: ' + JSON.stringify(p.why || p.features?.map((f) => f.id)));
+  const r1 = await KM.rebuild({ ...d, features: p.features });
+  ok(Object.values(r1.status).every((s) => s.ok) && Math.abs(vol(r1) - vol(r0)) < 1e-6 * vol(r0), 'taşınan sıra hatasız hesaplanır, toplam hacim aynı');
+  p = FS.planMove(d, ids.indexOf('k3'), 0, r0.status); ok(!p.ok && p.why.feat === 'k3' && p.why.dep === 'e1', 'planMove: k3 Extrude 1 önüne geçemez (k3 → e1): ' + JSON.stringify(p.why));
+  p = FS.planMove(d, ids.indexOf('fb'), ids.indexOf('bx'), r0.status); ok(!p.ok && p.why.dep === 'bx', 'planMove: yuvarlatma kenarını aldığı kutunun önüne geçemez (topolojik ad kökeni)');
+  p = FS.planMove(d, ids.indexOf('e1'), ids.indexOf('k1'), r0.status); ok(p.ok && p.features.map((f) => f.id).slice(0, 3).join() === 'bx,s1,e1', 'planMove: kaynaşmış eskiz tüketicisiyle birlikte taşınır');
+  p = FS.planMove(d, ids.indexOf('e1'), ids.indexOf('k2'), r0.status); ok(!p.ok && p.why.feat === 'k1' && p.why.dep === 'e1', 'planMove: Extrude 1 kendisine dayanan k1 ardına geçemez');
+  ok(FS.planMove(d, ids.indexOf('k3'), ids.indexOf('k3'), r0.status).noop && FS.planMove(d, ids.indexOf('k3'), ids.indexOf('k3') + 1, r0.status).noop, 'planMove: yerinde bırakma değişiklik değil');
+  const dr = { ...d, rollback: 5 };
+  p = FS.planMove(dr, ids.indexOf('k3'), 3, r0.status); ok(p.ok && p.rollback === 6 && p.features[3].id === 'k3', 'planMove: işaretçinin sağından soluna taşınan işlem etkinleşir, işaretçi aynı komşular arasında');
+  p = FS.planMove(dr, ids.indexOf('k1'), 9, r0.status); ok(p.ok && p.rollback === 4, 'planMove: işaretçinin soluna giden işlem sağa taşınınca işaretçi bir geri');
+  p = FS.planMove(dr, ids.indexOf('k3'), 5, r0.status); ok(p.ok && p.rollback === 6 && p.features[5].id === 'k3', 'planMove: işaretçi aralığına bırakma = işaretçinin önü');
+  const T = FS.dropTargets(d, ids.indexOf('k3'), r0.status); ok(T.length === 13 && !T[0].ok && !T[1].ok && T[2].ok && T[8].noop && T[9].noop, 'dropTargets: her aralık için izin/neden');
+}
+
 console.log('T-14 camHoleExit: delik ekseninde son çıkış');
 {
   const KX = await initKernel(opencascade, () => wasm);

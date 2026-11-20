@@ -212,3 +212,92 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
   }
   return parts.filter(Boolean).join(' · ');
 }
+
+// ------------------------------------------------------------------ WP-02 dilim 4: sıra değiştirme
+// Sert dayanak: işlemin açıkça başvurduğu işlemler (eskiz, gövde kimliği "e1"/"e1#2", topolojik ad kökeni "e1:side")
+// + değiştirdiği gövdeyi yaratan işlem (status[id].bodies). Bunlar işlemden önce kalmak zorundadır; aynı gövde üzerinde
+// art arda gelen ama birbirine başvurmayan işlemler (iki delik gibi) yer değiştirebilir.
+const SKIP_TOP = new Set(['id', 'name', 'type', 'data', 'suppressed']);
+const SKIP_IN = new Set(['fp', 'hint', 'profiles', 'ent', 'ents']);
+export function hardRefs(f, ids, status = {}) {
+  const out = new Set();
+  const hit = (s) => { for (const c of [s, s.split('#')[0], s.split(':')[0]]) if (c !== f.id && ids.has(c)) out.add(c); };
+  const walk = (v) => {
+    if (v == null) return;
+    if (typeof v === 'string') { hit(v); return; }
+    if (Array.isArray(v)) { v.forEach(walk); return; }
+    if (typeof v === 'object') for (const [k, x] of Object.entries(v)) if (!SKIP_IN.has(k)) walk(x);
+  };
+  if (f.type === 'sketch') { if (f.plane?.kind === 'face') walk(f.plane.ref); }
+  else for (const [k, x] of Object.entries(f)) if (!SKIP_TOP.has(k) && !SKIP_IN.has(k)) walk(x);
+  const st = status[f.id];
+  if (st && st.ok && Array.isArray(st.bodies)) for (const b of st.bodies) hit(String(b));
+  return out;
+}
+export const refsMap = (doc, status = {}) => { const ids = new Set(doc.features.map((f) => f.id)); return new Map(doc.features.map((f) => [f.id, hardRefs(f, ids, status)])); };
+// taşıma birimi: kaynaşmış eskiz tüketicisiyle birlikte taşınır (tek satır / tek çip)
+export function moveUnit(doc, i) {
+  const f = doc.features[i]; if (!f) return [];
+  for (const [sk, c] of fusedSketches(doc)) if (c === f.id) return [doc.features.findIndex((x) => x.id === sk), i];
+  return [i];
+}
+// i. işlemi (birimini) özgün dizideki `to` aralığına (to. elemanın önüne; to = n → sona) taşı.
+// Geri sarma işaretçisi aynı iki komşu arasında kalır; to === rollback → işaretçinin önüne.
+// Döner: {ok, noop, features, rollback, groups, at} ya da {ok:false, why:{feat, dep}}.
+export function planMove(doc, i, to, status = {}, refs = null) {
+  const feats = doc.features; const unit = moveUnit(doc, i); if (!unit.length) return { ok: false, noop: true };
+  const uset = new Set(unit.map((k) => feats[k].id)); const MARK = { mark: true };
+  const rb = doc.rollback; const arr = feats.slice(); if (rb != null) arr.splice(rb, 0, MARK);
+  let target = null;
+  for (let k = to; k < feats.length; k++) { if (rb != null && k === rb) { target = MARK; break; } if (!uset.has(feats[k].id)) { target = feats[k]; break; } }
+  if (target == null && rb != null && to <= rb) target = MARK;
+  const rest = arr.filter((x) => x === MARK || !uset.has(x.id));
+  const pos = target ? rest.indexOf(target) : rest.length;
+  rest.splice(pos, 0, ...unit.map((k) => feats[k]));
+  let nrb = rest.indexOf(MARK); if (nrb >= 0) rest.splice(nrb, 1); if (nrb < 0 || nrb >= rest.length) nrb = null;
+  const at = rest.findIndex((x, k) => x !== feats[k]);
+  if (at < 0 && nrb === (rb ?? null)) return { ok: true, noop: true };
+  const R = refs || refsMap(doc, status); const P = new Map(rest.map((x, k) => [x.id, k]));
+  let why = null;
+  for (const g of rest) {
+    for (const d of R.get(g.id) || []) if (P.get(d) > P.get(g.id)) { const w = { feat: g.id, dep: d }; if (uset.has(g.id) || uset.has(d)) { why = w; break; } why = why || w; }
+    if (why && (uset.has(why.feat) || uset.has(why.dep))) break;
+  }
+  if (why) return { ok: false, why };
+  return { ok: true, noop: false, features: rest, rollback: nrb, groups: fixGroups(doc, rest, uset), at: at < 0 ? Math.min(...unit) : at };
+}
+// sürükleme sırasında her aralığın durumu (bırakılabilir mi, değilse neden)
+export function dropTargets(doc, i, status = {}) {
+  const refs = refsMap(doc, status); const out = [];
+  for (let to = 0; to <= doc.features.length; to++) out.push(planMove(doc, i, to, status, refs));
+  return out;
+}
+
+// ------------------------------------------------------------------ WP-02 dilim 4: gruplar
+// Belge şeması yalnız isteğe bağlı `groups` alanı kazanır: [{id, name, first, last}] (ardışık aralık, ilk/son işlem kimliği).
+// Aralığın içine eklenen işlem gruba girer. Grup iç içe olmaz, çakışmaz.
+export function groupRanges(doc) {
+  const pos = new Map(doc.features.map((f, i) => [f.id, i])); const out = [];
+  for (const g of Array.isArray(doc.groups) ? doc.groups : []) {
+    if (!g || typeof g !== 'object') continue;
+    const a = pos.get(g.first), b = pos.get(g.last); if (a == null || b == null || b < a) continue;
+    if (out.some((o) => !(b < o.a || a > o.b))) continue;
+    out.push({ g, id: g.id, name: g.name, a, b, ids: doc.features.slice(a, b + 1).map((f) => f.id) });
+  }
+  return out.sort((x, y) => x.a - y.a);
+}
+export const groupOf = (doc, id) => groupRanges(doc).find((r) => r.ids.includes(id)) || null;
+// yapısal değişiklikten sonra grup aralıklarını yeni sıraya uydur (taşınan birim dışarı bırakılınca gruptan çıkar)
+export function fixGroups(doc, feats, moved = new Set()) {
+  if (!Array.isArray(doc.groups)) return undefined;
+  const pos = new Map(feats.map((f, i) => [f.id, i])); const out = [];
+  for (const r of groupRanges(doc)) {
+    const keep = r.ids.filter((x) => pos.has(x) && !moved.has(x));
+    const all = r.ids.filter((x) => pos.has(x));
+    let ids = keep.length ? keep : all; if (!ids.length) continue;
+    let a = Math.min(...ids.map((x) => pos.get(x))), b = Math.max(...ids.map((x) => pos.get(x)));
+    if (!keep.length) { a = Math.min(...all.map((x) => pos.get(x))); b = Math.max(...all.map((x) => pos.get(x))); }
+    out.push({ ...r.g, first: feats[a].id, last: feats[b].id });
+  }
+  return out;
+}
