@@ -50,6 +50,7 @@ Function EnsureSubdir
     StrCpy $INSTDIR "$INSTDIR\${APP}"
   ${EndIf}
 FunctionEnd
+; Klasör sayfasından çıkışta (elle yazılan yol dahil) çağrılır; kurulum bölümü de aynı işlevi yeniden çağırır (çift güvence)
 Function DirLeave
   Call EnsureSubdir
 FunctionEnd
@@ -62,6 +63,8 @@ Function un.onInit
 FunctionEnd
 
 Section "$(SEC_PROGRAM)"
+  ; DirLeave hiç çalışmasa da (sessiz kurulum /D=, elle yazılan yol) dosyalar Programs köküne açılmasın; işlev idempotent
+  Call EnsureSubdir
   SetOutPath "$INSTDIR"
   File /r "..\release\win-unpacked\*.*"
   WriteRegStr HKCU "Software\${APP}" "InstallDir" "$INSTDIR"

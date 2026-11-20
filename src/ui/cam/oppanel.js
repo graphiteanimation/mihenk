@@ -35,6 +35,9 @@ export class OpPanel {
   constructor(cam, opId, { isNew = false } = {}) {
     this.cam = cam; this.app = cam.app; this.id = opId; this.isNew = isNew; this.closed = false; this.tab = 'tool'; this.pickMode = 'face'; this.sketchId = null;
     const l = cam.opLoc(opId); this.setupId = l.setup.id; this.draft = clone(l.op); this.out = null;
+    // C-10: yeniden açılan işlemde "Seçim türü" gerçek seçimi gösterir (eskiz profili / gövde dış sınırı / yüz)
+    const gs = this.draft.geom || []; const gk = gs.find((g) => g.kind === 'sketch') || gs.find((g) => g.kind === 'silhouette') || gs.find((g) => g.kind === 'face');
+    if (gk) { this.pickMode = gk.kind === 'sketch' ? 'sketch' : gk.kind === 'silhouette' ? 'silhouette' : 'face'; if (gk.kind === 'sketch') this.sketchId = gk.sketch; }
   }
   get tool() { return this.cam.tools().find((x) => x.id === this.draft.toolId) || null; }
   open() { this.render(); this.unkeys = panelKeys(document.getElementById('panel'), () => this.ok(), () => this.cancel()); this.showResult(); this.pickView(); this.cam.ops.refreshPaths(this.id); }
@@ -63,7 +66,7 @@ export class OpPanel {
     this.cam.mut((c) => { for (const s of c.setups) { const i = (s.ops || []).findIndex((x) => x.id === d.id); if (i >= 0) s.ops[i] = d; } });
   }
   async compute() {
-    const bad = this.problems(); if (bad) { this.app.toastInfo(bad); return; }
+    const bad = this.problems(); if (bad) { this.out = { blocked: true }; this.showResult(); this.app.toastInfo(bad); return; } // U-10: engellenen Hesapla "Bu yol eski" demez
     const setup = this.cam.setup(this.setupId); const d = clone(this.draft);
     this.out = { busy: true }; this.showResult();
     this.out = await this.cam.ops.computeDraft(setup, d); this.showResult();
@@ -74,10 +77,30 @@ export class OpPanel {
     const o = this.out;
     if (!o) { const st = this.cam.ops.state(this.draft, this.cam.setup(this.setupId)); box.append(callout('info', null, t(st.state === 'stale' ? 'cam.op.res_stale' : 'cam.op.res_none'))); return; }
     if (o.busy) { box.append(callout('info', null, t('cam.run.busy'))); return; }
-    if (o.error) { box.append(callout('err', t('cam.op.res_err'), errText(o.error))); return; }
+    if (o.blocked) { box.append(callout('warn', null, t('cam.op.res_blocked'))); return; }
+    if (o.error) {
+      box.append(callout('err', t('cam.op.res_err'), errText(o.error)));
+      // C-11: "takım sığmıyor" hatasında gerçek neden eskizdeki, yapı yapılmamış çizgi olabilir (bölgeyi ikiye böler)
+      if (String(o.error.code || '').endsWith('tool_too_big')) { const n = this.splitLines(); if (n) box.append(callout('warn', t('cam.op.split_title'), t('cam.op.split_body', { n }))); }
+      return;
+    }
     const s = o.tp.stats || {};
     box.append(callout('ok', t('cam.op.res_ok'), t('cam.op.res_stats', { moves: o.tp.moves.length, cut: fmtNum(s.cutLen ?? 0, 1), rapid: fmtNum(s.rapidLen ?? 0, 1), min: fmtNum(s.timeMin ?? 0, 1) }), 'check'));
     for (const w of o.tp.warnings || []) box.append(callout('warn', null, errText({ code: w.code, params: w.params })));
+  }
+  // M-02: 3+1 setup'ta (A açısı ≠ 0) mutlak Z, A=0 çerçevesinde tanımlı orijine göre döndürülmüş stoğa aittir; ipucuna açıklama eklenir
+  absHint(base) { const su = this.cam.setup(this.setupId); return su?.rotary?.enabled && Number(su.rotary.aAngle) !== 0 ? base + ' ' + t('cam.op.abs_rotary_note') : base; }
+  // C-11: seçili eskiz profillerinde birden çok bölgenin ortak sınırı olan (yapı olmayan) çizgi sayısı: bölgeyi yarıyor demektir
+  splitLines() {
+    let n = 0;
+    for (const g of (this.draft.geom || []).filter((x) => x.kind === 'sketch')) {
+      const sk = this.app.doc.features.find((f) => f.id === g.sketch); if (!sk) continue;
+      try {
+        const cnt = new Map(); for (const r of findRegions(sk).regions) for (const e of new Set(r.ents || [])) cnt.set(e, (cnt.get(e) || 0) + 1);
+        n += (sk.ents || []).filter((e) => e.type === 'line' && !e.cons && (cnt.get(e.id) || 0) >= 2).length;
+      } catch (e) { /* profil çözülemedi: ipucu verilmez */ }
+    }
+    return n;
   }
   invalidate() { if (this.out && !this.out.busy) { this.out = null; this.showResult(); } }
   // alan kısayolları
@@ -94,13 +117,16 @@ export class OpPanel {
   // ---------------------------------------------------------------- çizim
   render() {
     const d = this.draft; const keep = this.tab;
+    // C-12: alan değişince (yeniden çizim) kaydırma korunur; sekme değişince başa döner
+    const prev = document.querySelector('#panel > .body'); const keepTop = prev && this._renderedTab === keep && !this._resetScroll ? prev.scrollTop : 0; this._resetScroll = false;
     this.resEl = h('div', { class: 'op-res', 'data-testid': 'op-result', 'aria-live': 'polite' });
-    const tabs = h('div', { class: 'seg', role: 'group', 'aria-label': t('cam.op.tabs') }, ...TABS.map(([id, key]) => h('button', { type: 'button', 'aria-pressed': String(id === keep), 'data-testid': 'op-tab-' + id, onclick: () => { this.tab = id; this.render(); this.showResult(); this.pickView(); } }, t(key))));
+    const tabs = h('div', { class: 'seg', role: 'group', 'aria-label': t('cam.op.tabs') }, ...TABS.map(([id, key]) => h('button', { type: 'button', 'aria-pressed': String(id === keep), 'data-testid': 'op-tab-' + id, onclick: () => { this.tab = id; this._resetScroll = true; this.render(); this.showResult(); this.pickView(); } }, t(key))));
     const rows = { tool: () => this.tabTool(), geom: () => this.tabGeom(), heights: () => this.tabHeights(), passes: () => this.tabPasses() }[keep]();
     this.bodyEl = h('div', { class: 'op-body' }, ...rows);
     const foot = okCancel(() => this.ok(), () => this.cancel());
     const comp = h('button', { class: 'btn op-compute', type: 'button', id: 'p-compute', 'data-testid': 'op-compute', onclick: () => this.compute() }, h('span', { html: icon('cam-compute', 'sm') }), t('cam.cmd.compute'));
     panelShell(this.isNew ? t('cam.op.title_new', { type: t('cam.op.type.' + OP_TYPE_KEY(d)) }) : t('cam.op.title', { name: d.name }), [tabs, this.bodyEl, comp, this.resEl], foot, () => this.cancel(), 'op-' + (d.type === 'drill' && d.cycle === 'tap' ? 'thread' : d.type));
+    this._renderedTab = keep; const nb = document.querySelector('#panel > .body'); if (nb && keepTop) nb.scrollTop = keepTop;
   }
   tabTool() {
     const d = this.draft, cam = this.cam; const rows = [];
@@ -223,14 +249,14 @@ export class OpPanel {
     if (d.type === 'drill') {
       const dep = d.depth;
       rows.push(sec(t('cam.op.depth')), this.sel(t('cam.op.depth_from'), 'depth.from', [['hole', t('cam.op.df_hole')], ['abs', t('cam.op.df_abs')]], { f: 'depth-from', redraw: true, def: 'hole', set: (v) => { dep.from = v; if (v === 'abs') dep.z = dep.z ?? null; else delete dep.z; this.invalidate(); } }));
-      if (dep.from === 'abs') rows.push(this.num(t('cam.op.depth_z'), 'depth.z', { f: 'depth-z', min: -1e6, hint: t('cam.op.depth_z_hint') }));
+      if (dep.from === 'abs') rows.push(this.num(t('cam.op.depth_z'), 'depth.z', { f: 'depth-z', min: -1e6, hint: this.absHint(t('cam.op.depth_z_hint')) }));
       else rows.push(checkField({ label: t('cam.op.tipcomp'), value: !!dep.tipComp, f: 'op-tipcomp', hint: t('cam.op.tipcomp_hint'), set: (v) => { dep.tipComp = v; this.invalidate(); } }), this.num(t('cam.op.breakthrough'), 'depth.breakThrough', { min: 0, nullable: true, f: 'breakthrough', hint: t('cam.op.breakthrough_hint') }));
       return rows;
     }
     for (const [which, from] of [['top', TOP_FROM], ['bottom', BOT_FROM]]) {
       const cur = d.heights[which] || (d.heights[which] = { from: from[0], off: 0 });
       rows.push(sec(t('cam.op.h.' + which)), this.sel(t('cam.op.h_from'), `heights.${which}.from`, from.map((x) => [x, t('cam.op.hf.' + x)]), { f: which + '-from', redraw: true, hint: t('cam.op.hfh.' + which) }),
-        this.num(cur.from === 'abs' ? t('cam.op.h_abs') : t('cam.op.h_off'), `heights.${which}.off`, { min: -1e6, f: which + '-off', hint: cur.from === 'abs' ? t('cam.op.h_abs_hint') : t('cam.op.h_off_hint') }));
+        this.num(cur.from === 'abs' ? t('cam.op.h_abs') : t('cam.op.h_off'), `heights.${which}.off`, { min: -1e6, f: which + '-off', hint: cur.from === 'abs' ? this.absHint(t('cam.op.h_abs_hint')) : t('cam.op.h_off_hint') }));
     }
     return rows;
   }

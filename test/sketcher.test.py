@@ -4,7 +4,6 @@ from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = os.path.join(ROOT, 'test', 'shots'); os.makedirs(SHOTS, exist_ok=True)
-PORT = 5199
 passed = failed = 0
 
 def check(name, cond, detail=''):
@@ -12,18 +11,10 @@ def check(name, cond, detail=''):
     if cond: passed += 1; print('  ok   ', name)
     else: failed += 1; print('  FAIL ', name, detail)
 
-def port_open():
-    s = socket.socket(); s.settimeout(0.3)
-    try: s.connect(('127.0.0.1', PORT)); return True
-    except OSError: return False
-    finally: s.close()
 
-server = None
-if not port_open():
-    server = subprocess.Popen(['npx', 'vite', '--config', 'test/vite.harness.config.js', '--port', str(PORT)], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(100):
-        if port_open(): break
-        time.sleep(0.2)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _srv
+PORT, server = _srv.start(ROOT, ['--config', 'test/vite.harness.config.js'])  # her koşu kendi boş portunda kendi sunucusunu açar (test/_srv.py)
 
 try:
   with sync_playwright() as p:
@@ -514,10 +505,61 @@ try:
     check('DXF içe aktarma sonrası alan aynı', r['ok'] and abs(before - after) < 1e-3, (before, after, r))
     check('DXF içe aktarma çözüldü (kısıtsız, serbest)', ev('sk.lastSolve && sk.lastSolve.ok'))
 
+    print('WP-04 dilim 2: C-01, C-02, C-07, C-08, pah ölçüsü')
+    # C-01: daireyi çizerken yazılan yarıçap ölçü kısıtı ekler
+    fresh(); tool('circle'); click(0, 0); move(10, 0); page.keyboard.type('8'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(300); idle()
+    s = S(); ci = ents('circle'); rc = [c for c in s['cons'] if c['type'] == 'radius']
+    check('C-01: yazılan yarıçap ölçü kısıtı ekledi (radius, ifade 8)', len(ci) == 1 and near(ci[0]['r'], 8, 1e-3) and len(rc) == 1 and str(rc[0].get('expr')) == '8', (ci, s['cons']))
+    check('C-01: yarıçap yazılınca başarısızlık iletisi yok', 'sk.num.failed' not in str(status()) and 'başarısız' not in (status() or '').lower(), status())
+    # C-02: ölçü etiketi bir noktanın üstünde dururken o noktaya tıklamak noktayı seçer
+    fresh(); line((-20, 0), (20, 0)); tool('select')
+    ev("(() => { const l = sk.sk.ents.find((e) => e.type === 'line'); sk._apply(() => { sk._addCon('dist', l.a, l.b, { expr: '40' }); }, { kind: 'x' }); })()"); idle(); page.wait_for_timeout(250); idle()
+    dc = next((c for c in S()['cons'] if c['type'] == 'dist'), None)
+    check('C-02 önkoşul: çizgiye uzunluk ölçüsü eklendi', dc is not None, S()['cons'])
+    if dc:
+        ln = ents('line')[0]; pa = S()['points'][ln['b']]
+        ev("(a) => { const id = a[0], p = a[1]; const el = sk._ovEls.find((e) => e.dataset.con === id); const b = el._base; sk._apply((q) => { const k = q.cons.find((x) => x.id === id); k.lo = [p.x - b[0], p.y - b[1]]; }, { kind: 'x' }); }", [dc['id'], pa]); idle(); page.wait_for_timeout(200); idle()
+        tool('select'); x, y = P(pa['x'], pa['y'])
+        on_label = ev(f"(() => {{ const e = document.elementFromPoint({x}, {y}); return e && e.dataset ? (e.dataset.con || null) : null; }})()")
+        check('C-02 önkoşul: etiket noktanın tam üstünde', on_label == dc['id'], on_label)
+        page.mouse.move(x, y); page.mouse.click(x, y); idle()
+        sel = ev('sk.selection.map((s) => s.kind + ":" + s.id)')
+        check('C-02: etiketin altındaki noktaya tıklamak noktayı seçer', ('point:' + ln['b']) in sel, sel)
+        lo0 = next(c for c in S()['cons'] if c['id'] == dc['id'])['lo']
+        page.mouse.move(x, y); page.mouse.down(); page.mouse.move(x + 30, y + 30, steps=4); page.mouse.up(); idle(); page.wait_for_timeout(150)
+        lo1 = next(c for c in S()['cons'] if c['id'] == dc['id'])['lo']
+        check('C-02: etiket yine sürüklenebilir', lo1 != lo0, (lo0, lo1))
+    # C-07: p kısayolu (küçük/büyük harf ve Latin olmayan düzende fiziksel tuş)
+    fresh(); key('p'); check('C-07: küçük "p" nokta aracını seçer', ev('sk.tool') == 'point', ev('sk.tool'))
+    tool('select'); key('Shift+P'); check('C-07: Shift+P nokta aracını seçer', ev('sk.tool') == 'point', ev('sk.tool'))
+    tool('select'); r = ev("sk.handleKey({ key: 'з', code: 'KeyP', target: document.body, preventDefault() {} })")
+    check('C-07: Latin olmayan düzende (KeyP) nokta aracı seçilir', r is True and ev('sk.tool') == 'point', (r, ev('sk.tool')))
+    # C-08: sağ tık menüsünde yapı geçişi her zaman var; açık profil uyarısı yapı çizgisini saymaz
+    fresh(); tool('select'); page.mouse.click(*P(0, 30), button='right'); page.wait_for_timeout(100)
+    labels = ev("[...document.querySelectorAll('.sk-ctx button')].map(b => b.dataset.act)")
+    check('C-08: hiçbir şey seçili değilken de menüde yapı geçişi var (etkin)', 'ctx-construction' in labels and ev("!document.querySelector('.sk-ctx [data-act=ctx-construction]').disabled"), labels)
+    page.click('.sk-ctx [data-act=ctx-construction]'); idle()
+    check('C-08: boş alanda yapı geçişi yapı çizim kipini açar', ev('sk.consMode') is True)
+    ev('sk.consMode = false')
+    fresh(); tool('rect'); click(-20, -10); click(20, 10); line((30, 30), (50, 40))
+    rep = ev('sk.exitReport()')
+    check('C-08 önkoşul: dışarıda duran serbest çizgi açık profil uyarısı verir', any('açık profil' in r for r in rep), rep)
+    tool('select'); click(40, 35); page.mouse.click(*P(40, 35), button='right'); page.wait_for_timeout(100)
+    page.click('.sk-ctx [data-act=ctx-construction]'); idle()
+    rep = ev('sk.exitReport()')
+    check('C-08: çizgi yapıya çevrilince açık profil uyarısı kalkar', not any('açık profil' in r for r in rep), rep)
+    # pah ölçü kısıtı (iletişim kutusundaki varsayılan kol 5 mm)
+    fresh(); tool('rect'); click(-20, -10); click(20, 10)
+    tool('chamfer'); idle(); click(20, 10); idle(); page.wait_for_timeout(300); idle()
+    s = S(); dc = [c for c in s['cons'] if c['type'] == 'dist']
+    plain = [e for e in s['ents'] if e['type'] == 'line' and not any(c.get('a') == e['id'] for c in s['cons'] if c['type'] in ('horizontal', 'vertical'))]
+    check('pah: köşeye tıklayınca pah çizgisi + uzunluk ölçüsü (dist) eklendi', len(plain) == 1 and len(dc) == 1, (len(plain), s['cons']))
+    if plain and dc: check('pah ölçüsü pah çizgisi uzunluğuna eşit (5 mm kol → 7,0711)', near(lens(s, plain[0]['id']), 5 * 2 ** 0.5, 1e-3) and near(lens(s, plain[0]['id']), float(dc[0]['expr']), 1e-3), (lens(s, plain[0]['id']), dc[0]))
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()
 finally:
-    if server: server.terminate()
+    _srv.stop(server)
 print(f'\n{passed} geçti, {failed} kaldı')
 sys.exit(1 if failed else 0)

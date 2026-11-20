@@ -45,6 +45,12 @@ const base = {
   "view.front": "Front",
   "view.top": "Top",
   "view.right": "Right",
+  "view.bottom": "Bottom",
+  "view.back": "Back",
+  "view.left": "Left",
+  "set.left_rotate": "Rotate with left button",
+  "set.left_rotate_on": "Rotate the view by dragging with the left mouse button",
+  "set.left_rotate_help": "When off, only the right button rotates. In sketch mode the left button is always used for drawing.",
   "view.iso": "Iso",
   "view.fit": "Fit",
   // Araç çubuğu

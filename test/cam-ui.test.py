@@ -4,24 +4,15 @@ import os, re, socket, subprocess, sys, time, json
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PORT = int(os.environ.get('MIHENK_UI_PORT', '4197'))  # paralel calisma agaclari icin ortamdan degistirilebilir
 passed = failed = 0
 def check(name, cond, detail=''):
     global passed, failed
     if cond: passed += 1; print('  ok   ', name)
     else: failed += 1; print('  FAIL ', name, detail)
-def port_open():
-    s = socket.socket(); s.settimeout(0.3)
-    try: s.connect(('127.0.0.1', PORT)); return True
-    except OSError: return False
-    finally: s.close()
 
-server = None
-if not port_open():
-    server = subprocess.Popen(['npx', 'vite', 'preview', '--port', str(PORT), '--strictPort'], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(100):
-        if port_open(): break
-        time.sleep(0.2)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _srv
+PORT, server = _srv.start(ROOT, ['preview'])  # her koşu kendi boş portunda kendi sunucusunu açar (test/_srv.py)
 URL = f'http://127.0.0.1:{PORT}/'
 
 # örnek parça: 80x60x20 blok, üstünde 40x30x8 cep, dört köşede Ø6 delik (extrude + cut yerine ilkel gövde + kesme)
@@ -180,7 +171,22 @@ try:
     with pg.expect_file_chooser() as fc: pg.click('[data-testid=tl-import]')
     fc.value.set_files('/tmp/lib-test.json'); pg.wait_for_timeout(300)
     check('içe aktarma: geçerli alındı, geçersiz atlandı + bildirim', pg.evaluate("JSON.parse(localStorage.getItem('mihenk.toolLibrary')||'[]').length") == 2 and '1 kayıt geçersiz' in txt(pg, '#toast'), txt(pg, '#toast'))
+    # C-09: aynı dosya ikinci kez içe aktarılınca kütüphane çoğalmaz; belge kapsamında aynı numaralı takım kopyalanmaz
+    with pg.expect_file_chooser() as fc: pg.click('[data-testid=tl-import]')
+    fc.value.set_files('/tmp/lib-test.json'); pg.wait_for_timeout(300)
+    check('C-09: aynı dosya yeniden içe aktarılınca kütüphane çoğalmaz (içeriği aynı takım atlanır, bildirim)', pg.evaluate("JSON.parse(localStorage.getItem('mihenk.toolLibrary')||'[]').length") == 2 and 'atlandı' in txt(pg, '#toast'), txt(pg, '#toast'))
+    dup = dict(exp['tools'][0]); dup['id'] = 'y1'; dup['name'] = 'Aynı numara'; fresh_t = dict(exp['tools'][0]); fresh_t['id'] = 'y2'; fresh_t['number'] = 11
+    open('/tmp/doc-test.json', 'w').write(json.dumps({'format': 'mihenk-tool-library', 'version': 1, 'tools': [dup, fresh_t]}))
+    n_doc0 = pg.evaluate('app.doc.cam.tools.length')
+    pg.click('[data-testid=tl-scope-doc]')
+    with pg.expect_file_chooser() as fc: pg.click('[data-testid=tl-import]')
+    fc.value.set_files('/tmp/doc-test.json'); pg.wait_for_timeout(300)
+    nums = pg.evaluate('app.doc.cam.tools.map((x) => x.number)')
+    check('C-09: belgeye içe aktarma aynı numaralı takımı (T5) kopyalamaz, yeni numarayı (T11) ekler, atlananı bildirir', pg.evaluate('app.doc.cam.tools.length') == n_doc0 + 1 and nums.count(5) == 1 and 11 in nums and 'T5' in txt(pg, '#toast'), (nums, txt(pg, '#toast')))
+    pg.evaluate("() => app.cam.setTools(app.doc.cam.tools.filter((x) => x.number !== 11))")  # sonraki (eski) denetimlerin başlangıç durumu korunsun
+    pg.click('[data-testid=tl-scope-lib]')
     pg.click('[data-testid=tool-row]:nth-child(2) [data-testid=tl-todoc]') if pg.evaluate("document.querySelectorAll('[data-testid=tool-row]').length") == 2 else None
+    check('C-09: kütüphaneden belgeye alınca kapsam sekmesi kendiliğinden değişmez (Kütüphane seçili kalır)', count(pg, '#modal [data-testid=tl-scope-lib][aria-pressed=true]') == 1 and count(pg, '#modal [data-testid=tl-scope-doc][aria-pressed=true]') == 0)
     pg.click('#modal .btn.pri') if count(pg, '#modal:not(.hidden)') else None
     check('tarayıcıda Takımlar bölümü satırları', count(pg, '[data-testid=cam-tool-row]') >= 2)
     pg.keyboard.press('Control+z')
@@ -559,6 +565,8 @@ try:
     pg.click('[data-testid=op-tab-heights]')
     pg.click('[data-testid=op-compute]'); time.sleep(0.3)
     check('U-10: Hesapla hatalı sekmeye (Pasolar) geçer', pg.evaluate("document.querySelector('[data-testid=op-tab-passes]').getAttribute('aria-pressed')") == 'true' and count(pg, '#panel .input.err') >= 1)
+    rt = txt(pg, '[data-testid=op-result]')
+    check('U-10 (ikinci kısım): engellenen Hesapla sonrası sonuç kutusu "Bu yol eski" demez, hesaplanamadığını söyler', 'Hesaplanamadı' in rt and 'eski' not in rt, rt)
     pg.click('[data-testid=op-tab-heights]'); pg.click('[data-testid=panel-ok]'); time.sleep(0.3)
     check('U-10: Tamam da hatalı sekmeye geçer, panel açık kalır', pg.evaluate("document.querySelector('[data-testid=op-tab-passes]').getAttribute('aria-pressed')") == 'true' and not pg.evaluate("document.querySelector('#panel').classList.contains('hidden')"))
     pg.keyboard.press('Escape')
@@ -632,7 +640,80 @@ try:
     check('U-20: NC başlığı ASCII (yorum satırlarında Türkçe harf yok)', all(ord(ch) < 128 for ch in nc1))
     ctx.close()
 
+    # ------------------------------------------------------------------ WP-04 dilim 4: CAM arayüzü
+    print('WP-04 dilim 4: C-10, C-11, C-12, M-02, rozet, A.wrap')
+    def sk_doc(extra_ents):
+        pts = {'O': {'x': 0, 'y': 0, 'fixed': True}}; ents = []
+        def P_(x, y):
+            for k, p in pts.items():
+                if k != 'O' and abs(p['x'] - x) < 1e-9 and abs(p['y'] - y) < 1e-9: return k
+            k = f'p{len(pts)}'; pts[k] = {'x': x, 'y': y}; return k
+        extra_ents(pts, ents, P_)
+        return {'params': [], 'features': [BLOCK['features'][0], {'id': 'sk1', 'type': 'sketch', 'name': 'Daire', 'plane': {'kind': 'base', 'name': 'XY', 'offset': '20'}, 'points': pts, 'ents': ents, 'cons': []}]}
+    def circle_chord(pts, ents, P_):
+        ents.append({'id': 'c1', 'type': 'circle', 'c': P_(40, 30), 'r': 8})
+        ents.append({'id': 'l1', 'type': 'line', 'a': P_(32, 30), 'b': P_(48, 30)})   # daireyi iki yarım daireye bölen, yapı yapılmamış çizgi
+    DOC4 = sk_doc(circle_chord)
+    def prep(doc):
+        ctx, pg = newpage(); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", MACH)
+        load(pg, doc); pg.click('[data-testid=tab-manufacture]'); pg.evaluate("(m) => app.cam.setMachine(m)", MACH['id']); pg.evaluate("(t) => app.cam.setTools(t)", TOOLS)
+        pg.click('[data-cmd=cam-setup]'); pg.click('[data-testid=panel-ok]'); return ctx, pg
+    # C-10: yeniden açılan işlemde Seçim türü gerçek seçimi gösterir
+    ctx, pg = prep(DOC4)
+    pg.evaluate("""() => { const c = app.cam; c.ops.create('pocket'); c.closePanel(); c.ops.create('contour'); c.closePanel(); c.ops.create('contour'); c.closePanel();
+      c.mut((x) => { const o = x.setups[0].ops; o[0].geom = [{ kind: 'sketch', sketch: 'sk1', profiles: 'all' }]; o[1].geom = [{ kind: 'silhouette', body: app.result.bodies[0].id }]; }); }""")
+    ids = pg.evaluate('app.doc.cam.setups[0].ops.map((o) => o.id)')
+    got = []
+    for oid in ids[:2]:
+        pg.evaluate("(id) => app.cam.ops.edit(id)", oid); pg.click('[data-testid=op-tab-geom]')
+        got.append((pg.evaluate("document.querySelector('[data-f=op-pickmode]').value"), pg.evaluate("(document.querySelector('[data-f=op-sketch]') || {}).value || null")))
+        pg.click('[data-testid=panel-cancel]')
+    check('C-10: eskiz profili seçili işlem yeniden açılınca Seçim türü "Eskiz profili" (sk1), gövde dış sınırlı işlemde "Gövde dış sınırı"', got == [('sketch', 'sk1'), ('silhouette', None)], got)
+    # C-11: gerçek neden mesajı (açık çizgi bölgeyi yarıyor)
+    pg.evaluate("(id) => app.cam.ops.edit(id)", ids[0])
+    pg.click('[data-testid=op-tab-tool]'); pg.select_option('[data-f=op-tool]', 'em10')
+    pg.click('[data-testid=op-tab-heights]'); pg.select_option('[data-f=op-bottom-from]', 'abs'); pg.fill('[data-f=op-bottom-off]', '-5')
+    pg.click('[data-testid=op-tab-passes]'); pg.fill('[data-f=op-entry-angle]', '3'); pg.click('[data-testid=op-compute]')
+    pg.wait_for_function("() => document.querySelector('[data-testid=op-result] .callout.err') || document.querySelector('[data-testid=op-result] .callout.ok')", timeout=20000)
+    rt = txt(pg, '[data-testid=op-result]')
+    check('C-11: "takım sığmıyor" hatasında gerçek neden (yapı yapılmamış çizgi bölgeyi yarıyor) yazılır', 'sığmıyor' in rt and 'açık çizgi bölgeyi ikiye bölüyor' in rt, rt)
+    pg.click('[data-testid=panel-cancel]')
+    # aynı eskizde çizgi yapı geometrisi olunca ek ipucu yok (yalnız Ø16 tek bölge: yine sığmaz ama neden çizgi değil)
+    pg.evaluate("() => app.cam.mut(() => {})")
+    ctx.close()
+    # C-12: alan değişince panel kaydırması korunur
+    ctx, pg = prep(DOC4); pg.set_viewport_size({'width': 1440, 'height': 560})
+    pg.evaluate("() => { app.cam.ops.create('contour'); }"); pg.click('[data-testid=op-tab-heights]'); pg.wait_for_timeout(200)
+    pg.evaluate("() => { const b = document.querySelector('#panel > .body'); b.scrollTop = b.scrollHeight; }"); top0 = pg.evaluate("document.querySelector('#panel > .body').scrollTop"); sh = pg.evaluate("[document.querySelector('#panel > .body').scrollHeight, document.querySelector('#panel > .body').clientHeight]")
+    pg.select_option('[data-f=op-bottom-from]', 'abs'); pg.wait_for_timeout(200)
+    top1 = pg.evaluate("document.querySelector('#panel > .body').scrollTop")
+    check('C-12: panel kaydırılabilir ve alan (seçenek) değişince kaydırma başa dönmez', sh[0] > sh[1] and top0 > 0 and top1 > 0, (top0, top1, sh))
+    pg.click('[data-testid=op-tab-passes]'); check('C-12: sekme değişince kaydırma başa döner', pg.evaluate("document.querySelector('#panel > .body').scrollTop") == 0)
+    ctx.close()
+    # M-02: 3+1 setup açıklaması (panel + mutlak Z ipucu)
+    ctx, pg = nw_page(BLOCK)
+    pg.click('[data-cmd=cam-setup]')
+    pg.evaluate("() => { const c = document.querySelector('[data-f=su-a-on]'); c.click(); }"); pg.wait_for_timeout(200)
+    check('M-02: A ekseni açılınca setup panelinde orijin/Mutlak Z açıklaması görünür', 'A=0' in txt(pg, '[data-testid=su-a-origin-note]') and 'Mutlak Z' in txt(pg, '[data-testid=su-a-origin-note]'), txt(pg, '#panel')[:200])
+    pg.fill('[data-f=su-a-angle]', '90'); pg.click('[data-testid=panel-ok]')
+    pg.evaluate("() => { app.cam.ops.create('contour'); }"); pg.click('[data-testid=op-tab-heights]'); pg.select_option('[data-f=op-bottom-from]', 'abs')
+    check('M-02: A açısı ≠ 0 iken işlemin Mutlak Z ipucu 3+1 notunu içerir', '3+1' in txt(pg, '[data-row=op-bottom-off]'), txt(pg, '[data-row=op-bottom-off]'))
+    ctx.close()
+    # tezgâh listesi rozeti: koşullu post özellikleri (CONDITIONAL_PROPS) eksik sayılmaz; A.wrap düzenleyicide seçilir
+    import copy
+    M2 = copy.deepcopy(NEWAY); M2['spindle']['maxRpm'] = 8000; M2['feed']['maxCut'] = 5000; M2['post']['props']['safeRetract'] = 'G28'; M2['post']['props']['g541Range'] = [-360, 360]
+    ctx, pg = newpage(); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", M2)
+    load(pg, BLOCK); pg.click('[data-testid=tab-manufacture]'); pg.click('[data-cmd=cam-machine]')
+    row = txt(pg, '#modal [data-testid=mc-row]:nth-child(4)')
+    check('tezgâh listesi: yalnız koşullu post özellikleri (dwell*, cycleDwell*) boş olan profil "alan boş" göstermez', 'alan boş' not in row and 'Neway' in row, row)
+    pg.click('#modal [data-testid=mc-row]:nth-child(4) [data-testid=mc-edit]'); pg.click('[data-testid=mc-tab-axes]')
+    check('A.wrap: düzenleyicide A açısı yazım biçimi seçimi var, varsayılan boş', count(pg, '[data-f=ax-A-wrap]') == 1 and pg.input_value('[data-f=ax-A-wrap]') == '')
+    pg.select_option('[data-f=ax-A-wrap]', 'signed'); pg.click('[data-testid=mc-ok]'); pg.wait_for_timeout(200)
+    saved = pg.evaluate("JSON.parse(localStorage.getItem('mihenk.machines')||'[]')")
+    check('A.wrap: seçilen biçim profilde saklanır (axes.A.wrap = signed)', saved and saved[0]['axes']['A'].get('wrap') == 'signed', saved[0]['axes']['A'] if saved else None)
+    ctx.close()
+
     br.close()
 finally:
-    if server: server.terminate()
+    _srv.stop(server)
 print(f'\n{passed} geçti, {failed} kaldı'); sys.exit(1 if failed else 0)

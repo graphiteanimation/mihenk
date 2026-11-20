@@ -45,6 +45,12 @@ const base = {
   "view.front": "Ön",
   "view.top": "Üst",
   "view.right": "Sağ",
+  "view.bottom": "Alt",
+  "view.back": "Arka",
+  "view.left": "Sol",
+  "set.left_rotate": "Sol tuşla döndür",
+  "set.left_rotate_on": "Görünümü sol fare tuşu sürükleyerek döndür",
+  "set.left_rotate_help": "Kapalıyken yalnız sağ tuşla döndürülür. Eskiz kipinde sol tuş her zaman çizime ayrılır.",
   "view.iso": "İzo",
   "view.fit": "Sığdır",
   // Araç çubuğu

@@ -60,12 +60,14 @@
 #viewbtns, #viewtoggles { margin-top: 0; }
 .vbtns button svg { width: 20px; height: 20px; }
 .viewcube .cube-face polygon { fill: var(--bg-hover); stroke: var(--line-strong); stroke-width: 1.5; cursor: pointer; }
-.viewcube .cube-face.f-front polygon { fill: var(--bg-sunken); }
-.viewcube .cube-face.f-right polygon { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 2; }
 .viewcube .cube-face:hover polygon { fill: var(--accent-tint-strong); }
 .viewcube .cube-face text { font: var(--fw-semibold) 8px var(--font-ui); fill: var(--text); pointer-events: none; }
 .viewcube .cube-face:focus-visible { outline: none; } .viewcube .cube-face:focus-visible polygon { stroke: var(--focus); stroke-width: 3; }
 .viewcube svg { width: 80px; height: 80px; overflow: visible; }
+.viewcube .cube-edge { stroke: transparent; stroke-width: 7; stroke-linecap: round; cursor: pointer; pointer-events: stroke; }
+.viewcube .cube-edge:hover { stroke: var(--accent-tint-strong); }
+.viewcube .cube-corner { fill: transparent; stroke: transparent; cursor: pointer; }
+.viewcube .cube-corner:hover { fill: var(--accent); }
 .vp-hint { bottom: var(--sp-5); pointer-events: none; }
 .vp-hint.hidden { display: none; }
 .hud b { font-weight: var(--fw-semibold); }

@@ -41,9 +41,12 @@ export class Viewport {
     this.camera.up.set(0, 0, 1);
     this.camera.position.set(200, -260, 180);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+    // C-05: sol tuşla döndürme seçeneği (ayar; varsayılan kapalı). Eskiz kipinde (leftLock) sol tuş çizime ayrıldığı için kapalı kalır.
+    this.leftRotate = false; this.leftLock = 0;
+    const vpRef = this;
+    this.controls.mouseButtons = { get LEFT() { return vpRef.leftRotate && !vpRef.leftLock ? THREE.MOUSE.ROTATE : null; }, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
     this.controls.zoomToCursor = true; this.controls.enableDamping = false; this.controls.screenSpacePanning = true;
-    this.controls.addEventListener('change', () => { this.dirty = true; this.onCamera && this.onCamera(); });
+    this.controls.addEventListener('change', () => { this.dirty = true; this.onCamera && this.onCamera(); this.onView && this.onView(); });
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a3, 1.15));
     const dl = new THREE.DirectionalLight(0xffffff, 1.4); dl.position.set(1, -1.5, 2); this.camera.add(dl); this.scene.add(this.camera);
     this.bodyGroup = new THREE.Group(); this.sketchGroup = new THREE.Group(); this.helperGroup = new THREE.Group(); this.hlGroup = new THREE.Group(); this.editGroup = new THREE.Group(); this.regionGroup = new THREE.Group();
@@ -129,20 +132,23 @@ export class Viewport {
     if (asp < 1) { this.camera.zoom = asp; }
     this.camera.updateProjectionMatrix(); this.controls.update(); this.dirty = true; this.onCamera && this.onCamera();
   }
+  // name: 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'right' | 'left' ya da [x, y, z] bakış yönü (görünüm küpünün kenar/köşeleri)
   view(name, fit = true) {
     const dirs = { iso: [1, -1.3, 0.9], top: [0, 0, 1], bottom: [0, 0, -1], front: [0, -1, 0], back: [0, 1, 0], right: [1, 0, 0], left: [-1, 0, 0] };
-    const d = new THREE.Vector3(...(dirs[name] || dirs.iso)).normalize();
-    this.camera.up.set(0, 0, 1); if (name === 'top') this.camera.up.set(0, 1, 0); if (name === 'bottom') this.camera.up.set(0, -1, 0);
+    const d = new THREE.Vector3(...(Array.isArray(name) ? name : dirs[name] || dirs.iso)).normalize();
+    const vertical = Math.abs(d.z) > 0.9999; // üstten/alttan bakışta yukarı yönü Y
+    this.camera.up.set(0, vertical ? (d.z > 0 ? 1 : -1) : 0, vertical ? 0 : 1);
     this.camera.position.copy(this.controls.target).add(d.multiplyScalar(1000));
     this.camera.lookAt(this.controls.target); this.controls.update();
-    if (name !== 'top' && name !== 'bottom') this.camera.up.set(0, 0, 1);
-    if (fit) this.fit(); this.dirty = true;
+    if (!vertical) this.camera.up.set(0, 0, 1);
+    if (fit) this.fit(); this.dirty = true; this.onView && this.onView();
   }
+  setLeftRotate(on) { this.leftRotate = !!on; }
   lookAtPlane(pl) {
     const c = new THREE.Vector3(...pl.o);
     this.controls.target.copy(c); this.camera.up.set(...pl.y);
     this.camera.position.copy(c).add(new THREE.Vector3(...pl.n).multiplyScalar(1000));
-    this.camera.lookAt(c); this.controls.update(); this.dirty = true; this.onCamera && this.onCamera();
+    this.camera.lookAt(c); this.controls.update(); this.dirty = true; this.onCamera && this.onCamera(); this.onView && this.onView();
   }
   setSection(axis, pos, flip) {
     if (!axis) this.clip = null;

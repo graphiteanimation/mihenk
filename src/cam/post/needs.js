@@ -6,7 +6,7 @@ import { runPost, resolveProps, requiredPropsMissing } from './engine.js';
 import { getPost } from './registry.js';
 
 // yer tutucu: yalniz bicim gecerli olsun diye (deger dogrulanmis degildir, NC'ye yazilmaz)
-const STAND_IN = { tapMode: 'feed', rotaryMode: '6a', dwellAddress: 'P', dwellUnit: 'ms', cycleDwellAddress: 'P', cycleDwellUnit: 'ms', g541Range: [-1e9, 1e9], safeRetract: 'G28', safeRetractZ: 0, highSpeedOn: 'G4P0', highSpeedOff: 'G4P0', coolantCodes: {} };
+const STAND_IN = { tapMode: 'feed', rotaryMode: '6a', dwellAddress: 'P', dwellUnit: 'ms', cycleDwellAddress: 'P', cycleDwellUnit: 'ms', g541Range: [-1e9, 1e9], safeRetract: 'G28', safeRetractZ: 0, highSpeedOn: 'G4P0', highSpeedOff: 'G4P0', coolantCodes: {}, rigidTapM: 'M29' };
 
 // -> { missing: [prop], complete: bool, error? }  complete=false: kuru calisma baska bir nedenle durdu (error) ya da
 // yer tutucusu olmayan bir alan eksik (ornegin machine.axes.A.dir); o alan da listededir.

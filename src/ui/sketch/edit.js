@@ -375,7 +375,7 @@ export const EDIT_METHODS = {
     this._menuAt(ev, [
       { id: 'ctx-finish', label: 'ctx.finish', run: () => this.onRequestFinish() },
       hasSel && { id: 'ctx-delete', label: 'ctx.delete', run: () => this.deleteSelection() },
-      hasEnt && { id: 'ctx-construction', label: 'ctx.construction', run: () => this.toggleConstruction() },
+      { id: 'ctx-construction', label: 'ctx.construction', run: () => this.toggleConstruction() }, // C-08: her zaman görünür (nesne seçiliyse seçiliyi, değilse yapı çizim kipini değiştirir)
       hasSel && { id: 'ctx-constraints', label: 'ctx.constraints', run: () => this.showConstraintsOfSelection() },
       hasEnt && { id: 'ctx-copy', label: 'ctx.copy', run: () => this.copyClip() },
       hasEnt && { id: 'ctx-cut', label: 'ctx.cut', run: () => this.cutClip() },
