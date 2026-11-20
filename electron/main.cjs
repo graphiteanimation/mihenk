@@ -47,7 +47,7 @@ else if (SELFTEST) app.setPath('userData', path.join(os.tmpdir(), 'mihenk-selfte
 // ---- çökme/hata günlüğü (yerel; ağ yok; kişisel veri maskelenir): userData/logs/mihenk-log.txt, döner (5 × 1 MB)
 let logger = null;
 function log(kind, message, stack) {
-  try { if (!logger) logger = createLogger({ dir: path.join(app.getPath('userData'), 'logs'), version: app.getVersion(), electron: process.versions.electron, platform: process.platform }); logger.write(kind, message, stack); } catch (e) { /* günlük hatası uygulamayı etkilemez */ }
+  try { if (!logger) logger = createLogger({ dir: path.join(app.getPath('userData'), 'logs'), version: app.getVersion(), electron: process.versions.electron, platform: process.platform, roots: { appPath: app.getAppPath(), userData: app.getPath('userData'), temp: app.getPath('temp') } }); logger.write(kind, message, stack); } catch (e) { /* günlük hatası uygulamayı etkilemez */ }
 }
 process.on('uncaughtException', (e) => { log('main-uncaught', e && e.message, e && e.stack); });
 process.on('unhandledRejection', (e) => { log('main-rejection', e && e.message ? e.message : String(e), e && e.stack); });

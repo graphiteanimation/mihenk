@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'; import fs from 'node:fs'; import
 import { fileURLToPath } from 'node:url'; import { createRequire } from 'node:module';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'); const req = createRequire(import.meta.url);
 if (process.platform === 'linux' && !process.env.DISPLAY) { const r = spawnSync('xvfb-run', ['-a', process.execPath, ...process.argv.slice(1)], { stdio: 'inherit' }); process.exit(r.status ?? 1); }
-const { createLogger, MAX_BYTES, KEEP } = req(path.join(ROOT, 'electron/log.cjs'));
+const { createLogger, redactor, MAX_BYTES, KEEP } = req(path.join(ROOT, 'electron/log.cjs'));
 let pass = 0, fail = 0; const ok = (c, m, d = '') => { if (c) pass++; else { fail++; console.log('  FAIL ' + m + ' ' + d); } };
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'mihenk-gunluk-'));
 let user = 'kullanici'; try { user = os.userInfo().username; } catch (e) { /* yok */ }
@@ -21,13 +21,31 @@ let user = 'kullanici'; try { user = os.userInfo().username; } catch (e) { /* yo
   L.write('GECERSIZ-TUR', 'bu yazılmamalı');
   const t = fs.readFileSync(path.join(dir, 'mihenk-log.txt'), 'utf8');
   ok(!t.includes(sirli) && !/C:\\Users|\/home\//.test(t), 'kullanıcı adı ve mutlak yol günlükte yok', t.slice(0, 300));
-  ok(t.includes('musteri-teklif.mhnk') && t.includes('main.cjs'), 'yol yalnız dosya adına iner (hata ayıklanabilir kalır)');
+  ok(!t.includes('musteri-teklif') && !t.includes('parca.step') && !t.includes('main.cjs:10:5'), 'dosya/belge adı yazılmaz; yol <yol> olur', t.slice(0, 300));
   ok(!t.includes('GİZLİ-İÇERİK') && !t.includes('A'.repeat(40)), 'uzun tırnaklı içerik atılır');
   ok(!t.includes(os.hostname() + ' ') || os.hostname().length < 3, 'bilgisayar adı maskelenir');
   ok(!(user.length >= 3 && t.toLowerCase().includes(user.toLowerCase())), 'sistem kullanıcı adı maskelenir');
   ok(t.includes('app://mihenk/assets/worker-abc.js'), 'uygulama adresi (kişisel değil) korunur');
   ok(!t.includes('bu yazılmamalı') && t.trim().split('\n').length === 4, 'geçersiz tür yazılmaz; 4 kayıt');
   ok(t.trim().split('\n').every((l) => l.length <= 600), 'kayıt başına en çok 600 karakter');
+}
+// ---- birim: yeni maskeleme kuralı (kökler → yer tutucu, boşluklu ad, UNC, file://, JSON parçası, app kaynakları)
+{
+  const appPath = 'C:\\Users\\Ali Veli\\AppData\\Local\\Programs\\Mihenk\\resources\\app.asar', ud = 'C:\\Users\\Ali Veli\\AppData\\Roaming\\Mihenk';
+  const R = redactor({ appPath, userData: ud });
+  const hepsi = [
+    ['ENOENT: C:\\Users\\Ali Veli\\Belgeler\\gizli plan.mhnk ve devam', ['Ali', 'Veli', 'gizli', 'plan', 'Belgeler']],
+    ['yüklenemedi /home/ali/Belge ler/x y.mhnk', ['ali', 'Belge', 'x y']],
+    ['open \\\\sunucu\\paylasim\\Proje X\\gizli.mhnk', ['sunucu', 'paylasim', 'Proje', 'gizli']],
+    ['file:///C:/Users/Ali Veli/Masaüstü/teklif son.mhnk açılamadı', ['Ali', 'teklif', 'Masaüstü']],
+    ['{"yol":"C:\\\\Users\\\\Ali Veli\\\\gizli plan.mhnk","ad":"Müşteri Teklifi 2026"} ve C:\\\\Users\\\\Ali Veli\\\\b.mhnk', ['Ali', 'gizli', 'Müşteri', 'Teklifi']],
+    [`Error: x\n at f (${ud}\\logs\\a b.txt:3:4)`, ['Ali', 'Roaming', 'a b']],
+    ["Belge 'Gizli Müşteri Planı.mhnk' okunamadı", ['Gizli', 'Müşteri']],
+  ];
+  for (const [girdi, yasak] of hepsi) { const c = R(girdi); ok(yasak.every((y) => !c.includes(y)), 'maske: ' + girdi.slice(0, 40), c); }
+  const k = R(`Error: x\n    at f (${appPath}\\electron\\main.cjs:10:5)`.split('\n')[1]);
+  ok(k.includes('app:/electron/main.cjs:10') && !k.includes('Ali') && !k.includes('AppData'), 'uygulama kaynağı app:/göreli/yol.js:satır olarak kalır', k);
+  ok(R('worker app://mihenk/assets/w.js:12:3').includes('app://mihenk/assets/w.js:12:3'), 'app:// adresi korunur');
 }
 // ---- birim: döndürme (5 × 1 MB) ve oturum sınırı
 {
@@ -56,7 +74,7 @@ ok(/console-error .*YAPAY-RED-HATA/.test(read()), 'çizici süreç yakalanmamı�
 await page.evaluate(() => window.app.worker.onerror(new ErrorEvent('error', { message: 'YAPAY-ISCI-HATA' }))); await sleep(800);
 ok(/console-error .*(worker hatası|YAPAY-ISCI-HATA)/.test(read()), 'çekirdek işçisi hatası dosyaya yazıldı', read().slice(-300));
 const t = read();
-ok(!t.includes(userData) && !t.includes(os.tmpdir() + path.sep) && t.includes('gizli-musteri-belgesi.mhnk'), 'günlükte kullanıcı veri yolu yok (yalnız dosya adı)');
+ok(!t.includes(userData) && !t.includes(os.tmpdir() + path.sep) && !t.includes('gizli-musteri-belgesi'), 'günlükte kullanıcı veri yolu ve belge adı yok');
 ok(!(user.length >= 3 && t.toLowerCase().includes(user.toLowerCase())), 'günlükte sistem kullanıcı adı yok');
 // Yardım → günlük klasörünü aç: köprü ana sürece gider, shell.openPath günlük klasörüyle çağrılır (gerçek dosya yöneticisi açılmaz)
 await app.evaluate(({ shell }) => { globalThis.__opened = null; shell.openPath = async (p) => { globalThis.__opened = p; return ''; }; });
