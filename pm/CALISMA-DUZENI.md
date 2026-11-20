@@ -59,7 +59,7 @@ Tezgâh başı doğrulama bir kalite kapısı değildir (K-026); bir tezgâh pro
 - Doğrulanmamış sonucu doğrulanmış gibi yazmak.
 
 ## 8. Kesintisiz yürütme (K-035: 0.6 dahil bitene kadar durmadan)
-Oturumlar saatte bir zamanlanmış görevle açılır; kullanıcı beklenmez, bilgisayarı gerekmez.
+Oturumlar saatte bir zamanlanmış görevle açılır (platformun en kısa aralığı); kullanıcı beklenmez. Görev kullanıcının bilgisayarına bağlıdır (K-037): bilgisayar açık ve Claude masaüstü uygulaması çalışır olmalıdır. Kod işleri bulutta yapılır; bilgisayar yalnız sürüm sonrası yerel kurulum ve ekran denemesi için kullanılır.
 **Kilit (çakışma önleme).** `pm/KILIT.md` tek satır/iş: `WP-NN | dal | başlangıç (UTC) | alan`. Oturum başında:
 1. `git pull`; KILIT'te 3 saatten yeni kayıt varsa o WP ve o **alan** meşguldür. Alanı ayrık başka "Hazır" WP varsa onu al; yoksa hiçbir şey yapmadan çık (tek satır rapor).
 2. 3 saatten eski kayıt = yarım kalmış oturum: dalı (`wp-NN`) al, `pm/wp/WP-NN.md` notundan devam et.
@@ -67,8 +67,8 @@ Oturumlar saatte bir zamanlanmış görevle açılır; kullanıcı beklenmez, bi
 4. WP bitince ya da oturum kapanırken kaydı sil. Erken biten oturum, bağlamı elveriyorsa aynı kuralla bir WP daha alır (büyük WP'den sonra almaz).
 **Yarım iş.** Her WP'nin `pm/wp/WP-NN.md` notu vardır: sözleşme, yapılan dilimler, kalan, son test sonucu. Her dilim sonunda dal push edilir; oturum her an kesilebilir varsayılır.
 **Sorular.** Kullanıcıya ait bir karar gerekirse iş durmaz: en makul varsayımla ilerlenir, `pm/SORULAR.md`'ye "soru · alınan varsayım · geri dönüş maliyeti" yazılır. Kullanıcı yanıtlayınca K olur.
-**Sürüm kapısı (0.4, 0.5, 0.6).** §6'daki 3. madde GitHub Actions Windows koşucusunda otomatik yapılır: kurulumu sessiz kur, uygulamayı aç, Electron testlerini kurulu sürüme karşı koş, NC/DXF kaydet. Geçerse etiketle (`v0.4.0`), GitHub Release'e kurulum + SHA-256 koy, sonraki sürümün WP'lerine geç. Kullanıcının bilgisayarına kurulum, kullanıcı sohbet açtığında yapılır.
-**Durma koşulları.** (a) 0.6 yayımlandı: DURUM'un ilk satırına `TAMAMLANDI` yaz, zamanlanmış görevi kapat. (b) Aynı WP üç oturum üst üste ilerlemedi: WP'yi "Takıldı" işaretle, nedenini DURUM'a yaz, sıradakine geç. (c) `master` kırmızı (testler geçmiyor): yeni WP alınmaz, önce onarılır.
+**Sürüm kapısı (0.4, 0.5, 0.6).** §6'daki 3. madde GitHub Actions Windows koşucusunda otomatik yapılır: kurulumu sessiz kur, uygulamayı aç, Electron testlerini kurulu sürüme karşı koş, NC/DXF kaydet. Geçerse etiketle (`v0.4.0`), GitHub Release'e kurulum + SHA-256 koy, sonraki sürümün WP'lerine geç. Ardından kullanıcının bilgisayarına kurulur ve `pm/KABUL-WINDOWS.md` listesi ekranda uygulanır; izin istemi yanıtsız kalırsa beklenmez, en erken 6 saat sonra yeniden denenir. Windows güvenlik uyarıları aşılmaz.
+**Durma koşulları.** (a) 0.6 yayımlandı, yerelde kuruldu ve kabul listesi geçti: DURUM'un ilk satırına `TAMAMLANDI` yaz, zamanlanmış görevi kapat. (b) Aynı WP üç oturum üst üste ilerlemedi: WP'yi "Takıldı" işaretle, nedenini DURUM'a yaz, sıradakine geç. (c) `master` kırmızı (testler geçmiyor): yeni WP alınmaz, önce onarılır.
 
 ## 9. Model görev dağılımı ve token kuralları (K-036)
 | Model | İş |
