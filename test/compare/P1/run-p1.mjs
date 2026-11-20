@@ -7,7 +7,8 @@ import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath }
 import opencascade from 'replicad-opencascadejs';
 import * as CAM from '../../../src/cam/index.js';
 import * as G from '../../../src/shared/geom2d.js';
-import { builtinMachines, copyMachine, checkMachine } from '../../../src/cam/machines/builtin.js';
+import { copyMachine, checkMachine } from '../../../src/cam/machines/builtin.js';
+import { NEWAY_FIXTURE } from '../../fixtures/machine-neway.mjs';
 import { postProgram } from '../../../src/cam/post/index.js';
 import { initKernel } from '../../../src/kernel/kernel.js';
 import { validateDoc } from '../../../src/shared/schema.js';
@@ -71,8 +72,8 @@ R.import.rebuild_holes_sayisi = (rb.holes || []).length;
 const rbX = { ...rb, holes: [{ feature: 'P1holes', kind: 'simple', dia: 5.5, depth: null, through: true, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: [[16, -7, 6], [-16, -7, 6]], dirs: [[0, 0, -1], [0, 0, -1]], bodies: [[bid], [bid]], count: 2, lost: 0 }] };
 ASSUME('rebuild.holes (S3 delikleri)', '2x D5.5 (X +-16, Y -7, Z ust 6, yon -Z) elle sentezlendi', 'STEP ice aktarmada delik ozelligi tanimaz; Plan koordinatlari kullanildi');
 
-// ------------------------------------------------------------------ 2. makine (yerleşik Neway KOPYASI)
-const NEWAY = builtinMachines().find((m) => m.id === 'builtin-neway-vm1160h-m80v-gsa');
+// ------------------------------------------------------------------ 2. makine (Neway fixture KOPYASI)
+const NEWAY = structuredClone(NEWAY_FIXTURE); // K-026: Neway artik yerlesik degil; kullanici profili ornegi (test/fixtures)
 const M = copyMachine(NEWAY, 'test-p1-neway-kopya', 'P1 TEST Neway kopyasi (varsayimli)');
 const before = clone(M);
 M.spindle.maxRpm = 8000; ASSUME('machine.spindle.maxRpm', 8000, 'Plan: devir <= 8000');
@@ -80,7 +81,7 @@ M.feed.maxCut = 5000; ASSUME('machine.feed.maxCut', 5000, 'Plan: kesme ilerlemes
 M.feed.rapid = 24000; ASSUME('machine.feed.rapid', 24000, 'Plan\'da yok; yalniz sure tahmini icin test degeri (test/cam-samples ile ayni)');
 M.post = { props: { ...M.post.props, safeRetract: 'G28' }}; ASSUME('machine.post.props.safeRetract', 'G28', 'Plan: guvenli cekilme G28 Z');
 const mc = checkMachine(M);
-R.makine = { kopya_id: M.id, yerlesik_degismedi: JSON.stringify(builtinMachines().find((m) => m.id === NEWAY.id)) === JSON.stringify(NEWAY), checkMachine: mc, hala_null: (() => { const o = []; const walk = (x, p) => { if (x && typeof x === 'object' && !Array.isArray(x)) for (const [k, v] of Object.entries(x)) walk(v, p ? p + '.' + k : k); else if (x === null) o.push(p); }; walk({ spindle: M.spindle, feed: M.feed, toolChange: M.toolChange, post: M.post, axes: M.axes }, ''); return o; })() };
+R.makine = { kopya_id: M.id, yerlesik_degismedi: JSON.stringify(NEWAY_FIXTURE) === JSON.stringify(NEWAY), checkMachine: mc, hala_null: (() => { const o = []; const walk = (x, p) => { if (x && typeof x === 'object' && !Array.isArray(x)) for (const [k, v] of Object.entries(x)) walk(v, p ? p + '.' + k : k); else if (x === null) o.push(p); }; walk({ spindle: M.spindle, feed: M.feed, toolChange: M.toolChange, post: M.post, axes: M.axes }, ''); return o; })() };
 
 // ------------------------------------------------------------------ 3. takimlar (Plan tablosu; planda olmayan alanlar ASSUME)
 const HOLDER = { dia: 40, len: 50 }; ASSUME('tool.holder.len', 50, 'Plan: BT40 O40 silindir; tutucu boyu planda yok -> 50 (test degeri)');

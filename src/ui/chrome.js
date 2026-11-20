@@ -152,14 +152,13 @@ export function initChrome(app) {
     const search = h('button', { class: 'cmdsearch', 'data-cmd': 'palette', 'data-testid': 'cmd-search', onclick: () => C.run('palette') }, h('span', { html: icon('search') }), h('span', { text: t('ui.palette') }), h('span', { class: 'kbd', text: 'Ctrl+K' }));
     tip(search, { name: t('ui.palette'), kbd: 'Ctrl+K / S', body: t('tip.palette') });
     const camM = app.mode === 'cam' ? app.cam.machine() : null;
-    const machine = app.mode === 'cam'
-      ? h('button', { class: 'machine-chip', type: 'button', 'data-testid': 'machine', 'aria-label': t('ui.machine_label'), onclick: () => C.run('cam-machine') }, h('span', { html: icon(camM?.axes?.A ? 'axes-4' : 'axes-3') }), h('span', { text: camM ? app.cam.machineLabel(camM) : t('cam.br.machine_missing') }), h('small', { text: camM?.axes?.A ? t('cam.mc.axes4') : t('ui.axes3') }), h('span', { html: icon('chevron-down', 'sm') }))
-      : h('div', { class: 'machine-chip', 'data-testid': 'machine', role: 'group', 'aria-label': t('ui.machine_label') }, h('span', { html: icon('axes-3') }), h('span', { text: 'Neway VM1160H' }), h('small', { text: t('ui.axes3') }));
+    const machine = app.mode !== 'cam' ? null
+      : h('button', { class: 'machine-chip', type: 'button', 'data-testid': 'machine', 'aria-label': t('ui.machine_label'), onclick: () => C.run('cam-machine') }, h('span', { html: icon(camM?.axes?.A ? 'axes-4' : 'axes-3') }), h('span', { text: camM ? app.cam.machineLabel(camM) : t('cam.br.machine_missing') }), h('small', { text: camM?.axes?.A ? t('cam.mc.axes4') : t('ui.axes3') }), h('span', { html: icon('chevron-down', 'sm') }));
     const helpMenu = dropdown('help', 'menu.help', 'help', helpItems(), 'menu-help', true); helpMenu.classList.add('right');
     bar.replaceChildren(
       h('div', { class: 'brand' }, h('img', { src: logoReverse, height: 22, alt: 'Mihenk', 'data-testid': 'brand' })),
       dropdown('file', 'menu.file', 'file-open', fileItems(), 'menu-file'), h('span', { class: 'sep' }),
-      tbtn('undo', 'undo'), tbtn('redo', 'redo'), tbtn('save', 'file-save'), doc, h('span', { class: 'grow' }), search, machine, tbtn('settings', 'settings'), helpMenu);
+      tbtn('undo', 'undo'), tbtn('redo', 'redo'), tbtn('save', 'file-save'), doc, h('span', { class: 'grow' }), search, ...(machine ? [machine] : []), tbtn('settings', 'settings'), helpMenu);
     if (openId) bar.querySelector(`[data-menu="${openId}"]`)?.click();
     C.renderRecentMenu();
   };

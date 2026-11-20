@@ -98,7 +98,7 @@ export async function editTool(tool, { isNew = false, prot = null, others = [], 
 }
 
 // Dosyadan metin: Electron'da ana süreç diyaloğu (kind 'json'), tarayıcıda dosya seçici
-function pickJson() {
+export function pickJson() {
   if (window.native) return window.native.openFile('json').then((r) => (r ? new TextDecoder().decode(new Uint8Array(r.data)) : null));
   return new Promise((resolve) => {
     const inp = h('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' } }); document.body.append(inp);

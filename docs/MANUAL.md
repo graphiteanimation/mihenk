@@ -2,7 +2,7 @@
 
 Version 0.3.0 · English · Turkish counterpart: `docs/KILAVUZ.md` (same content)
 
-This manual is for CNC job shops that machine aluminium and steel parts. Target machine: **Neway VM1160H + Mitsubishi M80V + GSA rotary divider (A axis)**. It assumes you know CAD/CAM but are not a programmer. Command names match the names in the program exactly (English interface).
+This manual is for CNC job shops that machine aluminium and steel parts. Mihenk is machine-independent: you add the profile of your own machine (5.2). It assumes you know CAD/CAM but are not a programmer. Command names match the names in the program exactly (English interface).
 
 > **READ THIS FIRST**
 >
@@ -86,7 +86,7 @@ The program makes no network connections. It works offline; your files stay on t
 
 From top to bottom the screen has:
 
-1. **Title bar**: logo, **File** menu, Undo / Redo / Save, document name (with an unsaved-changes marker), **Search commands** (Ctrl+K), the label "Machine: Neway VM1160H", Settings, Help.
+1. **Title bar**: logo, **File** menu, Undo / Redo / Save, document name (with an unsaved-changes marker), **Search commands** (Ctrl+K), the label of the selected **machine** in manufacturing mode, Settings, Help.
 2. **Workspace tabs**: **Design**, **Manufacture**, **Drawing** (Drawing is "Coming soon", not available yet).
 3. **Ribbon**: command groups. Commands that do not fit are in the » menu, in the ▾ list of their group, or in the Ctrl+K search. "Recent commands" appear as shortcuts.
 4. **Browser** (left): Parameters, Origin, Bodies, Sketches. In the Manufacture tab: Machines, Tools, Setups and operations.
@@ -330,25 +330,19 @@ In the browser every operation has a status badge: **Done**, **Not computed**, *
 
 ### 5.2 Machine profile
 
-The **Machine** command opens the machine manager. The list has two **Built-in** templates:
+The **Machine** command opens the machine manager. The list has three **Built-in** templates:
 
-- **Neway VM1160H · M80V · GSA A axis**
 - **Generic 3-axis (Fanuc style)**
+- **Generic 3+1 (A axis, Fanuc style)**
+- **Generic 3-axis (Mitsubishi style)**
 
-Built-in templates cannot be changed. Make your own profile with **Copy**, fill it with **Edit**, and use it in the document by choosing the mark next to your profile in the list. The "Missing values" column tells you how many fields are empty.
+Built-in templates carry structure only, their numeric values are empty, and they cannot be changed; no machine brand or model is built in. Machine profiles are your data. Make your own profile with **Copy**, fill it with **Edit**, and use it in the document by choosing the mark next to your profile in the list (or see "Adding your own machine" below). The "Missing values" column tells you how many fields are empty.
 
-**Why are there empty fields?** The template carries only values found in the machine-data table. It **does not invent** a value that is not in the table; it leaves it empty (`null`). If a value is needed for the NC and is empty, **NC production stops**. The goal: a wrong guess must never silently enter the NC.
+**Why are there empty fields?** The template cannot know any value of your machine and **does not invent** one; it leaves those values empty (`null`). If a value is needed for the NC and is empty, **NC production stops**. The goal: a wrong guess must never silently enter the NC.
 
-Filled in the Neway template (**compare** with your machine project):
+Templates carry structure only; travel, A axis (speeds, limits, rotation direction), control/post settings, coolant M codes and the protected list (5.3) are values that **you** fill in from your machine's documentation.
 
-- Travel: X 1000, Y 600, Z 600 mm
-- A axis: parallel to X, rotation direction **−X**, unlimited rotation, take the shortest way, rapid 4000 °/min, cutting limit 2000 °/min, rotation center height 160 mm, A clamp codes are not written (the PLC handles it)
-- Control/post: Mitsubishi M80V
-- Synchronous tapping mode: feed = pitch, `,R1` is written
-- Coolant M codes: flood M8, off M9
-- Protected list (5.3)
-
-**Empty ones**, and what happens if you leave them empty:
+**What you need to fill in**, and what happens if you leave it empty:
 
 | Field (tab) | If you leave it empty |
 |---|---|
@@ -367,23 +361,25 @@ Required empty fields on the Post tab are marked orange. Take the values **from 
 
 **A axis**: **Rotation direction** (−X / +X) on the Axes tab is "which way a positive A angle rotates". The value in the template is **not verified on the machine** (Section 5.5 and 7).
 
+### Adding your own machine
+
+Mihenk ships no machine profile; you add your machine on this computer. There are two ways:
+
+1. **Copy a template:** Manufacture → **Machine** → **Copy** on the template that fits → give a name → in the window that opens, fill in the fields (travel, spindle/feed, A axis, protected list, post properties) from your machine's documentation and click **OK**.
+2. **Import from a file:** in the **Machine** window click **Import from file** → pick the `.json` machine file. If the file is damaged or a profile is invalid, that profile is not taken and the reason is reported; a profile whose id clashes gets a new id and " (2)" added to its name.
+
+**Backup and moving:** the **Export** button on a row writes the profile to a JSON file in the `mihenk-machine` format. Keep that file as a backup, or restore it on another computer with **Import from file**. Machine profiles are not written into the document file, they are stored on this computer, so exporting a backup is recommended.
+
 ### 5.3 Protected T / H / D and WCS list
 
 The **Protected** tab holds the numbers reserved on the machine for other jobs. If such a number is used for a tool or a work offset, **no NC is produced** (Gate 2).
 
-Pre-filled in the Neway template (**confirm** from the machine project):
-
-| List | Values |
-|---|---|
-| Tool (T) | 1, 3, 12 |
-| Length offset (H) | 1, 3, 12 |
-| Diameter offset (D) | 1, 3, 12 |
-| Work offsets | G54, G56 |
+In the generic templates the list is **empty**. If your machine has numbers reserved for other jobs, enter them in your own profile.
 
 Rules:
 
-- When you add a new tool, the program skips protected numbers and gives the first free one (in the Neway template 2, 4, 5 …).
-- In a new setup the work offset is the first G54–G59 that is not protected (in the Neway template **G55**).
+- When you add a new tool, the program skips protected numbers and gives the first free one.
+- In a new setup the work offset is the first G54–G59 that is not protected.
 - You can also write G54.1 Pn in the list ("Other work offsets": separate with commas, example `G54.1 P1`).
 - It is your responsibility that the list matches your shop's real situation. The template is only a starting value.
 
@@ -451,7 +447,7 @@ At the bottom of the panel a summary appears: "Setup resolved: Stock … mm · t
 
 "3+1": the A axis turns the part to an angle and clamps it; cutting is done with 3 axes. There is **no** simultaneous 4-axis motion.
 
-1. In the setup tick **Machine on the A axis (3+1)**. (If the selected machine has no A axis: "The selected machine has no A axis." Copy the Neway template.)
+1. In the setup tick **Machine on the A axis (3+1)**. (If the selected machine has no A axis: "The selected machine has no A axis." Copy the "Generic 3+1 (A axis, Fanuc style)" template.)
 2. Type the angle in degrees in the **A angle** box.
 3. The coordinate system is defined **for A = 0**. Operations run at the angle you type.
 
@@ -461,7 +457,7 @@ What you need to know:
 
 - **The A direction is not verified on the machine.** The NC header says `(WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING)` and a gate warning is given. Do the confirmation in Section 7.3.
 - The coordinate frame rotates **about the X line through the origin**. Your work zero (WCS) must be **on the A axis** on the machine. The program does not check this.
-- If **Take the shortest way** is on in the profile (it is on in the Neway template), the angle is normalized to 0–359.999 (example: A−90 → A270) and a 180° rotation is split into two steps.
+- If **Take the shortest way** is on in the profile (it is on in the Generic 3+1 template), the angle is normalized to 0–359.999 (example: A−90 → A270) and a 180° rotation is split into two steps.
 - On a machine with a rotary axis the program writes A **absolutely** in the first section (the machine's A is unknown at the start) and returns A to 0 at the end of the program.
 - Z retracts to the safe height before an A move.
 - Side cutting and undercuts with A≠0 inside the same setup are **not** in the simulation (Section 7.4).
@@ -663,17 +659,17 @@ To avoid measuring mistakes, check the pocket floor and the hole positions once 
 ### 6.2 Machine profile
 
 1. **Manufacture** tab → **Machine**.
-2. On the row **Neway VM1160H · M80V · GSA A axis** click **Copy**; give a name (example `My Neway`). The edit window opens.
+2. On the row **Generic 3-axis (Fanuc style)** click **Copy** (for a job with an A axis use **Generic 3+1**); give a name (example `My machine`). If you have a machine file, **Import from file** also works. The edit window opens.
 3. **Spindle and feed**: type **Max spindle speed** and **Max cutting feed** from your machine documents.
 4. **Post**: choose **Safe Z retract method** according to your machine project's decision (G28 or G53; for G53 also write the machine Z). In this example dwell (G04) and G54.1 are not used, so those fields may stay empty.
-5. Review the **Protected** tab (T/H/D 1, 3, 12; G54, G56).
+5. Review the **Protected** tab (enter the T/H/D numbers and work offsets reserved on your machine, if any).
 6. **OK**. In the list choose the mark next to your own profile → **Close**.
 
 ### 6.3 Tools
 
 **Tools** → **New tool**:
 
-- **Tool 1**: Type **End mill (flat)**, Diameter 10, Flute length 25, Stick-out from holder 45, **Center cutting: ticked** (if the catalog agrees), enter Holder diameter/length. The program gives the T number (2 in the Neway template). On the **Cutting data** tab click **Add preset** and type **your own** speed/feed values.
+- **Tool 1**: Type **End mill (flat)**, Diameter 10, Flute length 25, Stick-out from holder 45, **Center cutting: ticked** (if the catalog agrees), enter Holder diameter/length. The program gives the T number. On the **Cutting data** tab click **Add preset** and type **your own** speed/feed values.
 - **Tool 2**: Type **Drill**, Diameter 6.6, tip angle 118°, Flute length 40, Stick-out from holder 60. The T number becomes 4 (3 is protected). Add a **preset** and type your own values.
 
 ### 6.4 Setup
@@ -724,7 +720,7 @@ Dry run, single block, first part, tool-length measurement and work-zero measure
 
 ### 7.3 Confirm the A direction with a marked part
 
-In a 3+1 NC the direction in which the `A` word turns the part is calculated from the **Rotation direction** setting in the machine profile. The direction in the Neway template (−X) is **not verified** on the machine. If it is wrong the toolpath goes to the **wrong face** of the part. (A similar sign error was found and fixed in the verification work; but because the direction in the profile has not been confirmed on the machine, the same kind of risk remains.)
+In a 3+1 NC the direction in which the `A` word turns the part is calculated from the **Rotation direction** setting in the machine profile. The direction in the template is **not verified** on your machine; confirm the direction in your own profile on your machine. If it is wrong the toolpath goes to the **wrong face** of the part. (A similar sign error was found and fixed in the verification work; but because the direction in the profile has not been confirmed on the machine, the same kind of risk remains.)
 
 Confirmation (short summary; the detailed procedure is in the machine project):
 
