@@ -34,9 +34,14 @@ export const THREADS = [['M3', 0.5, 3], ['M4', 0.7, 4], ['M5', 0.8, 5], ['M6', 1
 // WP-08: diş tabloları (yalnız veri + kılavuz matkabı çapı; diş geometrisi modellenmez). drill: önerilen matkap çapı (mm).
 // - iso: ISO metrik kaba (ISO 261 kaba seri); matkap = D − P (yaygın kılavuz matkabı kuralı; yukarıdaki THREADS ile aynı).
 // - iso_fine: ISO metrik ince (ISO 261 ince seri seçkisi); matkap = D − P.
-// - g: G / BSPP silindirik boru dişi (ISO 228-1); D ve matkap çapları engineersedge.com "DIN ISO 228" tablosundan.
-// - npt: NPT konik boru dişi (ASME B1.20.1); dış çap ve matkap (reamersiz) engineeringtoolbox.com NPT tablosundan (1/8: R = 0,339 in).
+// - g: G / BSPP silindirik boru dişi (ISO 228-1). Diş/inç ve matkap çapları: engineersedge.com "Tap drill size table and chart for
+//   Whitworth pipe thread" (https://engineersedge.com/hardware/DIN-ISO-228.htm; sayfa 2 basamaklı D verir: 9.73, 13.16 …).
+//   D'nin 3 basamaklı değerleri (9,728 …) ISO 228-1 tablosundan bellekle yazıldı, sayfayla 2 basamağa kadar tutuyor; 3. basamak DOĞRULANMADI.
+// - npt: NPT konik boru dişi (ASME B1.20.1). Dış çap ve "Tap Drill" sütunu: engineeringtoolbox.com "NPT - National Pipe Taper Threads"
+//   (https://www.engineeringtoolbox.com/npt-national-pipe-taper-threads-d_750.html; 1/8 için harf matkap "R"; R = 0,339 in bellekle).
+//   Kaynak sayfa matkap çaplarının raybalı mı raybasız mı olduğunu BELİRTMİYOR → yöntem DOĞRULANMADI; R harf matkabının inç değeri DOĞRULANMADI.
 //   NPT konik olduğu için delik silindirik kalır; değerler CAM/çizim için bilgidir.
+// Arayüzde matkap çapı "öneri" olarak gösterilir (kullanıcı kendi tablosuyla değiştirebilir).
 const IN = 25.4;
 const fine = [['M3x0.35', 0.35, 3], ['M4x0.5', 0.5, 4], ['M5x0.5', 0.5, 5], ['M6x0.75', 0.75, 6], ['M8x1', 1, 8], ['M10x1', 1, 10], ['M10x1.25', 1.25, 10], ['M12x1.25', 1.25, 12], ['M12x1.5', 1.5, 12], ['M14x1.5', 1.5, 14], ['M16x1.5', 1.5, 16], ['M18x1.5', 1.5, 18], ['M20x1.5', 1.5, 20], ['M22x1.5', 1.5, 22], ['M24x2', 2, 24]];
 const bspp = [['G1/8', 28, 9.728, 8.8], ['G1/4', 19, 13.157, 11.8], ['G3/8', 19, 16.662, 15.25], ['G1/2', 14, 20.955, 19], ['G5/8', 14, 22.911, 21], ['G3/4', 14, 26.441, 24.5], ['G1', 11, 33.249, 30.75], ['G1 1/4', 11, 41.91, 39.25], ['G1 1/2', 11, 47.803, 45.25], ['G2', 11, 59.614, 57]];

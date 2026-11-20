@@ -694,4 +694,24 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   ok(JSON.stringify(ch) === JSON.stringify(['a', 'b', 'e.dist']), 'O-044: değeri değişen parametre/alan listesi (bağımlı parametre dahil): ' + JSON.stringify(ch));
   ok(X.changedByO044({ params: [{ name: 'L', expr: '100' }, { name: 'H', expr: 'L/5' }], features: [] }).length === 0, 'O-044: etkilenmeyen belge için bildirim yok');
 }
+
+// ------------------------------------------------------------------ WP-08 doğrulama 4: sessiz sonuç yok (yüze kadar örtmeyen yüz, delip geçen ofset)
+{
+  const K8 = await initKernel(opencascade, () => wasm);
+  const q = rect(20, 20, 'w'); const skq = { id: 's1', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '0' }, points: q.pts, ents: q.ents };
+  const faceBy = (bid, pred) => { for (let i = 0; i < 64; i++) { let d; try { d = K8.describe({ body: bid, idx: i }, 'face'); } catch (e) { return null; } if (pred(d)) return d; } return null; };
+  for (const [w, warn] of [[60, false], [8, true]]) {
+    const doc = { features: [{ id: 'b', type: 'primitive', kind: 'box', x: '-10', y: '-10', z: '40', w: String(w), d: String(w), h: '5', op: 'new' }, skq] }; await K8.rebuild(doc);
+    doc.features.push({ id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', extent: 'face', toFace: faceBy('b', (d) => d.normal && d.normal[2] < -0.99), op: 'new' });
+    const r = await K8.rebuild(doc); const has = (r.featInfo.e1.warn || []).some((x) => x.code === 'extrude.face_extended');
+    ok(r.status.e1.ok && has === warn && Math.abs(r.bodies.find((b) => b.id === 'e1').volume - 16000) < 1e-6, `WP-08 yüze kadar: hedef yüz ${w} mm ${warn ? 'örtmüyor → uyarı' : 'örtüyor → uyarı yok'}`);
+  }
+  const bx = { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '30', h: '20', op: 'new' };
+  const pk = { id: 'h', type: 'primitive', kind: 'cylinder', x: '20', y: '15', z: '-1', dia: '10', h: '15', axis: 'Z', op: 'cut' };
+  await K8.rebuild({ features: [bx, pk] }); const top = faceBy('b', (d) => d.normal && d.normal[2] > 0.99);
+  let r = await K8.rebuild({ features: [bx, pk, { id: 'fo', type: 'faceop', mode: 'offset', faces: [top], dist: '-3' }] });
+  ok(r.status.fo.ok && !(r.featInfo.fo.warn || []).length, 'WP-08 yüz ofset -3 (cebe ulaşmaz): uyarı yok');
+  r = await K8.rebuild({ features: [bx, pk, { id: 'fo', type: 'faceop', mode: 'offset', faces: [top], dist: '-8' }] });
+  ok(r.status.fo.ok && (r.featInfo.fo.warn || []).some((x) => x.code === 'faceop.through'), 'WP-08 yüz ofset -8 kör deliği açar → "delip geçti" uyarısı: ' + JSON.stringify(r.featInfo.fo.warn));
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

@@ -181,6 +181,7 @@ export class Kernel {
           // WP-08: yüze / nesneye kadar. d: sketch normali boyunca işaretli uzunluk (ters çevir burada yönü belirlemez: hedef belirler)
           if (dir !== 'one') throw new KErr('extrude.to_one_dir');
           const t0 = extent === 'face' ? this.toFace(f, S, state, ctx) : this.toBody(f, S, state);
+          if (extent === 'face') this.faceCover(f, S, state, ctx);
           d = extent === 'face' && f.flip ? -t0.d : t0.d; trim = t0.trim;
           if (!(Math.abs(t0.d) >= LIMITS.minDim)) throw new KErr('extrude.zero_dist');
           if (trim && Math.abs(taper) > 1e-9) throw new KErr('extrude.taper_mode');
@@ -379,6 +380,19 @@ export class Kernel {
     const L = this.bigLen(state, o); const side = Math.sign(V.dot(V.sub(o, c), nf)) || 1;
     return { d: Math.sign(t) * 2 * L, trim: { c, n: nf, toward: V.mul(nf, side), B: 4 * L, L: 8 * L } };
   }
+  // WP-08 doğrulama: hedef yüz profili örtmüyorsa (yüzün sonsuz düzlemine uzanılıyor) işlem uyarısı. Profil köşeleri normal boyunca
+  // hedef düzleme indirilir; herhangi biri yüzün dışında kalırsa uyarı (sonuç yine düzleme kadar).
+  faceCover(f, S, state, ctx) {
+    try {
+      const { body, i } = this.resolveIdx(f.toFace, state, 'face', { ...ctx, field: 'toFace' });
+      const raw = TP.topoOf(body.shape).faces.list[i]; const F = TP.faceWrap(raw);
+      const nf = V.norm(F.normalAt(F.center).toTuple()), c = F.center.toTuple(); const { n } = S.plane; const den = V.dot(nf, n); if (Math.abs(den) < 1e-6) return;
+      const regs = sketchFaces(S.sk, S.plane, f.profiles, 0); const sc = Math.max(1, ...c.map(Math.abs));
+      let out = 0;
+      for (const r of regs) for (const [x, y] of r.poly || []) { const p = V.toWorld(S.plane, x, y); const tt = V.dot(V.sub(c, p), nf) / den; const q = V.add(p, V.mul(n, tt)); if (TP.pointFaceDist(raw, q) > 1e-6 * sc) out++; }
+      if (out) ctx?.warn?.push({ code: 'extrude.face_extended', params: { n: out } });
+    } catch (e) { /* örtü denetimi bilgi amaçlı: başarısızsa uyarı yok */ }
+  }
   // WP-08: Extrude "nesneye kadar" (gövde): sketch düzleminden yön boyunca gövdenin en uzak noktasına (BRepExtrema ile kesin)
   toBody(f, S, state) {
     const b = typeof f.toBody === 'string' ? state.bodies.get(f.toBody) : null; if (!b) throw new KErr('extrude.no_to_body');
@@ -430,6 +444,7 @@ export class Kernel {
     for (const [bid, { body, sel }] of byBody) {
       const res = f.type === 'splitface' ? DE.splitFaces(body, [...sel], pl, f.id) : DE.faceOp(body, [...sel], mode, opt, f.id);
       state.bodies.set(bid, { ...body, shape: res.shape, fn: res.fn });
+      if (res.warn?.length) ctx?.warn?.push(...res.warn);
     }
     return [...byBody.keys()];
   }

@@ -70,7 +70,11 @@ function offsetFace(body, i, d, id) {
   const res = TP.boolean(d > 0 ? 'fuse' : 'cut', [body], [{ shape: p.shape, fn }]);
   if (!res || empty(res.shape)) throw new KErr('faceop.failed');
   const solids = TP.solidsOf(res.shape); if (solids.length !== 1) throw new KErr('faceop.failed');
-  if (!(Math.abs(TP.volume(res.shape) - v0) > volTol(v0))) throw new KErr('faceop.no_effect');
+  const dv = Math.abs(TP.volume(res.shape) - v0); if (!(dv > volTol(v0))) throw new KErr('faceop.no_effect');
+  // WP-08 doğrulama: dik komşularda değişen hacim tam alan × |d| olmalı; farklıysa içe ofset gövdeyi delip geçti ya da dışa ofset
+  // başka malzemeye çarptı (sonuç sessiz kalmaz: uyarı)
+  const exp = R.measureArea(F) * Math.abs(d);
+  if (Math.abs(dv - exp) > 1e-6 * Math.max(1, exp)) res.warn = [{ code: d < 0 ? 'faceop.through' : 'faceop.collide', params: {} }];
   return res;
 }
 
@@ -117,7 +121,7 @@ export function faceOp(body, faceIdx, mode, { d = 0, t = [0, 0, 0] } = {}, id) {
   const adjacent = faceIdx.some((i) => faceIdx.some((j) => j !== i && T.faceEdges[i].some((e) => T.edgeFaces[e].includes(j))));
   if (mode === 'offset' || (mode === 'move' && planar && !adjacent)) {
     if (!planar) throw new KErr('faceop.offset_planar');
-    let cur = body;
+    let cur = body; const warns = [];
     // her yüz kendi normali boyunca (taşıma: öteleme vektörünün normal bileşeni). Dizinler her adımda adla yeniden bulunur.
     const keys = faceIdx.map((i) => ({ names: body.fn[i] || [], n: faceInfo(T, i).n, c: faceInfo(T, i).c }));
     for (const k of keys) {
@@ -125,10 +129,10 @@ export function faceOp(body, faceIdx, mode, { d = 0, t = [0, 0, 0] } = {}, id) {
       const CT = TP.topoOf(cur.shape); let idx = -1;
       for (let i = 0; i < CT.faces.size && idx < 0; i++) { const fi = faceInfo(CT, i); if (fi.geom === 'PLANE' && V.dot(fi.n, k.n) > 1 - 1e-9 && Math.abs(V.dot(V.sub(fi.c, k.c), k.n)) < 1e-7 * Math.max(1, Math.hypot(...k.c)) && k.names.every((x) => (cur.fn[i] || []).includes(x))) idx = i; }
       if (idx < 0) throw new KErr('faceop.failed');
-      cur = { ...cur, ...offsetFace(cur, idx, dd, id) };
+      const o = offsetFace(cur, idx, dd, id); if (o.warn) warns.push(...o.warn); cur = { ...cur, shape: o.shape, fn: o.fn };
     }
     if (cur === body) throw new KErr('faceop.no_effect');
-    return { shape: cur.shape, fn: cur.fn };
+    return { shape: cur.shape, fn: cur.fn, warn: warns };
   }
   if (mode !== 'move' && mode !== 'delete') throw new KErr('faceop.mode_unknown');
   const Vf = faceVolume(body, faceIdx, id);
