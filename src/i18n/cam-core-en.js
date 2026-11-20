@@ -144,4 +144,9 @@ export default {
   "err.cam.geom.chain_empty": "No sketch entities are selected for the chain.",
   "err.cam.geom.chain_ent_missing": "Sketch entity {ent} of the chain was not found in sketch {sketch} (deleted or not a line/arc/circle).",
   "err.cam.geom.chain_broken": "The selected entities do not form a single connected chain ({linked} of {n} entities are linked).",
+  "err.cam.chamfer.tool_type": "A chamfer needs a chamfer or spot tool (tool T{tool}, type: {type}).",
+  "err.cam.chamfer.tool_angle": "Tool T{tool} has an invalid tip angle; a chamfer needs a tip angle between 0 and 180°.",
+  "err.cam.chamfer.tool_small": "A {width} mm chamfer needs a cone reaching at least Ø{need} mm; the tool is Ø{dia} mm. Pick a wider tool or a smaller chamfer.",
+  "err.cam.chamfer.above_stock": "The chamfer edge (Z {z}) is above the stock top (Z {top}); the chamfer would be in the air.",
+  "err.cam.chamfer.chain_side": "An open-chain chamfer needs the tool side (left or right).",
 };

@@ -5,6 +5,7 @@ import { computeFace } from './ops/face.js';
 import { computeDrill } from './ops/drill.js';
 import { computeContour } from './ops/contour.js';
 import { computePocket } from './ops/pocket.js';
+import { computeChamfer } from './ops/chamfer.js';
 export { gates } from './gates.js';
 export { buildProgram, generateProgram, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
 export { CamErr } from './geom/err.js';
@@ -115,6 +116,7 @@ export function computeOp(op, ctx) {
     case 'drill': return computeDrill(op, c);
     case 'contour': return computeContour(op, c);
     case 'pocket': return computePocket(op, c);
+    case 'chamfer': return computeChamfer(op, c);
     default: throw cerr('cam.op.unsupported', { what: String(op.type) });
   }
 }

@@ -829,5 +829,62 @@ section('12. WP-06 T-02 acik zincir (sketch ogeleri): secim, taraf, uzatma, wear
   }
 }
 
+
+// ------------------------------------------------------------------ T-03 pah islemi
+section('T-03. pah (chamfer)');
+{
+  const { simulate } = await import('../src/cam/sim/index.js');
+  const ch90 = { id: 'ch90', number: 9, lengthOffset: 9, diaOffset: 9, type: 'chamfer', dia: 12, tipAngle: 90, tipDia: 2, fluteLen: 6, bodyLen: 40, flutes: 3, centerCutting: false, shaftDia: 10 };
+  const cop = { id: 'p', type: 'chamfer', ...base, geom: [{ kind: 'face', loops: 'outer' }], width: 1.5, heights: { clearance: 10, retract: 2 } };
+  const geom = { faces: [{ z: 0, outer: sq(20, 15, 80, 45), inners: [] }] };
+  const tp = CAM.computeOp(cop, { setup: S0, tool: ch90, geom });
+  const cutZ = []; walk(tp, (m, k, from) => { if (from && m.t === 'feed' && m.kind === 'cut') cutZ.push(m.z); });
+  const rect = [P.line([20, 15], [80, 15]), P.line([80, 15], [80, 45]), P.line([80, 45], [20, 45]), P.line([20, 45], [20, 15])];
+  // 90 derece takim, uc cap 2, genislik 1,5: dz = 1,5; uc z = 0 - 1,5 - 0,2 = -1,7; merkez secilen (ust) kenardan 1 + 1,7 = 2,7
+  ok(cutZ.length > 4 && cutZ.every((z) => Math.abs(z + 1.7) < 1e-9), 'T-03: tek z = kenar - derinlik - uc payi (-1,7): ' + cutZ.slice(0, 3));
+  const pts = cutPoints(tp, () => true, 0.2); const dd = pts.map((q) => P.distTo(q, rect));
+  ok(pts.length > 100 && dd.every((x) => x > 2.7 - 1e-6 && x < 2.7 * Math.SQRT2 + 1e-6) && dd.filter((x) => Math.abs(x - 2.7) < 1e-6).length > pts.length * 0.8, 'T-03: takim merkezi ust kenardan tam tipDia/2 + (dz + pay)*tan = 2,7 (koseler sivri)');
+  ok(pts.some((q) => Math.hypot(q[0] - 17.3, q[1] - 12.3) < 0.25) && pts.some((q) => Math.hypot(q[0] - 82.7, q[1] - 47.7) < 0.25), 'T-03: disbukey koseler sivri (miter), yuvarlak degil: kose noktasi (17,3 ; 12,3)');
+  ok(tp.meta.chamfer.depth === 1.5 && tp.opType === 'chamfer' && tp.tool.tipDia === 2, 'T-03: IR meta derinlik 1,5, takim tipDia IR\'de');
+  // yon: tirmanma disari = CW (malzeme gidisin sagi); conv ters
+  const area = (t) => { const q = []; walk(t, (m, k, from) => { if (from && m.t === 'feed' && m.kind === 'cut') q.push([m.x, m.y]); }); let a = 0; for (let i = 0; i < q.length; i++) { const u = q[i], v = q[(i + 1) % q.length]; a += u[0] * v[1] - v[0] * u[1]; } return a; };
+  const tpC = CAM.computeOp({ ...cop, dir: 'conv' }, { setup: S0, tool: ch90, geom });
+  ok(area(tp) < 0 && area(tpC) > 0, 'T-03: tirmanma = saat yonu, conv ters (disari kenar)');
+  // sim: stok islenmis yuzey (parca 0, cevre -10) ve modelde pahli parca -> engel yok, hacim ~ pah kesiti x cevre
+  // secilen kenar = pahin ust kenari (x 20..80, y 15..45). Ham stok kenardan 1,5 tasar; model: kenardan dd uzakta z = -dd (dd <= 1,5), sonra dik duvar
+  const dOut = (x, y) => Math.max(20 - x, 0, x - 80, 15 - y, 0, y - 45); // iki duzlemin sivri kesisimi (CAD pahi)
+  const hmStock = heightmapFromFn([0, 0], [100, 60], 0.25, (x, y) => (dOut(x, y) < 1.5 ? 0 : -10));
+  const hmModel = heightmapFromFn([0, 0], [100, 60], 0.25, (x, y) => { const d = dOut(x, y); return d <= 1.5 ? -d : -10; });
+  const sr = simulate(tp, { res: 0.25, stockBox: S0.stockBox, stockHeightmap: hmStock });
+  ok(sr.issues.length === 0, 'T-03: sim temiz: ' + sr.issues.map((i) => i.code));
+  const ideal = 180 * 1.5 * 1.5 / 2; ok(sr.removedVolume > ideal * 0.9 && sr.removedVolume < ideal * 1.2, `T-03: kaldirilan hacim ~ pah kesiti x cevre (${sr.removedVolume.toFixed(1)} / ${ideal})`);
+  const prog = CAM.buildProgram({ name: 'O1', machine: builtinMachines()[0] ?? {}, sections: [{ setup: S0, toolpaths: [tp] }] });
+  const gs = CAM.gates(prog, structuredClone(NEWAY_FIXTURE), { sim: { res: 0.25, modelHeightmaps: { s1: hmModel }, stockHeightmaps: { s1: hmStock } } });
+  ok(!gs.some((x) => x.level === 'block' && x.code.startsWith('cam.sim.')), 'T-03: sim kapilari (model pahli) engel vermez: ' + gs.filter((x) => x.level === 'block').map((x) => x.code));
+  // ici: delik kenari (takim delikte)
+  const hole = { z: 0, outer: sq(0, 0, 100, 60), inners: [sq(40, 20, 60, 40).reverse().map((x) => ({ ...x, fwd: false }))] };
+  const tpH = CAM.computeOp({ ...cop, geom: [{ kind: 'face', loops: 'inner' }] }, { setup: S0, tool: ch90, geom: { faces: [hole] } });
+  const sqIn = [P.line([40, 20], [60, 20]), P.line([60, 20], [60, 40]), P.line([60, 40], [40, 40]), P.line([40, 40], [40, 20])];
+  const ph = cutPoints(tpH, () => true, 0.2); ok(ph.length > 50 && ph.every((q) => Math.abs(P.distTo(q, sqIn) - 2.7) < 1e-6 && q[0] > 42 && q[0] < 58 && q[1] > 22 && q[1] < 38), 'T-03: delik kenari: takim delik icinde, kenardan 2,7');
+  // dar uc acisi: 60 derece takim, genislik 1: dz = 1/tan(30) = 1,732
+  const ch60 = { ...ch90, tipAngle: 60, tipDia: 0 }; const tp60 = CAM.computeOp({ ...cop, width: 1 }, { setup: S0, tool: ch60, geom });
+  ok(Math.abs(tp60.meta.chamfer.depth - 1.732) < 1e-3, 'T-03: 60 derece takim derinlik = w/tan(30): ' + tp60.meta.chamfer.depth);
+  // hatalar
+  throwsCode(() => CAM.computeOp(cop, { setup: S0, tool: flat(10), geom }), 'cam.chamfer.tool_type', 'pah icin duz freze olmaz');
+  throwsCode(() => CAM.computeOp({ ...cop, width: 8 }, { setup: S0, tool: ch90, geom }), 'cam.chamfer.tool_small', 'takim konigi yetmez');
+  throwsCode(() => CAM.computeOp({ ...cop, width: null }, { setup: S0, tool: ch90, geom }), 'cam.op.missing', 'genislik zorunlu');
+  throwsCode(() => CAM.computeOp(cop, { setup: S0, tool: ch90, geom: { faces: [{ ...geom.faces[0], z: 5 }] } }), 'cam.chamfer.above_stock', 'kenar stok ustunde');
+  throwsCode(() => CAM.computeOp({ ...cop, geom: [{ kind: 'chain' }] }, { setup: S0, tool: ch90, geom: { items: [{ segs: [{ ...G.mkLine([10, 10], [50, 10]), fwd: true }], closed: false, z: 0 }] } }), 'cam.chamfer.chain_side', 'acik zincir icin taraf secilmeli');
+  // spot takimi da kabul
+  ok(CAM.computeOp(cop, { setup: S0, tool: { ...ch90, type: 'spot', centerCutting: true }, geom }).moves.length > 5, 'T-03: spot takimi ile de pah');
+  // acik zincir: iki taraf, uzatmalar
+  const open = { items: [{ segs: [{ ...G.mkLine([10, 10], [50, 10]), fwd: true }], closed: false, z: 0 }] };
+  const tl = CAM.computeOp({ ...cop, geom: [{ kind: 'chain' }], side: 'left', extendStart: 3, extendEnd: 2 }, { setup: S0, tool: ch90, geom: open });
+  const pl = cutPoints(tl, () => true, 0.2); ok(pl.every((q) => Math.abs(q[1] - 12.7) < 1e-6) && Math.min(...pl.map((q) => q[0])) < 7.5 && Math.max(...pl.map((q) => q[0])) > 51.99, 'T-03: acik zincir sol: y = 10 + 2,7, uzatmalar -3 / +2');
+  const tr = CAM.computeOp({ ...cop, geom: [{ kind: 'chain' }], side: 'right' }, { setup: S0, tool: ch90, geom: open });
+  ok(cutPoints(tr, () => true, 0.2).every((q) => Math.abs(q[1] - 7.3) < 1e-6), 'T-03: acik zincir sag: y = 10 - 2,7');
+  ok(validateDoc({ cam: { v: 1, tools: [], setups: [{ id: 's', name: 'x', ops: [{ ...cop, id: 'p', toolId: 't' }] }] } }) !== undefined, 'T-03: sema cagrisi');
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

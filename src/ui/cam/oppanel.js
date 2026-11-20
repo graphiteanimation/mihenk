@@ -11,7 +11,7 @@ import { clone, getP, setP, numField, textField, selField, checkField, sec, call
 import { protectedHits, toolLabel, openToolManager } from './toolui.js';
 
 const TABS = [['tool', 'cam.op.tab_tool'], ['geom', 'cam.op.tab_geom'], ['heights', 'cam.op.tab_heights'], ['passes', 'cam.op.tab_passes']];
-const TOOL_KINDS = { face: ['face', 'flat', 'bullnose'], contour: ['flat', 'bullnose', 'ball'], pocket: ['flat', 'bullnose', 'ball'] };
+const TOOL_KINDS = { face: ['face', 'flat', 'bullnose'], contour: ['flat', 'bullnose', 'ball'], pocket: ['flat', 'bullnose', 'ball'], chamfer: ['chamfer', 'spot'] };
 const COOLANT = ['flood', 'mist', 'air', 'through', 'off'];
 const TOP_FROM = ['stockTop', 'modelTop', 'selection', 'abs'];
 const BOT_FROM = ['selection', 'modelBottom', 'stockBottom', 'modelTop', 'abs'];
@@ -43,6 +43,7 @@ export function defaultOp(type, cycle, id, name, tools) {
   if (type === 'face') Object.assign(op, { stepover: null, direction: 0, stockToLeave: 0, extend: 0 }), op.heights = { ...op.heights, top: { from: 'stockTop', off: 0 }, bottom: { from: 'modelTop', off: 0 } };
   else if (type === 'contour') Object.assign(op, { geom: [], side: undefined, dir: 'climb', comp: 'computer', stepdown: null, ramp: { kind: 'plunge' }, leadIn: { kind: 'none' }, leadOut: { kind: 'none' } }), op.heights = { ...op.heights, top: { from: 'stockTop', off: 0 }, bottom: { from: 'selection', off: 0 } };
   else if (type === 'pocket') Object.assign(op, { geom: [], dir: 'climb', stepover: null, stepdown: null, entry: { kind: 'ramp', angle: null }, finishPass: false }), op.heights = { ...op.heights, top: { from: 'stockTop', off: 0 }, bottom: { from: 'selection', off: 0 } };
+  else if (type === 'chamfer') Object.assign(op, { geom: [], side: undefined, dir: 'climb', width: null });
   else if (type === 'drill') Object.assign(op, { cycle: cycle || 'drill', holes: { kind: 'feature' }, depth: { from: 'hole', tipComp: true, breakThrough: 1 }, order: 'shortest' });
   if (op.side === undefined) delete op.side;
   const tl = compatibleTools(tools, type, op.cycle)[0];
@@ -126,7 +127,7 @@ export class OpPanel {
   num(label, path, o = {}) {
     const d = this.draft;
     return numField({ label, value: getP(d, path), unit: o.unit ?? 'mm', nullable: !!o.nullable, min: o.min, max: o.max, int: o.int, f: 'op-' + (o.f || path.replace(/\./g, '-')), hint: o.hint, warn: o.warn,
-      set: (v) => { setP(d, path, v === null && o.nullable ? undefined : v); this.invalidate(); } });
+      set: (v) => { setP(d, path, v === null && o.nullable ? undefined : v); this.invalidate(); o.after?.(v); } });
   }
   sel(label, path, opts, o = {}) {
     const d = this.draft;
@@ -189,9 +190,9 @@ export class OpPanel {
       return rows;
     }
     if (d.type === 'drill') return this.holesRows();
-    // kontur ve cep: seçim listesi
+    // kontur, cep ve pah: seçim listesi
     const mode = this.pickMode; const sk = this.app.doc.features.filter((f) => f.type === 'sketch');
-    rows.push(selField({ label: t('cam.op.pick_what'), value: mode, f: 'op-pickmode', hint: t('cam.op.pickhint.' + mode), opts: [['face', t('cam.op.pm_face')], ['sketch', t('cam.op.pm_sketch')], ['chain', t('cam.op.pm_chain')], ['silhouette', t('cam.op.pm_sil')]].filter((o) => d.type === 'contour' || o[0] !== 'chain'), set: (v) => { this.pickMode = v; this.render(); this.showResult(); this.pickView(); } }));
+    rows.push(selField({ label: t('cam.op.pick_what'), value: mode, f: 'op-pickmode', hint: t('cam.op.pickhint.' + mode), opts: [['face', t('cam.op.pm_face')], ['sketch', t('cam.op.pm_sketch')], ['chain', t('cam.op.pm_chain')], ['silhouette', t('cam.op.pm_sil')]].filter((o) => d.type === 'contour' || d.type === 'chamfer' || o[0] !== 'chain'), set: (v) => { this.pickMode = v; this.render(); this.showResult(); this.pickView(); } }));
     if (mode === 'sketch' || mode === 'chain') {
       if (!sk.length) rows.push(callout('warn', null, t('cam.op.no_sketch')));
       else { if (!sk.some((s) => s.id === this.sketchId)) this.sketchId = sk[0].id; rows.push(selField({ label: t('cam.op.sketch'), value: this.sketchId, f: 'op-sketch', opts: sk.map((s) => [s.id, s.name || s.id]), set: (v) => { this.sketchId = v; this.pickView(); } })); }
@@ -214,6 +215,10 @@ export class OpPanel {
       h('button', { class: 'btn ghost icon', type: 'button', 'aria-label': t('cam.op.g_remove'), 'data-testid': 'op-geom-del', onclick: () => { d.geom.splice(i, 1); this.invalidate(); this.render(); this.showResult(); this.pickView(); }, html: icon('close', 'sm') }))));
     if (!(d.geom || []).length) list.append(h('div', { class: 'note', 'data-testid': 'op-geom-empty', text: t('cam.op.g_empty') }));
     rows.push(sec(t('cam.op.g_selected')), list);
+    if (d.type === 'chamfer') {
+      const hasCh = (d.geom || []).some((g) => g.kind === 'chain');
+      rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ...(hasCh ? [['left', t('cam.op.side_left')], ['right', t('cam.op.side_right')]] : [])], { f: 'side', hint: t('cam.op.chamfer_side_hint') }));
+    }
     if (d.type === 'contour') {
       rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ['on', t('cam.op.side_on')], ...((d.geom || []).some((g) => g.kind === 'chain') ? [['left', t('cam.op.side_left')], ['right', t('cam.op.side_right')]] : [])], { f: 'side', hint: t('cam.op.side_hint') }),
         this.sel(t('cam.op.comp'), 'comp', [['computer', t('cam.op.comp_computer')], ['wear', t('cam.op.comp_wear')]], { f: 'comp', def: 'computer', hint: t('cam.op.comp_hint'), redraw: true }));
@@ -241,7 +246,7 @@ export class OpPanel {
   // görünüm: seçim kipi, vurgu
   pickView() {
     const vp = this.app.viewport, d = this.draft; vp.setRegions(null, null); this.app.setHint('');
-    if (this.tab !== 'geom' || !(d.type === 'contour' || d.type === 'pocket')) { vp.setFilter({}); vp.setSelection([]); return; }
+    if (this.tab !== 'geom' || !(d.type === 'contour' || d.type === 'pocket' || d.type === 'chamfer')) { vp.setFilter({}); vp.setSelection([]); return; }
     const m = this.pickMode;
     if (m === 'chain') { vp.setFilter({}); vp.setSelection([]); this.app.setHint(t('cam.op.pickhint.chain')); return; }
     if (m === 'sketch') {
@@ -255,7 +260,7 @@ export class OpPanel {
     this.app.setHint(t('cam.op.pickhint.' + m));
   }
   async onPick(hit) {
-    const d = this.draft; if (this.tab !== 'geom' || !hit || !(d.type === 'contour' || d.type === 'pocket')) return;
+    const d = this.draft; if (this.tab !== 'geom' || !hit || !(d.type === 'contour' || d.type === 'pocket' || d.type === 'chamfer')) return;
     d.geom = d.geom || [];
     if (hit.kind === 'region' && this.pickMode === 'sketch') {
       const sk = this.app.doc.features.find((f) => f.id === this.sketchId); if (!sk) return; const rg = findRegions(sk).regions;
@@ -287,6 +292,7 @@ export class OpPanel {
       else rows.push(checkField({ label: t('cam.op.tipcomp'), value: !!dep.tipComp, f: 'op-tipcomp', hint: t('cam.op.tipcomp_hint'), set: (v) => { dep.tipComp = v; this.invalidate(); } }), this.num(t('cam.op.breakthrough'), 'depth.breakThrough', { min: 0, nullable: true, f: 'breakthrough', hint: t('cam.op.breakthrough_hint') }));
       return rows;
     }
+    if (d.type === 'chamfer') { rows.push(callout('info', null, t('cam.op.chamfer_heights'))); return rows; }
     for (const [which, from] of [['top', TOP_FROM], ['bottom', BOT_FROM]]) {
       const cur = d.heights[which] || (d.heights[which] = { from: from[0], off: 0 });
       rows.push(sec(t('cam.op.h.' + which)), this.sel(t('cam.op.h_from'), `heights.${which}.from`, from.map((x) => [x, t('cam.op.hf.' + x)]), { f: which + '-from', redraw: true, hint: t('cam.op.hfh.' + which) }),
@@ -309,6 +315,13 @@ export class OpPanel {
       if (e.kind === 'helix') rows.push(this.num(t('cam.op.helix_dia'), 'entry.helixDia', { min: 0.001, f: 'helix-dia', hint: t('cam.op.helix_dia_hint') }));
       rows.push(sec(t('cam.op.finish')), checkField({ label: t('cam.op.finish_pass'), value: !!d.finishPass, f: 'op-finish', hint: t('cam.op.finish_hint'), set: (v) => { d.finishPass = v; if (v) d.finishStock = d.finishStock ?? null; else delete d.finishStock; this.invalidate(); this.render(); this.showResult(); } }));
       if (d.finishPass) rows.push(this.num(t('cam.op.finish_stock'), 'finishStock', { min: 0.001, f: 'finishStock', hint: t('cam.op.finish_stock_hint') }));
+    } else if (d.type === 'chamfer') {
+      const tl = this.tool; const note = h('div', { class: 'note', 'data-testid': 'op-ch-depth' });
+      const upd = () => { const dz = tl?.tipAngle && d.width > 0 ? d.width / Math.tan((tl.tipAngle * Math.PI) / 360) : null; note.textContent = dz != null ? t('cam.op.ch_depth', { dz: fmtNum(dz, 3), ang: fmtNum(tl.tipAngle, 1), tip: fmtNum(tl.tipDia ?? 0, 3) }) : ''; note.hidden = dz == null; };
+      upd();
+      rows.push(this.num(t('cam.op.ch_width'), 'width', { min: 0.001, f: 'ch-width', hint: t('cam.op.ch_width_hint'), after: upd }),
+        this.num(t('cam.op.ch_clear'), 'tipClearance', { min: 0, nullable: true, f: 'ch-clear', hint: t('cam.op.ch_clear_hint') }), note);
+      if ((d.geom || []).some((g) => g.kind === 'chain')) rows.push(sec(t('cam.op.chain_ext')), this.num(t('cam.op.extend_start'), 'extendStart', { min: 0, nullable: true, f: 'extend-start', hint: t('cam.op.extend_chain_hint') }), this.num(t('cam.op.extend_end'), 'extendEnd', { min: 0, nullable: true, f: 'extend-end' }));
     } else if (d.type === 'contour') {
       const r = d.ramp, wear = d.comp === 'wear';
       rows.push(this.num(t('cam.op.stepdown'), 'stepdown', { min: 0.001, f: 'stepdown' }), this.num(t('cam.op.finish_stepdown'), 'finishStepdown', { min: 0.001, nullable: true, f: 'finishStepdown' }),

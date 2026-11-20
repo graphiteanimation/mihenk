@@ -30,7 +30,7 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
       const plane = rebuild?.sketches?.[sel.sketch]?.plane;
       for (const f of sketchFaces(sel, sk, plane, S.frame)) { sels.push({ ...sel, kind: 'face' }); faces.push(f); }
     } else if (sel.kind === 'chain') { // T-02: eskiz ogelerinden acik/kapali zincir (yalniz kontur)
-      if (op.type !== 'contour') throw cerr('cam.geom.sel_unsupported', { kind: 'chain' });
+      if (op.type !== 'contour' && op.type !== 'chamfer') throw cerr('cam.geom.sel_unsupported', { kind: 'chain' });
       const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
       const plane = rebuild?.sketches?.[sel.sketch]?.plane;
       sels.push(sel); faces.push(sketchChain(sel, sk, plane, S.frame));
@@ -173,7 +173,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         const geom = {};
         if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
-        if (op.type === 'contour' || op.type === 'pocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
+        if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
         if (op.type === 'drill') chainStock(recs, ri, mres);
         const maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
         const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });

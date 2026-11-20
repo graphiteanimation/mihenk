@@ -145,4 +145,9 @@ export default {
   "err.cam.geom.chain_empty": "Zincir için eskiz ögesi seçilmedi.",
   "err.cam.geom.chain_ent_missing": "Zincirin {ent} ögesi {sketch} eskizinde bulunamadı (silinmiş ya da çizgi/yay/daire değil).",
   "err.cam.geom.chain_broken": "Seçilen ögeler uç uca bağlı tek bir zincir oluşturmuyor ({n} ögeden {linked} tanesi bağlı).",
+  "err.cam.chamfer.tool_type": "Pah için pah ya da punta takımı gerekir (takım T{tool}, tür: {type}).",
+  "err.cam.chamfer.tool_angle": "T{tool} takımının uç açısı geçersiz; pah için 0–180° arası uç açısı gerekir.",
+  "err.cam.chamfer.tool_small": "{width} mm pah için takımın en az Ø{need} mm konik çapa ulaşması gerekir; takım Ø{dia} mm. Daha geniş takım ya da küçük pah seçin.",
+  "err.cam.chamfer.above_stock": "Pah kenarı (Z {z}) stok üstünün (Z {top}) üzerinde; pah havada kalır.",
+  "err.cam.chamfer.chain_side": "Açık zincir pahı için takım tarafı (sol ya da sağ) seçilmeli.",
 };
