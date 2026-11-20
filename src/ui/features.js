@@ -77,9 +77,13 @@ export function fieldsFor(f, ctx) {
     case 'extrude':
       F.push({ t: 'sketch', k: 'sketch', label: tk('fld.sketch') }, { t: 'profiles', k: 'profiles', label: tk('fld.profiles') }, opField(),
         { t: 'select', k: 'dir', label: tk('fld.dir'), opts: [['one', tk('dir.one')], ['sym', tk('dir.sym')], ['two', tk('dir.two')]] },
-        { t: 'select', k: 'extent', label: tk('fld.extent'), opts: [['dist', tk('extent.dist')], ['all', tk('extent.all')]] });
-      if (f.extent !== 'all') F.push({ t: 'expr', k: 'dist', label: tk(f.dir === 'two' ? 'fld.dist1' : 'fld.dist'), unit: 'mm' });
-      if (f.dir === 'two' && f.extent !== 'all') F.push({ t: 'expr', k: 'dist2', label: tk('fld.dist2'), unit: 'mm' });
+        { t: 'select', k: 'extent', label: tk('fld.extent'), opts: [['dist', tk('extent.dist')], ['all', tk('extent.all')], ['face', tk('extent.face')], ['body', tk('extent.body')]] });
+      if (f.extent === 'face') F.push({ t: 'sel', k: 'toFace', label: tk('fld.to_face'), kind: 'face', single: true });
+      else if (f.extent === 'body') F.push({ t: 'sel', k: 'toBody', label: tk('fld.to_body'), kind: 'body', single: true });
+      else if (f.extent !== 'all') F.push({ t: 'expr', k: 'dist', label: tk(f.dir === 'two' ? 'fld.dist1' : 'fld.dist'), unit: 'mm' });
+      if (f.dir === 'two' && (f.extent ?? 'dist') === 'dist') F.push({ t: 'expr', k: 'dist2', label: tk('fld.dist2'), unit: 'mm' });
+      // WP-08: konik açı yalnız tek yön + Mesafe / Yüze kadar
+      if ((f.dir ?? 'one') === 'one' && ['dist', 'face', undefined].includes(f.extent)) F.push({ t: 'expr', k: 'taper', label: tk('fld.taper'), unit: '°', def: '0' });
       F.push({ t: 'check', k: 'flip', label: tk('fld.flip') });
       break;
     case 'revolve':
@@ -192,7 +196,7 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
   const parts = [];
   switch (f.type) {
     case 'sketch': parts.push(f.plane?.kind === 'face' ? t('hs.on_face') : String(f.plane?.name || '')); parts.push(tn('hs.n_ents', (f.ents || []).length)); break;
-    case 'extrude': parts.push(f.extent === 'all' ? t('hs.all') : mm(f.dist)); if (f.dir === 'sym') parts.push(t('hs.sym')); parts.push(op(f.op)); break;
+    case 'extrude': parts.push(f.extent === 'all' ? t('hs.all') : f.extent === 'face' ? t('hs.to_face') : f.extent === 'body' ? t('hs.to_body') : mm(f.dist)); if (f.dir === 'sym') parts.push(t('hs.sym')); if (f.taper && n(f.taper) !== fmt(0)) parts.push('∠' + n(f.taper) + '°'); parts.push(op(f.op)); break;
     case 'revolve': parts.push(n(f.angle) + '°'); parts.push(op(f.op)); break;
     case 'hole': parts.push(f.thread?.designation || 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;
     case 'fillet': parts.push('R' + n(f.r)); parts.push(cnt('hs.n_edges', f.edges)); break;

@@ -53,7 +53,7 @@ const sketchChk = {
 const TYPES = {
   primitive: { kind: oneOf(['box', 'cylinder', 'sphere']), x: expr(), y: expr(), z: expr(), w: expr(), d: expr(), h: expr(), dia: expr(), axis: oneOf(AX), op: oneOf(OPS), targets: strArr() },
   sketch: sketchChk,
-  extrude: { sketch: str(LIMITS.shortStr), profiles: profilesChk, dist: expr(), dist2: expr(), extent: oneOf(['dist', 'all']), dir: oneOf(['one', 'sym', 'two']), flip: bool(), op: oneOf(OPS), targets: strArr() },
+  extrude: { sketch: str(LIMITS.shortStr), profiles: profilesChk, dist: expr(), dist2: expr(), extent: oneOf(['dist', 'all', 'face', 'body']), toFace: obj(), toBody: str(LIMITS.shortStr), taper: expr(), dir: oneOf(['one', 'sym', 'two']), flip: bool(), op: oneOf(OPS), targets: strArr() },
   revolve: { sketch: str(LIMITS.shortStr), profiles: profilesChk, axis: obj({ kind: oneOf(['sketchX', 'sketchY', 'line']), ent: str(LIMITS.shortStr) }), angle: expr(), op: oneOf(OPS), targets: strArr() },
   hole: { sketch: str(LIMITS.shortStr), kind: oneOf(['simple', 'cbore', 'csink']), dia: expr(), depth: expr(), tipAngle: expr(), cboreDia: expr(), cboreDepth: expr(), csinkDia: expr(), csinkAngle: expr(), extent: oneOf(['dist', 'all']), flip: bool(), thread: nullable(obj({ designation: str(40), pitch: num(), major: num() })), targets: strArr() },
   fillet: { edges: arrOf(obj(), LIMITS.refs), r: expr() },

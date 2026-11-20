@@ -414,4 +414,59 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   r = await imp(box(40, 40, 30).cut(cyl(3, 10, [20, 20, 20], [0, 0, 1])));
   ok(r.holes.length === 1 && !r.holes[0].pocketLike, 'Ø6×10 delik pocketLike değil');
 }
+
+// ------------------------------------------------------------------ WP-08 dilim 1: yüze/nesneye kadar, konik açı, C-03
+{
+  const K8 = await initKernel(opencascade, () => wasm);
+  const sq = (id, w = 20, z = 0, name = 'XY') => { const q = rect(w, w, id); return { id, type: 'sketch', plane: { kind: 'base', name, offset: String(z) }, points: q.pts, ents: q.ents }; };
+  const faceBy = (bid, pred) => { for (let i = 0; i < 64; i++) { let d; try { d = K8.describe({ body: bid, idx: i }, 'face'); } catch (e) { return null; } if (pred(d)) return d; } return null; };
+  const frustum = (a, h, deg) => { const b = a - 2 * h * Math.tan((deg * Math.PI) / 180); return (h / 3) * (a * a + b * b + a * b); };
+  let r8 = await K8.rebuild({ features: [sq('s1'), { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', dist: '10', taper: '5', op: 'new' }] });
+  ok(r8.status.e1.ok, 'WP-08 konik: ' + r8.status.e1.error?.code); near(r8.bodies[0].volume, frustum(20, 10, 5), 'WP-08 konik 5°: kesik piramit hacmi', 1e-6);
+  ok(r8.bodies[0].nFaces === 6, 'WP-08 konik: yüz sayısı 6');
+  r8 = await K8.rebuild({ features: [sq('s1'), { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', dist: '10', taper: '-5', op: 'new' }] });
+  near(r8.bodies[0].volume, frustum(20, 10, -5), 'WP-08 konik -5°: genişleyen hacim', 1e-6);
+  r8 = await K8.rebuild({ features: [{ id: 's1', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '0' }, points: { c: { x: 0, y: 0 } }, ents: [{ id: 'c1', type: 'circle', c: 'c', r: 10 }] }, { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', dist: '10', taper: '10', op: 'new' }] });
+  { const r2 = 10 - 10 * Math.tan(Math.PI / 18); near(r8.bodies[0]?.volume, (Math.PI * 10 / 3) * (100 + r2 * r2 + 10 * r2), 'WP-08 konik daire: kesik koni hacmi', 1e-5); }
+  r8 = await K8.rebuild({ features: [sq('s1'), { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', dist: '10', taper: '60', op: 'new' }] });
+  ok(!r8.status.e1.ok && r8.status.e1.error.code === 'extrude.taper_failed', 'WP-08 konik: profil kapanırsa açık hata: ' + r8.status.e1.error?.code);
+  r8 = await K8.rebuild({ features: [sq('s1'), { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', dist: '10', dir: 'sym', taper: '3', op: 'new' }] });
+  ok(r8.status.e1.error?.code === 'extrude.taper_mode', 'WP-08 konik: simetrikte açık hata');
+  // yüze kadar (paralel), nesneye kadar, yüze kadar + konik, eğik yüz
+  const plate = { id: 'b', type: 'primitive', kind: 'box', x: '-10', y: '-10', z: '40', w: '60', d: '60', h: '5', op: 'new' };
+  const doc8 = { features: [plate, sq('s1')] }; await K8.rebuild(doc8);
+  const bot = faceBy('b', (d) => d.normal && d.normal[2] < -0.99), sideX = faceBy('b', (d) => d.normal && Math.abs(d.normal[0]) > 0.99);
+  doc8.features.push({ id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', extent: 'face', toFace: bot, op: 'new' });
+  r8 = await K8.rebuild(doc8); ok(r8.status.e1.ok && r8.bodies.length === 2, 'WP-08 yüze kadar: ' + r8.status.e1.error?.code);
+  near(r8.bodies.find((b) => b.id === 'e1').volume, 400 * 40, 'WP-08 yüze kadar (paralel yüz z=40): hacim', 1e-9);
+  doc8.features[2].flip = true; r8 = await K8.rebuild(doc8); near(r8.bodies.find((b) => b.id === 'e1')?.volume, 400 * 40, 'WP-08 yüze kadar: Ters çevir yönü değiştirmez (hedef belirler)', 1e-9);
+  doc8.features[2] = { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', extent: 'body', toBody: 'b', op: 'new' };
+  r8 = await K8.rebuild(doc8); near(r8.bodies.find((b) => b.id === 'e1')?.volume, 400 * 45, 'WP-08 nesneye kadar: gövdenin uzak yüzü (z=45)', 1e-9);
+  doc8.features[2].flip = true; r8 = await K8.rebuild(doc8); ok(r8.status.e1.error?.code === 'extrude.to_body_behind', 'WP-08 nesneye kadar: ters yönde gövde yoksa açık hata');
+  doc8.features[2] = { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', extent: 'face', toFace: bot, taper: '3', op: 'new' };
+  r8 = await K8.rebuild(doc8); near(r8.bodies.find((b) => b.id === 'e1')?.volume, frustum(20, 40, 3), 'WP-08 yüze kadar + konik 3°', 1e-6);
+  doc8.features[2] = { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', extent: 'face', toFace: bot, op: 'join' };
+  r8 = await K8.rebuild(doc8); ok(r8.bodies.length === 1, 'WP-08 yüze kadar + Birleştir: tek gövde'); near(r8.bodies[0].volume, 60 * 60 * 5 + 400 * 40, 'WP-08 yüze kadar + Birleştir hacmi', 1e-9);
+  const docT = { features: [{ id: 'b', type: 'primitive', kind: 'box', x: '-50', y: '-50', z: '30', w: '100', d: '100', h: '5', op: 'new' }, { id: 'm', type: 'move', bodies: ['b'], angle: '20', axis: 'Y', cx: '0', cy: '0', cz: '30' }, sq('s1')] };
+  await K8.rebuild(docT); const low = faceBy('b', (d) => d.normal && d.normal[2] < -0.9);
+  docT.features.push({ id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', extent: 'face', toFace: low, op: 'new' });
+  r8 = await K8.rebuild(docT);
+  { // eğik düzlem: z = 30 + x·n_x/(-n_z) ... normal ve merkezden: z(x) = c_z - (n_x (x - c_x) + n_y (y - c_y)) / n_z; kare [0,20]² üzerinde integral
+    const n = low.normal, c = low.fp; const zAt = (x, y) => c[2] - (n[0] * (x - c[0]) + n[1] * (y - c[1])) / n[2];
+    near(r8.bodies.find((b) => b.id === 'e1')?.volume, 400 * zAt(10, 10), 'WP-08 yüze kadar (eğik yüz): hacim = alan × ortadaki yükseklik', 1e-6);
+    ok(r8.status.e1.ok && (r8.bodies.find((b) => b.id === 'e1')?.nFaces === 6), 'WP-08 eğik yüze kadar: 6 yüz');
+  }
+  doc8.features[2] = { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', extent: 'face', toFace: sideX, op: 'new' };
+  r8 = await K8.rebuild(doc8); ok(r8.status.e1.error?.code === 'extrude.to_face_parallel', 'WP-08 yüze kadar: yöne paralel yüz açık hata: ' + JSON.stringify(r8.status.e1));
+  doc8.features[2] = { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', extent: 'face', op: 'new' };
+  r8 = await K8.rebuild(doc8); ok(r8.status.e1.error?.code === 'extrude.no_to_face' && r8.bodies.length === 1, 'WP-08 yüze kadar: seçim yoksa açık hata, belge bozulmaz');
+  // C-03 yeniden üretme denemesi (P1 koşulları): XZ'de 42×32,8 gövde (14 mm), daire r4 + yarık; Kes Mesafe 18 = Kes Tümü
+  const pts = { a: { x: -21, y: 0 }, b: { x: 21, y: 0 }, c: { x: 21, y: 32.8 }, d: { x: -21, y: 32.8 } };
+  const L4 = (pre, P) => { const k = Object.keys(P); return k.map((x, i) => ({ id: pre + i, type: 'line', a: x, b: k[(i + 1) % 4] })); };
+  const s2p = { o: { x: 0, y: 16 }, e: { x: -1, y: 16 }, f: { x: 1, y: 16 }, g: { x: 1, y: 32.8 }, h: { x: -1, y: 32.8 } };
+  const c03 = (cut) => ({ features: [{ id: 's1', type: 'sketch', plane: { kind: 'base', name: 'XZ', offset: '0' }, points: pts, ents: L4('l', pts) }, { id: 'e1', type: 'extrude', sketch: 's1', profiles: 'all', dist: '14', op: 'new' },
+    { id: 's2', type: 'sketch', plane: { kind: 'base', name: 'XZ', offset: '0' }, points: s2p, ents: [{ id: 'c', type: 'circle', c: 'o', r: 4 }, ...L4('m', { e: s2p.e, f: s2p.f, g: s2p.g, h: s2p.h })] }, { id: 'e2', type: 'extrude', sketch: 's2', profiles: 'all', op: 'cut', ...cut }] });
+  const vA = (await K8.rebuild(c03({ dist: '18' }))).bodies.map((b) => b.volume), vB = (await K8.rebuild(c03({ extent: 'all' }))).bodies.map((b) => b.volume);
+  ok(vA.length === 1 && Math.abs(vA[0] - vB[0]) < 1e-6, `C-03 (çekirdek): Kes Mesafe 18 ile Tümü aynı hacim (${vA} / ${vB}); P1 farkı üretilemedi`);
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

@@ -1,0 +1,21 @@
+// WP-08 modelling strings. Keys identical to model-tr.js.
+export default {
+  "extent.face": "To face",
+  "extent.body": "To object",
+  "fld.to_face": "Target face",
+  "fld.to_body": "Target body",
+  "fld.taper": "Taper angle (+ narrows)",
+  "ef.taper": "Taper angle",
+  "hs.to_face": "To face",
+  "hs.to_body": "To object",
+  "err.extrude.taper_range": "Taper angle must be between -89° and 89° (entered {value})",
+  "err.extrude.taper_mode": "Taper works only with one direction and Distance or a parallel target face",
+  "err.extrude.taper_failed": "Tapered faces could not be built (angle too large for the profile or a side face cannot be tapered)",
+  "err.extrude.to_one_dir": "To face / to object works only in one direction",
+  "err.extrude.no_to_face": "No target face selected",
+  "err.extrude.no_to_body": "No target body selected or it no longer exists",
+  "err.extrude.to_face_planar": "Target face must be planar",
+  "err.extrude.to_face_parallel": "Target face is parallel to the extrude direction: cannot be reached",
+  "err.extrude.to_face_miss": "The profile does not reach the target face's plane",
+  "err.extrude.to_body_behind": "Target body is not in the extrude direction (try Flip)",
+};

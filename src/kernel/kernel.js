@@ -158,10 +158,24 @@ export class Kernel {
         const S = state.sketches.get(f.sketch); if (!S) throw new KErr('sketch.not_found');
         const op = f.op ?? 'new'; if (!OPS.has(op)) throw new KErr('op.unknown', { op: String(op) });
         const dir = f.dir ?? 'one'; if (!['one', 'sym', 'two'].includes(dir)) throw new KErr('extrude.dir_unknown');
-        const extent = f.extent ?? 'dist'; if (!['dist', 'all'].includes(extent)) throw new KErr('extrude.extent_unknown');
-        let d = extent === 'all' ? this.bigLen(state, S.plane.o) : N(f.dist, tk('ef.dist'));
-        if (Math.abs(d) < 1e-12) throw new KErr('extrude.zero_dist');
-        if (extent !== 'all') this.dim(d, tk('ef.dist'), { allowNeg: dir === 'one' });
+        const extent = f.extent ?? 'dist'; if (!['dist', 'all', 'face', 'body'].includes(extent)) throw new KErr('extrude.extent_unknown');
+        // WP-08: konik açı (derece; pozitif = malzeme uca doğru daralır). Yalnız tek yön + Mesafe / Yüze kadar (paralel yüz).
+        const taper = f.taper == null || f.taper === '' ? 0 : N(f.taper, tk('ef.taper'));
+        if (!Number.isFinite(taper) || Math.abs(taper) >= 89) throw new KErr('extrude.taper_range', { value: taper });
+        if (Math.abs(taper) > 1e-9 && (dir !== 'one' || !['dist', 'face'].includes(extent))) throw new KErr('extrude.taper_mode');
+        let d, trim = null;
+        if (extent === 'face' || extent === 'body') {
+          // WP-08: yüze / nesneye kadar. d: sketch normali boyunca işaretli uzunluk (ters çevir burada yönü belirlemez: hedef belirler)
+          if (dir !== 'one') throw new KErr('extrude.to_one_dir');
+          const t0 = extent === 'face' ? this.toFace(f, S, state, ctx) : this.toBody(f, S, state);
+          d = extent === 'face' && f.flip ? -t0.d : t0.d; trim = t0.trim;
+          if (!(Math.abs(t0.d) >= LIMITS.minDim)) throw new KErr('extrude.zero_dist');
+          if (trim && Math.abs(taper) > 1e-9) throw new KErr('extrude.taper_mode');
+        } else {
+          d = extent === 'all' ? this.bigLen(state, S.plane.o) : N(f.dist, tk('ef.dist'));
+          if (Math.abs(d) < 1e-12) throw new KErr('extrude.zero_dist');
+          if (extent !== 'all') this.dim(d, tk('ef.dist'), { allowNeg: dir === 'one' });
+        }
         // F-03: ters çevir iki mesafeyi birlikte çevirir. one: [0,d]; sym: [-d/2,d/2]; two: [-d2, d] (flip: [-d, d2])
         let lo, hi;
         if (dir === 'sym') { lo = -d / 2; hi = d / 2; }
@@ -175,7 +189,21 @@ export class Kernel {
         // simetrik/iki yön: profil yüzü doğrudan başlangıç ofsetinde kurulur (kenar→varlık eşlemesi aynı konumda kalsın)
         const off = dir === 'one' ? 0 : lo; const len = dir === 'one' ? (fwd ? hi : lo) : hi - lo;
         const regs = sketchFaces(S.sk, S.plane, f.profiles, off);
-        const parts = this.sweepParts(f, S, regs, (face) => TP.prism(face, V.mul(S.plane.n, len)), 'side');
+        let parts = this.sweepParts(f, S, regs, (face) => TP.prism(face, V.mul(S.plane.n, len)), 'side');
+        if (Math.abs(taper) > 1e-9) {
+          const pull = V.mul(S.plane.n, len > 0 ? 1 : -1);
+          parts = parts.map((p) => {
+            const side = p.fn.map((ns, i) => (ns.some((x) => x.startsWith(f.id + ':side:')) ? i : -1)).filter((i) => i >= 0);
+            const res = side.length ? TP.draft(p, side, pull, taper, { o: S.plane.o, n: S.plane.n }) : null;
+            if (!res || isEmpty(res.shape) || TP.validity(res.shape)) throw new KErr('extrude.taper_failed');
+            return res;
+          });
+        }
+        if (trim) {
+          // eğik hedef düzlem: uzun prizma, düzlemin sketch tarafındaki yarım uzayla kesişir; kesik yüz "<id>:end" adını alır
+          const hs = TP.halfSpace(trim.c, trim.n, trim.toward, trim.B, trim.L, `${f.id}:end`); if (!hs) throw new KErr('extrude.failed');
+          parts = parts.map((p) => { const res = TP.boolean('common', [p], [hs]); if (!res || isEmpty(res.shape)) throw new KErr('extrude.to_face_miss'); return res; });
+        }
         state.tools.set(f.id, { parts, op, targets: f.targets });
         return this.applyOp(state, parts, op, { id: f.id, name: f.bodyName, targets: f.targets });
       }
@@ -309,6 +337,29 @@ export class Kernel {
       }
       default: throw new KErr('feature.unknown', { type: String(f.type) });
     }
+  }
+
+  // WP-08: Extrude "yüze kadar". Hedef düzlemsel yüz olmalı. Sketch düzlemine paralelse tam uzunluk; eğikse uzun prizma + yarım uzay kırpması.
+  toFace(f, S, state, ctx) {
+    if (!f.toFace || typeof f.toFace !== 'object') throw new KErr('extrude.no_to_face');
+    const { body, i } = this.resolveIdx(f.toFace, state, 'face', { ...ctx, field: 'toFace' });
+    const F = TP.faceWrap(TP.topoOf(body.shape).faces.list[i]);
+    if (F.geomType !== 'PLANE') throw new KErr('extrude.to_face_planar');
+    const nf = V.norm(F.normalAt(F.center).toTuple()); const c = F.center.toTuple(); const { n, o } = S.plane;
+    const den = V.dot(nf, n); if (Math.abs(den) < 1e-6) throw new KErr('extrude.to_face_parallel');
+    const t = V.dot(V.sub(c, o), nf) / den; // sketch orijininden normal boyunca düzleme uzaklık
+    if (Math.abs(Math.abs(den) - 1) < 1e-9) return { d: t, trim: null };
+    const L = this.bigLen(state, o); const side = Math.sign(V.dot(V.sub(o, c), nf)) || 1;
+    return { d: Math.sign(t) * 2 * L, trim: { c, n: nf, toward: V.mul(nf, side), B: 4 * L, L: 8 * L } };
+  }
+  // WP-08: Extrude "nesneye kadar" (gövde): sketch düzleminden yön boyunca gövdenin en uzak noktasına (BRepExtrema ile kesin)
+  toBody(f, S, state) {
+    const b = typeof f.toBody === 'string' ? state.bodies.get(f.toBody) : null; if (!b) throw new KErr('extrude.no_to_body');
+    const u = V.mul(S.plane.n, f.flip ? -1 : 1); const D = this.bigLen(state, S.plane.o);
+    const far = TP.planeSquare(V.add(S.plane.o, V.mul(u, D)), u, 4 * D);
+    const m = TP.shapeDist(b.shape.wrapped, far.wrapped); if (!Number.isFinite(m)) throw new KErr('extrude.failed');
+    const t = D - m; if (!(t > LIMITS.minDim)) throw new KErr('extrude.to_body_behind');
+    return { d: t, trim: null };
   }
 
   hole(f, state, N) {

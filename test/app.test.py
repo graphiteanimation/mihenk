@@ -1194,6 +1194,49 @@ try:
     check('C-03: Kes Extrude önizleme Mesafe 18 ile Tümü aynı hacmi verir (dairenin yanında yarık da kesilir)', len(v18) == 1 and v18 == vall and v18[0] < 18.3, (v18, vall))
     page.click('#p-cancel'); idle()
 
+    # ---------------------------------------------------------------- WP-08: modelleme (her özellik: panelden uygula, geçmişte görünür, düzenle, geri al, kaydet-aç)
+    print('WP-08: modelleme')
+    def w8_load(feats):
+        ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', {'params': [], 'features': feats}); idle()
+    def w8_sq(sid, w=20, z=0, ox=0, oy=0):
+        P = {f'{sid}p{i}': {'x': ox + x, 'y': oy + y} for i, (x, y) in enumerate([(0, 0), (w, 0), (w, w), (0, w)])}
+        k = list(P.keys())
+        return {'id': sid, 'type': 'sketch', 'name': sid, 'plane': {'kind': 'base', 'name': 'XY', 'offset': str(z)}, 'points': P, 'ents': [{'id': f'{sid}l{i}', 'type': 'line', 'a': k[i], 'b': k[(i + 1) % 4]} for i in range(4)], 'cons': []}
+    def w8_body(bid): return ev('(id) => { const b = app.result.bodies.find((x) => x.id === id); return b ? b.volume : null; }', bid)
+    def w8_face(bid, js):
+        return ev('(a) => (async () => { const n = app.result.bodies.find((x) => x.id === a[0]).nFaces; for (let i = 0; i < n; i++) { const d = await app.describe({ body: a[0], idx: i }, "face"); if ((' + js + ')(d)) return i; } return -1; })()', [bid])
+    def w8_pick(bid, idx, kind='face'):
+        ev('(a) => app.edit.onPick({ kind: a[2], body: a[0], idx: a[1] })', [bid, idx, kind]); page.wait_for_timeout(150); idle()
+    def w8_roundtrip(fid, label, vol_fn, expect):
+        # geçmişte görünür (ad + özet), geri al / yinele, kaydet-aç turu aynı model
+        row = page.locator(f'#browser .hrow[data-hist="{fid}"]')
+        check(f'WP-08 {label}: geçmiş satırı ve şerit çipi', row.count() == 1 and page.locator(f'#timeline .chip[data-id="{fid}"]').count() == 1, row.count())
+        n0 = len(feats()); v0 = vol_fn()
+        ev('document.activeElement && document.activeElement.blur()'); page.keyboard.press('Control+z'); idle()
+        undone = len(feats()) != n0 or not near(vol_fn() or 0, v0 or 0, 1e-9)
+        page.keyboard.press('Control+y'); idle()
+        check(f'WP-08 {label}: geri al / yinele', undone and near(vol_fn() or 0, v0, 1e-9), (n0, len(feats()), v0, vol_fn()))
+        ev('app.markDirty(false)'); ev('(async () => { const b = app.fileBytes(); await app.openBytes(b, "w8.mhnk", null); })()'); accept_modal(); idle()
+        check(f'WP-08 {label}: kaydet-aç turu aynı model', near(vol_fn() or 0, expect, 1e-6) and fid in feats(), (vol_fn(), expect))
+
+    # dilim 1: yüze kadar + konik (gerçek tıklama ile hedef yüz), nesneye kadar
+    plate = {'id': 'pl', 'type': 'primitive', 'name': 'Kutu 1', 'kind': 'box', 'x': '-10', 'y': '-10', 'z': '40', 'w': '60', 'd': '60', 'h': '5', 'op': 'new'}
+    w8_load([plate, w8_sq('s1')])
+    tb('extrude'); page.wait_for_selector('#panel [data-k="extent"]'); select('op', 'new'); select('extent', 'face'); page.wait_for_selector('#panel .selbox[data-k="toFace"]')
+    check('WP-08 yüze kadar: seçim alanı kendiliğinden etkin', ev('app.edit.activeSel') == 'toFace')
+    ev('app.viewport.view("iso")'); click_world([40, 40, 45])
+    page.wait_for_function('() => (document.querySelector("#panel .selbox[data-k=toFace]").dataset.count === "1")', timeout=8000)
+    fill('taper', 3); idle(); ok()
+    fid = ev('app.doc.features[2].id'); t3 = math.tan(3 * math.pi / 180); b2 = 20 - 2 * 45 * t3; vf = 45 / 3 * (400 + b2 * b2 + 20 * b2)
+    check('WP-08 yüze kadar + konik: panelden uygulandı (hacim elle hesap)', ev('app.result.status[app.doc.features[2].id].ok') and near(w8_body(fid), vf, 1e-6), (w8_body(fid), vf))
+    check('WP-08 yüze kadar: geçmiş özeti', 'Yüze kadar' in page.inner_text(f'#browser .hrow[data-hist="{fid}"]'), page.inner_text(f'#browser .hrow[data-hist="{fid}"]'))
+    ev('(i) => app.editFeature(i)', 2); page.wait_for_selector('#panel [data-k="taper"]'); fill('taper', 0); idle(); ok()
+    check('WP-08 yüze kadar: düzenle (konik 0) → prizma 20×20×45', near(w8_body(fid), 400 * 45, 1e-9), w8_body(fid))
+    w8_roundtrip(fid, 'yüze kadar', lambda: w8_body(fid), 400 * 45)
+    ev('(i) => app.editFeature(i)', 2); page.wait_for_selector('#panel [data-k="extent"]'); select('extent', 'body'); page.wait_for_selector('#panel .selbox[data-k="toBody"]')
+    w8_pick('pl', 0, 'body'); ok()
+    check('WP-08 nesneye kadar: gövdenin uzak yüzüne (z=45)', near(w8_body(fid), 400 * 45, 1e-9) and ev('app.doc.features[2].toBody') == 'pl', (w8_body(fid), ev('app.doc.features[2].toBody')))
+    page.keyboard.press('Control+z'); idle()
     check('CSP: dil değiştirme dahil son aşamada da ihlal yok', ev('window.__csp.length') == 0, str(ev('window.__csp')[:3]))
     print('\nkonsol hataları:', [e for e in errs if 'GL Driver' not in e][:5])
     check('konsolda sayfa hatası yok', not [e for e in errs if e.startswith('pageerror')], str([e for e in errs if e.startswith('pageerror')][:3]))

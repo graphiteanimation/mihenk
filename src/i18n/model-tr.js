@@ -1,0 +1,21 @@
+// WP-08 modelleme metinleri (extrude kapsamları, pah, bölme, doğrudan düzenleme, delik tabloları, eskiz metni). Anahtarlar model-en.js ile birebir aynı.
+export default {
+  "extent.face": "Yüze kadar",
+  "extent.body": "Nesneye kadar",
+  "fld.to_face": "Hedef yüz",
+  "fld.to_body": "Hedef gövde",
+  "fld.taper": "Konik açı (+ daralır)",
+  "ef.taper": "Konik açı",
+  "hs.to_face": "Yüze kadar",
+  "hs.to_body": "Nesneye kadar",
+  "err.extrude.taper_range": "Konik açı -89° ile 89° arasında olmalı (girilen {value})",
+  "err.extrude.taper_mode": "Konik açı yalnız tek yönde, Mesafe ya da paralel hedef yüzle kullanılabilir",
+  "err.extrude.taper_failed": "Konik yüzler oluşturulamadı (açı profil için çok büyük ya da yan yüz konikleşemiyor)",
+  "err.extrude.to_one_dir": "Yüze/nesneye kadar yalnız tek yönde kullanılabilir",
+  "err.extrude.no_to_face": "Hedef yüz seçilmedi",
+  "err.extrude.no_to_body": "Hedef gövde seçilmedi ya da artık yok",
+  "err.extrude.to_face_planar": "Hedef yüz düzlemsel olmalı",
+  "err.extrude.to_face_parallel": "Hedef yüz extrude yönüne paralel: ulaşılamaz",
+  "err.extrude.to_face_miss": "Profil hedef yüzün düzlemine ulaşmıyor",
+  "err.extrude.to_body_behind": "Hedef gövde extrude yönünde değil (Ters çevir'i deneyin)",
+};

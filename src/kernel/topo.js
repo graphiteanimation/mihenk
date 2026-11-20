@@ -254,3 +254,45 @@ export function unify(w) { const O = oc(); const r = scope(); try { const u = r(
 export function faceValid(w) { const O = oc(); const r = scope(); try { return r(new O.BRepCheck_Analyzer(w.wrapped, true, false)).IsValid(); } catch (e) { return false; } finally { r.done(); } }
 export function solidsOf(w) { const s = new SubIndex(w.wrapped, 'solid'); const out = s.list.map((x) => wrap(x)); return out; }
 export const volume = (w) => { try { return R.measureVolume(w); } catch (e) { return NaN; } };
+
+// ---- WP-08 yardımcıları
+// İki şekil arası en kısa uzaklık (BRepExtrema; geçici nesneler silinir)
+export function shapeDist(a, b) {
+  const O = oc(); const r = scope();
+  try { const d = r(new O.BRepExtrema_DistShapeShape(a, b)); return d.IsDone() ? d.Value() : NaN; }
+  catch (e) { return NaN; } finally { r.done(); }
+}
+// Düzlem üzerinde, merkezi c olan 2B×2B kare yüz (birim normal n)
+export function planeSquare(c, n, B) {
+  const a = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+  const x = norm3(cross3(a, n)), y = cross3(n, x);
+  const q = (s, t) => [c[0] + x[0] * s + y[0] * t, c[1] + x[1] * s + y[1] * t, c[2] + x[2] * s + y[2] * t];
+  return makePolygon([q(-B, -B), q(B, -B), q(B, B), q(-B, B)]);
+}
+// Yarım uzay katısı: düzlem (c, n) üzerindeki kareden `toward` yönüne L kadar prizma. Düzlemdeki kapak `capName` adını alır.
+export function halfSpace(c, n, toward, B, L, capName) {
+  const sq = planeSquare(c, n, B);
+  const p = prism(sq, [toward[0] * L, toward[1] * L, toward[2] * L]); if (!p) return null;
+  const fn = Array.from({ length: topoOf(p.shape).faces.size }, () => []);
+  if (p.first >= 0) fn[p.first] = [capName];
+  return { shape: p.shape, fn };
+}
+// Konik (taper) yüzler: BRepOffsetAPI_DraftAngle; adlar Modified geçmişiyle aktarılır. Başarısızsa null.
+export function draft(item, faceIdx, dir, deg, plane) {
+  const O = oc(); const r = scope(); const T = topoOf(item.shape);
+  try {
+    const b = r(new O.BRepOffsetAPI_DraftAngle(item.shape.wrapped));
+    const pln = r(new O.gp_Pln(P(r, plane.o), Dv(r, plane.n)));
+    for (const i of faceIdx) {
+      const F = r(O.TopoDS.Face(T.faces.list[i]));
+      b.Add(F, Dv(r, dir), (deg * Math.PI) / 180, pln, true);
+      if (!b.AddDone()) return null;
+    }
+    b.Build(progress(r)); if (!b.IsDone()) return null;
+    const raw = b.Shape(); if (raw.IsNull()) { raw.delete(); return null; }
+    const shape = wrap(raw);
+    return { shape, fn: propagate(b, [{ shape: item.shape, fn: item.fn }], shape) };
+  } catch (e) { return null; } finally { r.done(); }
+}
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm3 = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };

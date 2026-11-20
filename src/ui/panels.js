@@ -118,7 +118,7 @@ export class FeaturePanel {
     const d = this.draft, app = this.app;
     switch (fd.t) {
       case 'expr': {
-        const inp = h('input', { type: 'text', 'data-k': fd.k, value: d[fd.k] ?? '', autocomplete: 'off', spellcheck: 'false', class: 'expr' });
+        const inp = h('input', { type: 'text', 'data-k': fd.k, value: d[fd.k] ?? fd.def ?? '', autocomplete: 'off', spellcheck: 'false', class: 'expr' });
         const hint = h('div', { class: 'resolved', 'data-testid': 'resolved' }); const msg = h('div', { class: 'fieldmsg', role: 'alert', hidden: true });
         const box = unitBox(inp, fd.unit);
         const upd = () => {
@@ -206,7 +206,7 @@ export class FeaturePanel {
     this.setActive(null); this.render();
     const first = this.fields().find((x) => x.t === 'sel');
     if (k === 'source' && this.draft.source?.kind === 'body') this.setActive('source.bodies', true);
-    else if (first && k === 'kind') this.setActive(first.k, true);
+    else if (first && (k === 'kind' || k === 'extent' || k === 'mode' || k === 'tool')) this.setActive(first.k, true);
     this.updateViewport(); this.changed();
   }
   changed() { this.app.previewSoon(); }
