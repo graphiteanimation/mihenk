@@ -577,7 +577,14 @@ try:
     x, y = P(20.5, -22.37); page.mouse.move(x + 2, y); page.mouse.click(x + 2, y); idle()
     ln = ents('line')[-1]; pb = S()['points'][ln['b']]
     check('hizalama: tıklanan uç nokta tam hizada (x=20.5, y=-22)', pb['x'] == 20.5 and pb['y'] == -22, pb)
+    # WP-08 devir (g): hizalama izinden otomatik dikey (nokta-nokta) kısıt
+    ref = [k for k, p in S()['points'].items() if p['x'] == 20.5 and p['y'] == 10.25]
+    check('WP-08 hizalama izi: otomatik dikey kısıt (uç ↔ referans nokta)', any(c['type'] == 'vertical_pp' and {c['a'], c.get('b')} == {ln['b'], ref[0] if ref else None} for c in S()['cons']), S()['cons'][-3:])
     key('Escape')
+    ev("sk.setAutoKind('hv', false)"); tool('line'); click(-30, -45); x, y = P(20.5, -26.37); page.mouse.move(x + 2, y); page.mouse.click(x + 2, y); idle()
+    ln2 = ents('line')[-1]
+    check('WP-08 hizalama izi: yatay/dikey otomatik kısıt kapalıyken kısıt eklenmez', not any(c['type'] in ('vertical_pp', 'horizontal_pp') and ln2['b'] in (c['a'], c.get('b')) for c in S()['cons']))
+    key('Escape'); ev("sk.setAutoKind('hv', true)")
     ev("sk.setSnapKind('align', false)"); tool('line'); click(-30, -40); hover(20.5, -8.37, 2, 0); c = cur()
     check('hizalama kapalıyken ızgaraya düşer (x=21)', c and c['kind'] == 'grid' and c['x'] == 21 and not dashed(), (c, dashed()))
     key('Escape'); snap_reset()
