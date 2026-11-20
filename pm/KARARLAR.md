@@ -41,6 +41,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-041** (2026-11-21) — "normalde iş 1 saat sürünce 100 birim token tüketiyor ama token tüketimini düşürmek istediğimiz için iş 5 saat sürüyor ama 90 birim token tüketiyorsa bunu değiştirelim." Anlam: öncelik duvar saati; token yalnız israfı önlemek için gözetilir. Uygulama: CALISMA-DUZENI §10 (paralellik 3 → 5, boru hattı, tam test zinciri yerel değil CI'da, tek doğrulama turu, toplu birleşme).
 
+- **K-042** (2026-11-21) — "her yeni oturum açıp… klasöre erişim yetkisi istiyor ve github yetkisi istiyor. bu iş bitinceye kadar gerekli tüm yetkileri… verebilir miyim?" Anlam: izin istemleri en aza indirilir; klasör/bilgisayar yalnız sürüm kapısında, aynı sohbet mümkün olduğunca uzun sürdürülür (CALISMA-DUZENI §4).
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|

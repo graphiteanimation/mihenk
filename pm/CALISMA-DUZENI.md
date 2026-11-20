@@ -31,7 +31,7 @@ Kural: bir bilgi tek yerde durur. Zip kopyası, tarihli devam günlüğü, sohbe
 ## 4. Oturum protokolü
 Başlangıç (kullanıcı mesajı: `Mihenk: devam` ya da `Mihenk: WP-NN`):
 1. `pm/DURUM.md` ve BACKLOG'un ilk "Hazır" WP'sini oku. Başka belge ancak WP gerektirirse okunur.
-2. Depoyu GitHub'dan klonla (`graphiteanimation/mihenk`), `npm ci`. Bilgisayar yalnız kurulum denemesi, ekran testi ve kullanıcı dosyaları için gerekir.
+2. Depoyu GitHub'dan klonla (`graphiteanimation/mihenk`), `npm ci`. Bilgisayar yalnız kurulum denemesi, ekran testi ve kullanıcı dosyaları için gerekir. İzin istemlerini azalt (K-042): oturum başında bilgisayar klasörü istenmez ve bilgisayar araçları çağrılmaz; bunlar yalnız sürüm kapısında (kurulum + ekran denemesi) kullanılır. GitHub için oturumda depo zaten varsa yeniden eklenmez.
 3. Kullanıcıya en çok 3 satır: bu oturumun WP'si, kabul ölçütü, kullanıcıdan gereken (varsa).
 Yürütme:
 4. Karar ve tasarım ana modelde; kod, test, tarama alt ajanlarda (kod: Sonnet; çekirdek/sim/geometri: Opus; kozmetik: Haiku). Her alt ajana yazılı sözleşme verilir.
