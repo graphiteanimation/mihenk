@@ -841,6 +841,18 @@ try:
     page.click('#timeline .chip[data-id="e1"]'); page.wait_for_timeout(100)
     page.click('[data-testid=hist-clear]'); page.wait_for_timeout(100)
     check('WP-02 akış: "Temizle" değişti işaretlerini siler', chipcls('changed') == [])
+    # konuma duyarlı "değişti": delik kaydırma (hacim/kutu/yüz sayısı aynı); değişmeyen yeniden hesapta yanlış pozitif yok
+    hm = {'params': [{'name': 'U', 'expr': '1'}], 'features': [
+        {'id': 'b', 'type': 'primitive', 'name': 'Kutu 1', 'kind': 'box', 'x': '0', 'y': '0', 'z': '0', 'w': '60', 'd': '40', 'h': '20', 'op': 'new'},
+        {'id': 'c', 'type': 'primitive', 'name': 'Silindir 1', 'kind': 'cylinder', 'x': '20', 'y': '20', 'z': '-1', 'dia': '8', 'h': '100', 'axis': 'Z', 'op': 'cut', 'targets': ['b']},
+        {'id': 'f', 'type': 'fillet', 'name': 'Yuvarlat 1', 'edges': [{'body': 'b', 'kind': 'edge', 'name': {'a': 'b:x+', 'b': 'b:z+'}}], 'r': '2'}]}
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', hm); idle()
+    page.locator('#timeline .chip[data-id="c"]').dblclick(); page.wait_for_selector('#panel [data-k="x"]'); fill('x', 35); idle(); ok()
+    check('WP-02 akış: delik x 20→35 → delik ve ona bağlı yuvarlatma "değişti", kutu değil', chipcls('changed') == ['c', 'f'], chipcls('changed'))
+    fps = []
+    for k in (2, 3, 4):
+        ev(f'app.commit((d) => {{ d.params[0].expr = "{k}"; }})'); idle(); fps.append(chipcls('changed'))
+    check('WP-02 akış: hiçbir şeyi değiştirmeyen yeniden hesap ×3 → "değişti" yok', fps == [[], [], []], fps)
     # yuvarlatmanın kenarını yok eden değişiklik → özet bildiriminde hata + Onar
     hd = {'params': [], 'features': [
         {'id': 'b', 'type': 'primitive', 'name': 'Kutu 1', 'kind': 'box', 'x': '0', 'y': '0', 'z': '0', 'w': '40', 'd': '40', 'h': '20', 'op': 'new'},

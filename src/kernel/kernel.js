@@ -643,7 +643,18 @@ function bodySig(b) {
   let s = sigCache.get(b.shape); if (s) return s;
   try {
     const T = TP.topoOf(b.shape); const [lo, hi] = b.shape.boundingBox.bounds; const v = TP.volume(b.shape);
-    s = [T.faces.size, T.edges.size, ...lo.map(r6), ...hi.map(r6), Number.isFinite(v) ? Math.round(v * 1e4) / 1e4 : 'nan'].join(',');
+    // konuma duyarlı bileşenler: ağırlık merkezi + yüzlerin alan ağırlıklı merkez toplamı ve ikinci momenti.
+    // Model boyutuna göre nicemlenir (kayan nokta gürültüsü aynı geometride farklı özet üretmesin).
+    const L = Math.max(1, Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]));
+    const q = (x, sc = L) => (Number.isFinite(x) ? Math.round(x / (1e-7 * sc)) : 'nan');
+    let com = [NaN, NaN, NaN]; try { com = R.measureShapeVolumeProperties(b.shape).centerOfMass; } catch (e) { /* hacimsiz */ }
+    let A = 0; const M = [0, 0, 0]; let M2 = 0;
+    for (const raw of T.faces.list) {
+      const F = TP.faceWrap(raw); let a = 0; try { a = R.measureArea(F); } catch (e) { a = 0; }
+      const c = F.center.toTuple(); A += a; for (let i = 0; i < 3; i++) M[i] += a * c[i]; M2 += a * (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+    }
+    s = [T.faces.size, T.edges.size, ...lo.map(r6), ...hi.map(r6), Number.isFinite(v) ? Math.round(v * 1e4) / 1e4 : 'nan',
+      ...com.map((x) => q(x)), q(A, L * L), ...M.map((x) => q(x, L * L * L)), q(M2, L * L * L * L)].join(',');
   } catch (e) { s = 'x'; }
   sigCache.set(b.shape, s); return s;
 }

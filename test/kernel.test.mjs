@@ -232,6 +232,9 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   dF.params[0].expr = '15'; o = await KF.rebuild(dF);
   ok(o.featInfo.a.changed && !o.featInfo.b.changed && !o.featInfo.x.changed, 'parametre değişti: yalnız a "değişti" (b aynı, x yine aynı hata)');
   ok(!o.featInfo.a.cached && !o.featInfo.b.cached, 'parametre değişince hepsi yeniden hesaplandı');
+  { const hd = (x) => ({ params: [], features: [{ id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '60', d: '40', h: '20', op: 'new' }, { id: 'c', type: 'primitive', kind: 'cylinder', x, y: '20', z: '-1', dia: '8', h: '100', axis: 'Z', op: 'cut', targets: ['b'] }] });
+    const KH = await initKernel(opencascade, () => wasm); await KH.rebuild(hd('20')); const oh = await KH.rebuild(hd('35'));
+    ok(oh.featInfo.c.changed && !oh.featInfo.b.changed, 'delik kaydırma (hacim/kutu aynı) → "değişti" (konuma duyarlı özet)'); }
   dF.features[1].suppressed = true; o = await KF.rebuild(dF);
   ok(o.featInfo.b.changed && o.featInfo.b.sum === 'sup' && o.status.b.suppressed, 'bastırma: sonuç değişti');
 }

@@ -64,6 +64,16 @@ export async function checks(t) {
     t.ok(JSON.stringify(seen.map((p) => p.id)) === JSON.stringify(ids) && seen.every((p, i) => p.i === i && p.n === 12 && p.ok === out.status[p.id].ok && p.sum === out.featInfo[p.id].sum), 'H9: onFeature her işlem için sırayla (12), durum ve özet sonuçla aynı');
     const seen2 = []; await KP.rebuild(part12('30'), { onFeature: (p) => { seen2.push(p); throw new Error('dinleyici hatası'); } });
     t.ok(seen2.length === 12 && seen2.every((p) => p.cached), 'H9: dinleyici hatası hesaplamayı bozmaz; önbellekten gelenler cached'); }
+  // H10: imza konuma duyarlı — delik kaydırma (hacim, kutu, yüz/kenar sayısı aynı) "değişti" sayılır
+  { const holeAt = (x, u) => ({ params: [{ name: 'U', expr: String(u) }], features: [
+      { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '60', d: '40', h: '20', op: 'new' },
+      { id: 'c', type: 'primitive', kind: 'cylinder', x: String(x), y: '20', z: '-1', dia: '8', h: '100', axis: 'Z', op: 'cut', targets: ['b'] },
+      { id: 'f', type: 'fillet', edges: [{ body: 'b', kind: 'edge', name: { a: 'b:x+', b: 'b:z+' } }], r: '2' }] });
+    const KS = newKernel(); await KS.rebuild(holeAt(20, 1)); const r2 = await KS.rebuild(holeAt(35, 1));
+    t.ok(Object.values(r2.status).every((s) => s.ok) && r2.featInfo.c.changed && r2.featInfo.f.changed && !r2.featInfo.b.changed, 'H10: delik x 20→35 → c ve ona bağlı f "değişti", b değil: ' + ['b', 'c', 'f'].map((id) => id + '=' + r2.featInfo[id].changed).join(' '));
+    let fp = 0; for (let k = 2; k <= 4; k++) { const r = await KS.rebuild(holeAt(35, k)); if (Object.values(r.featInfo).some((x) => x.changed || x.cached)) fp++; }
+    t.ok(fp === 0, 'H10: kullanılmayan parametre değişti (hepsi yeniden hesaplandı) ×3 → hiçbiri "değişti" değil (yanlış pozitif yok)');
+    const KF = newKernel(); const fr = await KF.rebuild(holeAt(35, 9)); t.ok(['b', 'c', 'f'].every((id) => fr.featInfo[id].sum === r2.featInfo[id].sum), 'H10: aynı geometri ayrı çekirdekte aynı özet'); }
   // belgeden silinen işlemin izi tutulmaz
   r = await KW.rebuild(base); t.ok(!KW.lastGoodState('f') && !r.featInfo.f, 'H8: silinen işlemin son sonucu bırakıldı');
 }
