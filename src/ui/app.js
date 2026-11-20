@@ -14,7 +14,7 @@ import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../s
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
-import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups } from './features.js';
+import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups, groupRanges, groupOf, moveUnit } from './features.js';
 import { initChrome } from './chrome.js';
 import { initCam } from './cam/index.js';
 import { onPrefsChange, getStr, setStr } from './prefs.js';
@@ -48,7 +48,7 @@ class App {
     this.busy = false; this.stale = false; this.lastAutosave = null; this.welcome = false; this._cancelled = false;
     this.mode = 'design'; this.problems = {}; this._rev = 0; this._recRev = -1; this._resetP = Promise.resolve(); this.recoveryMs = RECOVERY_MS; this._recTimer = 0;
     // WP-02 geçmiş: geçici "değişti" işaretleri (bir sonraki güncellemede yenilenir), açık kaynaşmış eskizler, üstüne gelinen işlem
-    this.marks = { changed: new Set() }; this.histOpen = new Set(); this.hoverFeature = null; this.sums = null; this.sweep = null; this.showFinal = false;
+    this.marks = { changed: new Set() }; this.histOpen = new Set(); this.groupOpen = new Set(); this.selAnchor = null; this.selGroup = null; this.hoverFeature = null; this.sums = null; this.sweep = null; this.showFinal = false;
     this.ready = new Promise((res, rej) => { this._readyRes = res; this._readyRej = rej; });
     this.ready.catch(() => {});
   }
@@ -223,7 +223,7 @@ class App {
     try { upgradeDocProfiles(doc); } catch (e) { console.error('profile upgrade failed', e); }
     if (this.welcome) this.showWelcome(false);
     this.doc = this.normalize(doc); this.undoStack = []; this.redoStack = []; this.fileName = name; this.filePath = path; this.selection = []; this.selFeature = null;
-    this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.marks.changed.clear(); this.histOpen.clear(); this.sums = null; this.needFit = true; this.markDirty(false); this.cam.onDocLoaded(); this.C.renderAll();
+    this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.marks.changed.clear(); this.histOpen.clear(); this.groupOpen.clear(); this.selAnchor = null; this.selGroup = null; this.sums = null; this.needFit = true; this.markDirty(false); this.cam.onDocLoaded(); this.C.renderAll();
     await this.requestRebuild();
   }
 
@@ -429,7 +429,12 @@ class App {
     this.selFeature = d.id; this.idleView(); this.C.renderAll();
   }
   endEdit() { this.idleView(); this.C.renderAll(); return this.requestRebuild(); }
-  selectFeature(id) { this.selFeature = id; this.C.renderTimeline(); this.C.renderBrowser(); }
+  selectFeature(id) {
+    this.selFeature = id; this.selAnchor = null; this.selGroup = null;
+    // kapalı gruptaki işlem seçilince grup açılır (hata gezintisi, Onar)
+    const g = id && groupOf(this.doc, id); if (g && !this.groupOpen.has(g.id)) this.groupOpen.add(g.id);
+    this.C.renderTimeline(); this.C.renderBrowser();
+  }
   // "Değişti": son kesinleşmiş sonuca göre özeti (featInfo.sum) değişen işlemler. Ön izleme bu karşılaştırmayı bozmaz.
   updateMarks(res) {
     const info = res?.featInfo || {}; const prev = this.sums;
@@ -462,11 +467,19 @@ class App {
 
   // ------------------------------------------------------------ WP-02 dilim 4: sıra değiştirme
   // Bağımlılığı bozacak taşıma yapılmaz; neden bildirilir. Taşıma sonrası değişen ilk konumdan süpürme + özet.
+  // geçmiş bildirimi: görünüm alanının sol altında (Geçmiş listesini örtmez); ekran okuyucuya da bildirilir
+  histNote(msg, kind = 'err') {
+    const el = toast(msg, { kind, ms: 5000 }); el.setAttribute('data-testid', 'hist-note');
+    let host = document.getElementById('hist-note-host');
+    if (!host) { host = h('div', { id: 'hist-note-host', class: 'toasts', 'aria-live': 'polite' }); document.getElementById('viewwrap').append(host); }
+    host.replaceChildren(el); const root = document.getElementById('toast'); if (root && !root.children.length) root.classList.add('hidden');
+    this.C.announce(msg); return el;
+  }
   moveWhy(why) { const nm = (id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }; return t('hs.move_blocked', { a: nm(why.feat), b: nm(why.dep) }); }
   async moveFeature(i, to) {
     if (this.guard()) return false; const f = this.doc.features[i]; if (!f) return false;
     const p = planMove(this.doc, i, to, this.result?.status || {});
-    if (!p.ok) { const why = this.moveWhy(p.why); toast(why, true); this.C.announce(why); return false; }
+    if (!p.ok) { this.histNote(this.moveWhy(p.why)); return false; }
     if (p.noop) return true;
     this._sweepNext = { at: p.at };
     const done = this.commit((d) => { d.features = p.features; d.rollback = p.rollback; if (p.groups !== undefined) d.groups = p.groups; });
@@ -474,6 +487,30 @@ class App {
     const k = this.doc.features.findIndex((x) => x.id === f.id);
     this.C.announce(t('hs.moved', { name: f.name || featLabel(f), n: k + 1, total: this.doc.features.length }));
     await done; return true;
+  }
+
+  // ------------------------------------------------------------ WP-02 dilim 4: gruplar (belgede isteğe bağlı `groups`)
+  toggleGroup(gid) { if (this.groupOpen.has(gid)) this.groupOpen.delete(gid); else this.groupOpen.add(gid); this.C.renderTimeline(); this.C.renderBrowser(); }
+  async createGroup(ids) {
+    if (this.guard()) return null; const F = this.doc.features; const pos = ids.map((id) => F.findIndex((f) => f.id === id)).filter((i) => i >= 0); if (!pos.length) return null;
+    const a = Math.min(...pos.flatMap((i) => moveUnit(this.doc, i))), b = Math.max(...pos);
+    if (groupRanges(this.doc).some((r) => !(b < r.a || a > r.b))) { this.histNote(t('hs.group_overlap')); return null; }
+    const used = new Set((this.doc.groups || []).map((g) => g.id)); let n = 1; while (used.has('g' + n)) n++;
+    const nm = await promptText(t('hs.group_prompt'), t('hs.group_new_name', { n })); if (!nm) return null;
+    const g = { id: 'g' + n, name: nm, first: F[a].id, last: F[b].id };
+    this.commitMeta((d) => { d.groups = [...(Array.isArray(d.groups) ? d.groups : []), g]; });
+    this.selAnchor = null; this.selFeature = null; this.selGroup = g.id; this.C.renderAll(); this.C.announce(t('hs.grouped', { name: nm, n: b - a + 1 }));
+    return g.id;
+  }
+  async renameGroup(gid) {
+    const g = (this.doc.groups || []).find((x) => x.id === gid); if (!g || this.guard()) return;
+    const nm = await promptText(t('hs.group_prompt'), g.name || gid); if (!nm) return;
+    this.commitMeta((d) => { const x = d.groups.find((y) => y.id === gid); if (x) x.name = nm; });
+  }
+  async ungroup(gid) {
+    if (this.guard() || !(this.doc.groups || []).some((x) => x.id === gid)) return;
+    this.commitMeta((d) => { d.groups = d.groups.filter((y) => y.id !== gid); if (!d.groups.length) delete d.groups; });
+    this.groupOpen.delete(gid); if (this.selGroup === gid) this.selGroup = null; this.C.renderAll();
   }
 
   // ------------------------------------------------------------ sketch

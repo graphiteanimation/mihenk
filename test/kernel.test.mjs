@@ -259,6 +259,12 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   p = FS.planMove(dr, ids.indexOf('k3'), 3, r0.status); ok(p.ok && p.rollback === 6 && p.features[3].id === 'k3', 'planMove: işaretçinin sağından soluna taşınan işlem etkinleşir, işaretçi aynı komşular arasında');
   p = FS.planMove(dr, ids.indexOf('k1'), 9, r0.status); ok(p.ok && p.rollback === 4, 'planMove: işaretçinin soluna giden işlem sağa taşınınca işaretçi bir geri');
   p = FS.planMove(dr, ids.indexOf('k3'), 5, r0.status); ok(p.ok && p.rollback === 6 && p.features[5].id === 'k3', 'planMove: işaretçi aralığına bırakma = işaretçinin önü');
+  const dg = { ...d, groups: [{ id: 'g1', name: 'G', first: 'k1', last: 'k3' }, { id: 'g2', name: 'X', first: 'k2', last: 'cz' }, { id: 'g3', first: 'yok', last: 'cz' }, null] };
+  ok(FS.groupRanges(dg).length === 1 && FS.groupRanges(dg)[0].ids.length === 6, 'groupRanges: çakışan / eksik / bozuk grup kayıtları yok sayılır');
+  p = FS.planMove(dg, ids.indexOf('ch'), ids.indexOf('fb'), r0.status); ok(p.ok && p.groups[0].last === 'k3' && p.features.findIndex((f) => f.id === 'ch') < p.features.findIndex((f) => f.id === 'k3'), 'grup aralığına bırakılan işlem gruba girer');
+  p = FS.planMove(dg, ids.indexOf('k3'), ids.indexOf('ch'), r0.status); ok(p.ok && !p.noop && p.groups[0].last === 'fb' && p.features.map((f) => f.id).join() === ids.join(), 'son üyeyi grubun hemen arkasına bırakmak: sıra aynı, üyelikten çıkar');
+  ok(FS.fixGroups(dg, d.features.filter((f) => f.id !== 'k1'))[0].first === 'k2', 'fixGroups: ilk üye silinince grup bir sonrakinden başlar');
+  ok(FS.fixGroups(d, d.features) === undefined, 'fixGroups: grupsuz belgede alan oluşmaz');
   const T = FS.dropTargets(d, ids.indexOf('k3'), r0.status); ok(T.length === 13 && !T[0].ok && !T[1].ok && T[2].ok && T[8].noop && T[9].noop, 'dropTargets: her aralık için izin/neden');
 }
 

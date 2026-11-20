@@ -256,7 +256,9 @@ export function planMove(doc, i, to, status = {}, refs = null) {
   rest.splice(pos, 0, ...unit.map((k) => feats[k]));
   let nrb = rest.indexOf(MARK); if (nrb >= 0) rest.splice(nrb, 1); if (nrb < 0 || nrb >= rest.length) nrb = null;
   const at = rest.findIndex((x, k) => x !== feats[k]);
-  if (at < 0 && nrb === (rb ?? null)) return { ok: true, noop: true };
+  const groups = fixGroups(doc, rest, uset);
+  // sıra aynı kalsa da grup sınırında bırakma üyeliği değiştirebilir (son üyeyi grubun hemen arkasına bırakmak)
+  if (at < 0 && nrb === (rb ?? null) && JSON.stringify(groups) === JSON.stringify(Array.isArray(doc.groups) ? doc.groups : undefined)) return { ok: true, noop: true };
   const R = refs || refsMap(doc, status); const P = new Map(rest.map((x, k) => [x.id, k]));
   let why = null;
   for (const g of rest) {
@@ -264,7 +266,7 @@ export function planMove(doc, i, to, status = {}, refs = null) {
     if (why && (uset.has(why.feat) || uset.has(why.dep))) break;
   }
   if (why) return { ok: false, why };
-  return { ok: true, noop: false, features: rest, rollback: nrb, groups: fixGroups(doc, rest, uset), at: at < 0 ? Math.min(...unit) : at };
+  return { ok: true, noop: false, features: rest, rollback: nrb, groups, at: at < 0 ? Math.min(...unit) : at };
 }
 // sürükleme sırasında her aralığın durumu (bırakılabilir mi, değilse neden)
 export function dropTargets(doc, i, status = {}) {

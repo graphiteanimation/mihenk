@@ -4,7 +4,7 @@
 // Test ve erişilebilirlik sözleşmesi: her komut düğmesi `data-cmd`, önemli parçalar `data-testid` taşır; metne bağlı seçici gerekmez.
 import { h, $, ctxMenu, fmt, tip, hideTip, modal, modalOpen as modalUp } from './dom.js';
 import { icon, featureIcon } from './icons.js';
-import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn, moveUnit, dropTargets } from './features.js';
+import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn, moveUnit, dropTargets, groupRanges } from './features.js';
 import { t, tk, errText, getLang, LANGS, tLang } from '../shared/i18n.js';
 import { getStr, setStr, prefs, setPref } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
@@ -345,11 +345,12 @@ export function initChrome(app) {
   const activate = (el, fn) => { el.tabIndex = 0; el.setAttribute('role', 'button'); el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(e); } }); };
   const eye = (on, fn, title) => h('button', { class: 'tw vis' + (on ? '' : ' off'), 'data-testid': 'vis-toggle', 'aria-pressed': on ? 'true' : 'false', 'aria-label': t(title), onclick: (e) => { e.stopPropagation(); fn(); }, html: icon(on ? 'eye' : 'eye-off', 'sm') });
   const featureMenu = (e, f, i) => {
-    e.preventDefault(); app.selectFeature(f.id);
+    e.preventDefault(); if (!C.inSel(f.id)) app.selectFeature(f.id);
     ctxMenu(e.clientX || 80, e.clientY || 80, [
-      { id: 'ctx-edit', label: t('ctx.edit'), icon: 'sketch', run: () => app.editFeature(i) }, { id: 'ctx-rename', label: t('ctx.rename'), icon: 'rename', kbd: 'F2', run: () => app.renameFeature(i) },
-      { id: 'ctx-suppress', label: f.suppressed ? t('ctx.unsuppress') : t('ctx.suppress'), icon: 'suppress', run: () => app.toggleSuppress(i) }, { id: 'ctx-rollback', label: t('ctx.rollback'), icon: 'rollback', run: () => app.rollbackTo(i + 1) },
+      { id: 'ctx-edit', label: t('ctx.edit'), icon: 'sketch', kbd: 'Enter', run: () => app.editFeature(i) }, { id: 'ctx-rename', label: t('ctx.rename'), icon: 'rename', kbd: 'F2', run: () => app.renameFeature(i) },
+      { id: 'ctx-suppress', label: f.suppressed ? t('ctx.unsuppress') : t('ctx.suppress'), icon: 'suppress', kbd: 'Ctrl+B', run: () => app.toggleSuppress(i) }, { id: 'ctx-rollback', label: t('ctx.rollback'), icon: 'rollback', run: () => app.rollbackTo(i + 1) },
       { id: 'ctx-move-up', label: t('ctx.move_up'), icon: 'chevron-up', kbd: 'Alt+Shift+↑', run: () => C.moveBy(i, -1) }, { id: 'ctx-move-down', label: t('ctx.move_down'), icon: 'chevron-down', kbd: 'Alt+Shift+↓', run: () => C.moveBy(i, 1) },
+      { id: 'ctx-group', label: t('ctx.group'), icon: 'folder', kbd: 'Ctrl+G', run: () => C.groupSel() },
       { sep: 1 }, { id: 'ctx-delete', label: t('ctx.delete'), icon: 'trash', danger: true, kbd: 'Del', run: () => app.deleteFeature(i) }]);
   };
   C.featureMenu = featureMenu;
@@ -386,12 +387,13 @@ export function initChrome(app) {
   const MARK_ICON = { error: 'error', warn: 'warning', changed: 'changed', sup: 'suppress', pending: 'clock', computing: 'refresh' };
   C.hist = () => {
     const doc = app.doc, res = app.result; const key = app._histKey;
-    const k2 = [doc, res, doc.rollback, doc.features.length];
+    const k2 = [doc, res, doc.rollback, doc.features.length, doc.features, doc.groups];
     if (key && key.every((x, i) => x === k2[i]) && app._hist) return app._hist;
     const fused = fusedSketches(doc); const fusedBy = new Map([...fused].map(([sk, f]) => [f, sk]));
     const graph = historyGraph(doc, res?.status || {});
     const maxMs = Math.max(1, ...Object.values(res?.featInfo || {}).map((x) => x.ms || 0));
-    app._histKey = k2; app._hist = { fused, fusedBy, graph, maxMs }; return app._hist;
+    const groups = groupRanges(doc); const groupBy = new Map(); for (const r of groups) for (const id of r.ids) groupBy.set(id, r);
+    app._histKey = k2; app._hist = { fused, fusedBy, graph, maxMs, groups, groupBy }; return app._hist;
   };
   // Bir işlemin görünen durumu. Kaynak: süpürme sırasında çekirdeğin ilerleme bildirimi; düzenlemede "Son hali" açıksa
   // sağdaki işlemler için son model; yoksa son sonuç. "Değişti" düzenleme/süpürme sırasında düzenleme öncesi özetle karşılaştırılır.
@@ -435,18 +437,24 @@ export function initChrome(app) {
   const historyRows = () => {
     const doc = app.doc; const H = C.hist(); const rows = [];
     doc.features.forEach((f, i) => {
+      const G = H.groupBy.get(f.id);
+      if (G && G.a === i) rows.push(groupRow(G));
+      if (G && !app.groupOpen.has(G.id)) return;
       if (H.fused.has(f.id)) return;
       const S = C.featState(f, i); const skId = H.fusedBy.get(f.id); const sk = skId ? doc.features.find((x) => x.id === skId) : null;
       const open = sk && app.histOpen.has(f.id);
       const row = h('div', { class: 'trow hrow' + S.cls, role: 'listitem', 'data-hist': f.id, 'data-i': i, 'data-testid': 'hist-row', 'aria-current': app.selFeature === f.id ? 'true' : null, title: titleOf(f, S), ...(f.type === 'sketch' ? { 'data-sketch': f.id } : {}),
         onclick: () => app.selectFeature(f.id), ondblclick: () => app.editFeature(i), oncontextmenu: (e) => featureMenu(e, f, i), onmouseenter: () => C.hoverFeature(f.id), onmouseleave: () => C.hoverFeature(null) },
-        sk ? h('button', { class: 'tw disc', type: 'button', 'data-testid': 'hist-disc', 'aria-expanded': open ? 'true' : 'false', 'aria-label': t(open ? 'hs.collapse' : 'hs.expand', { name: sk.name || sk.id }), onclick: (e) => { e.stopPropagation(); app.toggleHistOpen(f.id); }, html: icon(open ? 'chevron-down' : 'chevron-right', 'sm') }) : null,
+        sk ? h('button', { class: 'tw disc', type: 'button', tabindex: '-1', 'data-testid': 'hist-disc', 'aria-expanded': open ? 'true' : 'false', 'aria-label': t(open ? 'hs.collapse' : 'hs.expand', { name: sk.name || sk.id }), onclick: (e) => { e.stopPropagation(); app.toggleHistOpen(f.id); }, html: icon(open ? 'chevron-down' : 'chevron-right', 'sm') }) : null,
         h('span', { class: 'hic', html: S.bad ? icon('error', 'sm') : featureIcon(f) }),
-        sk ? h('button', { class: 'tw sk-badge', type: 'button', 'data-sketch': sk.id, 'data-testid': 'hist-sketch-badge', 'aria-label': t('hs.sketch_badge', { name: sk.name || sk.id }), title: t('hs.sketch_badge', { name: sk.name || sk.id }), onclick: (e) => { e.stopPropagation(); app.selectFeature(sk.id); }, ondblclick: (e) => { e.stopPropagation(); app.editFeature(doc.features.indexOf(sk)); }, html: icon('sketch', 'sm') }) : null,
+        sk ? h('button', { class: 'tw sk-badge', type: 'button', tabindex: '-1', 'data-sketch': sk.id, 'data-testid': 'hist-sketch-badge', 'aria-label': t('hs.sketch_badge', { name: sk.name || sk.id }), title: t('hs.sketch_badge', { name: sk.name || sk.id }), onclick: (e) => { e.stopPropagation(); app.selectFeature(sk.id); }, ondblclick: (e) => { e.stopPropagation(); app.editFeature(doc.features.indexOf(sk)); }, html: icon('sketch', 'sm') }) : null,
         h('span', { class: 'nm' }, h('span', { class: 'hn', text: f.name || featLabel(f) }), S.summary ? h('span', { class: 'hs', text: S.summary }) : null),
         ...(S.editing ? [h('span', { class: 'tag', text: t('tl.editing') })] : []),
         ...S.marks.filter((m) => m.k !== 'pending').map(markEl), msBar(S.ms));
-      activate(row, () => app.selectFeature(f.id)); bindDrag(row, i, false);
+      if (G) cssVar(row, '--depth', '1');
+      if (C.inSel(f.id)) { row.classList.add('insel'); row.setAttribute('aria-selected', 'true'); }
+      row.addEventListener('click', (e) => { if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); C.extendSel(row); C.focusItem(false, 'hist=' + f.id); } }, true);
+      histItem(row); bindDrag(row, i, false);
       rows.push(row);
       if (S.bad) rows.push(h('div', { class: 'hwhy', role: 'note', 'data-testid': 'hist-why', 'data-for': f.id, text: errText(S.st.error) }));
       if (open) {
@@ -454,11 +462,85 @@ export function initChrome(app) {
         const child = h('div', { class: 'trow hrow child' + SS.cls, role: 'listitem', 'data-hist': sk.id, 'data-i': j, 'data-sketch': sk.id, 'data-testid': 'hist-row', title: titleOf(sk, SS),
           onclick: () => app.selectFeature(sk.id), ondblclick: () => app.editFeature(j), oncontextmenu: (e) => featureMenu(e, sk, j), onmouseenter: () => C.hoverFeature(sk.id), onmouseleave: () => C.hoverFeature(null) },
           eye(!app.hiddenSketches.has(sk.id), () => app.toggleSketch(sk.id), tk('br.eye')), h('span', { class: 'nm' }, h('span', { class: 'hn', text: sk.name || sk.id }), SS.summary ? h('span', { class: 'hs', text: SS.summary }) : null), ...SS.marks.filter((m) => m.k !== 'pending').map(markEl));
-        cssVar(child, '--depth', '1'); activate(child, () => app.selectFeature(sk.id)); rows.push(child);
+        cssVar(child, '--depth', G ? '2' : '1'); histItem(child); bindDrag(child, j, false, false); rows.push(child);
       }
     });
     if (!rows.length) rows.push(h('div', { class: 'trow empty', text: t('hs.empty') }));
+    roving(rows.filter((r) => r.dataset.hist || r.dataset.group), (r) => r.dataset.hist || r.dataset.group);
     return rows;
+  };
+  // ---------------------------------------------------------------- WP-02 dilim 4: gruplar
+  // Grup satırı: [aç/kapa] [klasör] ad · "n işlem" + üyelerin toplanmış durum işaretleri. Kapalı grup şeritte tek çiptir.
+  C.groupHas = (gid, id) => !!C.hist().groups.find((r) => r.id === gid)?.ids.includes(id);
+  C.groupState = (r) => {
+    const doc = app.doc; const S = r.ids.map((id) => { const i = doc.features.findIndex((f) => f.id === id); return C.featState(doc.features[i], i); });
+    const cnt = (k) => S.filter((x) => x.marks.some((m) => m.k === k)).length; const marks = [];
+    if (cnt('computing')) marks.push({ k: 'computing', text: t('hs.st_computing') });
+    if (cnt('sup') === S.length) marks.push({ k: 'sup', text: t('hs.st_suppressed') });
+    if (cnt('pending') === S.length) marks.push({ k: 'pending', text: t('hs.st_pending') });
+    const e = cnt('error'), w = cnt('warn'), c = cnt('changed');
+    if (e) marks.push({ k: 'error', text: tn('hs.g_err', e) }); if (w) marks.push({ k: 'warn', text: tn('hs.g_warn', w) }); if (c) marks.push({ k: 'changed', text: tn('hs.g_changed', c) });
+    const cls = (app.selGroup === r.id ? ' sel' : '') + (e ? ' err' : '') + (cnt('sup') === S.length ? ' sup' : '') + (cnt('pending') === S.length ? ' rolled' : '') + (!e && w ? ' warn' : '') + (!e && c ? ' changed' : '');
+    return { marks, cls, bad: !!e, count: tn('hs.g_count', r.ids.filter((x) => !C.hist().fused.has(x)).length) };
+  };
+  const groupMenu = (e, r) => {
+    e.preventDefault(); C.selectGroup(r.id);
+    ctxMenu(e.clientX || 80, e.clientY || 80, [
+      { id: 'ctx-group-toggle', label: app.groupOpen.has(r.id) ? t('ctx.group_close') : t('ctx.group_open'), icon: app.groupOpen.has(r.id) ? 'chevron-up' : 'chevron-down', kbd: 'Enter', run: () => app.toggleGroup(r.id) },
+      { id: 'ctx-group-rename', label: t('ctx.rename'), icon: 'rename', kbd: 'F2', run: () => app.renameGroup(r.id) },
+      { sep: 1 }, { id: 'ctx-ungroup', label: t('ctx.ungroup'), icon: 'close', kbd: 'Ctrl+Shift+G', run: () => app.ungroup(r.id) }]);
+  };
+  const groupEl = (r, horiz) => {
+    const S = C.groupState(r); const open = app.groupOpen.has(r.id);
+    const label = [r.name || r.id, S.count, ...S.marks.map((m) => m.text)].filter(Boolean).join(' — ');
+    const el = horiz
+      ? h('button', { class: 'chip gchip' + (open ? ' open' : '') + S.cls, type: 'button', 'data-group': r.id, 'data-testid': 'hist-group-chip', 'aria-expanded': open ? 'true' : 'false', title: label },
+        h('span', { class: 'cic', html: icon('folder', 'sm') }), h('span', { class: 'gnm', text: r.name || r.id }), h('span', { class: 'sr-only', text: S.count }),
+        ...S.marks.filter((m) => m.k !== 'pending').map(markEl))
+      : h('div', { class: 'trow hrow hgroup' + S.cls, 'data-group': r.id, 'data-testid': 'hist-group', 'aria-expanded': open ? 'true' : 'false', title: label },
+        h('button', { class: 'tw disc', type: 'button', tabindex: '-1', 'aria-label': t(open ? 'hs.g_collapse' : 'hs.g_expand', { name: r.name || r.id }), onclick: (e) => { e.stopPropagation(); app.toggleGroup(r.id); }, html: icon(open ? 'chevron-down' : 'chevron-right', 'sm') }),
+        h('span', { class: 'hic', html: icon('folder', 'sm') }), h('span', { class: 'nm' }, h('span', { class: 'hn', text: r.name || r.id }), h('span', { class: 'hs', text: S.count })),
+        ...S.marks.filter((m) => m.k !== 'pending').map(markEl));
+    if (!horiz) { el.tabIndex = -1; el.setAttribute('role', 'button'); }
+    el.addEventListener('click', (e) => { if (horiz) app.toggleGroup(r.id); C.selectGroup(r.id); C.focusItem(horiz, 'group=' + r.id); });
+    if (!horiz) el.addEventListener('dblclick', () => app.renameGroup(r.id));
+    el.addEventListener('contextmenu', (e) => groupMenu(e, r));
+    el.addEventListener('keydown', (e) => C.groupKey(e, r, horiz));
+    return el;
+  };
+  const groupRow = (r) => groupEl(r, false);
+  C.selectGroup = (gid) => { app.selFeature = null; app.selAnchor = null; app.selGroup = gid; C.renderTimeline(); C.renderBrowser(); };
+  // aralık seçimi (Shift+tık, Shift+↑/↓): bağlantı noktası ile seçili işlem arasındaki satırlar
+  C.selIds = () => {
+    const a = app.selAnchor, b = app.selFeature; if (!a || !b) return b ? [b] : [];
+    const F = app.doc.features; const i = F.findIndex((f) => f.id === a), j = F.findIndex((f) => f.id === b); if (i < 0 || j < 0) return [b];
+    const lo = Math.min(unitA(i), unitA(j)), hi = Math.max(i, j); return F.slice(lo, hi + 1).map((f) => f.id);
+  };
+  C.inSel = (id) => !!app.selAnchor && C.selIds().includes(id);
+  C.extendSel = (el) => {
+    const id = el.dataset.hist || el.dataset.id; if (!id) return;
+    const H = C.hist(); const cid = H.fused.get(id) || id;
+    if (!app.selAnchor) app.selAnchor = app.selFeature || cid;
+    app.selGroup = null; app.selFeature = cid; C.renderTimeline(); C.renderBrowser();
+  };
+  C.groupSel = () => {
+    const ids = C.selIds(); if (!ids.length) return;
+    return app.createGroup(ids);
+  };
+  C.groupKey = async (e, r, horiz) => {
+    if (app.edit || app.sketchSession || modalUp() || app.mode !== 'design') return;
+    const k = e.key; const stop = () => { e.preventDefault(); e.stopPropagation(); };
+    const prevK = horiz ? 'ArrowLeft' : 'ArrowUp', nextK = horiz ? 'ArrowRight' : 'ArrowDown';
+    if (!e.ctrlKey && !e.altKey && [prevK, nextK, 'Home', 'End'].includes(k)) {
+      stop(); const L = navList(horiz); const at = L.indexOf(e.currentTarget);
+      const tgt = L[Math.max(0, Math.min(L.length - 1, k === 'Home' ? 0 : k === 'End' ? L.length - 1 : at + (k === prevK ? -1 : 1)))]; if (!tgt || tgt === e.currentTarget) return;
+      const key = keyOfEl(tgt); if (tgt.dataset.group) C.selectGroup(tgt.dataset.group); else app.selectFeature(tgt.dataset.hist || tgt.dataset.id); C.focusItem(horiz, key); return;
+    }
+    if (!horiz && (k === 'ArrowLeft' || k === 'ArrowRight')) { stop(); const open = app.groupOpen.has(r.id); if ((k === 'ArrowRight') !== open) app.toggleGroup(r.id); else if (open && k === 'ArrowRight') { const first = r.ids.find((x) => !C.hist().fused.has(x)); app.selectFeature(first); C.focusItem(false, 'hist=' + first); return; } C.focusItem(horiz, 'group=' + r.id); return; }
+    if (k === 'Enter' || k === ' ') { stop(); app.toggleGroup(r.id); C.focusItem(horiz, 'group=' + r.id); return; }
+    if (k === 'F2') { stop(); await app.renameGroup(r.id); C.focusItem(horiz, 'group=' + r.id); return; }
+    if (e.ctrlKey && e.shiftKey && k.toLowerCase() === 'g') { stop(); await app.ungroup(r.id); C.focusItem(horiz, 'hist=' + r.ids.find((x) => !C.hist().fused.has(x))); return; }
+    if (k === 'ContextMenu' || (e.shiftKey && k === 'F10')) { stop(); const b = e.currentTarget.getBoundingClientRect(); groupMenu({ preventDefault() {}, clientX: b.left + 16, clientY: b.bottom }, r); }
   };
   // bağımlılık vurgusu: seçili ya da üstüne gelinen işlemin ataları (dep-up) ve torunları (dep-down); ilgisizler soluk
   C.hoverFeature = (id) => { app.hoverFeature = id; C.markDeps(); };
@@ -520,7 +602,9 @@ export function initChrome(app) {
     app.refreshHint();
   };
   C.endDrag = endDrag;
-  const bindDrag = (el, i, horiz) => {
+  const bindDrag = (el, i, horiz, drag = true) => {
+    el.addEventListener('keydown', (e) => C.histKey(e, i, horiz));
+    if (!drag) return;
     el.draggable = true;
     el.addEventListener('dragstart', (e) => {
       if (app.edit || app.sketchSession || app.mode !== 'design' || app.welcome) { e.preventDefault(); return; }
@@ -542,13 +626,60 @@ export function initChrome(app) {
       if (P && P.ok && !P.noop) app.moveFeature(D.i, g.gap);
     });
     el.addEventListener('dragend', endDrag);
-    el.addEventListener('keydown', (e) => C.histKey(e, i, horiz));
   };
-  // geçmiş satırı / çipi üzerinde klavye
-  C.histKey = (e, i, horiz) => {
-    if (app.edit || app.sketchSession || modalUp()) return;
-    const k = e.key;
-    if (e.altKey && e.shiftKey && ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(k)) { e.preventDefault(); e.stopPropagation(); C.moveBy(i, k === 'ArrowUp' || k === 'ArrowLeft' ? -1 : 1); }
+  // ---------------------------------------------------------------- WP-02 dilim 4: klavye
+  // Geçmiş listesi ve şerit tek sekme durağıdır (gezici tabindex); ok tuşları gezinir, seçim odağı izler.
+  // Enter düzenle · Boşluk seç · Del sil · F2 adlandır · Ctrl+B bastır · ←/→ (panel) aç/kapa · Shift+F10 bağlam menüsü · Alt+Shift+Ok taşı.
+  const histItem = (el) => { el.tabIndex = -1; el.setAttribute('role', 'button'); };
+  const roving = (list, keyOf) => {
+    const sel = app.selFeature; const cur = list.find((x) => keyOf(x) === sel) || list.find((x) => x.dataset.group && C.groupHas?.(x.dataset.group, sel)) || list[0];
+    for (const x of list) x.tabIndex = x === cur ? 0 : -1;
+  };
+  const navList = (horiz) => [...document.querySelectorAll(horiz ? '#timeline .chip[data-id], #timeline [data-group]' : '#browser .hist [data-hist], #browser .hist [data-group]')];
+  const keyOfEl = (el) => (el.dataset.group ? 'group=' + el.dataset.group : el.dataset.hist ? 'hist=' + el.dataset.hist : 'id=' + el.dataset.id);
+  C.focusItem = (horiz, key) => {
+    if (!key) return; const [n, v] = key.split('='); const root = horiz ? '#timeline' : '#browser';
+    const el = document.querySelector(root + ' ' + (n === 'id' ? '.chip[data-id' : '[data-' + n) + '="' + CSS.escape(v) + '"]');
+    if (el) { el.focus({ preventScroll: false }); el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); }
+  };
+  C.histKey = async (e, i, horiz) => {
+    if (app.edit || app.sketchSession || modalUp() || app.mode !== 'design' || e.defaultPrevented) return;
+    const k = e.key; const el = e.currentTarget; const f = app.doc.features[i]; if (!f) return;
+    const stop = () => { e.preventDefault(); e.stopPropagation(); };
+    if (e.altKey && e.shiftKey && ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(k)) { stop(); await C.moveBy(i, k === 'ArrowUp' || k === 'ArrowLeft' ? -1 : 1); C.focusItem(horiz, keyOfEl(el)); return; }
+    if (e.altKey || e.metaKey) return;
+    const prevK = horiz ? 'ArrowLeft' : 'ArrowUp', nextK = horiz ? 'ArrowRight' : 'ArrowDown';
+    if (!e.ctrlKey && [prevK, nextK, 'Home', 'End'].includes(k)) {
+      stop(); const L = navList(horiz); const at = L.indexOf(el);
+      const to = Math.max(0, Math.min(L.length - 1, k === 'Home' ? 0 : k === 'End' ? L.length - 1 : at + (k === prevK ? -1 : 1)));
+      const tgt = L[to]; if (!tgt || tgt === el) return;
+      const key = keyOfEl(tgt);
+      if (e.shiftKey && C.extendSel) C.extendSel(tgt); else if (tgt.dataset.group) C.selectGroup?.(tgt.dataset.group); else app.selectFeature(tgt.dataset.hist || tgt.dataset.id);
+      C.focusItem(horiz, key); return;
+    }
+    const H = C.hist();
+    if (!horiz && !e.ctrlKey && (k === 'ArrowLeft' || k === 'ArrowRight')) {
+      stop();
+      if (el.classList.contains('child')) { if (k === 'ArrowLeft') { const c = H.fused.get(f.id); app.selectFeature(c); C.focusItem(false, 'hist=' + c); } return; }
+      if (H.fusedBy.has(f.id)) {
+        const open = app.histOpen.has(f.id);
+        if (k === 'ArrowRight' && !open) { app.toggleHistOpen(f.id); C.focusItem(false, 'hist=' + f.id); }
+        else if (k === 'ArrowLeft' && open) { app.toggleHistOpen(f.id); C.focusItem(false, 'hist=' + f.id); }
+        else if (k === 'ArrowRight' && open) { const sk = H.fusedBy.get(f.id); app.selectFeature(sk); C.focusItem(false, 'hist=' + sk); }
+      }
+      return;
+    }
+    if (k === 'Enter' && !e.ctrlKey && !e.shiftKey) { stop(); app.editFeature(i); return; }
+    if (k === ' ' && !e.ctrlKey) { stop(); app.selectFeature(f.id); C.focusItem(horiz, keyOfEl(el)); return; }
+    if (k === 'Delete' && !e.ctrlKey) {
+      stop(); const L = navList(horiz); const at = L.indexOf(el); const nb = L[at + 1] || L[at - 1]; const nk = nb ? keyOfEl(nb) : null;
+      const n0 = app.doc.features.length; await app.deleteFeature(i);
+      C.focusItem(horiz, app.doc.features.length < n0 ? nk : keyOfEl(el)); return;
+    }
+    if (k === 'F2') { stop(); await app.renameFeature(i); C.focusItem(horiz, keyOfEl(el)); return; }
+    if (e.ctrlKey && !e.shiftKey && k.toLowerCase() === 'g') { stop(); await C.groupSel(); C.focusItem(horiz, keyOfEl(el)); return; }
+    if (e.ctrlKey && !e.shiftKey && k.toLowerCase() === 'b') { stop(); await app.toggleSuppress(i); C.focusItem(horiz, keyOfEl(el)); return; }
+    if (k === 'ContextMenu' || (e.shiftKey && k === 'F10')) { stop(); const r = el.getBoundingClientRect(); featureMenu({ preventDefault() {}, clientX: r.left + 16, clientY: r.bottom }, f, i); }
   };
   // klavye: Alt+Shift+↑/← bir satır yukarı, Alt+Shift+↓/→ bir satır aşağı (kaynaşmış eskiz tüketicisiyle birlikte)
   C.rowUnits = () => { const F = C.hist().fused; return app.doc.features.map((f, i) => i).filter((i) => !F.has(app.doc.features[i].id)); };
@@ -571,6 +702,9 @@ export function initChrome(app) {
     let first = true;
     doc.features.forEach((f, i) => {
       if (rb != null && i === rb) kids.push(h('span', { class: 'tl-marker', id: 'tl-marker', title: t('tl.marker'), role: 'separator', 'aria-label': t('tl.marker') }));
+      const G = H.groupBy.get(f.id);
+      if (G && G.a === i) { if (!first) kids.push(h('span', { class: 'tl-sep' })); first = false; kids.push(groupEl(G, true)); }
+      if (G && !app.groupOpen.has(G.id)) return;
       if (H.fused.has(f.id)) return; // tek işlemin kullandığı eskiz, o işlemin çipinde rozet
       if (!first) kids.push(h('span', { class: 'tl-sep' })); first = false;
       const S = C.featState(f, i); const skId = H.fusedBy.get(f.id); const sk = skId ? doc.features.find((x) => x.id === skId) : null;
@@ -589,12 +723,16 @@ export function initChrome(app) {
       chip.addEventListener('contextmenu', (e) => featureMenu(e, f, i));
       chip.addEventListener('mouseenter', () => C.hoverFeature(f.id)); chip.addEventListener('mouseleave', () => C.hoverFeature(null));
       chip.addEventListener('focus', () => C.hoverFeature(f.id)); chip.addEventListener('blur', () => C.hoverFeature(null));
+      if (G) chip.classList.add('in-group');
+      if (C.inSel(f.id)) chip.classList.add('insel');
+      chip.addEventListener('click', (e) => { if (e.shiftKey) { e.stopImmediatePropagation(); C.extendSel(chip); } }, true);
       bindDrag(chip, i, true);
       kids.push(chip);
     });
     if (rb != null) kids.push(h('button', { class: 'btn sm', id: 'tl-end', 'data-testid': 'tl-end', onclick: () => app.rollbackTo(null) }, t('tl.end')));
     if (rb != null && rb >= doc.features.length) kids.push(h('span', { class: 'tl-marker', id: 'tl-marker' }));
     if (!doc.features.length) kids.push(h('span', { class: 'note', text: t('tl.empty') }));
+    roving(kids.filter((c) => c.classList && (c.matches('.chip[data-id]') || c.dataset.group)), (c) => c.dataset.id || c.dataset.group);
     const fk = keepFocus('#timeline'); tl.replaceChildren(...kids); fk();
     tl.querySelector('.chip.sel')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     C.markDeps();
