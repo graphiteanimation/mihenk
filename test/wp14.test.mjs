@@ -4,6 +4,8 @@ import { postProgram, readNC } from '../src/cam/post/index.js';
 import { expandCyclePoint, expandToolpathCycles } from '../src/cam/cycles.js';
 import * as CAM from '../src/cam/index.js';
 import * as S from './cam-samples/samples.mjs';
+import { mmToUnits, unitsToMm, parseLength, unitLabel, setUnits, getUnits } from '../src/shared/units.js';
+import { validateDoc } from '../src/shared/schema.js';
 import { makeTemplate, instantiateTemplate, exportTemplates, importTemplates, matchTool, planHoleOps, checkHoleRules, DEFAULT_HOLE_RULES, classifyHole } from '../src/cam/templates.js';
 
 let pass = 0, fail = 0;
@@ -176,6 +178,43 @@ console.log('5. delik sira sablonu');
   const prog = CAM.buildProgram({ name: 'SEQ', machine: S.testMachine(), sections: [{ setup: S0, toolpaths: sec }] });
   const nc = postProgram(prog, S.testMachine(), OPTS).text;
   ok(/G81|G82/.test(nc) && /G83/.test(nc) && /G84/.test(nc), 'dizi NC: punta + matkap + kilavuz cevrimleri');
+}
+
+console.log('6. inc birimi (G20)');
+{
+  ok(mmToUnits(25.4, 'inch') === 1 && mmToUnits(6.35, 'inch') === 0.25 && mmToUnits(7, 'mm') === 7 && unitsToMm(0.25, 'inch') === 6.35 && unitsToMm(2, 'mm') === 2, 'mm <-> inc donusumu');
+  ok(parseLength('1,5in', 'mm').mm === 38.1 && parseLength('12,5', 'mm').mm === 12.5 && parseLength('0.25', 'inch').mm === 6.35 && parseLength('25 mm', 'inch').mm === 25 && parseLength('1"', 'mm').mm === 25.4 && parseLength('abc', 'mm') === null && parseLength('', 'mm') === null, 'uzunluk girdisi: birim ekleri, virgul, gecersiz');
+  ok(unitLabel('mm', 'inch') === 'in' && unitLabel('mm/dk', 'inch') === 'in/dk' && unitLabel('dev/dk', 'inch') === 'dev/dk' && unitLabel('mm', 'mm') === 'mm', 'birim etiketleri');
+  setUnits('inch'); ok(getUnits() === 'inch', 'etkin birim'); setUnits('xx'); ok(getUnits() === 'mm', 'gecersiz birim -> mm');
+  try { validateDoc({ cam: { units: 'inch' } }); ok(true, 'sema: units inch gecerli'); } catch (e) { ok(false, 'sema: units inch gecerli olmali: ' + e.code); }
+  try { validateDoc({ cam: { units: 'foot' } }); ok(false, 'sema gecersiz birimi reddeder'); } catch (e) { ok(/schema/.test(e.code), 'sema gecersiz birimi reddeder: ' + e.code); }
+  const sample = S.drillSample();
+  for (const M of [S.testMachine(), S.fanucMachine({ props: { dwellAddress: 'P', dwellUnit: 'ms', cycleDwellAddress: 'P', cycleDwellUnit: 'ms' } })]) {
+    const mm = postProgram(sample.program, M, OPTS), inch = postProgram(sample.program, M, { ...OPTS, units: 'inch' });
+    ok(/\bG21\b/.test(mm.text) && !/\bG20\b/.test(mm.text.replace(/\([^)]*\)/g, '')), 'mm cikti G21');
+    const body = inch.text.replace(/\([^)]*\)/g, '');
+    ok(/\bG20\b/.test(body) && !/\bG21\b/.test(body), M.id + ': inc cikti G20, G21 yok');
+    ok(/\(UNITS INCH G20/.test(inch.text), 'inc basligi');
+    // 10 mm = 0.3937 in; derinlik -20 mm = -0.7874; besleme 200 mm/dk = 7.874 in/dk
+    ok(/Z-0\.7874/.test(inch.text) && /F7\.874/.test(inch.text), 'peck dibi Z-0.7874 ve F7.874 (in/dk)');
+    ok(/Q0\.1575/.test(inch.text), 'gagalama Q 4 mm = 0.1575 in');
+    // gidis-donus: inc NC -> mm IR; 4 ondalik inc ~ 0.0013 mm hata payi
+    const rt = readNC(inch.text, { machine: M }).program; const rtmm = readNC(mm.text, { machine: M }).program;
+    for (let i = 0; i < rt.sections.length; i++) { const c = compareToolpaths(rtmm.sections[i].toolpath, rt.sections[i].toolpath, 0.003); ok(c.equal, 'inc NC geri okuma mm ile esit (bolum ' + i + '): ' + c.diffs.slice(0, 2)); }
+  }
+  // G2/G3 yaylar (I, J) ve G53 retract inc'te
+  const cs = S.contourWearSample().program; const ci = postProgram(cs, S.testMachine(), { ...OPTS, units: 'inch' });
+  ok(/G[23] .*I-?\d+\.\d{1,4} J/.test(ci.text) || /G[23].*I/.test(ci.text), 'yay I/J inc');
+  const rtc = readNC(ci.text, { machine: S.testMachine() }).program.sections[0].toolpath; const rtm = readNC(postProgram(cs, S.testMachine(), OPTS).text, { machine: S.testMachine() }).program.sections[0].toolpath;
+  ok(compareToolpaths(rtm, rtc, 0.004).equal, 'kontur (yaylar, telafi) inc geri okuma esit');
+  const g53 = postProgram(S.drillSample().program, S.testMachine({ props: { safeRetract: 'G53', safeRetractZ: -25.4 } }), { ...OPTS, units: 'inch' });
+  ok(/G53 G0 Z-1\./.test(g53.text), 'G53 Z -25.4 mm = -1 in');
+  // kilavuz: pitch modu (M80V): F = adim (in/dev); feed modu: F = devir x adim
+  const tapPitch = postProgram(S.drillSample().program, S.testMachine(), { ...OPTS, units: 'inch' }).text.split('\n').find((l) => /G84/.test(l));
+  ok(/F0\.04921/.test(tapPitch), 'kilavuz adimi 1.25 mm = 0.04921 in/dev (pitch modu): ' + tapPitch);
+  // ondalik sayisi ozelligi
+  const d5 = postProgram(S.drillSample().program, S.testMachine({ props: { decimalsInch: 5 } }), { ...OPTS, units: 'inch' });
+  ok(/Z-0\.7874[0-9]/.test(d5.text) || /Z-0\.78740/.test(d5.text) || /Z-0\.7874/.test(d5.text), 'decimalsInch ozelligi');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

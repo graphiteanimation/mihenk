@@ -9,6 +9,7 @@ export const FANUC_DEFAULT_PROPS = {
   lineNumbers: false, lineNumberStart: 10, lineNumberStep: 10,
   programNumberDigits: 4, percentLeader: false, modelSummary: true,
   decimals: 3,
+  decimalsInch: 4,               // WP-14: inc (G20) cikisinda uzunluk ondalik sayisi
   safeRetract: 'G28',            // 'G28' | 'G53' | null (null -> prop_missing)
   safeRetractZ: null,            // yalniz G53: makine Z konumu (mm)
   dwellAddress: 'P',             // G04 adresi: 'P' | 'X' | null
@@ -52,11 +53,13 @@ export function createFanucPost(over = {}) {
 
     // ------------------------------------------------------------ yardimcilar (this = PostContext)
     _init() {
-      const d = this.props.decimals;
-      this.fmt = { xyz: createFormat({ decimals: d }), ang: createFormat({ prefix: 'A', decimals: 3 }), f: createFormat({ prefix: 'F', decimals: 3 }), ij: createFormat({ decimals: d }) };
+      // WP-14: opts.units === 'inch' -> G20, uzunluk/ilerleme degerleri mm'den inc'e olceklenir (IR daima mm). Aci, devir, bekleme degismez.
+      const inch = this.opts.units === 'inch'; this.inch = inch; this.k = inch ? 1 / 25.4 : 1;
+      const d = inch ? this.props.decimalsInch : this.props.decimals; this.dec = d; const sc = this.k;
+      this.fmt = { xyz: createFormat({ decimals: d, scale: sc }), ang: createFormat({ prefix: 'A', decimals: 3 }), f: createFormat({ prefix: 'F', decimals: 3, scale: sc }), ij: createFormat({ decimals: d, scale: sc }) };
       this.v = {
-        x: createVariable({ prefix: 'X', decimals: d }), y: createVariable({ prefix: 'Y', decimals: d }), z: createVariable({ prefix: 'Z', decimals: d }),
-        f: createVariable({ prefix: 'F', decimals: 3 }),
+        x: createVariable({ prefix: 'X', decimals: d, scale: sc }), y: createVariable({ prefix: 'Y', decimals: d, scale: sc }), z: createVariable({ prefix: 'Z', decimals: d, scale: sc }),
+        f: createVariable({ prefix: 'F', decimals: 3, scale: sc }),
       };
       this.g = { motion: createModal({}), wcs: createModal({ force: true }), cyc: createModal({}) };
       // aCur null = tezgah A konumu BILINMIYOR (onceki is/elle): ilk indekslemede A mutlak yazilir (V-02)
@@ -85,7 +88,7 @@ export function createFanucPost(over = {}) {
       } else if (m === 'G53') {
         const z = this.need('safeRetractZ');
         this.writeBlock('G90', 'G40', 'G49');
-        this.writeBlock('G53', 'G0', createFormat({ prefix: 'Z', decimals: this.props.decimals }).format(z));
+        this.writeBlock('G53', 'G0', createFormat({ prefix: 'Z', decimals: this.dec, scale: this.k }).format(z));
       } else throw perr('cam.post.bad_prop', { prop: 'safeRetract', value: String(m) });
       this.pos = null; this.v.x.reset(); this.v.y.reset(); this.v.z.reset(); this.g.motion.reset(); this.state.positioned = false;
     },
@@ -118,6 +121,7 @@ export function createFanucPost(over = {}) {
         if (!(Number.isInteger(prog.number) && prog.number >= 1 && String(prog.number).length <= p.programNumberDigits)) this.fail('cam.post.program_number', { number: prog.number, digits: p.programNumberDigits });
         this.writeBlock('O' + String(prog.number).padStart(p.programNumberDigits, '0'));
       }
+      if (this.opts.units === 'inch') this.writeComment('UNITS INCH G20 - COMMENT DIMENSIONS ARE MM');
       this.writeComment(`UNVERIFIED POST - DOGRULANMADI - MIHENK ${o.appVersion || MIHENK_VERSION}`);
       this.writeComment(`PROGRAM ${prog.name}`);
       this.writeComment(`DATE ${o.date || new Date().toISOString().slice(0, 10)}`);
@@ -135,7 +139,7 @@ export function createFanucPost(over = {}) {
       const nb = gates.filter((g) => g.level === 'block').length, nw = gates.filter((g) => g.level === 'warn').length;
       this.writeComment(`GATES ${nb} BLOCK ${nw} WARN`);
       for (const g of gates) this.writeComment(`${g.level === 'block' ? 'BLOCK' : 'WARNING'}: ${gateText(g, o.gateText)}`);
-      this.writeBlock('G90', 'G17', 'G21', 'G40', 'G49', 'G80', 'G94', ...p.safeStartExtra);
+      this.writeBlock('G90', 'G17', this.inch ? 'G20' : 'G21', 'G40', 'G49', 'G80', 'G94', ...p.safeStartExtra);
       if (p.highSpeedOn != null || p.highSpeedOff != null) {
         this.need('highSpeedOn'); this.need('highSpeedOff');
         this.writeBlock(p.highSpeedOn); this.state.highSpeed = true;
@@ -262,8 +266,8 @@ export function createFanucPost(over = {}) {
     },
 
     onCircular(cw, cx, cy, cz, x, y, z, f) {
-      const s = this.pos; const d = this.props.decimals;
-      const I = createFormat({ prefix: 'I', decimals: d }), J = createFormat({ prefix: 'J', decimals: d });
+      const s = this.pos; const d = this.dec;
+      const I = createFormat({ prefix: 'I', decimals: d, scale: this.k }), J = createFormat({ prefix: 'J', decimals: d, scale: this.k });
       // V-05: yuvarlanmis bitis = yuvarlanmis baslangic ise G2/G3 kontrolde TAM DAIRE olur. Yay bu cozunurlukte dogrudan
       // ayirt edilemiyorsa (sehim < yarim birim) dogruya cevrilir; degilse (buyuk yay acisi) acik hata.
       if (!this.fmt.xyz.areDifferent(x, s.x) && !this.fmt.xyz.areDifferent(y, s.y)) {
@@ -271,7 +275,7 @@ export function createFanucPost(over = {}) {
         const a0 = Math.atan2(s.y - cy, s.x - cx), a1 = Math.atan2(y - cy, x - cx);
         let sw = cw ? a0 - a1 : a1 - a0; sw = ((sw % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
         const sag = sw <= Math.PI ? r * (1 - Math.cos(sw / 2)) : 2 * r;
-        if (sag > 0.5 * Math.pow(10, -d)) this.fail('cam.post.arc_degenerate', { r: Math.round(r * 1000) / 1000 });
+        if (sag > 0.5 * Math.pow(10, -d) / this.k) this.fail('cam.post.arc_degenerate', { r: Math.round(r * 1000) / 1000 });
         this.warn('cam.post.arc_as_line');
         if (!this.writeBlock(this.g.motion.format(1), this.v.x.format(x), this.v.y.format(y), this.v.z.format(z), this.v.f.format(f))) this.warn('cam.post.zero_move');
         return;
@@ -320,7 +324,7 @@ export function createFanucPost(over = {}) {
       }
     },
     onCyclePoint(x, y, z) {
-      const st = this.state, { c } = st.cycle, p = this.props, d = p.decimals;
+      const st = this.state, { c } = st.cycle, p = this.props, d = this.dec;
       const last = st.cycle.n === c.points.length - 1;
       if (st.cycle.expand) { // WP-14: acilmis G76/G87
         for (const s of expandCyclePoint(c, x, y, last)) {
@@ -345,14 +349,14 @@ export function createFanucPost(over = {}) {
       const code = post._cycleCode.call(this, c);
       const retr = (last || c.retract === c.clearance || c.returnTo === 'clearance' || code === 87) ? 'G98' : 'G99'; // G87 yalniz baslangic duzlemine doner
       const first = st.cycle.n === 0;
-      const fmtd = (pre, v) => createFormat({ prefix: pre, decimals: d }).format(v);
+      const fmtd = (pre, v) => createFormat({ prefix: pre, decimals: d, scale: this.k }).format(v);
       if (first) {
         const words = [retr, 'G' + code, this.v.x.formatForced(x), this.v.y.formatForced(y), fmtd('Z', code === 87 ? c.cutTo : c.bottom), fmtd('R', code === 87 ? c.bottom : c.retract)]; // G87: R = alt baslangic, Z = ustte bitis
         if (code === 73 || code === 83) words.push(fmtd('Q', c.peck));
         if (code === 76 || code === 87) { words.push(fmtd('Q', c.shift)); if (c.dwell > 0) words.push(post._dwellWord.call(this, p.cycleDwellAddress, p.cycleDwellUnit, c.dwell, true)); }
         if (code === 82 || code === 89) words.push(post._dwellWord.call(this, p.cycleDwellAddress, p.cycleDwellUnit, c.dwell ?? 0, true));
         if (code === 84 || code === 74) {
-          if (p.tapMode === 'pitch') words.push('F' + createFormat({ decimals: 3 }).format(c.pitch));
+          if (p.tapMode === 'pitch') words.push('F' + createFormat({ decimals: this.inch ? 5 : 3, scale: this.k }).format(c.pitch));
           else words.push(this.fmt.f.format(Math.round(this.section.toolpath.rpm) * c.pitch)); // V-23: F = (yazilan S) x adim; kesirli devirde adim bozulmaz
           if (p.tapR1) words.push(',R1');
         } else words.push(this.fmt.f.format(c.f));

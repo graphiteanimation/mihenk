@@ -2,6 +2,7 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { t, fmtNum } from '../../shared/i18n.js';
+import { getUnits, mmToUnits, unitsToMm, unitLabel, isLengthUnit } from '../../shared/units.js';
 
 export const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 export const uid = (p) => { const r = crypto.getRandomValues(new Uint32Array(2)); return p + '_' + r[0].toString(36) + r[1].toString(36).slice(0, 4); };
@@ -28,15 +29,18 @@ export function setMsg(box, text, kind = 'err') {
 
 // Sayı alanı: değer taslak nesneye `set(v)` ile yazılır (null = boş). o: {label, value, unit, min, max, int, nullable, set, f, hint, warn(v)→metin|null}
 export function numField(o) {
-  const inp = h('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', spellcheck: 'false', 'data-f': o.f || null, value: showNum(o.value), id: o.id || null, class: 'expr' });
-  const box = unitBox(inp, o.unit); const msg = msgBox();
+  // WP-14: belge birimi inc iken uzunluk (mm) ve ilerleme (mm/min) alanlari inc olarak gosterilir/girilir; deger mm saklanir
+  const conv = isLengthUnit(o.unit) && getUnits() === 'inch';
+  const toUi = (v) => (conv ? mmToUnits(v) : v), fromUi = (v) => (conv ? unitsToMm(v) : v);
+  const inp = h('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', spellcheck: 'false', 'data-f': o.f || null, value: showNum(toUi(o.value)), id: o.id || null, class: 'expr' });
+  const box = unitBox(inp, unitLabel(o.unit)); const msg = msgBox();
   const hint = o.hint ? h('div', { class: 'help', text: o.hint }) : null;
   const upd = () => {
-    const v = parseNum(inp.value); let bad = '';
+    const raw = parseNum(inp.value); const v = Number.isNaN(raw) ? raw : raw === null ? null : fromUi(raw); let bad = '';
     if (Number.isNaN(v)) bad = t('cam.fld.bad_number');
     else if (v === null && !o.nullable) bad = t('cam.fld.required');
-    else if (v !== null && o.min !== undefined && v < o.min) bad = t('cam.fld.min', { min: fmtNum(o.min, 4) });
-    else if (v !== null && o.max !== undefined && v > o.max) bad = t('cam.fld.max', { max: fmtNum(o.max, 4) });
+    else if (v !== null && o.min !== undefined && v < o.min) bad = t('cam.fld.min', { min: fmtNum(toUi(o.min), 4) });
+    else if (v !== null && o.max !== undefined && v > o.max) bad = t('cam.fld.max', { max: fmtNum(toUi(o.max), 4) });
     else if (v !== null && o.int && !Number.isInteger(v)) bad = t('cam.fld.int');
     box.classList.toggle('err', !!bad); inp.setAttribute('aria-invalid', bad ? 'true' : 'false');
     const w = !bad && o.warn ? o.warn(v) : null;

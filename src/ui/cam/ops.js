@@ -229,7 +229,7 @@ export class CamOps {
   openVerify() { return openVerifyDlg(this); }
   runPost(program, gates) {
     const v = this.verifiedState(); program.number = this.progNo;
-    return postProgram(program, this.cam.machine(), { gates, appVersion: APP_VERSION, date: new Date().toISOString().slice(0, 10), ...(v.ok ? { verified: { by: v.rec.by, date: v.rec.date, note: v.rec.note } } : {}) });
+    return postProgram(program, this.cam.machine(), { gates, units: this.cam.data().units === 'inch' ? 'inch' : 'mm', appVersion: APP_VERSION, date: new Date().toISOString().slice(0, 10), ...(v.ok ? { verified: { by: v.rec.by, date: v.rec.date, note: v.rec.note } } : {}) });
   }
   async post() {
     const r = await this.prepare(); if (!r) return;

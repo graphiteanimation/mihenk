@@ -98,6 +98,9 @@ export function readNC(text, opts = {}) {
     const W = (l) => words.find((w) => w.l === l);
     const Gs = words.filter((w) => w.l === 'G').map((w) => w.v);
     const Ms = words.filter((w) => w.l === 'M').map((w) => w.v);
+    // WP-14: G20 (inc) iken uzunluk/ilerleme sozcukleri mm'ye cevrilir (G21 geri alir)
+    if (Gs.includes(20)) S.inch = true; else if (Gs.includes(21)) S.inch = false;
+    if (S.inch) for (const w of words) if ('XYZIJRQF'.includes(w.l) && !Gs.includes(5) && !Gs.includes(5.1)) w.v *= 25.4;
     const has = (g) => Gs.includes(g);
     const isCycleCode = (g) => [73, 74, 76, 81, 82, 83, 84, 85, 87, 89].includes(g);
 
@@ -107,7 +110,7 @@ export function readNC(text, opts = {}) {
       if (g === 0 || g === 1 || g === 2 || g === 3) newMotion = g;
       else if (g === 4) dwell = true;
       else if (g === 5 || g === 5.1) { events.push({ line: ln, ev: 'highSpeed', word: 'G' + g, p: W('P')?.v ?? W('Q')?.v }); }
-      else if (g === 17 || g === 21 || g === 94) { /* sabit lehce */ }
+      else if (g === 17 || g === 20 || g === 21 || g === 94) { /* sabit lehce */ }
       else if (g === 90) S.inc = false;
       else if (g === 91) S.inc = true;
       else if (g === 28) retractEv = true;
