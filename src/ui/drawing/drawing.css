@@ -1,0 +1,21 @@
+/* WP-17 teknik resim çalışma alanı: yalnız belirteçler (tokens.css); sayfa zemini kâğıt beyazı (çizim siyah mürekkep). */
+.drw { position: absolute; inset: 0; z-index: var(--z-dock); background: var(--bg-app); display: flex; outline: none; }
+.drw.hidden { display: none; }
+.drw-canvas { position: relative; flex: 1; min-width: 0; overflow: hidden; color: #000; cursor: crosshair; touch-action: none; }
+.drw-canvas > svg { display: block; width: 100%; height: 100%; }
+.drw-empty { color: var(--text); margin: auto; max-width: 420px; padding: var(--sp-6); text-align: center; position: absolute; inset: 0; height: fit-content; }
+.drw-empty h3 { font-size: var(--fs-lg); margin: 0 0 var(--sp-3); }
+.drw-empty p { color: var(--text-muted); margin: 0 0 var(--sp-5); }
+.drw-status { position: absolute; left: var(--sp-4); bottom: var(--sp-4); display: flex; gap: var(--sp-3); pointer-events: none; }
+.drw-hint { position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--sp-5); background: var(--bg-surface); color: var(--text); border: var(--bw) solid var(--line-strong); border-radius: var(--r-md); padding: var(--sp-2) var(--sp-4); box-shadow: var(--shadow-sm); pointer-events: none; font-size: var(--fs-sm); }
+.drw-hint.hidden { display: none; }
+.drw-props { width: var(--panel-w); flex: none; background: var(--bg-chrome); border-left: var(--bw) solid var(--line); padding: var(--sp-4); overflow: auto; color: var(--text); }
+.drw-props.hidden { display: none; }
+.drw-props > header { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.drw-props > header h3 { flex: 1; margin: 0; font-size: var(--fs-lg); }
+.drw-props .fld, .drw-sheet-form .fld { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.drw-props .fld select, .drw-props .fld input[type="text"], .drw-sheet-form .fld select, .drw-sheet-form .fld input[type="text"] { width: 100%; min-height: var(--ctl-h); }
+.drw-props .row { display: flex; gap: var(--sp-3); margin-top: var(--sp-4); }
+.drw-val { font-size: var(--fs-lg); font-weight: var(--fw-semibold); margin-bottom: var(--sp-4); font-variant-numeric: tabular-nums; }
+.drw-sheet-form { max-height: 64vh; overflow: auto; padding-right: var(--sp-2); }
+.drw-sheet-form h4 { margin: var(--sp-5) 0 var(--sp-3); font-size: var(--fs-md); }

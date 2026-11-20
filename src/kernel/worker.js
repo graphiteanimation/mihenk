@@ -30,6 +30,7 @@ self.onmessage = async (ev) => {
     else if (cmd === 'camHeightmap') result = K.camHeightmap(args);
     else if (cmd === 'camZLevels') result = K.camZLevels(args);
     else if (cmd === 'camHoleExit') result = K.camHoleExit(args);
+    else if (cmd === 'drawProject') result = K.drawProject(args); // WP-17
     else if (cmd === 'export') result = await K.exportFile(args.format, args.ids, args.names, args.opts || null);
     else if (cmd === 'reset') { K.reset(); result = true; }
     else if (cmd === 'ping') result = true;

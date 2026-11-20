@@ -10,6 +10,7 @@ import { faceName, edgeName, resolveName, aliasSet, faceKey, vertKey } from './n
 import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
+import { drawProject } from './drawing.js'; // WP-17
 import * as DE from './direct.js';
 import { reprojectLinked, matchEdge, edgeSig } from '../ui/sketch/ops.js'; // saf eskiz işlevleri (DOM yok)
 
@@ -826,6 +827,8 @@ export class Kernel {
   camHeightmap(args) { return CAM.camHeightmap(this, args || {}); }
   camZLevels(args) { return CAM.camZLevels(this, args || {}); }
   camHoleExit(args) { return CAM.camHoleExit(this, args || {}); }
+  // WP-17 teknik resim: HLR izdusum ve kesit (src/kernel/drawing.js)
+  drawProject(args) { return drawProject(this, args || {}); }
   async exportFile(format, ids, names, opts = null) {
     const shapes = [...(this.last?.bodies || [])].filter(([id]) => !ids || ids.includes(id));
     if (!shapes.length) throw new KErr('export.no_body');
