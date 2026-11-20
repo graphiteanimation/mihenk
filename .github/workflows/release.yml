@@ -9,7 +9,20 @@ on:
 permissions:
   contents: read
 jobs:
+  kaynak:
+    # Etiketin gösterdiği commit master'ın atasıdır (master'a girmemiş dal commit'i etiketlenip yayımlanamaz). Kuru koşuda atlanır.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - name: Etiket master'dan türüyor mu
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch origin master
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/master || { echo "Etiket $GITHUB_REF_NAME ($GITHUB_SHA) master'ın atası değil: yayım durduruldu"; exit 1; }
+          echo "Etiket commit'i master geçmişinde"
   ci:
+    needs: kaynak
     uses: ./.github/workflows/ci.yml
   surum:
     needs: ci
