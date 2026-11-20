@@ -218,4 +218,21 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   if (ko.status.e.ok) { near(ko.bodies[0].volume, Math.PI * 160 * 5, 'elips extrude hacmi', 1e-9); const T2 = T.topoOf(K.last.bodies.get('e').shape); ok(K.last.bodies.get('e').fn.some((al) => al.includes('e:side:el')), 'elips yan yüzü adı e:side:el'); }
   else ok(true, 'elips varlık biçimi profiles.js ile farklı: ' + JSON.stringify(ko.status.e));
 }
+// --- WP-02: işlem izi (featInfo) — status biçimi değişmez, iz ayrı alanda
+{
+  const KF = await initKernel(opencascade, () => wasm);
+  const dF = { params: [{ name: 'H', expr: '10' }], features: [
+    { id: 'a', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '20', d: '20', h: 'H', op: 'new' },
+    { id: 'b', type: 'primitive', kind: 'box', x: '40', y: '0', z: '0', w: '20', d: '20', h: '10', op: 'new' },
+    { id: 'x', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '0', d: '20', h: '10', op: 'new' }] };
+  let o = await KF.rebuild(dF);
+  ok(JSON.stringify(Object.keys(o.status.a).sort()) === '["bodies","ok"]', 'status biçimi değişmedi: ' + JSON.stringify(o.status.a));
+  ok(o.featInfo && ['a', 'b', 'x'].every((id) => o.featInfo[id] && typeof o.featInfo[id].ms === 'number' && Array.isArray(o.featInfo[id].warn)), 'featInfo her işlem için');
+  ok(o.featInfo.x.sum.startsWith('err:') && o.featInfo.x.lastOk === null, 'hatalı işlem: özet hata kodu, son başarılı sonuç yok');
+  dF.params[0].expr = '15'; o = await KF.rebuild(dF);
+  ok(o.featInfo.a.changed && !o.featInfo.b.changed && !o.featInfo.x.changed, 'parametre değişti: yalnız a "değişti" (b aynı, x yine aynı hata)');
+  ok(!o.featInfo.a.cached && !o.featInfo.b.cached, 'parametre değişince hepsi yeniden hesaplandı');
+  dF.features[1].suppressed = true; o = await KF.rebuild(dF);
+  ok(o.featInfo.b.changed && o.featInfo.b.sum === 'sup' && o.status.b.suppressed, 'bastırma: sonuç değişti');
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
