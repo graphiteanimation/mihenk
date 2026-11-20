@@ -246,12 +246,14 @@ export function createSim(input, opts = {}) {
         // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
         if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
         rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance ? m.clearance : m.retract });
+        // T-23: cok noktali cevrimde sorunlar NOKTA basina yazilir (hangi delik; tek noktali cevrimlerle ayni sayim)
+        if (m.points.length > 1) { cur.cycFresh.push(...flush(cur.si, cur.move, n)); cur.acc = {}; }
       });
       const lp = m.points[m.points.length - 1]; cur.prog = { x: lp[0], y: lp[1], z: m.clearance };
     }
   }
 
-  function flush(si, k) {
+  function flush(si, k, point = null) {
     const acc = cur.acc; const fresh = [];
     for (const key of Object.keys(acc)) {
       const a = acc[key], code = CODE(key);
@@ -260,6 +262,7 @@ export function createSim(input, opts = {}) {
       const lvl = key === 'below_stock' && a.depth <= cur.allow + belowTol ? 'warn' : LEVEL[key];
       const it = { level: lvl, code, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
       if (a.vertical != null) it.params.vertical = a.vertical;
+      if (point != null) it.params.point = point;
       issues.push(it); fresh.push(it);
     }
     return fresh;
@@ -268,9 +271,9 @@ export function createSim(input, opts = {}) {
   function stepOne() {
     const [si, k] = steps[idx];
     if (!cur || cur.si !== si) enterSection(si);
-    cur.acc = {}; cur.move = k;
+    cur.acc = {}; cur.move = k; cur.cycFresh = [];
     doMove(sections[si].toolpath.moves[k]);
-    const fresh = flush(si, k);
+    const fresh = [...cur.cycFresh, ...flush(si, k)];
     idx++;
     if (idx >= steps.length) { const n0 = issues.length; closeSection(); fresh.push(...issues.slice(n0)); }
     if (opts.frames > 0 && idx % opts.frames === 0) frames.push({ index: idx, section: si, moveIndex: k, removedVolume: removedTotal, heightmap: new Float32Array(cur.setup.hm.data) });

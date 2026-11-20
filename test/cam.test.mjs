@@ -136,6 +136,30 @@ section('3. yuzey frezeleme ve delme');
   throwsCode(() => CAM.computeOp({ ...dop, cycle: 'tap' }, { setup: S0, tool: drill, geom: { holes } }), 'cam.drill.tool_cycle', 'kilavuz cevrimi matkapla olmaz');
   throwsCode(() => CAM.computeOp({ ...dop, cycle: 'peck', peck: undefined }, { setup: S0, tool: drill, geom: { holes } }), 'cam.op.missing', 'gagalama derinligi zorunlu');
   throwsCode(() => CAM.computeOp(dop, { setup: S0, tool: drill, geom: { holes: [holes[1]] } }), 'cam.drill.no_holes', 'eksen uyumsuz tek delik -> delik yok');
+  // T-23: R stok kutusu altinda; islem basi stok + model haritasiyla G99 gecisi dogrulanirsa tek cevrim, engel varsa bolunur
+  {
+    const hp = [{ feature: 'p', dia: 6.8, depth: 5, through: false, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: [[20, 30, -10], [35, 30, -10], [80, 30, -10]], dirs: [[0, 0, -1], [0, 0, -1], [0, 0, -1]] }];
+    const op23 = { ...dop, depth: { from: 'hole', tipComp: false }, order: 'asis' };
+    const flatMap = (rib) => heightmapFromFn([0, 0], [100, 60], 0.5, (x) => (rib && x > 45 && x < 55 ? 0 : -10));
+    const cyc = (ctx) => CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, ...ctx }).moves.filter((m) => m.t === 'cycle');
+    const n0 = cyc({}), n1 = cyc({ stockMap: flatMap(false), modelMap: flatMap(false) }), n2 = cyc({ stockMap: flatMap(true), modelMap: flatMap(false) }), n3 = cyc({ stockMap: flatMap(false) });
+    const n4 = cyc({ stockMap: flatMap(false), modelMap: flatMap(true) });
+    ok(n0.length === 3, 'T-23: harita yok + R stok altinda -> her nokta ayri cevrim (eski muhafazakar): ' + n0.length);
+    ok(n1.length === 1 && n1[0].points.length === 3 && n1[0].retract < n1[0].clearance, 'T-23: islenmis yuzey (stok + model R altinda) -> tek G99 cevrimi: ' + n1.length);
+    ok(n2.length === 2 && n2[0].points.length === 2 && n2[1].points.length === 1, 'T-23: stokta kaburga gecisi keser -> bolunur (2+1): ' + n2.map((c) => c.points.length));
+    ok(n3.length === 3, 'T-23: model haritasi yok -> gecis guvenli sayilmaz');
+    ok(n4.length === 2, 'T-23: model haritasinda kaburga (ince duvar guvencesi) -> bolunur');
+    const { simulate } = await import('../src/cam/sim/index.js');
+    const tp1 = CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, stockMap: flatMap(false), modelMap: flatMap(false) });
+    const sr = simulate(tp1, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(false) });
+    ok(!sr.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23: tek cevrim G99 gecisleri sim\'de stok icinden gecmiyor');
+    const tp2 = CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, stockMap: flatMap(true), modelMap: flatMap(true) });
+    const sr2 = simulate(tp2, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(true) });
+    ok(!sr2.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23: kaburgali stokta bolunmus cevrim sim\'de temiz');
+    const tpBad = { ...tp2, moves: tp2.moves.map((m) => (m.t === 'cycle' && m.points.length === 2 ? { ...m, points: [...m.points, [80, 30]] } : m)).filter((m) => !(m.t === 'cycle' && m.points.length === 1)) };
+    const sr3 = simulate(tpBad, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(true) });
+    ok(sr3.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23 kontrol: kaburgayi R\'de gecen birlesik cevrim sim\'de rapid_in_stock (gecis denetimi gercek)');
+  }
 }
 
 // ================================================================== 4. kontur

@@ -286,11 +286,13 @@ const cam = { machineId: M.id, tools, setups: [S1, S2, S3, S4].filter((s) => ONL
 const query = async (cmd, args) => { if (cmd === 'facePlane') return K.facePlane(args.ref); if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
 // T-14: boydan boya delik cikislari (generateProgram ile ayni yol); ortam P_NOEXIT=1 -> eski kural (karsilastirma)
 const holesX = process.env.P_NOEXIT ? rbX.holes : await CAM.annotateHoleExits(rbX.holes, query, rbX.bodies.map((b) => b.id));
-async function computeOne(S, op0, toolOverride, variant = 0) {
+async function computeOne(S, op0, toolOverride, variant = 0, mctx = null) {
   const { alts, fop, ...base } = op0; const op = variant ? { ...base, ...(alts?.[variant - 1] || {}) } : base; const tool = toolOverride || tools.find((t) => t.id === op.toolId); const geom = {}; let opx = op;
   if (op.type === 'drill') geom.holes = holesX;
+  // T-23: islem basi stok + model haritasi (generateProgram ile ayni yol; ortam P_NODMAP=1 -> eski muhafazakar gruplama)
+  const maps = op.type === 'drill' && mctx && !process.env.P_NODMAP ? await CAM.drillMaps(mctx.stk, mctx.tps, S, { res: 0.5, query }) : {};
   if (op.type === 'contour' || op.type === 'pocket') { const g = await CAM.resolveGeom(op, S, { rebuild: rbX, doc, query }); geom.faces = g.faces; opx = { ...op, geom: g.sels }; }
-  return CAM.computeOp(opx, { setup: S, tool, geom, machine: M });
+  return CAM.computeOp(opx, { setup: S, tool, geom, machine: M, ...maps });
 }
 const progs = [];
 for (const setup of cam.setups) {
@@ -298,13 +300,13 @@ for (const setup of cam.setups) {
   let S; try { S = CAM.resolveSetup(setup, rbX, M); } catch (e) { rec.setup_hata = opError(e); R.setups.push(rec); log('SETUP HATA', setup.id, JSON.stringify(rec.setup_hata)); continue; }
   rec.cozulmus = { frame: { o: S.frame.o.map(r3), x: S.frame.x.map(r3), y: S.frame.y.map(r3), z: S.frame.z.map(r3) }, aAngle: S.aAngle, stockBox: { min: S.stockBox.min.map(r3), max: S.stockBox.max.map(r3) }, modelBBox: { min: S.modelBBox.min.map(r3), max: S.modelBBox.max.map(r3) }, stockBoyut: S.stockBox.max.map((v, i) => r3(v - S.stockBox.min[i])) };
   log(`\n== ${setup.id} cozuldu, stok ${rec.cozulmus.stockBoyut.join('x')} frame.z ${rec.cozulmus.frame.z} aAngle ${S.aAngle} model ${JSON.stringify(rec.cozulmus.modelBBox)}`);
-  const tps = [];
+  const tps = []; const stk = { hm: null, done: 0 };
   for (const op0 of setup.ops) {
     const o = { id: op0.id, fop: op0.fop, ad: op0.name, tur: op0.type, takim: 'T' + tools.find((t) => t.id === op0.toolId).number, denemeler: [] };
     const ta = now(); const nv = 1 + (op0.alts?.length || 0);
     for (let vi = 0; vi < nv; vi++) {
       try {
-        const tp = await computeOne(S, op0, null, vi);
+        const tp = await computeOne(S, op0, null, vi, { stk, tps });
         o.hesap_s = r3(now() - ta); o.ok = true; o.varyant = vi; o.varyant_deger = vi ? JSON.stringify(op0.alts[vi - 1]) : 'birincil';
         o.uyarilar = (tp.warnings || []).map((w) => ({ code: w.code, params: w.params }));
         o.kesme_mm = r3(tp.stats.cutLen); o.hizli_mm = r3(tp.stats.rapidLen); o.sure_s = r3(tp.stats.timeMin * 60); o.zMin = tp.stats.zMin; o.hareket = tp.moves.length; o.passDepth = tp.meta?.passDepth ?? null;

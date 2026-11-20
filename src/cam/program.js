@@ -3,6 +3,7 @@ import { cerr, issue } from './geom/err.js';
 import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
 import { sketchFaces, silhouetteFace, midLevels } from './geom/select.js';
+import { simulate, createHeightmap } from './sim/index.js';
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
 export function buildProgram({ name, number = null, machine, sections }) {
@@ -77,6 +78,26 @@ export async function annotateHoleExits(holes, query, fallbackBodies = []) {
   return out;
 }
 
+// T-23: delme gecislerinin (G99) dogrulanmasi icin islem basi stok haritasi. st = {hm, done, failed}: setup'in o ana kadarki
+// takim yollari sim ile BIR KEZ (artimli) islenir. Sim hatasi -> null (drill eski muhafazakar kurala doner).
+export function advanceStock(st, tps, S, res) {
+  if (st.failed) return null;
+  try {
+    for (; st.done < tps.length; st.done++) st.hm = simulate(tps[st.done], { res, stockBox: S.stockBox, ...(st.hm ? { stockHeightmap: st.hm } : {}) }).remainHeightmap;
+    return st.hm;
+  } catch (e) { st.failed = true; return null; }
+}
+// T-23: drill baglami icin harita cifti: stok (sim) + model ust haritasi (ince duvar guvencesi). Biri yoksa ikisi de null.
+export async function drillMaps(st, tps, S, { res, model, query }) {
+  let hm = st.hm && st.done === tps.length ? st.hm : advanceStock(st, tps, S, res);
+  if (!hm) { if (st.failed) return {}; const b = S.stockBox; hm = st.hm0 || (st.hm0 = createHeightmap([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, b.max[2])); }
+  let mm = model || st.model || null;
+  if (!mm && query && !st.modelFailed) {
+    try { mm = st.model = await query('camHeightmap', { bodies: S.bodies, frame: S.frame, res, bbox: [S.stockBox.min[0], S.stockBox.min[1], S.stockBox.max[0], S.stockBox.max[1]] }); } catch (e) { st.modelFailed = true; mm = null; }
+  }
+  return hm && mm ? { stockMap: hm, modelMap: mm } : {};
+}
+
 // generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
 //   doc: sketch secimleri icin belge (sketch ozellikleri); query komutlari: camFaceLoops, camSection, camZLevels, facePlane
 //   query(cmd, args) -> Promise: cekirdek worker komutu ('camFaceLoops', 'facePlane')
@@ -94,7 +115,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
       for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face') { const pl = await query('facePlane', { ref: ax.ref }); planes[k] = pl; } }
       S = resolveSetup(setup, rebuild, machine, { planes });
     } catch (e) { pre.push({ level: 'block', code: e.code || 'internal', params: e.params || {}, setupId: setup.id }); continue; }
-    const tps = [];
+    const tps = []; const stk = { hm: null, done: 0 }; const mres = Math.min(sim?.res > 0 ? sim.res : 0.5, 0.5);
     for (const op of setup.ops || []) {
       if (op.suppressed) continue; if (onlyOps && !onlyOps.includes(op.id)) continue;
       try {
@@ -103,7 +124,8 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
         if (op.type === 'contour' || op.type === 'pocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
-        const tp = computeOp(opx, { setup: S, tool, geom, machine });
+        const maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, model: sim?.modelHeightmaps?.[S.id]?.res <= mres ? sim.modelHeightmaps[S.id] : null, query }) : {};
+        const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
       } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }
     }

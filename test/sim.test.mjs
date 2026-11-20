@@ -316,5 +316,18 @@ console.log('8. T-08 yerel stok yuksekligi (govde boyu) + tutucu boslugu uyarisi
   ok(seen.some((i) => i.code === 'cam.sim.holder_clearance_low'), 'adim adim: tutucu boslugu uyarisi gorulur');
 }
 
+console.log('8. T-23 cok noktali cevrim: sorunlar nokta basina');
+{
+  const bx = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const drill = { number: 7, H: 7, type: 'drill', dia: 6.1, tipAngle: 118, fluteLen: 30, bodyLen: 50 };
+  const holes = heightmapFromFn([-20, -20], [20, 20], 0.1, (x, y) => (Math.hypot(x + 10, y) <= 3 || Math.hypot(x - 10, y) <= 3 ? -20 : 0));
+  const multi = TP(drill, [mk.rapid(-10, 0, 10), mk.cycle({ cycle: 'drill', points: [[-10, 0], [10, 0]], top: 0, bottom: -15, retract: 5, clearance: 10, f: 200 }), mk.rapid(10, 0, 10)]);
+  const single = TP(drill, [mk.rapid(-10, 0, 10), mk.cycle({ cycle: 'drill', points: [[-10, 0]], top: 0, bottom: -15, retract: 10, clearance: 10, f: 200 }), mk.rapid(10, 0, 10), mk.cycle({ cycle: 'drill', points: [[10, 0]], top: 0, bottom: -15, retract: 10, clearance: 10, f: 200 }), mk.rapid(10, 0, 10)]);
+  const g1 = simulate(multi, { stockBox: bx, modelHeightmap: holes, res: 0.1 }).issues.filter((i) => i.code === 'cam.sim.gouge');
+  const g2 = simulate(single, { stockBox: bx, modelHeightmap: holes, res: 0.1 }).issues.filter((i) => i.code === 'cam.sim.gouge');
+  ok(g1.length === 2 && g1.map((i) => i.params.point).join() === '0,1' && Math.abs(g1[0].params.x + 10) < 1e-9 && Math.abs(g1[1].params.x - 10) < 1e-9, 'iki noktali cevrim: her delik ayri oyma kaydi (nokta 0, 1): ' + g1.map((i) => [i.params.point, i.params.x]));
+  ok(g2.length === 2 && g1.length === g2.length, 'tek noktali cevrimlerle ayni sorun sayisi (BLOCK sayimi gruplamadan bagimsiz)');
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

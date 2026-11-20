@@ -6,7 +6,7 @@ import { computeDrill } from './ops/drill.js';
 import { computeContour } from './ops/contour.js';
 import { computePocket } from './ops/pocket.js';
 export { gates } from './gates.js';
-export { buildProgram, generateProgram, resolveGeom, annotateHoleExits, sketchPoints } from './program.js';
+export { buildProgram, generateProgram, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock } from './program.js';
 export { CamErr } from './geom/err.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
