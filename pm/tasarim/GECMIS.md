@@ -12,6 +12,19 @@ Altta tek sıra çip (sıra no + ad), sağ tık menüsü (düzenle, adlandır, b
 ## Tasarım ilkesi
 Geçmiş bir kayıt listesi değil, **neden-sonuç zinciridir**. Arayüz her an üç soruyu yanıtlar: bu işlem neye dayanıyor, neyi etkiliyor, son güncellemede ona ne oldu.
 
+## Karar (O-033, 2026-11-20)
+Ölçütler ve sonuç:
+| Soru | Seçenekler | Ölçüt | Karar |
+|---|---|---|---|
+| Ana görünüm nerede? | alt şerit (Fusion) · sol dikey liste (SolidWorks, NX, Onshape, Inventor) · ikisi eşit | 50+ işlemde ölçeklenme, ad + parametre okunurluğu, başka programdan gelen kullanıcının alışkanlığı, aynı işi iki yerde yapma karmaşası | **Sol dikey liste ana görünüm**: bütün eylemler (düzenle, sırala, onar, grupla) burada. Dikey liste uzun adı ve parametre özetini taşır, dikey kaydırma doğaldır; dört büyük programın üçünde yer burasıdır. |
+| Alt şerit kalsın mı? | kaldır · tam özellikli · özet | geniş ve boş alt alanın kullanımı, geri sarmada "zaman" hissi, tekrar | **Özet olarak kalır**: adsız, simge + durum işareti; tıkla = seç, işaretçiyi sürükle = geri sar. 60+ işlem tek satıra sığar. Düzenleme eylemleri şeritte yoktur (tekrar olmasın). |
+| Sekme mi, tek panel mi? | "Gövdeler / Geçmiş" sekmeleri · tek panelde iki bölüm | sekme değiştirirken bilgi kaybı | **Tek panel**: üstte kısa Gövdeler bölümü, altında Geçmiş. Sekme yok. |
+| Eskiz kaynaşması | hep ayrı (Fusion, Onshape) · işlemin altında (SolidWorks) | liste uzunluğu, eskizi bulabilme, paylaşılan eskiz | **Tek işlemin kullandığı eskiz o işlemin altına girer** (satır açılır, eskiz çocuk satır; çipte rozet). İki ve daha çok işlemin kullandığı ya da henüz kullanılmamış eskiz ayrı satırdır. Liste yarıya iner, eskiz kaybolmaz. |
+| "Son hali göster" | hep açık · hep elle · uyarlamalı | bekleme süresi, sürpriz hatanın önlenmesi | **Uyarlamalı**: son güncellemesi 1 sn altında süren modelde kendiliğinden açık, yavaş modelde düğmeyle. |
+| "Değişti" işaretleri | kalıcı · yok · geçici | gürültü | **Geçici ve silik**: bir sonraki düzenlemede silinir; uyarı ve hata kalır. |
+Kullanıcı açısından değerlendirme: düzenlerken geri sarma ve bağımlı işlemlerin yeniden hesaplanması bütün parametrik CAD programlarının ortak davranışıdır, yani öğrenme yükü getirmez. Yeni olan iki şey (etki alanını önceden görmek, güncelleme sonrası tek özet + onarım) mevcut programlarda menü arkasında ya da hiç yoktur ve en sık yaşanan sorunu, "bir ölçüyü değiştirdim, model kırıldı, neden?" durumunu hedefler.
+Aşağıdaki bölümlerde "şerit" ile "panel" arasında çelişki olursa bu karar geçerlidir.
+
 ## Yerleşim: tek veri, iki görünüm
 - **Şerit (alt)**: zaman sırası, kompakt. Göz atma, geri sarma, sıra değiştirme.
 - **Geçmiş paneli (sol, "Gövdeler" sekmesinin yanında "Geçmiş" sekmesi)**: aynı liste dikey; ad + parametre özeti ("Extrude · 14 mm · Kes", "Delik · Ø5,5 · Tümü", "Yuvarlat · R1 · 4 kenar"). Okuma ve yeniden adlandırma.

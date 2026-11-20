@@ -21,7 +21,7 @@ const vis = ResEdit.Resource.VersionInfo.fromEntries(res.entries);
 const vi = vis[0] || ResEdit.Resource.VersionInfo.createEmpty();
 const lang = vis[0] && vis[0].getAllLanguagesForStringValues()[0] || { lang: 1033, codepage: 1200 };
 vi.setFileVersion(maj, min, pat, 0, lang.lang); vi.setProductVersion(maj, min, pat, 0, lang.lang);
-vi.setStringValues(lang, { ProductName: 'Mihenk CAD/CAM', FileDescription: 'Mihenk CAD/CAM', CompanyName: 'D160 Makina', LegalCopyright: 'D160 Makina', OriginalFilename: 'Mihenk.exe', InternalName: 'Mihenk', ProductVersion: pkg.version, FileVersion: pkg.version });
+vi.setStringValues(lang, { ProductName: 'Mihenk CAD/CAM', FileDescription: 'Mihenk CAD/CAM', CompanyName: 'Mihenk', LegalCopyright: 'Mihenk', OriginalFilename: 'Mihenk.exe', InternalName: 'Mihenk', ProductVersion: pkg.version, FileVersion: pkg.version });
 vi.outputToResourceEntries(res.entries);
 res.outputResource(exe);
 fs.writeFileSync(exePath, Buffer.from(exe.generate()));

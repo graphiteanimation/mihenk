@@ -28,6 +28,10 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
   - 5 eksen takım yolu **şimdi yapılmayacak**. Gerekçe: (a) 3 eksenin kendisinde 3D yüzey işleme ve adaptif kaba henüz yok; 5 eksen stratejileri bunların üstüne kurulur; (b) eşzamanlı 5 eksen, takım ekseni denetimi + tutucu/tezgâh çarpışma çözümü + kinematik simülasyon ister, bunların hiçbiri hazır değil; (c) deneyecek 5 eksen tezgâh yok, doğrulanamayan özellik güven hedefiyle (K-019) çelişir.
   - **Şimdi yapılacak olan** ucuz ve geri dönüşü pahalı kısım, yani veri modeli: tezgâh profili N döner eksenli kinematik zinciri (tabla/kafa, eksen yönü, sınır) taşıyacak; takım yolu ara gösterimi (IR) her harekette takım ekseni vektörü taşıyabilecek; setup yönü "herhangi bir yüz normali" olarak saklanacak. Böylece 3+1 bugünkü özel durum olmaktan çıkar, **3+2 konumlu işleme** aynı altyapının iki döner eksenli hali olur (0.6, WP-18). Eşzamanlı 4/5 eksen 1.0 sonrasıdır.
 - **K-030** — "Proje yönetici bakış açısıyla süreci en iyi ve en verimli şekilde yönetmeni istiyorum… en uygun yöntem nasılsa öyle devam edelim." Anlam: çalışma düzeni `pm/CALISMA-DUZENI.md`; onay WP başına değil yol haritası düzeyinde.
+- **K-031** — "özelliklerden D160 kaldırabiliriz, bu programın adı Mihenk, herhangi bir şirket ismi şu an yok." Exe özellikleri (şirket, telif) "Mihenk"; uygulama kimliği `app.mihenk.cadcam`.
+- **K-032** — Geçmiş arayüzü sorusu: "sen bir karar mekanizmasıyla karar ver… nasıl iyi olacaksa öyle ilerle." Karar Claude'a devredildi → O-033.
+- **K-033** — "sürüm sırasına itirazım yok ama her sürüm fazladan iş demek…" O-030 onaylandı; sürüm yükü için O-034.
+- **K-034** — "github'da mihenk adında bir repo açtım." Ana depo `github.com/graphiteanimation/mihenk` (özel).
 
 ## Öneriler
 | No | Öneri | Durum |
@@ -44,9 +48,11 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 | O-027 | Kapsam dışı: sac metal, yüzey modelleme, konfigürasyon, bulut; eşzamanlı 4 eksen ertelenir | Yürürlükte (K-029 ile uyumlu) |
 | O-028 | Küçük kalemlerin sürümlere dağıtımı | BACKLOG'a işlendi |
 | O-029 | T-01…T-24 düzeltme planı ve dalga sırası | BACKLOG WP-03, WP-05, WP-06, WP-12, WP-15'e dağıtıldı |
-| O-030 | **Birleşik yol haritası** (BACKLOG.md sürüm sırası): O-019…O-029'un yerine tek onay kalemi | **Kullanıcı onayı bekliyor**; itiraz yoksa sıradaki oturum WP-02/WP-03 ile sürer |
-| O-031 | Kod deposu için özel GitHub deposu (`mihenk`) yansısı: bilgisayar kapalıyken de oturum açılabilir, paralel dallar, Windows'ta otomatik test (Actions) | Kullanıcı boş özel depoyu açınca kurulur |
+| O-030 | **Birleşik yol haritası** (BACKLOG.md sürüm sırası): O-019…O-029'un yerine tek onay kalemi | **Onaylandı** (K-033) |
+| O-031 | Kod deposu için özel GitHub deposu (`mihenk`): bilgisayar kapalıyken de oturum açılabilir, paralel dallar, Windows'ta otomatik test (Actions) | **Uygulandı** (K-034): `graphiteanimation/mihenk` ana depo; bilgisayardaki `mihenk.git` yedek |
 | O-032 | Genel 4 eksen şablonunda A yönü varsayılanı ISO 841 sağ el kuralı (`dir [1,0,0]`); her tezgâh kendi profilinde değiştirir. T-21a kodda "tezgâh teyidi bekleyen" madde olmaktan çıkar | WP-01 ile uygulanıyor |
+| O-033 | Geçmiş arayüzü kararları (K-032 devriyle): ana görünüm sol dikey Geçmiş listesi, alt şerit simge düzeyinde özet; tek işlemin kullandığı eskiz o işlemin altına kaynaşır; "Son hali göster" hızlı modellerde otomatik | WP-02; gerekçe `pm/tasarim/GECMIS.md` "Karar" bölümü |
+| O-034 | Sürüm yükünü azaltma (K-033 sorusu): 0.3.1 ayrı sürüm olmaktan çıkar, paketleri 0.4'ün ilk bölümü olur; resmi sürüm kapısı yalnız 0.4, 0.5, 0.6'da çalışır; arada her birleşmeden sonra GitHub Actions Windows'ta testleri koşup deneme kurulumu üretir (WP-20) | Uygulanıyor |
 
 ## Mihenk dışında kalan (bilgi; Mihenk'i bekletmez)
 Kullanıcının Neway profilindeki boş alanlar (maxRpm, ilerleme sınırı, safeRetract, G04 adresi/birimi, G54.1 aralığı), A+ dönüş yönü, O/N sınırları: kullanıcı kendi profil dosyasında doldurur. P1 STEP'indeki Ø4 çubuk sorusu yalnız karşılaştırma testinin yorumunu etkiler.

@@ -31,7 +31,7 @@
  },
  "productName": "Mihenk",
  "build": {
-  "appId": "com.d160.mihenk",
+  "appId": "app.mihenk.cadcam",
   "productName": "Mihenk",
   "files": [
    "dist/**",

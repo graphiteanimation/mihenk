@@ -13,7 +13,7 @@ Mihenk; Fusion, NX CAM ve SolidCAM muadili, kendi başına bir masaüstü CAD/CA
 ## 2. Tek doğruluk kaynağı
 | Ne | Nerede |
 |---|---|
-| Kod + geçmiş | git deposu: `Documents\Fusion-Klon-Spec\Mihenk\mihenk.git` (bare). GitHub yansısı kurulunca `origin` o olur. |
+| Kod + geçmiş | GitHub `graphiteanimation/mihenk` (özel, ana depo). Bilgisayardaki `Documents\Fusion-Klon-Spec\Mihenk\mihenk.git` yedektir; sürüm çıkarken eşitlenir. |
 | Güncel durum (≤ 40 satır, üzerine yazılır) | `pm/DURUM.md` (kopyası claude.ai projesinde `claude/DURUM.md`) |
 | Yapılacak her şey | `pm/BACKLOG.md` (iş paketleri, sürüm sırası, kaynak bulgu numaraları) |
 | Kararlar ve öneriler | `pm/KARARLAR.md` (K-nnn kullanıcı, O-nnn Claude) |
@@ -31,7 +31,7 @@ Kural: bir bilgi tek yerde durur. Zip kopyası, tarihli devam günlüğü, sohbe
 ## 4. Oturum protokolü
 Başlangıç (kullanıcı mesajı: `Mihenk: devam` ya da `Mihenk: WP-NN`):
 1. `pm/DURUM.md` ve BACKLOG'un ilk "Hazır" WP'sini oku. Başka belge ancak WP gerektirirse okunur.
-2. Depoyu klonla: bilgisayar bağlıysa `mihenk.git`'ten; GitHub yansısı varsa oradan. `npm ci`.
+2. Depoyu GitHub'dan klonla (`graphiteanimation/mihenk`), `npm ci`. Bilgisayar yalnız kurulum denemesi, ekran testi ve kullanıcı dosyaları için gerekir.
 3. Kullanıcıya en çok 3 satır: bu oturumun WP'si, kabul ölçütü, kullanıcıdan gereken (varsa).
 Yürütme:
 4. Karar ve tasarım ana modelde; kod, test, tarama alt ajanlarda (kod: Sonnet; çekirdek/sim/geometri: Opus; kozmetik: Haiku). Her alt ajana yazılı sözleşme verilir.
@@ -46,7 +46,7 @@ Kapanış:
 - Kullanıcının mesajındaki her "olsun / istemiyorum / şöyle olmalı" K-nnn olarak yazılır ve o oturumda uygulanmaya başlanır.
 - Kullanıcıya görünen davranışı değiştiren öneriler (arayüz yerleşimi, varsayılanlar) önce maket ya da kısa açıklamayla gösterilir.
 
-## 6. Kalite kapıları (sürüm çıkarmadan önce)
+## 6. Kalite kapıları (resmi sürüm: 0.4, 0.5, 0.6, 1.0; arada otomatik deneme kurulumu, O-034)
 1. `npm run test:all` baştan sona tek seferde geçer.
 2. Altın parça seti (P1–P4 karşılaştırma + kullanıcının eklediği parçalar): BLOCK sayısı, temiz NC oranı, süre tablosu önceki sürümden kötü değil.
 3. Windows'ta kurulum + aç + kaydet + NC kaydet kısa listesi (kullanıcının bilgisayarında, Claude ekran kontrolüyle).
