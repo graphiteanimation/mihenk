@@ -1,39 +1,12 @@
 // Yerlesik makine profili sablonlari ve makine profili dogrulamasi (saf JS).
-// Kural (CAM-DESIGN.md, K-017): makineye ozel HICBIR deger koda gomulmez; degerler bu sablonlardan gelir ve kullanici
-// profili kopyalayip duzenler. Spesifikasyonun "Makine verisi" tablosunda OLMAYAN deger null birakilir; null alan
+// Kural (CAM-DESIGN.md, K-017, K-026): makineye ozel HICBIR deger koda gomulmez; yerlesik yalniz genel sablonlardir, tezgah
+// profilleri kullanici verisidir (kopyalanir ya da dosyadan ice aktarilir). Spesifikasyonun "Makine verisi" tablosunda OLMAYAN deger null birakilir; null alan
 // post icin gerekiyorsa guvenlik kapisi 1 (cam.gate.missing) NC uretimini durdurur.
 // Metin alanlari: name kullanici verisidir (cevrilmez); yerlesik sablonlar nameKey ile iki dilde gosterilir.
 import { cerr, issue } from '../geom/err.js';
 
 const WCS = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1'];
 
-// Neway VM1160H + Mitsubishi M80V + GSA CNC-200R (NC A ekseni). Kaynak: spesifikasyon "Makine verisi" tablosu (2026-11-06).
-const NEWAY = {
-  id: 'builtin-neway-vm1160h-m80v-gsa', name: 'Neway VM1160H · M80V · GSA A', nameKey: 'cam.machine.neway', rev: 1, builtin: true,
-  control: 'mitsubishi-m80v',
-  axes: {
-    X: { travel: 1000, min: null, max: null }, Y: { travel: 600, min: null, max: null }, Z: { travel: 600, min: null, max: null },
-    // A: X'e paralel, sinirsiz, #8213=1 kisa yol; hizli 4000 deg/dk, kesme 2000 deg/dk; donme ekseni [-1,0,0]; fren PLC otomatik
-    A: { kind: 'rotary', about: 'X', dir: [-1, 0, 0], limits: null, shortest: true, rapid: 4000, feedMax: 2000, centerHeight: 160, clamp: { lock: 'M10', unlock: 'M11', output: false } },
-  },
-  spindle: { maxRpm: null, minRpm: null },
-  feed: { maxCut: null, rapid: null },
-  // rastgele takim yonetimi; 24 cep dolu, T1-T25 kayitli (magazin kapasitesi tabloda yok)
-  toolChange: { maxTools: null, kind: 'random', pos: null },
-  // Korunan: G54, G56, T1/T3/T12, H1/H3/H12; 4. eksen isi G58; D1/D3/D12 on dolu. Makine projesinden teyit edilmeli.
-  protected: { T: [1, 3, 12], H: [1, 3, 12], D: [1, 3, 12], wcs: ['G54', 'G56'], noteKey: 'cam.machine.protected_confirm' },
-  table: { x: 1200, y: 600 },
-  // post ozellikleri: adlar docs/POST.md bolum 3; bilinmeyen (makine projesinden teyit edilmemis) degerler null.
-  post: { props: {
-    safeRetract: null, safeRetractZ: null,
-    dwellAddress: null, dwellUnit: null, cycleDwellAddress: null, cycleDwellUnit: null,
-    coolantCodes: { flood: 'M8', mist: null, air: null, through: null, off: 'M9' },
-    g541Range: null,
-    tapMode: 'pitch', rigidTapM: null, tapR1: true,   // G84 senkron (#8159=1), F = adim, M29 gerekmez
-    rotaryMode: '6a', aSplit180: true,                 // NC A ekseni, kisa yol (#8213=1)
-    highSpeedOn: null, highSpeedOff: null,             // G05 P10000 / G05 P0 mevcut iste kullaniliyor; secenek
-  } },
-};
 // Genel 3 eksen (Fanuc tarzi): yalniz yapi; tum sayisal degerler kullanici tarafindan girilmeli.
 const GENERIC = {
   id: 'builtin-generic-3axis-fanuc', name: 'Fanuc-style generic 3-axis', nameKey: 'cam.machine.generic3', rev: 1, builtin: true,
@@ -45,8 +18,33 @@ const GENERIC = {
   post: { props: {} }, // post varsayilanlari (docs/POST.md)
 };
 
+// Genel 3+1 (Fanuc tarzi): X'e paralel A donme ekseni; sayisal degerler bos, kullanici doldurur.
+const GENERIC_4A = {
+  id: 'builtin-generic-4axis-a-fanuc', name: 'Fanuc-style generic 3+1 (A axis)', nameKey: 'cam.machine.generic4a', rev: 1, builtin: true,
+  control: 'fanuc-generic',
+  axes: {
+    X: { travel: null, min: null, max: null }, Y: { travel: null, min: null, max: null }, Z: { travel: null, min: null, max: null },
+    A: { kind: 'rotary', about: 'X', dir: [1, 0, 0], limits: null, shortest: true, rapid: null, feedMax: null, centerHeight: null, clamp: { lock: null, unlock: null, output: false } },
+  },
+  spindle: { maxRpm: null, minRpm: null }, feed: { maxCut: null, rapid: null },
+  toolChange: { maxTools: null, kind: 'fixed', pos: null },
+  protected: { T: [], H: [], D: [], wcs: [] },
+  post: { props: {} },
+};
+// Genel 3 eksen, Mitsubishi M80V kontrol ailesi (kontrol adi tezgah degil post kimligidir); degerler bos.
+const GENERIC_MITSUBISHI = {
+  id: 'builtin-generic-3axis-mitsubishi', name: 'Mitsubishi-style generic 3-axis', nameKey: 'cam.machine.generic3_mitsubishi', rev: 1, builtin: true,
+  control: 'mitsubishi-m80v',
+  axes: { X: { travel: null, min: null, max: null }, Y: { travel: null, min: null, max: null }, Z: { travel: null, min: null, max: null } },
+  spindle: { maxRpm: null, minRpm: null }, feed: { maxCut: null, rapid: null },
+  toolChange: { maxTools: null, kind: 'fixed', pos: null },
+  protected: { T: [], H: [], D: [], wcs: [] },
+  post: { props: {} },
+};
+
 const clone = (x) => JSON.parse(JSON.stringify(x));
-export const BUILTIN_MACHINES = Object.freeze([NEWAY, GENERIC].map((m) => Object.freeze(clone(m))));
+export const GENERIC_3AXIS_ID = GENERIC.id;
+export const BUILTIN_MACHINES = Object.freeze([GENERIC, GENERIC_4A, GENERIC_MITSUBISHI].map((m) => Object.freeze(clone(m))));
 export const builtinMachines = () => BUILTIN_MACHINES.map(clone);
 export function machineById(list, id) { return (list || []).find((m) => m && m.id === id) || null; }
 // Kopya: yeni kimlik, builtin bayragi yok (kullanici profili)

@@ -6,7 +6,8 @@
 import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
 import opencascade from 'replicad-opencascadejs';
 import * as CAM from '../../../src/cam/index.js';
-import { builtinMachines, copyMachine, checkMachine } from '../../../src/cam/machines/builtin.js';
+import { copyMachine, checkMachine } from '../../../src/cam/machines/builtin.js';
+import { NEWAY_FIXTURE } from '../../fixtures/machine-neway.mjs';
 import { postProgram } from '../../../src/cam/post/index.js';
 import { initKernel } from '../../../src/kernel/kernel.js';
 import { validateDoc } from '../../../src/shared/schema.js';
@@ -172,14 +173,14 @@ ASSUME('geometri/eskizler', 'kernel camSection kesitlerinden (setup eksenine dik
 ASSUME('adaptive karsiligi', 'ham islem z-bantlari (ozellik tepelerinde bolunmus): R1a 97,79-91,4 / R1b 91,6-85,09 / R2 85,29-79,375 / R3 79,575-73,03 / R4 73,23-66 / R5a 66,2-59 / R5b 59,2-52,1 / R6 52,3-31,75 (ada = bant alt kesiti; kure alt yarisi icin ekvator dairesi R15,875; Y<50,8 on duvar dolgusu; delik/tunel tavani icin on boss ve arka uc parcalari bbox dikdortgeni) + halka 31,95..-0,2; her bant tek 2,5D pocket', 'Mihenk tek-z cep: yukari daralan seklin (kaburga egimi, direk konisi, V yanaklari, kure ust yarisi) basamaklari kalir; kure alt yarisi/boyun alt-kesim (Fusion plani ile ayni: R15,9 silindirik artik)');
 ASSUME('3D kontur karsiligi', `z-seviye bantlari ${BAND} mm (kesit = bant altinda), her bant ayri contour islemi (stepdown = bant), bantlar Y97,79 -> 34,925 (R3,175 fileleri 34,925 altinda); kure yalniz Y>=63,5 bantlarinda (alt yarisi alt-kesim); kure cukuru ic kontur`, 'Plan: paso 1; Mihenk\'te 3D yuzey izleme yok, kesit eskizli bant = en yakin 2,5D');
 
-// ------------------------------------------------------------------ 3. makine (yerlesik Neway KOPYASI)
-const NEWAY = builtinMachines().find((m) => m.id === 'builtin-neway-vm1160h-m80v-gsa');
+// ------------------------------------------------------------------ 3. makine (Neway fixture KOPYASI)
+const NEWAY = structuredClone(NEWAY_FIXTURE); // K-026: Neway artik yerlesik degil; kullanici profili ornegi (test/fixtures)
 const M = copyMachine(NEWAY, 'test-p3-neway-kopya', 'P3 TEST Neway kopyasi (varsayimli)');
 M.spindle.maxRpm = 8000; ASSUME('machine.spindle.maxRpm', 8000, 'Plan: devir <= 8000');
 M.feed.maxCut = 5000; ASSUME('machine.feed.maxCut', 5000, 'Plan: ilerleme <= 5000');
 M.feed.rapid = 24000; ASSUME('machine.feed.rapid', 24000, 'Plan\'da yok; yalniz sure tahmini icin test degeri (P1/P2 ile ayni)');
 M.post = { props: { ...M.post.props, safeRetract: 'G28' } }; ASSUME('machine.post.props.safeRetract', 'G28', 'Fusion post: safePositionMethod = G28');
-R.makine = { kopya_id: M.id, yerlesik_degismedi: JSON.stringify(builtinMachines().find((m) => m.id === NEWAY.id)) === JSON.stringify(NEWAY), checkMachine: checkMachine(M), A: M.axes?.A ?? null };
+R.makine = { kopya_id: M.id, yerlesik_degismedi: JSON.stringify(NEWAY_FIXTURE) === JSON.stringify(NEWAY), checkMachine: checkMachine(M), A: M.axes?.A ?? null };
 
 // ------------------------------------------------------------------ 4. takimlar
 const HOLDER = { dia: 40, len: 50 }; ASSUME('tool.holder', 'O40 x 50 (P1/P2 ile ayni)', 'Plan: BT40 O40 silindir; tutucu boyu planda yok');

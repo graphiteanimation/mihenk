@@ -7,6 +7,8 @@ import * as P from '../src/cam/geom/path2d.js';
 import * as G from '../src/shared/geom2d.js';
 import { ringTree, pocketRegion, SegGrid } from '../src/cam/ops/pocket.js';
 import { sketchFaces } from '../src/cam/geom/select.js';
+import { NEWAY_FIXTURE } from './fixtures/machine-neway.mjs';
+import { exportMachines, importMachines, MACHINE_FORMAT } from '../src/cam/machines/io.js';
 import { builtinMachines, checkMachine, copyMachine } from '../src/cam/machines/builtin.js';
 import { normalizeTool, importLibrary, exportLibrary, applyPreset, toolListIssues } from '../src/cam/tools.js';
 import { validateToolpath, validateProgram, walk, sampleArc } from '../src/cam/ir.js';
@@ -79,14 +81,14 @@ section('1. 2B geometri ve ofset');
 // ================================================================== 2. makine ve takim
 section('2. makine profili ve takim');
 {
-  const [nw, gen] = builtinMachines();
+  const nw = structuredClone(NEWAY_FIXTURE), [gen, gen4a, genMit] = builtinMachines();
   const c1 = checkMachine(nw), c2 = checkMachine(gen);
   ok(!c1.errors.length && c1.missing.includes('spindle.maxRpm') && c1.missing.includes('feed.maxCut') && !c1.missing.includes('axes.X.travel'), 'Neway: kurslar dolu, maxRpm/maxCut null');
   ok(!c2.errors.length && c2.missing.includes('axes.X.travel'), 'Genel: tum sayilar null');
   ok(JSON.stringify(nw.protected.T) === '[1,3,12]' && nw.protected.wcs.includes('G54') && nw.protected.wcs.includes('G56') && !nw.protected.wcs.includes('G58'), 'Neway korunan liste on dolu');
   ok(nw.axes.A.dir[0] === -1 && nw.axes.A.limits === null && nw.axes.A.shortest === true && nw.post.props.safeRetract === null && nw.post.props.tapMode === 'pitch', 'Neway A ekseni ve post ozellikleri');
   ok(checkMachine({ ...nw, axes: { ...nw.axes, A: { ...nw.axes.A, dir: [0, 1, 0] } } }).errors.length > 0, 'A dir X e paralel degil: hata');
-  const cp = copyMachine(nw, 'm2', 'Benim'); ok(cp.id === 'm2' && !cp.builtin && nw.builtin, 'kopya');
+  const cp = copyMachine(nw, 'm2', 'Benim'); ok(cp.id === 'm2' && !cp.builtin && builtinMachines()[0].builtin && cp.name === 'Benim', 'kopya');
   const t = normalizeTool({ id: 'a', number: 2, lengthOffset: 2, type: 'ball', dia: 6, fluteLen: 10, bodyLen: 30, flutes: 2, centerCutting: true, presets: [{ name: 'Al', rpm: 9000, feedCut: 900, feedPlunge: 300, coolant: 'mist', stepdown: 1 }] });
   ok(t.cornerR === 3, 'ball cornerR = dia/2');
   throwsCode(() => normalizeTool({ ...t, type: 'tap' }), 'cam.tool.bad_field', 'kilavuzda pitch zorunlu');
@@ -231,10 +233,62 @@ section('5. cep');
   throwsCode(() => CAM.computeOp({ ...pop, finishPass: true }, { setup: S0, tool, geom: { faces: [face] } }), 'cam.op.missing', 'bitirme payi zorunlu');
 }
 
+// ================================================================== 2b. yerlesik sablonlar ve tezgah dosyasi (K-026)
+section('2b. yerlesik genel sablonlar ve tezgah ice/disa aktarma');
+{
+  const B = builtinMachines();
+  ok(B.map((m) => m.id).join() === 'builtin-generic-3axis-fanuc,builtin-generic-4axis-a-fanuc,builtin-generic-3axis-mitsubishi', 'yerlesikler yalniz uc genel sablon');
+  ok(!JSON.stringify(B).match(/neway|vm1160|gsa/i), 'yerlesiklerde tezgah markasi yok');
+  ok(B.every((m) => m.builtin && m.nameKey), 'yerlesik: builtin bayragi ve ad anahtari');
+  const g4 = B[1], gm = B[2], c4 = checkMachine(g4), cm = checkMachine(gm);
+  ok(!c4.errors.length && c4.missing.includes('axes.X.travel') && c4.missing.includes('spindle.maxRpm'), '3+1 sablon: hatasiz, eksikler missing');
+  ok(g4.axes.A.about === 'X' && JSON.stringify(g4.axes.A.dir) === '[1,0,0]' && g4.axes.A.shortest === true && g4.axes.A.rapid === null && g4.axes.A.clamp.output === false && g4.axes.A.clamp.lock === null, '3+1 sablon: A ekseni bos');
+  ok(!cm.errors.length && gm.control === 'mitsubishi-m80v' && gm.protected.T.length === 0 && gm.protected.wcs.length === 0 && gm.spindle.maxRpm === null, 'Mitsubishi sablon: bos degerler, korunan liste bos');
+  ok(!checkMachine(NEWAY_FIXTURE).errors.length && NEWAY_FIXTURE.id === 'user-neway-vm1160h-m80v-gsa' && !NEWAY_FIXTURE.builtin && !NEWAY_FIXTURE.nameKey, 'fixture gecerli kullanici profili');
+  // disa/ice aktar gidis-donus
+  const txt = exportMachines([NEWAY_FIXTURE, B[1]]); const j = JSON.parse(txt);
+  ok(j.format === MACHINE_FORMAT && j.version === 1 && j.machines.length === 2 && !('builtin' in j.machines[1]) && !('nameKey' in j.machines[1]), 'disa aktar: bicim, builtin/nameKey atilir');
+  const im = importMachines(txt, []); ok(im.machines.length === 2 && !im.errors.length && JSON.stringify(im.machines[0]) === JSON.stringify(NEWAY_FIXTURE), 'gecerli dosya: gidis-donus ayni');
+  // ornek dosya
+  const ex = importMachines(fs.readFileSync(path.join(ROOT, 'ornekler/tezgahlar/Neway-VM1160H-M80V-GSA.mhnk-tezgah.json'), 'utf8'), []);
+  ok(ex.machines.length === 1 && !ex.errors.length && JSON.stringify(ex.machines[0]) === JSON.stringify(NEWAY_FIXTURE), 'ornek dosya fixture ile ayni');
+  // bozuk JSON, yanlis bicim, surum, sinirlar
+  throwsCode(() => importMachines('{bozuk'), 'cam.machine.file_bad', 'bozuk JSON');
+  throwsCode(() => importMachines(JSON.stringify({ format: 'baska', version: 1, machines: [] })), 'cam.machine.file_bad', 'yanlis format');
+  throwsCode(() => importMachines(JSON.stringify({ format: MACHINE_FORMAT, version: 1, machines: {} })), 'cam.machine.file_bad', 'machines dizi degil');
+  throwsCode(() => importMachines(JSON.stringify({ format: MACHINE_FORMAT, version: 2, machines: [] })), 'cam.machine.file_newer', 'daha yeni surum');
+  throwsCode(() => importMachines('x'.repeat(6 * 1024 * 1024)), 'cam.machine.file_too_big', 'cok buyuk dosya');
+  throwsCode(() => importMachines(JSON.stringify({ format: MACHINE_FORMAT, version: 1, machines: new Array(201).fill(0) })), 'cam.machine.file_too_many', 'cok profil');
+  // yapi hatali profil reddedilir, digerleri alinir
+  const badM = { ...structuredClone(NEWAY_FIXTURE), id: 'bad', axes: { ...structuredClone(NEWAY_FIXTURE.axes), A: { ...structuredClone(NEWAY_FIXTURE.axes.A), dir: [0, 1, 0] } } };
+  const r1 = importMachines(JSON.stringify({ format: MACHINE_FORMAT, version: 1, machines: [badM, 5, NEWAY_FIXTURE] }), []);
+  ok(r1.machines.length === 1 && r1.errors.length === 2 && r1.errors[0].index === 0 && r1.errors[0].code === 'cam.machine.bad_field' && r1.errors[1].index === 1, 'yapi hatali profil reddedilir, gecerli alinir');
+  // builtin bayragi ve nameKey atilir
+  const r2 = importMachines(JSON.stringify({ format: MACHINE_FORMAT, version: 1, machines: [{ ...structuredClone(NEWAY_FIXTURE), id: 'x1', builtin: true, nameKey: 'cam.machine.generic3' }] }), []);
+  ok(r2.machines.length === 1 && !('builtin' in r2.machines[0]) && !('nameKey' in r2.machines[0]), 'builtin ve nameKey atilir');
+  // kimlik cakismasi
+  const r3 = importMachines(txt, [NEWAY_FIXTURE.id, 'builtin-generic-3axis-fanuc'], () => 'yeni-1');
+  ok(r3.machines[0].id === 'yeni-1' && r3.machines[0].name === NEWAY_FIXTURE.name + ' (2)' && r3.machines[1].id === B[1].id && r3.machines[1].name === B[1].name, 'kimlik cakismasinda yeni kimlik ve " (2)"');
+  const r4 = importMachines(JSON.stringify({ format: MACHINE_FORMAT, version: 1, machines: [NEWAY_FIXTURE, NEWAY_FIXTURE] }), []);
+  ok(r4.machines.length === 2 && r4.machines[0].id !== r4.machines[1].id, 'dosya icinde cift kimlik de ayrilir');
+  // prototip kirlenmesi
+  const pol = '{"format":"mihenk-machine","version":1,"machines":[' + JSON.stringify(NEWAY_FIXTURE).replace('{', '{"__proto__":{"polluted":1},') + ']}';
+  const r5 = importMachines(pol, []); ok(r5.machines.length === 0 && r5.errors[0].code === 'cam.machine.file_bad_field' && ({}).polluted === undefined, '__proto__ anahtari reddedilir');
+  for (const key of ['constructor', 'prototype']) {
+    const o = structuredClone(NEWAY_FIXTURE); o.post.props[key] = { x: 1 };
+    const r = importMachines(JSON.stringify({ format: MACHINE_FORMAT, version: 1, machines: [o] }), []); ok(r.machines.length === 0 && r.errors[0].code === 'cam.machine.file_bad_field', key + ' anahtari reddedilir');
+  }
+  // derinlik
+  let deep = {}; let cur = deep; for (let i = 0; i < 30; i++) { cur.a = {}; cur = cur.a; }
+  const o6 = structuredClone(NEWAY_FIXTURE); o6.post.props.deep = deep;
+  const r6 = importMachines(JSON.stringify({ format: MACHINE_FORMAT, version: 1, machines: [o6] }), []); ok(r6.machines.length === 0 && r6.errors[0].code === 'cam.machine.file_too_deep', 'derinlik siniri');
+  throwsCode(() => exportMachines([{ id: 1 }]), 'cam.machine.bad_field', 'gecersiz profil disa aktarilamaz');
+}
+
 // ================================================================== 6. kapilar
 section('6. guvenlik kapilari');
 {
-  const nw = builtinMachines()[0];
+  const nw = structuredClone(NEWAY_FIXTURE);
   const M = { ...nw, id: 'm', spindle: { maxRpm: 12000, minRpm: 50 }, feed: { maxCut: 10000, rapid: 30000 }, toolChange: { ...nw.toolChange, maxTools: 24 }, axes: { ...nw.axes, A: { ...nw.axes.A, limits: [-360, 360] } } };
   const tool = flat(10, { number: 5, lengthOffset: 5, diaOffset: 5 });
   const fop = { id: 'f', type: 'face', ...base, stepover: 7, stepdown: 1, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -1 } } };
@@ -249,7 +303,7 @@ section('6. guvenlik kapilari');
   const g4 = codes(CAM.gates(prog(tp, { ...S0, workOffset: { kind: 'G54.1', p: 3 } }), { ...M, protected: { ...M.protected, wcs: ['G54.1 P3'] } })); ok(g4.includes('cam.gate.protected:WCS'), 'dokunulmaz G54.1 P3');
   const twear = CAM.computeOp({ id: 'c', type: 'contour', ...base, geom: [{ kind: 'face' }], stepdown: 5, comp: 'wear', leadIn: { kind: 'line', len: 8 }, leadOut: { kind: 'line', len: 8 } }, { setup: S0, tool: { ...tool, diaOffset: 1 }, geom: { faces: [{ z: -5, outer: sq(20, 15, 80, 45), inners: [] }] } });
   ok(codes(CAM.gates(prog(twear), M)).includes('cam.gate.protected:D'), 'dokunulmaz D1 (wear)');
-  const gm = codes(CAM.gates(prog(tp), builtinMachines()[0])); ok(gm.includes('cam.gate.missing:machine.spindle.maxRpm') && gm.includes('cam.gate.missing:machine.feed.maxCut'), 'eksik makine verisi block: ' + gm);
+  const gm = codes(CAM.gates(prog(tp), structuredClone(NEWAY_FIXTURE))); ok(gm.includes('cam.gate.missing:machine.spindle.maxRpm') && gm.includes('cam.gate.missing:machine.feed.maxCut'), 'eksik makine verisi block: ' + gm);
   const raw = (t) => ({ name: 'O1', units: 'mm', machine: null, sections: [{ setup: { id: 's1', name: 'S1', workOffset: { kind: 'G55' }, aAngle: null, stockBox: S0.stockBox }, toolpath: t }] });
   const gm2 = codes(CAM.gates(raw({ ...tp, tool: { ...tp.tool, H: null } }), M)); ok(gm2.includes('cam.gate.missing:tool.H'), 'eksik H block');
   const gm3 = codes(CAM.gates(raw({ ...twear, tool: { ...twear.tool, D: null } }), M)); ok(gm3.includes('cam.gate.missing:tool.D'), 'wear D eksik block');
@@ -326,7 +380,7 @@ section('7. setup, sema, metinler');
 {
   const verts = new Float32Array([0, -10, -10, 100, 10, 10, 0, 10, -10, 100, -10, 10]);
   const rb = { bodies: [{ id: 'b', vertices: verts }], holes: [] };
-  const M = builtinMachines()[0];
+  const M = structuredClone(NEWAY_FIXTURE);
   const st = { id: 's', name: 'S', bodies: ['b'], frame: { origin: { kind: 'stockCorner', corner: 'x-y-z+' } }, workOffset: { kind: 'G55' }, stock: { kind: 'boxOffset', side: 2, top: 1, bottom: 0 }, clearanceZ: 5 };
   const S = CAM.resolveSetup(st, rb, M);
   ok(S.stockBox.max[2] === 0 && S.stockBox.min[0] === 0 && Math.abs(S.stockBox.max[0] - 104) < 1e-9 && S.frame.o[2] === 11, 'kutu stok + kose orijini');
@@ -334,7 +388,7 @@ section('7. setup, sema, metinler');
   const q = (p) => [0, 1, 2].map((k) => (p[0] - Sr.frame.o[0]) * [Sr.frame.x, Sr.frame.y, Sr.frame.z][k][0] + (p[1] - Sr.frame.o[1]) * [Sr.frame.x, Sr.frame.y, Sr.frame.z][k][1] + (p[2] - Sr.frame.o[2]) * [Sr.frame.x, Sr.frame.y, Sr.frame.z][k][2]);
   const qp = q([0, 5, 0]); // A kelimesi 90, dir -X: Rot(-X, 90) = Rx(-90) -> +Y noktasi -Z'ye
   ok(Sr.aAngle === 90 && Math.abs(qp[2] + 5) < 1e-9 && Math.abs(qp[1]) < 1e-9 && Sr.stockBox.max[2] === 20, '3+1: A=90 etkin cerceve (A.dir isareti) ve silindir stok');
-  throwsCode(() => CAM.resolveSetup({ ...st, rotary: { enabled: true, aAngle: 90 } }, rb, builtinMachines()[1]), 'cam.setup.no_rotary', 'A ekseni olmayan makinede 3+1');
+  throwsCode(() => CAM.resolveSetup({ ...st, rotary: { enabled: true, aAngle: 90 } }, rb, builtinMachines()[0]), 'cam.setup.no_rotary', 'A ekseni olmayan makinede 3+1');
   // V-01: bagimsiz fizik: parca noktasi tezgahta Rot(A.dir, A kelimesi)·p; setup koordinati bununla AYNI olmali; post A'yi aAngle olarak yazar
   { const rot = (u, deg) => { const t = deg * Math.PI / 180, c = Math.cos(t), s2 = Math.sin(t), [x, y, z] = u; return [[c + x * x * (1 - c), x * y * (1 - c) - z * s2, x * z * (1 - c) + y * s2], [y * x * (1 - c) + z * s2, c + y * y * (1 - c), y * z * (1 - c) - x * s2], [z * x * (1 - c) - y * s2, z * y * (1 - c) + x * s2, c + z * z * (1 - c)]]; };
     for (const dx of [-1, 1]) for (const a of [30, 90, 270]) {
@@ -388,7 +442,7 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
   const rb = await K.rebuild(doc);
   ok(Object.values(rb.status).every((s) => s.ok), 'model kuruldu: ' + JSON.stringify(Object.fromEntries(Object.entries(rb.status).filter(([, s]) => !s.ok).map(([k, s]) => [k, s.error]))));
   const bid = rb.bodies[0].id; const faceAt = (z, minA = 0, nz = 1) => { for (let i = 0; i < rb.bodies[0].nFaces; i++) { const d = K.describe({ body: bid, idx: i }, 'face'); if (d.geom === 'PLANE' && d.normal[2] * nz > 0.99 && Math.abs(d.fp[2] - z) < 1e-6 && d.area > minA) return d; } return null; };
-  const M = { ...builtinMachines()[1], id: 'gen', axes: { X: { travel: 800 }, Y: { travel: 500 }, Z: { travel: 500 } }, spindle: { maxRpm: 12000, minRpm: 100 }, feed: { maxCut: 8000, rapid: 24000 }, toolChange: { maxTools: 20, kind: 'fixed' } };
+  const M = { ...builtinMachines()[0], id: 'gen', axes: { X: { travel: 800 }, Y: { travel: 500 }, Z: { travel: 500 } }, spindle: { maxRpm: 12000, minRpm: 100 }, feed: { maxCut: 8000, rapid: 24000 }, toolChange: { maxTools: 20, kind: 'fixed' } };
   const tools = [flat(6, { id: 'em6', number: 2, lengthOffset: 2, diaOffset: 2 }), flat(10, { id: 'em10', number: 4, lengthOffset: 4, diaOffset: 4, fluteLen: 35, bodyLen: 50 }), { id: 'dr', number: 6, lengthOffset: 6, type: 'drill', dia: 6.8, tipAngle: 118, fluteLen: 40, bodyLen: 60, flutes: 2, centerCutting: true }];
   const floor = faceAt(20), step = faceAt(25), top = faceAt(30, 2000), bottom = faceAt(0, 2000, -1);
   ok(floor && step && top, 'taban, basamak ve ust yuz bulundu');
@@ -452,7 +506,7 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
   catch (e) { ok(e.code === 'cam.silhouette.not_prismatic', 'prizmatik olmayan govde: ' + e.code); }
   await K.rebuild(doc);
   // eksik veri: genel makine sablonu -> block
-  const r2b = await CAM.generateProgram(cam, { rebuild: rb, machine: builtinMachines()[1], query, name: 'O1' }); ok(r2b.blocked && r2b.gates.some((g) => g.code === 'cam.gate.missing'), 'sablon makine: eksik veri block');
+  const r2b = await CAM.generateProgram(cam, { rebuild: rb, machine: builtinMachines()[0], query, name: 'O1' }); ok(r2b.blocked && r2b.gates.some((g) => g.code === 'cam.gate.missing'), 'sablon makine: eksik veri block');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

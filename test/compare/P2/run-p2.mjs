@@ -6,7 +6,8 @@
 import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
 import opencascade from 'replicad-opencascadejs';
 import * as CAM from '../../../src/cam/index.js';
-import { builtinMachines, copyMachine, checkMachine } from '../../../src/cam/machines/builtin.js';
+import { copyMachine, checkMachine } from '../../../src/cam/machines/builtin.js';
+import { NEWAY_FIXTURE } from '../../fixtures/machine-neway.mjs';
 import { postProgram } from '../../../src/cam/post/index.js';
 import { initKernel } from '../../../src/kernel/kernel.js';
 import { validateDoc } from '../../../src/shared/schema.js';
@@ -99,14 +100,14 @@ const FH = [[142.875, 98.425], [-142.875, 98.425], [-142.875, -98.425], [142.875
 const rbX = { ...rb, holes: [{ feature: 'P2flansDelik', kind: 'simple', dia: 6.045, depth: 11.16, through: false, tipAngle: 118, thread: null, dir: [0, 0, 1], positions: FH.map((p) => [p[0], p[1], 0]), dirs: FH.map(() => [0, 0, 1]), bodies: FH.map(() => [bid]), count: 4, lost: 0 }] };
 ASSUME('rebuild.holes (S1 flans delikleri)', '4x Ø6,045 (X +-142,875, Y +-98,425), giris Z=0, yon +Z (S1 takim ekseni -Z), derinlik 11,16 = flans 10,16 + 1 mm kirilma (blind kaydi; breakThrough yalniz through deliklerde isler, drill.js:82-83)', 'STEP ice aktarmada delik ozelligi tanimaz; through:true olsaydi Mihenk model tabanina kadar (Z48,26) deler (deney asagida)');
 
-// ------------------------------------------------------------------ 3. makine (yerlesik Neway KOPYASI)
-const NEWAY = builtinMachines().find((m) => m.id === 'builtin-neway-vm1160h-m80v-gsa');
+// ------------------------------------------------------------------ 3. makine (Neway fixture KOPYASI)
+const NEWAY = structuredClone(NEWAY_FIXTURE); // K-026: Neway artik yerlesik degil; kullanici profili ornegi (test/fixtures)
 const M = copyMachine(NEWAY, 'test-p2-neway-kopya', 'P2 TEST Neway kopyasi (varsayimli)');
 M.spindle.maxRpm = 8000; ASSUME('machine.spindle.maxRpm', 8000, 'Plan: devir <= 8000');
 M.feed.maxCut = 5000; ASSUME('machine.feed.maxCut', 5000, 'Plan: kesme ilerlemesi <= 5000');
 M.feed.rapid = 24000; ASSUME('machine.feed.rapid', 24000, 'Plan\'da yok; yalniz sure tahmini icin test degeri (P1 ile ayni)');
 M.post = { props: { ...M.post.props, safeRetract: 'G28' } }; ASSUME('machine.post.props.safeRetract', 'G28', 'Fusion post: safePositionMethod = G28');
-R.makine = { kopya_id: M.id, yerlesik_degismedi: JSON.stringify(builtinMachines().find((m) => m.id === NEWAY.id)) === JSON.stringify(NEWAY), checkMachine: checkMachine(M) };
+R.makine = { kopya_id: M.id, yerlesik_degismedi: JSON.stringify(NEWAY_FIXTURE) === JSON.stringify(NEWAY), checkMachine: checkMachine(M) };
 
 // ------------------------------------------------------------------ 4. takimlar
 const HOLDER = { dia: 40, len: 50 }; ASSUME('tool.holder', 'O40 x 50 (P1 ile ayni)', 'Plan: BT40 O40 silindir; tutucu boyu planda yok');

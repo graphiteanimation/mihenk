@@ -1,7 +1,7 @@
 // Elle kurulmus IR ornekleri (A ajanindan bagimsiz). Tum degerler TEST degeridir; makine gerceginin kaniti degildir.
 import { mk } from '../../src/cam/ir.js';
 
-// Test makine profili: "Neway tarzi M80V + A ekseni" bicimi; sayilar test icindir. clamp.output true: M10/M11 sirasini sinamak icin.
+// Test makine profili: "M80V + A ekseni" bicimi; sayilar test icindir. clamp.output true: M10/M11 sirasini sinamak icin.
 export function testMachine(over = {}) {
   const m = {
     id: 'test-m80v', name: 'TEST M80V + A', rev: 1, control: 'mitsubishi-m80v',

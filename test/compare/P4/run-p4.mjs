@@ -7,7 +7,8 @@
 import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
 import opencascade from 'replicad-opencascadejs';
 import * as CAM from '../../../src/cam/index.js';
-import { builtinMachines, copyMachine, checkMachine } from '../../../src/cam/machines/builtin.js';
+import { copyMachine, checkMachine } from '../../../src/cam/machines/builtin.js';
+import { NEWAY_FIXTURE } from '../../fixtures/machine-neway.mjs';
 import { postProgram } from '../../../src/cam/post/index.js';
 import { initKernel } from '../../../src/kernel/kernel.js';
 import { validateDoc } from '../../../src/shared/schema.js';
@@ -147,14 +148,14 @@ ASSUME('geometri/eskizler', 'kernel camSection kesitlerinden (setup eksenine dik
 ASSUME('adaptive karsiligi (op2)', 'z-bantlari (ada = dolgu govdesinin bant alti kesiti): R1 31-29,6 / R2 29,8-29 / R3 29,2-27 / R4 27,2-23 / R5 23,2-8 / R6 8,2--0,2; her bant tek 2,5D pocket T34', 'Mihenk\'te adaptive yok (T-09); yukari daralan dalga/kaburga yanaklarinda basamak kalir');
 ASSUME('3D kontur karsiligi (op4)', `Y31->22 ${BAND} mm bantlar (kesit bant alti +0,05), Y22->9 tek duvar islemi (kesit Y15, paso 1), Y9->8 ayak bandi (kesit 8,05); dis/climb`, 'Plan: paso 1, alt Y7,8; Mihenk\'te 3D yuzey izleme yok');
 
-// ------------------------------------------------------------------ 3. makine (yerlesik Neway KOPYASI)
-const NEWAY = builtinMachines().find((m) => m.id === 'builtin-neway-vm1160h-m80v-gsa');
+// ------------------------------------------------------------------ 3. makine (Neway fixture KOPYASI)
+const NEWAY = structuredClone(NEWAY_FIXTURE); // K-026: Neway artik yerlesik degil; kullanici profili ornegi (test/fixtures)
 const M = copyMachine(NEWAY, 'test-p4-neway-kopya', 'P4 TEST Neway kopyasi (varsayimli)');
 M.spindle.maxRpm = 8000; ASSUME('machine.spindle.maxRpm', 8000, 'Plan: devir <= 8000');
 M.feed.maxCut = 5000; ASSUME('machine.feed.maxCut', 5000, 'Plan: ilerleme <= 5000');
 M.feed.rapid = 24000; ASSUME('machine.feed.rapid', 24000, 'Plan\'da yok; yalniz sure tahmini icin test degeri (P1-P3 ile ayni)');
 M.post = { props: { ...M.post.props, safeRetract: 'G28' } }; ASSUME('machine.post.props.safeRetract', 'G28', 'Fusion post: safePositionMethod = G28');
-R.makine = { kopya_id: M.id, yerlesik_degismedi: JSON.stringify(builtinMachines().find((m) => m.id === NEWAY.id)) === JSON.stringify(NEWAY), checkMachine: checkMachine(M), A: M.axes?.A ?? null, post_props: M.post.props };
+R.makine = { kopya_id: M.id, yerlesik_degismedi: JSON.stringify(NEWAY_FIXTURE) === JSON.stringify(NEWAY), checkMachine: checkMachine(M), A: M.axes?.A ?? null, post_props: M.post.props };
 
 // ------------------------------------------------------------------ 4. takimlar
 const HOLDER = { dia: 40, len: 50 }; ASSUME('tool.holder', 'O40 x 50 (P1-P3 ile ayni)', 'Plan: BT40; tutucu boyu planda yok');
