@@ -15,6 +15,8 @@ import opencascade from 'replicad-opencascadejs';
 import { initKernel } from '../src/kernel/kernel.js';
 import { parseFont, textOutlines, cleanSegments, writeText, pruneTexts, textOfEnt } from '../src/ui/sketch/text.js';
 import { validateDoc } from '../src/shared/schema.js';
+import * as CAM from '../src/cam/index.js';
+import * as VL from './verify/lib.mjs';
 import { findRegions } from '../src/shared/profiles.js';
 import { exampleEntries, wrapExample } from '../src/ui/examples.js';
 
@@ -67,6 +69,42 @@ await madde(1, 'src/ui/cam devirleri: belge adı + model kutusu post seçenekler
   ok(!kayitsiz.length, 'şeritteki her komut kayıtlı: ' + kayitsiz.join(','));
   ok(/CAM_RIBBON\.map/.test(idx), 'index.js ribbon() CAM_RIBBON’dan kurar');
   ok(CAM_RIBBON[CAM_RIBBON.length - 1][3]?.cls === 'end', 'eylem grubu sonda ve sabit (end)');
+});
+
+await madde(2, 'V-29 annulus#16 ters yay: kök neden (ölçüt), regresyon', () => {
+  // toolpath.verify 21 tohumundaki annulus#16 durumu (geometri ve işlem birebir; test/verify/toolpath.verify.mjs)
+  const reg = { outer: VL.circleLoop([0, 0], 33.71460323780775, true), holes: [VL.circleLoop([0.8638382432982326, -0.08384060440585017], 17.353826069320643, false)] };
+  const S0 = { id: 's1', name: 'S1', workOffset: { kind: 'G55' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min: [-100, -100, -30], max: [300, 300, 0] }, modelBBox: { min: [-100, -100, -30], max: [300, 300, 0] }, clearance: 5, aAngle: null, stockTop: 0, machinePos: null };
+  const tool = { id: 't', number: 5, lengthOffset: 5, diaOffset: 25, type: 'flat', dia: 16, fluteLen: 30, bodyLen: 60, flutes: 3, centerCutting: true };
+  const opOf = (dir) => ({ id: 'p', type: 'pocket', name: 'annulus', rpm: 8000, feedCut: 800, feedPlunge: 300, coolant: 'flood', heights: { clearance: 10, retract: 2 }, geom: [{ kind: 'face', ref: {} }], stepover: 4.663744404725731, stepdown: 3.988544177263975, stockToLeave: { radial: 0, axial: 0.2 }, dir, entry: { kind: 'ramp', angle: 10.951324080117047, helixDia: 11.655029941350222 }, finishPass: false });
+  const PR = VL.prepRegion(reg), r = 8, grid = new VL.Grid(PR.segs, r);
+  const scan = (tp, dir) => { const o = { oldBad: [], newBad: 0, newN: 0 };
+    VL.walkSamples(tp, (s) => {
+      if (s.m.t === 'rapid' || s.z >= -1e-6 || !s.t || s.m.kind !== 'cut' || s.m.z !== s.from.z) return;
+      const p = [s.x, s.y]; if (Math.abs(grid.near(p, r + 2) - r) >= 1e-3) return;
+      const nq = VL.nearestOn(p, PR.segs); const w = [nq.q[0] - p[0], nq.q[1] - p[1]]; const cr = s.t[0] * w[1] - s.t[1] * w[0];
+      if (Math.abs(cr) > 0.5 * Math.hypot(...w) && (dir === 'conv' ? cr < 0 : cr > 0)) o.oldBad.push({ k: s.k, p, start: Math.hypot(p[0] - s.from.x, p[1] - s.from.y) < 1e-9 });
+      const wd = VL.wallDir(p, s.t, PR.segs, r); if (wd) { o.newN++; if (dir === 'conv' ? wd.cr < 0 : wd.cr > 0) o.newBad++; }
+    }); return o; };
+  const tp = CAM.computeOp(opOf('conv'), { setup: S0, tool, geom: { faces: [VL.face(reg, -6)] } });
+  const A = scan(tp, 'conv');
+  // kök neden: eski ölçütün işaretlediği tek örnek her derinlikte hilal ucundaki (iki ofset dairesinin kesişimi) hareket BAŞLANGICI
+  ok(A.oldBad.length === 2 && A.oldBad.every((b) => b.start), 'eski ölçüt: yalnız hareket başlangıcı örnekleri (2 derinlik × 1): ' + JSON.stringify(A.oldBad));
+  for (const b of A.oldBad) { const dO = Math.abs(Math.hypot(...b.p) - (33.71460323780775 - r)), dI = Math.abs(Math.hypot(b.p[0] - 0.8638382432982326, b.p[1] + 0.08384060440585017) - (17.353826069320643 + r)); ok(dO < 1e-6 && dI < 1e-6, 'işaretlenen nokta iki duvara birden r uzaklıkta (sivri uç): ' + dO + ' ' + dI); }
+  // takım yolu doğru: dış duvar yayları (merkez 0,0) konvansiyonelde saat yönünde, ada yayları saat yönü tersinde
+  let pos = null; const arcs = { out: new Set(), isl: new Set() };
+  for (const m of tp.moves) { if (m.t === 'arc' && m.kind === 'cut' && pos) { const c = [pos.x + m.i, pos.y + m.j]; if (Math.hypot(...c) < 1e-6) arcs.out.add(m.dir); else if (Math.hypot(c[0] - 0.8638382432982326, c[1] + 0.08384060440585017) < 1e-6) arcs.isl.add(m.dir); } if (m.t !== 'cycle' && m.t !== 'dwell' && m.t !== 'comp') pos = m; }
+  ok([...arcs.out].join() === 'cw' && [...arcs.isl].join() === 'ccw', 'konvansiyonel: dış duvar yayları cw, ada yayları ccw: ' + JSON.stringify({ out: [...arcs.out], isl: [...arcs.isl] }));
+  ok(A.newBad === 0 && A.newN > 1000, `yeni ölçüt (sivri uç belirsiz, duvara teğet hareket): 0 ters / ${A.newN} duvar örneği`);
+  // duyarlılık: aynı yol tırmanma beklenseydi yeni ölçüt duvar örneklerinin hepsini ters bulur (ölçüt kör değil)
+  const B = scan(tp, 'climb'); ok(B.newBad === B.newN && B.newN > 1000, `duyarlılık: konvansiyonel yol tırmanma ölçüsüyle ${B.newBad}/${B.newN} ters`);
+  const tpc = CAM.computeOp(opOf('climb'), { setup: S0, tool, geom: { faces: [VL.face(reg, -6)] } }); const C = scan(tpc, 'climb');
+  ok(C.newBad === 0 && C.newN > 1000, `tırmanma yolu: 0 ters / ${C.newN}`);
+  // sivri uç ve teğetlik kuralı birim düzeyde
+  ok(VL.wallDir([0, 0], [1, 0], [VL.L([-5, 1], [5, 1]), VL.L([-5, -1], [5, -1])], 1) === null, 'iki ayrı duvara değen nokta belirsiz (null)');
+  ok(VL.wallDir([0, 0], [1, 0], [VL.L([-5, 1], [5, 1])], 1)?.cr > 0, 'tek duvar, teğet hareket: ölçülür');
+  ok(VL.wallDir([0, 0], [Math.SQRT1_2, -Math.SQRT1_2], [VL.L([-5, 1], [5, 1])], 1) === null, 'duvardan 45° ayrılan hareket ölçülmez');
+  ok(/V\.wallDir\(p, s\.t, PR\.segs, r \+ stR\)/.test(src('test/verify/toolpath.verify.mjs')), 'toolpath.verify aynı ölçütü kullanır');
 });
 
 await madde(3, 'hizalama izinden otomatik H/V kısıtı; Sabitle ile fazla kısıt çatışması (7g)', async () => {

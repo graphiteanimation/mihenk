@@ -63,6 +63,19 @@ export function nearestOn(p, segs) {
   }
   return best;
 }
+// Duvar yonu olcutu (V-29, WP-21): takim merkezi p, hareket teget birim vektoru t, hedef uzaklik rr (r+pay).
+// Donus: null (duvar ornegi degil ya da belirsiz), aksi halde { cr, w } (cr = t x w; climb: cr<0, conv: cr>0 beklenir).
+// Belirsiz: p rr uzakliginda IKI AYRI temas noktasina degiyorsa (ofset bolgesinin sivri ucu / kistirilmis gecit). Orada
+// hareketin baslangic tegeti onceki duvardan ayrilir; yon tek duvara gore tanimsizdir (annulus#16: hilal ucu).
+// Duvar izleme: hareket temas noktasinda duvara teget olmali (|t x w| >= minT*|w|). Duvardan ayrilan/yaklasan hareketin tek temas
+// ornegi (ada kosesinden cikan baglanti, sqisland#18) yon olcusu degildir. Gercek duvar izleme tam tegettir (cizgi: dik, kose: yuvarlanma).
+export function wallDir(p, t, segs, rr, eps = 1e-3, minT = 0.9) {
+  const hits = [];
+  for (const s of segs) { if (Math.abs(distSeg(p, s) - rr) < eps) { const q = nearestOn(p, [s]).q; if (!hits.some((h) => Math.hypot(h[0] - q[0], h[1] - q[1]) < 1e-3)) hits.push(q); } }
+  if (hits.length !== 1) return null;
+  const q = hits[0], w = [q[0] - p[0], q[1] - p[1]], cr = t[0] * w[1] - t[1] * w[0];
+  return Math.abs(cr) >= minT * Math.hypot(...w) ? { cr, w } : null;
+}
 // hizli uzaklik dizini (izgara)
 export class Grid {
   constructor(segs, cell) { this.c = cell; this.m = new Map(); this.segs = segs; segs.forEach((s, i) => { const pts = sampleSeg(s, cell / 2); let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of pts) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); } for (let gx = Math.floor(x0 / cell); gx <= Math.floor(x1 / cell); gx++) for (let gy = Math.floor(y0 / cell); gy <= Math.floor(y1 / cell); gy++) { const k = gx + ',' + gy; if (!this.m.has(k)) this.m.set(k, []); this.m.get(k).push(i); } }); }

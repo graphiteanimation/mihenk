@@ -770,7 +770,7 @@ Bilinen ve **ertelenmiş** bulgular (CAM-VERIFY / CAM-FIXES):
 
 - **Yanal oyma çözünürlüğü** (V-24): yukarıdaki tablo.
 - **Cep köşe kalıntısı** (V-28): yüksek yanal adımda halka köşeleri arasında işlenmemiş bölge kalabilir. Program bunu "Cepte işlenemeyen … alan" ve "ulaşılamayan" uyarısıyla bildirir ama köşe temizleme hareketi üretmez.
-- **Cep/iç kontur kesme yönü** (V-29): Cep ve iç konturda duvar örneklerinin çok küçük bir kısmı (özellikle yıldız/dambıl gibi şekillerde) istenen tırmanma/geleneksel yönün tersinde çıkmıştır. Nedeni incelenmedi. **Yüzey kalitesi önemli işlerde NC'yi okuyun.**
+- **Cep/iç kontur kesme yönü** (V-29): Önceki doğrulamada görülen az sayıdaki "ters yön" örneği WP-21'de incelendi: hepsi ölçüm yöntemi kaynaklıydı (iki duvarın buluştuğu sivri uç ya da duvardan ayrılan hareketin ilk noktası); takım yolunda ters yönlü duvar kesimi bulunmadı. Tezgâhta doğrulanmadı; yüzey kalitesi önemli işlerde NC'yi yine okuyun.
 - **Program numarası** (V-21): Tezgâhınızda ayrılmış program numarası aralıkları denetlenmez.
 - **Satır numarası** (V-22): N numaraları 99999'u aşarsa başa sarar (uyarı verir); M80V'de bu sınır teyit edilmedi.
 
