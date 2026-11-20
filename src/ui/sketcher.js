@@ -9,7 +9,7 @@ import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
 import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
-import { dropEditedLinks } from './sketch/ops.js';
+import { dropEditedLinks, syncRefs } from './sketch/ops.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
@@ -115,7 +115,7 @@ export class Sketcher {
     const sid = this._sid;
     this._q = this._q.then(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; this._statusDof(r, this._openNote); this._openNote = null; this._probeSoon(); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
+      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; if (r.ok) syncRefs(this.sk); this._statusDof(r, this._openNote); this._openNote = null; this._probeSoon(); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
       this._refresh();
     });
     return this._q;
@@ -227,7 +227,7 @@ export class Sketcher {
         this._restore(before); const i = this._undo.indexOf(entry); if (i >= 0) this._undo.splice(i, 1);
         this._resetDraw(); this._status(mk); this._refresh(); return { ok: false, msg: mk(), over };
       }
-      this.lastSolve = r; this._statusDof(r, note); this._probeSoon(); this._refresh(); return { ok: true };
+      this.lastSolve = r; syncRefs(this.sk); this._statusDof(r, note); this._probeSoon(); this._refresh(); return { ok: true };
     };
     const p = this._q.then(run, run); this._q = p.catch(() => {}); return p;
   }
@@ -235,7 +235,7 @@ export class Sketcher {
     const sid = this._sid;
     this._q = this._q.then(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const r = await solveSketch(this.sk, this.getVars()); if (r.ok) { this.lastSolve = r; this._statusDof(r); this._probeSoon(); } } catch (e) {}
+      try { const r = await solveSketch(this.sk, this.getVars()); if (r.ok) { this.lastSolve = r; syncRefs(this.sk); this._statusDof(r); this._probeSoon(); } } catch (e) {}
       this._refresh();
     });
   }
@@ -470,7 +470,7 @@ export class Sketcher {
       if (!d.moved) return;
       const r = await solveSketch(this.sk, this.getVars());
       if (!r.ok) { this._restore(d.before); this._status('sk.drag_failed'); }
-      else { this._undo.push({ s: d.before }); this._redo = []; this.lastSolve = r; this._statusDof(r); this._probeSoon(); }
+      else { this._undo.push({ s: d.before }); this._redo = []; this.lastSolve = r; syncRefs(this.sk); this._statusDof(r); this._probeSoon(); }
       this._refresh();
     });
   }

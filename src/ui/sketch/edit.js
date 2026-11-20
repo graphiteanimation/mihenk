@@ -2,7 +2,7 @@
 // desenler, taşı/kopyala/döndür/ölçekle, izdüşüm, pano, sağ tık menüsü ve çizerken sayısal giriş.
 import { THREE, COL } from '../viewport.js';
 import { h } from '../dom.js';
-import { G, clone, getEnt, segOf, entPts } from './core.js';
+import { G, clone, getEnt, segOf, entPts, measureDim } from './core.js';
 import { trimAt, extendAt, breakAt, trimSpan, offsetEnts, cornerAt, mirrorEnts, patternRect, patternCirc, transformEnts, projectPolylines, reprojectLinked, copySelection, pasteClip } from './ops.js';
 import { sketchPolylines } from '../viewport.js';
 import { evalExpr } from '../../shared/expr.js';
@@ -402,7 +402,8 @@ export const EDIT_METHODS = {
   },
   toggleReference(id) {
     const c = this.sk.cons.find((k) => k.id === id); if (!c) return;
-    return this._apply((sk) => { const k = sk.cons.find((x) => x.id === id); if (k.ref) { delete k.ref; } else k.ref = true; }, { kind: tk('sk.kind.change'), strict: false });
+    // sürücüye çevrilirken ölçü o anki geometri değerini alır (eski/bayat ifade değil); referansa çevrilirken de ifade geometriyle eşlenir
+    return this._apply((sk) => { const k = sk.cons.find((x) => x.id === id); const m = measureDim(sk, k); if (Number.isFinite(m)) k.expr = String(+m.toFixed(6)); if (k.ref) { delete k.ref; } else k.ref = true; }, { kind: tk('sk.kind.change'), strict: false });
   },
 };
 

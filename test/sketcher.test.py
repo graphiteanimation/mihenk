@@ -1014,6 +1014,18 @@ try:
     check('[tekrar] tabindex/role taşıyan öğede Enter/Boşluk komut başlatmaz', all(v == 'select' for v in res_t.values()), res_t)
     check('[tekrar] odak belge gövdesindeyken Boşluk son komutu yineler', body_t == 'line', body_t)
     ev("document.getElementById('tdiv').remove(); document.getElementById('trole').remove(); sk.setTool('select')")
+    # 8) referans ölçü
+    fresh(); key('r'); click(20, 10); click(80, 50)
+    def dim(u, v, val, ctrl=False):
+        ev("sk.setTool('dim')"); click(u, v); page.keyboard.press('Control+a'); page.keyboard.type(val); page.keyboard.press('Control+Enter' if ctrl else 'Enter'); idle()
+    dim(50, 10, '60'); dim(80, 30, '40'); dim(50, 50, '70'); page.keyboard.press('Control+a'); page.keyboard.type('70'); page.keyboard.press('Control+Enter'); idle(); page.wait_for_timeout(150); idle()
+    s = S(); ref = [c for c in s['cons'] if c.get('ref')][0]; drv = [c for c in s['cons'] if c.get('expr') == '60'][0]
+    ev("(id) => sk._editDim(id)", drv['id']); page.keyboard.press('Control+a'); page.keyboard.type('50'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(150); idle(); s = S()
+    ref2 = [c for c in s['cons'] if c['id'] == ref['id']][0]
+    check('[referans] sürücü ölçü değişince kayıtlı referans ifadesi geometriyle güncellenir (60 → 50)', ref2['expr'] == '50', ref2)
+    ev("(id) => sk.toggleReference(id)", ref['id']); idle(); page.wait_for_timeout(150); idle(); s = S(); c3 = [c for c in s['cons'] if c['id'] == ref['id']][0]
+    check('[referans] sürücüye çevrilince o anki geometri değeri kullanılır (bayat 60 değil)', not c3.get('ref') and c3['expr'] == '50', c3)
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()
