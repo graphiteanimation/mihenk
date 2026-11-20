@@ -309,4 +309,25 @@ console.log('T-05b STEP/B-rep delik tanıma → rebuild.holes');
   const at9 = rJ.holes.filter((q) => q.positions.some((p) => near(p[0], 60) && near(p[1], 50)));
   ok(Object.values(rJ.status).every((x) => x.ok) && at9.length === 1 && at9[0].feature === 'h9', 'özellik deliği ile eş eksenli tanınan delik atlanır: ' + at9.map((q) => q.feature));
 }
+
+console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz delik');
+{
+  const RR = await import('replicad');
+  const KH = await initKernel(opencascade, () => wasm);
+  const cyl = (r, h, p, d) => RR.makeCylinder(r, h, p, d); const box = (w, d, h) => RR.makeBox([0, 0, 0], [w, d, h]);
+  const imp = async (shape) => { const stp = RR.exportSTEP([{ shape, name: 'b' }], { unit: 'MM', modelUnit: 'MM' }); const r = await KH.rebuild({ params: [], features: [{ id: 'imp', type: 'import', format: 'step', data: Buffer.from(await stp.arrayBuffer()).toString('base64'), name: 'x' }] }); return r; };
+  const near = (a, b, t = 1e-3) => Math.abs(a - b) <= t;
+  let r = await imp(box(40, 40, 30).cut(cyl(3, 10, [20, 20, 20], [0, 0, 1])).cut(cyl(3, 5, [20, 20, 0], [0, 0, 1])));
+  ok(r.holes.length === 2 && r.holes.every((h) => !h.through) && r.holes.some((h) => near(h.depth, 10) && h.dir[2] < 0) && r.holes.some((h) => near(h.depth, 5) && h.dir[2] > 0), 'H1: üstten Ø6×10 + alttan Ø6×5 (arada 15 mm malzeme) iki ayrı kör delik: ' + r.holes.map((h) => h.kind + h.dia + 'd' + h.depth + (h.through ? 'T' : '')));
+  let e = KH.camHoleExit({ bodies: [r.bodies[0].id], p: [20, 20, 30], d: [0, 0, -1], r: 3 }); ok(near(e.t, 10) && !e.through && !e.deepOpen, 'H1 çıkış: malzemeden geçmez (10, kör): ' + JSON.stringify(e));
+  r = await imp(box(40, 40, 30).cut(cyl(4, 12, [20, 20, 18], [0, 0, 1])).cut(cyl(2.5, 6, [20, 20, 0], [0, 0, 1])));
+  ok(r.holes.length === 2 && !r.holes.some((h) => h.kind === 'cbore' || h.through) && r.holes.some((h) => near(h.dia, 8) && near(h.depth, 12)) && r.holes.some((h) => near(h.dia, 5) && near(h.depth, 6)), 'H1b: Ø8×12 üst + Ø5×6 alt ayrı kör (cbore/boydan boya değil): ' + r.holes.map((h) => h.kind + h.dia + 'd' + h.depth));
+  e = KH.camHoleExit({ bodies: [r.bodies[0].id], p: [20, 20, 30], d: [0, 0, -1], r: 4 }); ok(near(e.t, 12) && !e.through, 'H1b çıkış 12, kör');
+  r = await imp(box(40, 40, 30).cut(cyl(4, 10, [20, 20, 20], [0, 0, 1])).cut(cyl(2.5, 30, [20, 20, 0], [0, 0, 1])));
+  ok(r.holes.length === 1 && r.holes[0].kind === 'cbore' && r.holes[0].through && near(r.holes[0].exits[0], 30), 'kademeli Ø8×10 + Ø5 boydan boya: tek cbore delik korunur');
+  r = await imp(box(40, 40, 30).cut(cyl(3, 40, [20, 20, -5], [0, 0, 1])).cut(cyl(3, 50, [-5, 20, 15], [1, 0, 0])));
+  ok(r.holes.length === 2 && r.holes.every((h) => h.through) && r.holes.some((h) => h.dir[2] !== 0 && near(h.exits[0], 30)), 'çapraz kesişen Ø6 delikler: bölünen duvar hava boşluğundan birleşir, ikisi de boydan boya');
+  e = KH.camHoleExit({ bodies: [r.bodies[0].id], p: [20, 20, 30], d: [0, 0, -1], r: 3 }); ok(near(e.t, 30) && e.through, 'çapraz delik çıkışı 30');
+  e = KH.camHoleExit({ bodies: [r.bodies[0].id], p: [20, 20, 45], d: [0, 0, -1], r: 3 }); ok(near(e.t, 45) && e.through, 'giriş delikten 15 mm yukarıda (havada): çıkış 45');
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
