@@ -185,7 +185,8 @@ try:
     check('C-09: belgeye içe aktarma aynı numaralı takımı (T5) kopyalamaz, yeni numarayı (T11) ekler, atlananı bildirir', pg.evaluate('app.doc.cam.tools.length') == n_doc0 + 1 and nums.count(5) == 1 and 11 in nums and 'T5' in txt(pg, '#toast'), (nums, txt(pg, '#toast')))
     pg.evaluate("() => app.cam.setTools(app.doc.cam.tools.filter((x) => x.number !== 11))")  # sonraki (eski) denetimlerin başlangıç durumu korunsun
     pg.click('[data-testid=tl-scope-lib]')
-    pg.click('[data-testid=tool-row]:nth-child(2) [data-testid=tl-todoc]') if pg.evaluate("document.querySelectorAll('[data-testid=tool-row]').length") == 2 else None
+    check('C-09: kütüphane listesinde belgeye alınacak ikinci satır var', pg.evaluate("document.querySelectorAll('[data-testid=tool-row]').length") >= 2)
+    pg.click('[data-testid=tool-row]:nth-child(2) [data-testid=tl-todoc]')
     check('C-09: kütüphaneden belgeye alınca kapsam sekmesi kendiliğinden değişmez (Kütüphane seçili kalır)', count(pg, '#modal [data-testid=tl-scope-lib][aria-pressed=true]') == 1 and count(pg, '#modal [data-testid=tl-scope-doc][aria-pressed=true]') == 0)
     pg.click('#modal .btn.pri') if count(pg, '#modal:not(.hidden)') else None
     check('tarayıcıda Takımlar bölümü satırları', count(pg, '[data-testid=cam-tool-row]') >= 2)
@@ -679,7 +680,6 @@ try:
     check('C-11: "takım sığmıyor" hatasında gerçek neden (yapı yapılmamış çizgi bölgeyi yarıyor) yazılır', 'sığmıyor' in rt and 'açık çizgi bölgeyi ikiye bölüyor' in rt, rt)
     pg.click('[data-testid=panel-cancel]')
     # aynı eskizde çizgi yapı geometrisi olunca ek ipucu yok (yalnız Ø16 tek bölge: yine sığmaz ama neden çizgi değil)
-    pg.evaluate("() => app.cam.mut(() => {})")
     ctx.close()
     # C-12: alan değişince panel kaydırması korunur
     ctx, pg = prep(DOC4); pg.set_viewport_size({'width': 1440, 'height': 560})
