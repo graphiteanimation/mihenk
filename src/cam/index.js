@@ -10,7 +10,9 @@ import { computeChamfer } from './ops/chamfer.js';
 import { computeCircular } from './ops/circular.js';
 import { computeSlot, computeTrace } from './ops/slot.js';
 import { computeThread } from './ops/thread.js';
-export { gates } from './gates.js';
+export { gates, gatesAsync } from './gates.js';
+export { simulateAsync } from './sim/async.js';
+export { gcodeToProgram } from './sim/gcode.js';
 export { buildProgram, generateProgram, expandAngles, axisPlane, freePiecePolicy, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
 export { CamErr } from './geom/err.js';
 

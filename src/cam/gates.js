@@ -4,6 +4,7 @@
 import { checkMachine, axisTravel } from './machines/builtin.js';
 import { walk } from './ir.js';
 import { simulate } from './sim/index.js';
+import { simulateAsync } from './sim/async.js';
 import { postPropsMissing } from './post/needs.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -126,7 +127,8 @@ export function gates(program, machine, opts = {}) {
       out.push(G('warn', 'cam.gate.sim_lateral_tol', { tol: Math.round((res / 2) * 1000) / 1000 }));
     }
     try {
-      const res = simulate(program, { stockBoxes, ...opts.sim });
+      if (opts.simError) throw opts.simError; // WP-13: gatesAsync worker sonucu
+      const res = opts.simResult ?? simulate(program, { stockBoxes, ...opts.sim });
       simSec = res.sections || null;
       for (const it of res.issues) out.push(G(it.level === 'error' ? 'block' : 'warn', it.code, it.params, { opId: secs[it.section]?.toolpath?.opId, section: it.section, moveIndex: it.moveIndex }));
       if (res.suppressed) out.push(G('warn', 'cam.gate.sim_suppressed', { n: res.suppressed }));
@@ -150,3 +152,12 @@ export function gates(program, machine, opts = {}) {
   return out;
 }
 export const blocked = (list) => list.some((g) => g.level === 'block');
+// WP-13: gates() ile ayni sonuc; simulasyon simulateAsync ile (tarayicida Web Worker, node'da dilimli). ctl: {signal, onProgress, worker}.
+// Iptal (signal) KErr cam.sim.cancelled ile reddedilir (kapi sonucu uretilmez: yarim sim'le kapi yok).
+export async function gatesAsync(program, machine, opts = {}, ctl = {}) {
+  if (!opts.sim || !program?.sections?.length) return gates(program, machine, opts);
+  const stockBoxes = {}; for (const s of program.sections) if (s.setup?.stockBox) stockBoxes[s.setup.id] = s.setup.stockBox;
+  let simResult = null, simError = null;
+  try { simResult = await simulateAsync(program, { stockBoxes, ...opts.sim }, ctl); } catch (e) { if (e?.code === 'cam.sim.cancelled') throw e; simError = e; }
+  return gates(program, machine, { ...opts, simResult, simError });
+}

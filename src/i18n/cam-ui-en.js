@@ -78,6 +78,8 @@ export default {
   "cam.st.n_stale": "{n} operation(s) stale",
   "cam.post.unverified_short": "Post: UNVERIFIED",
   "cam.post.verified_short": "Post: Verified",
+  "cam.sim.progress": "Simulation running: {p}%",
+  "cam.sim.cancel": "Cancel",
   "cam.sim.label": "Simulation",
   "cam.sim.empty": "Compute the toolpath first, then press \"Simulate\".",
   "cam.mc.manager_title": "Machines",

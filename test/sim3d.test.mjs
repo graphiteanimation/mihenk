@@ -7,6 +7,9 @@ import { resolveSetup } from '../src/cam/index.js';
 import { gates } from '../src/cam/gates.js';
 import * as S from './cam-samples/samples.mjs';
 import { gcodeToProgram } from '../src/cam/sim/gcode.js';
+import { simulateAsync } from '../src/cam/sim/async.js';
+import { gatesAsync } from '../src/cam/gates.js';
+import { Worker as NodeWorker } from 'node:worker_threads';
 import { postProgram } from '../src/cam/post/index.js';
 import { resolveProps } from '../src/cam/post/engine.js';
 import { getPost } from '../src/cam/post/registry.js';
@@ -269,6 +272,34 @@ console.log('6. G76 ince delik / G87 arka havsa (WP-14 IR cevrimleri)');
   ok(cy.length === 2 && cy[0].cycle === 'fineBore' && cy[0].shift === 0.3 && cy[1].cycle === 'backBore' && cy[1].bottom === -32 && cy[1].cutTo === -25 && cy[1].retract === cy[1].clearance && cy[1].shift === 2.5, 'G-code G76/G87 -> IR fineBore/backBore: ' + JSON.stringify(cy.map((c) => [c.cycle, c.bottom, c.cutTo, c.shift])));
   const r2 = simulate(g.program, { stockBox: bx, initialHeightmaps: { 'G54': pre }, res: 0.25, dexel: 'tri' });
   ok(r2.removedVolume > 0 && !r2.issues.some((i) => i.level === 'error'), 'G-code G76+G87 sim: ' + codes(r2));
+}
+
+console.log('7. asenkron / worker simulasyon, iptal');
+{
+  const smp = S.pocketHelixSample(); const o = { stockBox: smp.stockBox, res: 0.25 };
+  const ref = simulate(smp.program, o);
+  // gercek is parcacigi (node worker_threads; tarayicidaki Worker ile ayni protokol worker-core.js)
+  const nodeWorker = () => { const w = new NodeWorker(new URL('../src/cam/sim/worker-node.mjs', import.meta.url)); const o2 = { postMessage: (m) => w.postMessage(m), terminate: () => w.terminate(), onmessage: null, onerror: null }; w.on('message', (m) => o2.onmessage?.({ data: m })); w.on('error', (e) => o2.onerror?.(e)); return o2; };
+  let prog = 0; const rw = await simulateAsync(smp.program, o, { worker: nodeWorker, chunk: 5, onProgress: () => prog++ });
+  ok(Math.abs(rw.removedVolume - ref.removedVolume) < 1e-9 && rw.issues.length === ref.issues.length && prog > 1, 'worker sonucu = simulate (ilerleme ' + prog + ')');
+  ok(rw.remainHeightmap && rw.remainHeightmap === rw.remainBySetup[Object.keys(rw.remainBySetup)[0]] && rw.remainHeightmap.data instanceof Float32Array, 'worker: kalan harita aktarildi');
+  const ri = await simulateAsync(smp.program, o, { worker: false, chunk: 50 });
+  ok(Math.abs(ri.removedVolume - ref.removedVolume) < 1e-9, 'worker yok (node): dilimli ayni is parcaciginda ayni sonuc');
+  // iptal: worker ve dilimli yol
+  for (const wk of [nodeWorker, false]) {
+    const ac = new AbortController(); let n = 0;
+    try { await simulateAsync(smp.program, o, { worker: wk, chunk: 5, signal: ac.signal, onProgress: () => { if (++n === 3) ac.abort(); } }); ok(false, 'iptal beklenirdi'); }
+    catch (e) { ok(e.code === 'cam.sim.cancelled' && n >= 3, 'iptal (' + (wk ? 'worker' : 'dilimli') + '): ' + e.code); }
+  }
+  // worker icinde hata kodu korunur
+  try { await simulateAsync(smp.program, { res: 0.5 }, { worker: nodeWorker }); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'cam.sim.no_stock', 'worker hata kodu: ' + e.code); }
+  // gatesAsync = gates
+  const M = S.testMachine(); const model = heightmapFromFn([smp.stockBox.min[0], smp.stockBox.min[1]], [smp.stockBox.max[0], smp.stockBox.max[1]], 0.5, () => -30);
+  const so = { sim: { res: 0.5, modelHeightmaps: { [smp.program.sections[0].setup.id]: model } } };
+  const g1 = gates(smp.program, M, so), g2 = await gatesAsync(smp.program, M, so, { worker: nodeWorker });
+  ok(JSON.stringify(g1) === JSON.stringify(g2), 'gatesAsync (worker) = gates: ' + g1.length);
+  const ac = new AbortController(); ac.abort();
+  try { await gatesAsync(smp.program, M, so, { signal: ac.signal }); ok(false, 'iptal'); } catch (e) { ok(e.code === 'cam.sim.cancelled', 'gatesAsync iptal'); }
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

@@ -78,6 +78,8 @@ export default {
   "cam.st.n_stale": "{n} işlem eski",
   "cam.post.unverified_short": "Post: DOĞRULANMADI",
   "cam.post.verified_short": "Post: Doğrulandı",
+  "cam.sim.progress": "Simülasyon sürüyor: %{p}",
+  "cam.sim.cancel": "İptal",
   "cam.sim.label": "Simülasyon",
   "cam.sim.empty": "Önce yolu hesaplayın, sonra \"Simüle et\" deyin.",
   "cam.mc.manager_title": "Tezgâhlar",
