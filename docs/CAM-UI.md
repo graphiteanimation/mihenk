@@ -30,7 +30,7 @@ Aşama 2: dört işlem paneli (takım, ön ayar, kesme verisi, geometri seçimi 
 - Yarı çalışan ya da yapılmayanlar: Uyarlanır ve 3B yüzey işleme (çekirdekte yok; ribbon "yakında"), 4./5. eksen tezgâhlar (yakında), eksen yönü için "yüzden" seçimi (setup panelinde yalnız ana eksenler; çekirdek `kind:'face'` destekler), `holes.kind:'points'` ve açık zincir (`{kind:'chain'}`) seçimi arayüzde yok.
 - Simülasyon ana iş parçacığında çalışır; büyük programda arayüz kısa süre donabilir (ölçülmedi). Çözünürlük otomatik (≥ 0,5 mm, en çok ~400 bin hücre). Silindir stok kutu olarak yaklaşıklanır (B'nin sınırı). Stok ağı yalnız üst yüzeyi gösterir (yan duvar yok).
 - Gerçek Electron penceresinde NC kaydı elle denenmedi; `test/electron.test.mjs` ana süreç sözleşmesini (kind, boyut sınırı) kapsar.
-- Şablon tezgâhların eksik değerleri (kurslar, `spindle.maxRpm`, `feed.maxCut`) bilerek boş: NC üretimi kapı 1 ile engellenir. Dolu bir kullanıcı profili gerekir; Neway değerlerini makine projesinden teyit edin.
+- Şablon tezgâhların eksik değerleri (kurslar, `spindle.maxRpm`, `feed.maxCut`) bilerek boş: NC üretimi kapı 1 ile engellenir. Dolu bir kullanıcı profili gerekir (K-026: yerleşik yalnız genel şablonlardır; tezgâh profilleri kullanıcı verisidir, dosyadan içe aktarılır / dışa aktarılıp yedeklenir — yöneticide `mc-import`, satır başına `mc-export`).
 - Post özelliği (`post.props`) boş kalırsa Post işle tüm boşları listeler; arayüz değer uydurmaz.
 - Gövde dış sınırı yalnız prizmatik gövdede çalışır (A'nın sınırı); aksi `cam.silhouette.not_prismatic` hatası işlem panelinde gösterilir.
 

@@ -2,7 +2,7 @@
 
 Sürüm 0.3.0 · Türkçe · İngilizce karşılığı: `docs/MANUAL.md` (içerik aynıdır)
 
-Bu kılavuz, CNC fason işleme yapan ve alüminyum/çelik parça işleyen atölyeler içindir. Hedef tezgâh: **Neway VM1160H + Mitsubishi M80V + GSA divizör (A ekseni)**. CAD/CAM'e yeni olmadığınızı, ama yazılımcı olmadığınızı varsayar. Komut adları, programdaki adlarla birebir aynıdır.
+Bu kılavuz, CNC fason işleme yapan ve alüminyum/çelik parça işleyen atölyeler içindir. Mihenk makineden bağımsızdır: kendi tezgâhınızın profilini siz eklersiniz (5.2). CAD/CAM'e yeni olmadığınızı, ama yazılımcı olmadığınızı varsayar. Komut adları, programdaki adlarla birebir aynıdır.
 
 > **ÖNCE BUNU OKUYUN**
 >
@@ -86,7 +86,7 @@ Program ağ bağlantısı kurmaz. Çevrimdışı çalışır; dosyalarınız bu 
 
 Ekran yukarıdan aşağıya şöyledir:
 
-1. **Başlık şeridi**: logo, **Dosya** menüsü, Geri Al / Yinele / Kaydet, belge adı (kaydedilmemiş değişiklik göstergesiyle), **Komut ara** (Ctrl+K), "Makine: Neway VM1160H" etiketi, Ayarlar, Yardım.
+1. **Başlık şeridi**: logo, **Dosya** menüsü, Geri Al / Yinele / Kaydet, belge adı (kaydedilmemiş değişiklik göstergesiyle), **Komut ara** (Ctrl+K), İmalat kipinde seçili **tezgâh** etiketi, Ayarlar, Yardım.
 2. **Çalışma alanı sekmeleri**: **Tasarım**, **İmalat**, **Teknik resim** (Teknik resim "Yakında", henüz yok).
 3. **Şerit**: komut grupları. Sığmayan komutlar » menüsünde, ilgili grubun ▾ listesinde ya da Ctrl+K aramasındadır. "Son kullanılan komutlar" kısa yol olarak görünür.
 4. **Tarayıcı** (solda): Parametreler, Orijin, Gövdeler, Sketch'ler. İmalat sekmesinde: Tezgâhlar, Takımlar, Setup ve işlemler.
@@ -330,25 +330,19 @@ Tarayıcıda her işlemin yanında durum rozeti vardır: **Tamam**, **Hesaplanma
 
 ### 5.2 Tezgâh profili
 
-**Tezgâh** komutu tezgâh yöneticisini açar. Listede iki **Yerleşik** şablon vardır:
+**Tezgâh** komutu tezgâh yöneticisini açar. Listede üç **Yerleşik** şablon vardır:
 
-- **Neway VM1160H · M80V · GSA A ekseni**
 - **Genel 3 eksen (Fanuc tarzı)**
+- **Genel 3+1 (A eksenli, Fanuc tarzı)**
+- **Genel 3 eksen (Mitsubishi tarzı)**
 
-Yerleşik şablonlar değişmez. **Kopyala** ile kendi profilinizi çıkarın, **Düzenle** ile doldurun, listede profilinizin yanındaki işareti seçerek belgede kullanın. Listedeki "Eksik değer" sütunu kaç alanın boş olduğunu söyler.
+Yerleşik şablonlar yalnız yapıyı taşır, sayısal değerleri boştur ve değişmez; hiçbir tezgâh markası ya da modeli yerleşik değildir. Tezgâh profilleri sizin verinizdir. **Kopyala** ile kendi profilinizi çıkarın, **Düzenle** ile doldurun, listede profilinizin yanındaki işareti seçerek belgede kullanın (ya da aşağıdaki "Kendi tezgâhını ekleme" kısmına bakın). Listedeki "Eksik değer" sütunu kaç alanın boş olduğunu söyler.
 
-**Neden boş alanlar var?** Şablon yalnız makine verisi tablosunda bulunan değerleri taşır. Tabloda olmayan değeri **uydurmaz**, boş (`null`) bırakır. Bir değer NC için gerekliyse ve boşsa **NC üretimi durur**. Amaç: yanlış bir tahminin sessizce NC'ye girmesini önlemek.
+**Neden boş alanlar var?** Şablon tezgâhınıza ait hiçbir değeri bilemez ve **uydurmaz**; bu değerleri boş (`null`) bırakır. Bir değer NC için gerekliyse ve boşsa **NC üretimi durur**. Amaç: yanlış bir tahminin sessizce NC'ye girmesini önlemek.
 
-Neway şablonunda dolu gelenler (makine projenizdeki değerle **karşılaştırın**):
+Şablonlar yalnız yapıyı taşır; kurs, A ekseni (hız, sınır, dönüş yönü), kontrol/post ayarları, soğutma M kodları ve dokunulmaz liste (5.3) tezgâhınızın belgesinden **sizin** doldurduğunuz değerlerdir.
 
-- Kurs: X 1000, Y 600, Z 600 mm
-- A ekseni: X'e paralel, dönüş yönü **−X**, sınırsız dönüş, kısa yoldan dön, hızlı 4000 °/dk, kesme sınırı 2000 °/dk, dönme merkezi yüksekliği 160 mm, A freni kodları yazılmaz (PLC yönetir)
-- Kontrol/post: Mitsubishi M80V
-- Senkron kılavuz kipi: ilerleme = hatve, `,R1` yazılır
-- Soğutma M kodları: bol soğutma M8, kapat M9
-- Dokunulmaz liste (5.3)
-
-**Boş gelenler** ve doldurmazsanız ne olur:
+**Doldurmanız gerekenler** ve doldurmazsanız ne olur:
 
 | Alan (sekme) | Doldurmazsanız |
 |---|---|
@@ -367,23 +361,25 @@ Post sekmesinde boş zorunlu alanlar turuncu işaretlidir. Değerleri **tezgâh�
 
 **A ekseni**: Eksenler sekmesindeki **Dönüş yönü** (−X / +X) "pozitif A açısının hangi yöne döndüğü"dür. Şablondaki değer **tezgâhta doğrulanmamıştır** (Bölüm 5.5 ve 7).
 
+### Kendi tezgâhını ekleme
+
+Mihenk hiçbir tezgâh profili hazır getirmez; tezgâhınızı bu bilgisayara siz eklersiniz. İki yol vardır:
+
+1. **Şablonu kopyalayın:** İmalat → **Tezgâh** → ihtiyacınıza uyan şablonda **Kopyala** → ad verin → açılan pencerede alanları (kurslar, mil/ilerleme, A ekseni, dokunulmaz liste, post özellikleri) tezgâhınızın belgesinden doldurup **Tamam**.
+2. **Dosyadan içe aktarın:** **Tezgâh** penceresinde **Dosyadan içe aktar** → `.json` tezgâh dosyasını seçin. Dosya bozuksa ya da bir profil geçersizse o profil alınmaz ve nedeni bildirilir; kimliği çakışan profil " (2)" ekiyle yeni kimlik alır.
+
+**Yedekleme ve taşıma:** Satırdaki **Dışa aktar** düğmesi profili `mihenk-machine` biçiminde bir JSON dosyasına yazar. Bu dosyayı yedek olarak saklayabilir, başka bir bilgisayarda **Dosyadan içe aktar** ile geri yükleyebilirsiniz. Tezgâh profilleri belge dosyasına yazılmaz, bu bilgisayarda saklanır; bu yüzden dışa aktarıp yedeklemeniz önerilir.
+
 ### 5.3 Korunan T / H / D ve WCS listesi
 
 **Dokunulmaz** sekmesi, makinede başka işler için ayrılmış numaraları tutar. Bu numaralar bir takımda ya da iş sıfırında kullanılırsa **NC üretilmez** (Kapı 2).
 
-Neway şablonunda ön dolu (makine projesinden **teyit edin**):
-
-| Liste | Değerler |
-|---|---|
-| Takım (T) | 1, 3, 12 |
-| Boy düzeltme (H) | 1, 3, 12 |
-| Çap düzeltme (D) | 1, 3, 12 |
-| İş sıfırları | G54, G56 |
+Genel şablonlarda liste **boştur**. Makinenizde başka işler için ayrılmış numaralar varsa kendi profilinize yazın.
 
 Kurallar:
 
-- Yeni takım eklerken program korunan numaraları atlayıp serbest ilk numarayı verir (Neway şablonunda 2, 4, 5 …).
-- Yeni setup'ta iş sıfırı, korunmayan ilk G54–G59 olarak seçilir (Neway şablonunda **G55**).
+- Yeni takım eklerken program korunan numaraları atlayıp serbest ilk numarayı verir.
+- Yeni setup'ta iş sıfırı, korunmayan ilk G54–G59 olarak seçilir.
 - Listeye G54.1 Pn de yazabilirsiniz ("Diğer iş sıfırları": virgülle ayırın, örnek `G54.1 P1`).
 - Listenin atölyenizin gerçek durumuna uyması sizin sorumluluğunuzdadır. Şablon yalnız başlangıç değeridir.
 
@@ -451,7 +447,7 @@ Panelin altında "Setup çözüldü: Stok … mm · üst yüz Z=…" özeti çı
 
 "3+1": A ekseni parçayı bir açıya çevirip kilitler; kesme 3 eksenle yapılır. Eşzamanlı 4 eksen **yok**.
 
-1. Setup'ta **A ekseninde işle (3+1)** kutusunu işaretleyin. (Seçili tezgâhta A ekseni yoksa: "Seçili tezgâhta A ekseni yok." Neway şablonunu kopyalayın.)
+1. Setup'ta **A ekseninde işle (3+1)** kutusunu işaretleyin. (Seçili tezgâhta A ekseni yoksa: "Seçili tezgâhta A ekseni yok." "Genel 3+1 (A eksenli, Fanuc tarzı)" şablonunu kopyalayın.)
 2. **A açısı** kutusuna açıyı derece olarak yazın.
 3. Koordinat sistemi **A = 0 için** tanımlanır. İşlemler yazdığınız açıda çalışır.
 
@@ -461,7 +457,7 @@ Bilmeniz gerekenler:
 
 - **A yönü tezgâhta doğrulanmadı.** NC başlığında `(WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING)` yazar ve kapı uyarısı verir. Bölüm 7.3'teki teyidi yapın.
 - Koordinat çerçevesi, orijinden geçen **X çizgisi etrafında** döner. İş sıfırınızın (WCS) tezgâhta **A ekseninin üzerinde** olması gerekir. Program bunu denetlemez.
-- Profilde **Kısa yoldan dön** açıksa (Neway şablonunda açık) açı 0–359,999 aralığına normalleştirilir (örnek: A−90 → A270) ve 180° dönüş iki adıma bölünür.
+- Profilde **Kısa yoldan dön** açıksa (Genel 3+1 şablonunda açık) açı 0–359,999 aralığına normalleştirilir (örnek: A−90 → A270) ve 180° dönüş iki adıma bölünür.
 - Program döner eksenli tezgâhta ilk bölümde A'yı **mutlak** yazar (başlangıçta tezgâh A'sı bilinmez) ve program sonunda A'yı 0'a döndürür.
 - A hareketinden önce Z güvenli yüksekliğe çekilir.
 - Aynı setup içinde A≠0 iken yan yönden kesme ve alt kesme simülasyonda **yoktur** (Bölüm 7.4).
@@ -663,17 +659,17 @@ Parça: 100 × 60 × 20 mm alüminyum blok. Üstte 60 × 30 mm, 8 mm derin cep. 
 ### 6.2 Tezgâh profili
 
 1. **İmalat** sekmesi → **Tezgâh**.
-2. **Neway VM1160H · M80V · GSA A ekseni** satırında **Kopyala**; ad verin (örnek `Neway benim`). Düzenleme penceresi açılır.
+2. **Genel 3 eksen (Fanuc tarzı)** satırında **Kopyala** (A eksenli bir iş için **Genel 3+1**); ad verin (örnek `Benim tezgâhım`). Elinizde bir tezgâh dosyası varsa **Dosyadan içe aktar** da kullanılabilir. Düzenleme penceresi açılır.
 3. **Mil ve ilerleme**: **En yüksek devir** ve **En yüksek kesme ilerlemesi** değerlerini makine belgenizden yazın.
 4. **Post**: **Güvenli Z çekilme yöntemi**'ni makine projenizin kararına göre seçin (G28 ya da G53; G53 ise makine Z'sini de yazın). Bu örnekte bekleme (G04) ve G54.1 kullanılmadığı için o alanlar boş kalabilir.
-5. **Dokunulmaz** sekmesini gözden geçirin (T/H/D 1, 3, 12; G54, G56).
+5. **Dokunulmaz** sekmesini gözden geçirin (makinenizde ayrılmış T/H/D numaraları ve iş sıfırları varsa yazın).
 6. **Tamam**. Listede kendi profilinizin yanındaki işareti seçin → **Kapat**.
 
 ### 6.3 Takımlar
 
 **Takımlar** → **Yeni takım**:
 
-- **Takım 1**: Tür **Parmak freze (düz)**, Çap 10, Kesici boy 25, Tutucudan çıkıntı 45, **Merkezden keser: işaretli** (katalog doğruysa), Tutucu çapı/boyu girin. T numarasını program verir (Neway şablonunda 2). **Kesme verisi** sekmesinde **Preset ekle** ve **kendi** devir/ilerleme değerlerinizi yazın.
+- **Takım 1**: Tür **Parmak freze (düz)**, Çap 10, Kesici boy 25, Tutucudan çıkıntı 45, **Merkezden keser: işaretli** (katalog doğruysa), Tutucu çapı/boyu girin. T numarasını program verir. **Kesme verisi** sekmesinde **Preset ekle** ve **kendi** devir/ilerleme değerlerinizi yazın.
 - **Takım 2**: Tür **Matkap**, Çap 6.6, uç açısı 118°, Kesici boy 40, Tutucudan çıkıntı 60. T numarası 4 olur (3 korunan). **Preset** ekleyin ve kendi değerlerinizi yazın.
 
 ### 6.4 Setup
@@ -724,7 +720,7 @@ Kuru çalıştırma, tek blok, ilk parça, takım boyu ölçüsü, iş sıfırı
 
 ### 7.3 A yönünü işaretli parçayla teyit edin
 
-3+1 NC'de `A` kelimesi parçayı hangi yöne döndürür, makine profilindeki **Dönüş yönü** ayarına bağlı olarak hesaplanır. Neway şablonundaki yön (−X) tezgâhta **doğrulanmamıştır**. Yanlışsa takım yolu parçanın **yanlış yüzüne** gider. (Doğrulama çalışmasında benzer bir işaret hatası bulunup düzeltildi; ama profildeki yön tezgâhta teyit edilmediği için aynı türden risk sürer.)
+3+1 NC'de `A` kelimesi parçayı hangi yöne döndürür, makine profilindeki **Dönüş yönü** ayarına bağlı olarak hesaplanır. Şablondaki yön tezgâhınızda **doğrulanmamıştır**; profilinizdeki yönü kendi tezgâhınızda teyit edin. Yanlışsa takım yolu parçanın **yanlış yüzüne** gider. (Doğrulama çalışmasında benzer bir işaret hatası bulunup düzeltildi; ama profildeki yön tezgâhta teyit edilmediği için aynı türden risk sürer.)
 
 Teyit (kısa özet; ayrıntılı prosedür makine projesindedir):
 
