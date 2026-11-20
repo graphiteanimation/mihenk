@@ -60,4 +60,8 @@ export default {
   "sk.proj_relinked": "İzdüşüm seçilen kenara yeniden bağlandı.",
   "ctx.proj_unlink": "Bağı kaldır",
   "ctx.proj_relink": "Yeniden bağla (kenar seç)",
+  "sk.sel_pruned": "{n} nesne seçim filtresi nedeniyle seçimden çıkarıldı.",
+  "sk.sel_filtered": "Seçim filtresi bu türleri kapattığı için silinecek nesne yok.",
+  "vd.name_clash": "İlk 24 karakteri aynı olan başka bir görünüş var; adları ayırt edin (kaydedilmedi).",
+  "vd.save_failed": "Görünüş kaydı geri okunamadı; kaydedilmedi.",
 };

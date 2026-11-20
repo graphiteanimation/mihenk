@@ -10,7 +10,7 @@ import { reprojectLinked, matchEdge, edgeSig, unlinkProjection, relinkProjection
 import { toLocal } from '../../shared/vec.js';
 import { evalExpr } from '../../shared/expr.js';
 import { fmtNum, errText } from '../../shared/i18n.js';
-import { SKO, SNAP_KINDS, GRID_STEPS, SEL_KINDS, snapOn, setSnapKind, setGridStep, selOn, setSelKind, AUTO_KINDS, autoOn, setAuto, setAutoKind, setAutoRef, onSkOptsChange } from './opts.js';
+import { SKO, selClass, SNAP_KINDS, GRID_STEPS, SEL_KINDS, snapOn, setSnapKind, setGridStep, selOn, setSelKind, AUTO_KINDS, autoOn, setAuto, setAutoKind, setAutoRef, onSkOptsChange } from './opts.js';
 
 // Ayar bölümleri: sonraki dilimler buraya ekler
 function sections(S) {
@@ -35,7 +35,7 @@ export const COMFORT_METHODS = {
   _cfInit() {
     this._cfOpen = false;
     if (this._cfUnsub) this._cfUnsub();
-    this._cfUnsub = onSkOptsChange(() => { if (this.active) this._cfRender(); });
+    this._cfUnsub = onSkOptsChange(() => { if (this.active) { this._pruneSelection(); this._cfRender(); } });
     this._cfBuild();
   },
   _cfDispose() { if (this._cfUnsub) { this._cfUnsub(); this._cfUnsub = null; } if (this._cfEl) { this._cfEl.remove(); this._cfEl = null; } },
@@ -147,12 +147,27 @@ export const COMFORT_METHODS = {
     if (r && typeof r.then === 'function') { const res = await r; if (res && res.ok === false && res.msg) return res.msg; }
     return null;
   },
-  // Seç aracındayken Enter/Boşluk: son kullanılan komutu yeniden başlatır
+  // Seç aracındayken Enter/Boşluk: son kullanılan komutu yeniden başlatır. Yalnız odak belge gövdesinde ya da çizim tuvalindeyken;
+  // düğme, bağlantı, giriş, tabindex/role taşıyan ya da bunların içindeki her öğede Enter/Boşluk o öğenin işidir.
+  _repeatTargetOk(t0) {
+    if (!t0 || t0 === document.body || t0 === document.documentElement || t0 === document) return true;
+    if (!t0.tagName) return false;
+    if (t0.tagName === 'CANVAS') return !(t0.hasAttribute('tabindex') || t0.hasAttribute('role'));
+    return false;
+  },
   _repeatLast(t0) {
     if (!this._lastTool || this.tool !== 'select' || this._hasStage() || this._input || this._dlg || this._ctxEl) return false;
-    if (t0 && (t0.tagName === 'BUTTON' || t0.tagName === 'A' || (t0.getAttribute && /^(button|menuitem|tab|checkbox|option)$/.test(t0.getAttribute('role') || '')))) return false;
+    if (!this._repeatTargetOk(t0)) return false;
     this.setTool(this._lastTool); return true;
   },
+  // seçim filtresi kapanınca o türden nesneler mevcut seçimden budanır
+  _pruneSelection() {
+    if (!this.selection.length) return 0;
+    const keep = this.selection.filter((s) => this._selAllowed(s)); const n = this.selection.length - keep.length;
+    if (n) { this._setSel(keep); this._status('sk.sel_pruned', { n }); }
+    return n;
+  },
+  _selAllowed(s) { return selOn(selClass(s.kind, s.kind === 'ent' ? this.sk.ents.find((e) => e.id === s.id) : null)); },
   // ---------- ilişkisel izdüşüm ----------
   _edgeBodies() { const bodies = this.getBodies && this.getBodies(); return bodies && bodies.length ? bodies : [...this.vp.bodies.values()].map((b) => b.data); },
   // gövde görünüm alanında var ama gizli mi (gizli gövde "kayıp" sayılmaz: bilinmiyor)

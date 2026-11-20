@@ -10,11 +10,14 @@ const MODE_KEY = { shaded: 'vd.shaded', wire: 'vd.wire', ghost: 'vd.ghost' };
 export const MAX_VIEWS = 12;
 const slotKey = (i) => 'nv_' + i; // Electron ayar anahtarı: en çok 200 karakterlik metin → sıkı kodlama
 const r3 = (x) => +Number(x).toFixed(3);
+const sg = (x) => +Number(x).toPrecision(7); // yakınlaştırma/yarı yükseklik için anlamlı basamak (çok küçük değer 0'a yuvarlanıp okunamaz hâle gelmesin)
+const MAX_LEN = 200; // Electron ayar değeri sınırı
+const NAME_MAX = 24;
 
 // Kodlama: ad|px,py,pz|tx,ty,tz|ux,uy,uz|zoom|yarıYükseklik
 export function encodeView(name, s) {
   const j = (a) => a.map(r3).join(',');
-  return [String(name).replace(/[|]/g, ' ').slice(0, 24), j(s.p), j(s.t), j(s.u), r3(s.z), r3(s.h)].join('|');
+  return [String(name).replace(/[|]/g, ' ').slice(0, 24), j(s.p), j(s.t), j(s.u), sg(s.z), sg(s.h)].join('|');
 }
 export function decodeView(str) {
   if (typeof str !== 'string') return null;
@@ -50,13 +53,22 @@ export const DISPLAY_METHODS = {
     this.dirty = true; this.onCamera && this.onCamera(); this.onView && this.onView();
   },
   namedViews() { const out = []; for (let i = 1; i <= MAX_VIEWS; i++) { const d = decodeView(getStr(slotKey(i))); if (d) out.push({ slot: i, name: d.name, s: d.s }); } return out; },
+  // Kaydet: ad >24 karakterse "…" ile kısaltılır; kısaltılmış biçimi başka bir kayıtla aynıysa REDDEDİLİR (birbirini ezmez).
+  // Kayıt geri okunup doğrulanmadan ok:true dönmez; okunamıyorsa önceki değer geri konur.
   saveNamedView(name) {
-    name = String(name || '').replace(/[|]/g, ' ').trim().slice(0, 24); if (!name) return { ok: false, err: 'vd.name_empty' };
-    const list = this.namedViews(); const same = list.find((v) => v.name.toLowerCase() === name.toLowerCase());
+    const raw = String(name || '').replace(/[|]/g, ' ').trim(); if (!raw) return { ok: false, err: 'vd.name_empty' };
+    const nm = raw.length > NAME_MAX ? raw.slice(0, NAME_MAX - 1) + '…' : raw, cut = raw.length > NAME_MAX;
+    const list = this.namedViews(); const same = list.find((v) => v.name.toLowerCase() === nm.toLowerCase());
+    if (same && cut) return { ok: false, err: 'vd.name_clash' };
     let slot = same ? same.slot : null;
     if (!slot) { const used = new Set(list.map((v) => v.slot)); for (let i = 1; i <= MAX_VIEWS; i++) if (!used.has(i)) { slot = i; break; } }
     if (!slot) return { ok: false, err: 'vd.full' };
-    setStr(slotKey(slot), encodeView(name, this.viewState())); this._dispRender(); return { ok: true, slot, replaced: !!same };
+    const st = this.viewState(), enc = encodeView(nm, st), key = slotKey(slot), prev = getStr(key);
+    const good = () => { const d = decodeView(getStr(key)); return !!d && d.name === nm && Math.abs(d.s.z - st.z) <= Math.abs(st.z) * 1e-5 && Math.abs(d.s.h - st.h) <= Math.abs(st.h) * 1e-5; };
+    if (enc.length > MAX_LEN) return { ok: false, err: 'vd.save_failed' };
+    setStr(key, enc);
+    if (!good()) { setStr(key, prev || ''); return { ok: false, err: 'vd.save_failed' }; }
+    this._dispRender(); return { ok: true, slot, replaced: !!same, name: nm };
   },
   recallNamedView(name) {
     const v = this.namedViews().find((x) => x.name.toLowerCase() === String(name).toLowerCase()); if (!v) return false;

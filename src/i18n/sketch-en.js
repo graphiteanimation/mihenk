@@ -60,4 +60,8 @@ export default {
   "sk.proj_relinked": "Projection relinked to the selected edge.",
   "ctx.proj_unlink": "Remove link",
   "ctx.proj_relink": "Relink (pick edge)",
+  "sk.sel_pruned": "{n} object(s) removed from the selection by the selection filter.",
+  "sk.sel_filtered": "The selection filter excludes these types; nothing to delete.",
+  "vd.name_clash": "Another view starts with the same 24 characters; make the names distinct (not saved).",
+  "vd.save_failed": "The saved view could not be read back; not saved.",
 };

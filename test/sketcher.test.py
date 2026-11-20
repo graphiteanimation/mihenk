@@ -984,6 +984,36 @@ try:
     n0 = len(proj_ents(S())); ev("vp.bodies.get('ha').grp.visible = false"); refresh(); s = S()
     check('[lost] gövde yalnız gizli diye lost işaretlenmez', n0 == 2 and not any(e['proj'].get('lost') for e in proj_ents(s)), (n0, [e['proj'] for e in proj_ents(s)]))
     ev("vp.setBodies([]); sk.getBodies = () => []")
+    # 5) seçim filtresi
+    print('WP-09 düzeltme: seçim filtresi, görünüş kaydı, komut tekrarı, referans ölçü')
+    fresh(); key('r'); click(20, 10); click(80, 50); key('c'); click(-40, -30); click(-20, -30); tool('select'); key('Control+a')
+    n_all = ev('sk.selection.length'); ev("sk.setSelKind('line', false)")
+    check('[filtre] filtre kapatılınca seçimden o tür budanır (yalnız daire kalır)', n_all == 5 and ev("sk.selection.map((x) => x.kind + ':' + x.id).length") == 1 and ev("sk.sk.ents.find((e) => e.id === sk.selection[0].id).type") == 'circle', ev('sk.selection'))
+    ev("sk._setSel(sk.sk.ents.map((e) => ({ kind: 'ent', id: e.id })))"); key('Delete'); s = S()
+    check('[filtre] Delete filtreyi denetler: kapalı tür (çizgi) silinmez', len([e for e in s['ents'] if e['type'] == 'line']) == 4 and not [e for e in s['ents'] if e['type'] == 'circle'], [e['type'] for e in s['ents']])
+    ev("sk.setSelKind('line', true)")
+    # 6) görünüş kaydı
+    ev("vp.view('top', true)"); zoom0 = ev('vp.camera.zoom')
+    ev("vp.camera.zoom = 3e-6; vp.camera.updateProjectionMatrix()"); r = ev("vp.saveNamedView('çok uzak')")
+    nv = [v for v in ev('vp.namedViews()') if v['name'] == 'çok uzak']
+    check('[görünüş] çok küçük yakınlaştırma: ok:true ancak kayıt geri okunabiliyorsa', r['ok'] is True and len(nv) == 1 and abs(nv[0]['s']['z'] - 3e-6) < 1e-10, (r, nv))
+    n_nv = len(ev('vp.namedViews()')); ev("vp.camera.zoom = NaN")
+    r = ev("vp.saveNamedView('bozuk')"); ev("vp.camera.zoom = %r; vp.camera.updateProjectionMatrix()" % zoom0)
+    check('[görünüş] okunamayan kayıt ok:true dönmez ve liste değişmez', r['ok'] is False and r.get('err') == 'vd.save_failed' and len(ev('vp.namedViews()')) == n_nv, r)
+    ra = ev("vp.saveNamedView('x'.repeat(30) + 'A')"); rb = ev("vp.saveNamedView('x'.repeat(30) + 'B')"); names = [v['name'] for v in ev('vp.namedViews()')]
+    check('[görünüş] ilk 24 karakteri aynı adlar birbirini ezmez: ikincisi reddedilir (mesaj anahtarı)', ra['ok'] is True and rb['ok'] is False and rb['err'] == 'vd.name_clash' and len([n for n in names if n.startswith('xxxx')]) == 1, (ra, rb, names))
+    ev("[...vp.namedViews()].forEach((v) => vp.deleteNamedView(v.name))")
+    # 7) komut tekrarı yalnız gövde/tuval odağında
+    fresh(); tool('line'); click(0, 0); click(30, 0); key('Escape'); key('Escape')
+    ev("(() => { const d = document.createElement('div'); d.tabIndex = 0; d.id = 'tdiv'; d.textContent = 'x'; document.body.appendChild(d); const r = document.createElement('span'); r.setAttribute('role', 'button'); r.tabIndex = -1; r.id = 'trole'; document.body.appendChild(r); })()")
+    res_t = {}
+    for fid in ('tdiv', 'trole'):
+        for k in ('Enter', ' '):
+            ev("(id) => { sk.setTool('select'); document.getElementById(id).focus(); }", fid); page.keyboard.press(k); idle(); res_t[fid + repr(k)] = ev('sk.tool')
+    ev("document.activeElement && document.activeElement.blur()"); ev("sk.setTool('select')"); page.keyboard.press(' '); idle(); body_t = ev('sk.tool')
+    check('[tekrar] tabindex/role taşıyan öğede Enter/Boşluk komut başlatmaz', all(v == 'select' for v in res_t.values()), res_t)
+    check('[tekrar] odak belge gövdesindeyken Boşluk son komutu yineler', body_t == 'line', body_t)
+    ev("document.getElementById('tdiv').remove(); document.getElementById('trole').remove(); sk.setTool('select')")
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()

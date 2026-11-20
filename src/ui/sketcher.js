@@ -567,10 +567,11 @@ export class Sketcher {
   deleteSelection() {
     if (!this.active) return;
     if (!this.selection.length) return this._status('sk.pick_first');
-    const items = this.selection.slice(); let hadO = false;
+    const items = this.selection.filter((s) => this._selAllowed(s)); let hadO = false; // seçim filtresi kapalı türler silinmez
+    if (!items.length) return this._status('sk.sel_filtered');
     if (items.every((i) => i.kind === 'point' && i.id === 'O')) return this._status('sk.origin_nodelete');
     for (const i of items) if (i.kind === 'point' && i.id === 'O') hadO = true;
-    this.selection = []; this.hover = null;
+    this.selection = this.selection.filter((s) => !items.includes(s)); this.hover = null;
     const res = this._apply((sk) => this._deleteItems(sk, items), { kind: tk('sk.kind.delete') });
     if (hadO) this._status('sk.origin_partial');
     this.onChange(); return res;
