@@ -268,6 +268,38 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   const T = FS.dropTargets(d, ids.indexOf('k3'), r0.status); ok(T.length === 13 && !T[0].ok && !T[1].ok && T[2].ok && T[8].noop && T[9].noop, 'dropTargets: her aralık için izin/neden');
 }
 
+// --- WP-02 dilim 5: hesap iptali, onarım bilgisi, işlemin yüzleri
+{
+  const { part12 } = await import('./models/part12.mjs');
+  const KC = await initKernel(opencascade, () => wasm);
+  const sig = (r) => JSON.stringify([Object.values(r.status).map((x) => x.ok), r.bodies.map((x) => [x.id, Math.round(x.volume)])]);
+  const KF = await initKernel(opencascade, () => wasm);
+  const d = part12('30'), d2 = part12('40'); await KC.rebuild(d); let n = 0;
+  let err = null; try { await KC.rebuild(d2, { shouldStop: () => ++n > 6 }); } catch (e) { err = e; }
+  ok(err && err.code === 'rebuild.cancelled', 'iptal: shouldStop → rebuild.cancelled: ' + (err && err.code));
+  ok(KC.last && KC.last.bodies.get('bx') && KC.cache.length === 12, 'iptal: önbellek ve son durum önceki tamamlanmış hesaptaki gibi');
+  const r2 = await KC.rebuild(d2); ok(sig(r2) === sig(await KF.rebuild(d2)) && Object.values(r2.status).every((x) => x.ok), 'iptal sonrası tam hesap, sıfırdan hesapla aynı');
+  ok(r2.featInfo.e1.cached && !r2.featInfo.bx.cached, 'iptal sonrası değişmeyen önek önbellekten');
+  n = 0; try { await KC.rebuild(d, { shouldStop: () => ++n > 3 }); } catch (e) { /* beklenen */ }
+  const r3 = await KC.rebuild(d); ok(sig(r3) === sig(await KF.rebuild(d)), 'ikinci iptal sonrası da doğru');
+  const ff = KC.featureFaces('bx'); ok(ff.length === 1 && ff[0].body === 'bx' && ff[0].faces.length >= 5, 'featureFaces: kutunun yüzleri (' + JSON.stringify(ff) + ')');
+  ok(KC.featureFaces('k1').some((x) => x.body === 'e1' && x.faces.length >= 1), 'featureFaces: delik (kesme) yüzü hedef gövdede');
+  // onarım: yuvarlatmanın kenarını yok eden değişiklik
+  const hd = (h) => ({ params: [], features: [
+    { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '40', h: '20', op: 'new' },
+    { id: 'c', type: 'primitive', kind: 'cylinder', x: '20', y: '20', z: '-1', dia: '10', h, axis: 'Z', op: 'cut', targets: ['b'] },
+    { id: 'f', type: 'fillet', edges: [{ body: 'b', kind: 'edge', name: { a: 'b:z+', b: 'c:side' } }], r: '1' }] });
+  const KR = await initKernel(opencascade, () => wasm);
+  await KR.rebuild(hd('100')); const rb = await KR.rebuild(hd('10'));
+  ok(rb.status.f.ok === false, 'onarım öncesi: yuvarlatma hatalı (' + JSON.stringify(rb.status.f.error) + ')');
+  const ri = KR.repairInfo('f');
+  ok(ri.total === 1 && ri.lost.length === 1 && ri.lost[0].field === 'edges' && ri.lost[0].index === 0 && ri.lost[0].kind === 'edge', 'repairInfo: kaybolan kenar (alan, sıra)');
+  const g = ri.lost[0].ghost; let zmax = -1e9; for (let q = 2; q < (g ? g.length : 0); q += 3) zmax = Math.max(zmax, g[q]);
+  ok(g && g.length >= 6 && Math.abs(zmax - 20) < 1e-3, 'repairInfo: hayalet çizgi son başarılı konumda (z=20 delik ağzı)');
+  ok(ri.lost[0].cands.length >= 1 && ri.lost[0].cands.every((c) => c.body === 'b' && c.kind === 'edge'), 'repairInfo: yakın aday kenarlar: ' + JSON.stringify(ri.lost[0].cands) + ' ' + JSON.stringify(Array.from(g || []).slice(0, 6)));
+  ok(KR.repairInfo('b').lost.length === 0 && KR.repairInfo('yok').lost.length === 0, 'repairInfo: sağlam / olmayan işlem → boş');
+}
+
 console.log('T-14 camHoleExit: delik ekseninde son çıkış');
 {
   const KX = await initKernel(opencascade, () => wasm);
