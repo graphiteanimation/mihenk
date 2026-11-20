@@ -19,12 +19,13 @@ const GENERIC = {
 };
 
 // Genel 3+1 (Fanuc tarzi): X'e paralel A donme ekseni; sayisal degerler bos, kullanici doldurur.
+// A.wrap (T-21b): A kelimesi bicimi 'shortest' | 'signed' (-180..180) | '0-360'; null = shortest bayragindan (bugunku davranis).
 const GENERIC_4A = {
   id: 'builtin-generic-4axis-a-fanuc', name: 'Fanuc-style generic 3+1 (A axis)', nameKey: 'cam.machine.generic4a', rev: 1, builtin: true,
   control: 'fanuc-generic',
   axes: {
     X: { travel: null, min: null, max: null }, Y: { travel: null, min: null, max: null }, Z: { travel: null, min: null, max: null },
-    A: { kind: 'rotary', about: 'X', dir: [1, 0, 0], limits: null, shortest: true, rapid: null, feedMax: null, centerHeight: null, clamp: { lock: null, unlock: null, output: false } },
+    A: { kind: 'rotary', about: 'X', dir: [1, 0, 0], limits: null, shortest: true, wrap: null, rapid: null, feedMax: null, centerHeight: null, clamp: { lock: null, unlock: null, output: false } },
   },
   spindle: { maxRpm: null, minRpm: null }, feed: { maxCut: null, rapid: null },
   toolChange: { maxTools: null, kind: 'fixed', pos: null },

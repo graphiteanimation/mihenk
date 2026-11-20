@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { validateToolpath, validateProgram, mk, compareToolpaths, normalizeRapids, splitRapid, pathBBox } from '../src/cam/ir.js';
 import { postProgram, readNC, getPost, listPosts, postPropsMissing } from '../src/cam/post/index.js';
 import { gates } from '../src/cam/gates.js';
+import { builtinMachines } from '../src/cam/machines/builtin.js';
 import { sanitizeComment, createFormat } from '../src/cam/post/engine.js';
 import * as S from './cam-samples/samples.mjs';
 
@@ -285,6 +286,31 @@ console.log('6. M-03: yalniz programin kullandigi bos post ozellikleri engel');
   // sogutma kodu: kullanilan sogutma turunun kodu bos
   pm = postPropsMissing(dr, S.testMachine({ props: { coolantCodes: { flood: null, off: 'M9' } } }));
   ok(pm.missing.includes('coolantCodes.flood'), 'kullanilan sogutma kodu bos: ' + pm.missing);
+}
+
+console.log('7. T-21b: A kelimesi bicimi profilden (A.wrap)');
+{
+  const base = S.testMachine();
+  const mA = (A) => ({ ...base, axes: { ...base.axes, A: { ...base.axes.A, ...A } } });
+  const aWords = (prog, m) => postProgram(prog, m, OPTS).text.split('\n').filter((l) => /^G0 A/.test(l)).join(',');
+  const ix = S.indexedSample().program;
+  // -90 isteyen 3+1 program (S2 A+90 / S3 A-90 plani gibi)
+  const neg = structuredClone(ix); neg.sections[2].setup.aAngle = -90;
+  ok(aWords(ix, base) === 'G0 A0.,G0 A90.,G0 A180.,G0 A270.,G0 A0.', 'varsayilan (wrap yok, shortest) bugunku davranis: ' + aWords(ix, base));
+  ok(aWords(neg, base) === aWords(ix, base), 'varsayilan: A-90 -> A270 (bugunku)');
+  ok(aWords(ix, mA({ wrap: null })) === aWords(ix, base), 'wrap null = bugunku davranis');
+  ok(aWords(neg, mA({ wrap: 'signed' })) === 'G0 A0.,G0 A90.,G0 A-90.,G0 A0.', "wrap 'signed': A-90., 180 bolmesi yok: " + aWords(neg, mA({ wrap: 'signed' })));
+  ok(aWords(ix, mA({ wrap: 'signed' })) === 'G0 A0.,G0 A90.,G0 A-90.,G0 A0.', "wrap 'signed': 270 -> -90");
+  ok(aWords(neg, mA({ wrap: '0-360' })) === 'G0 A0.,G0 A90.,G0 A270.,G0 A0.', "wrap '0-360': A270., bolme yok: " + aWords(neg, mA({ wrap: '0-360' })));
+  ok(aWords(neg, mA({ wrap: 'shortest' })) === aWords(ix, base), "wrap 'shortest' = eski shortest:true");
+  ok(aWords(neg, mA({ wrap: 'signed', shortest: true })) === 'G0 A0.,G0 A90.,G0 A-90.,G0 A0.', 'acik wrap shortest bayragindan once gelir');
+  throwsCode(() => postProgram(ix, mA({ wrap: 'ters' }), OPTS), 'cam.post.bad_prop', 'gecersiz wrap');
+  throwsCode(() => postProgram(ix, mA({ wrap: 'none' }), OPTS), 'cam.post.bad_prop', "'none' profil degeri degil");
+  throwsCode(() => postProgram(neg, mA({ wrap: 'signed', limits: [0, 360] }), OPTS), 'cam.post.a_out_of_limits', 'signed cikti (-90) sinir disi -> dur');
+  const g4 = builtinMachines().find((q) => q.axes.A); ok(g4 && 'wrap' in g4.axes.A && g4.axes.A.wrap === null, 'genel 3+1 sablonunda A.wrap alani (null = bugunku davranis)');
+  // geri okuma: signed cikti ayni yolu verir
+  const m = mA({ wrap: 'signed' }); const back = readNC(postProgram(neg, m, OPTS).text, { machine: m }).program;
+  ok(back.sections.map((q) => q.setup.aAngle).join() === '0,90,-90,0', 'geri okunan A: ' + back.sections.map((q) => q.setup.aAngle).join());
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

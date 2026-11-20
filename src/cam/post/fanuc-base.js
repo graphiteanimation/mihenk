@@ -154,7 +154,9 @@ export function createFanucPost(over = {}) {
       let out = angle;
       if (R.limits && (out < R.limits[0] - eps || out > R.limits[1] + eps)) this.fail('cam.post.a_out_of_limits', { angle: out, min: R.limits[0], max: R.limits[1] });
       const norm = (a) => ((a % 360) + 360) % 360;
-      if (R.shortest) out = norm(out);
+      if (R.wrap === 'shortest' || R.wrap === '0-360') out = norm(out);
+      else if (R.wrap === 'signed') { out = norm(out); if (out > 180 + eps) out -= 360; }
+      if (R.wrap === 'signed' || R.wrap === '0-360') { if (Math.abs(out) < 1e-9) out = 0; if (R.limits && (out < R.limits[0] - eps || out > R.limits[1] + eps)) this.fail('cam.post.a_out_of_limits', { angle: out, min: R.limits[0], max: R.limits[1] }); }
       const cur = st.aCur;
       const same = cur == null ? false : R.shortest ? Math.abs(norm(cur) - out) < 1e-6 || Math.abs(norm(cur) - out - 360) < 1e-6 : Math.abs(cur - out) < 1e-6;
       if (same) return;
