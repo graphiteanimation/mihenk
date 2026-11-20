@@ -32,4 +32,10 @@ export default {
   "cf.auto_ref": "Aşırı kısıtlayan ölçüyü sormadan referans ölçü yap",
   "sk.over_hint": "Ctrl+Enter: referans (sürülen) ölçü olarak ekle.",
   "sk.dim_made_ref": "Ölçü sketch'i aşırı kısıtlayacaktı; referans (sürülen) ölçü olarak eklendi.",
+  "cf.proj_title": "İzdüşümler",
+  "cf.proj_refresh": "İzdüşümleri güncelle",
+  "sk.proj_updated": "{n} izdüşüm grubu gövdeye göre güncellendi.",
+  "sk.proj_lost": "{n} izdüşüm nesnesinin kaynak kenarı bulunamadı; olduğu gibi bırakıldı.",
+  "sk.proj_none": "Bu eskizde gövdeye bağlı izdüşüm yok.",
+  "sk.proj_same": "İzdüşümler zaten güncel.",
 };

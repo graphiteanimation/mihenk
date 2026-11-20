@@ -107,6 +107,7 @@ export class Sketcher {
     this.vp.onPointer = (t, e) => this._pointer(t, e);
     this.vp.onCamera = () => { this._prevCam && this._prevCam(); this._onCamera(); };
     this.active = true; this.tool = 'select'; this._resetDraw();
+    this._reprojectOnOpen();
     this.vp.lookAtPlane(plane); this.vp.fit();
     this.setHint(HINT_KEY.select);
     this._refresh();

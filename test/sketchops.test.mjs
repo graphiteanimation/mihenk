@@ -83,6 +83,20 @@ const area = (sk) => findRegions(sk).regions.reduce((s, r) => s + r.net, 0);
   const wav = []; for (let i = 0; i <= 30; i++) wav.push([i, 10 + 2 * Math.sin(i / 3)]);
   const r = O.projectPolylines(sk, [{ pts }, { pts: circ }, { pts: arcp }, { pts: wav }]); ok(r.lines === 1 && r.circles === 2 && r.splines === 1, `izdüşüm türleri çizgi/daire+yay/spline: ${JSON.stringify(r)}`);
   ok(sk.ents.every((e) => e.cons) && Object.entries(sk.points).every(([id, p]) => id === 'O' || p.fixed), 'hepsi sabit yapı geometrisi'); const s = await solve(sk); ok(s.ok, 'sabit geometri çözülür'); }
+// ---- ilişkisel izdüşüm (WP-09 dilim 4)
+{ const sk = empty(); const ln = (a, b) => ({ pts: [a, b], meta: { b: 'B', g: 0, c: [0, 0, 0] } });
+  const r0 = O.projectPolylines(sk, [ln([0, 0], [10, 0]), { pts: [[10, 0], [10, 5]], meta: { b: 'B', g: 1, c: [0, 0, 0] } }]);
+  const tagged = sk.ents.filter((e) => e.proj); ok(r0.lines === 2 && tagged.length === 2 && tagged[0].proj.g === 0 && tagged[1].proj.g === 1, 'izdüşüm: üretilen nesnelere proj bağı yazılır');
+  const own = addEnt(sk, { type: 'line', a: tagged[0].a, b: addPoint(sk, -5, -5) });
+  const res = O.reprojectLinked(sk, (m) => (m.g === 0 ? [[0, 0], [20, 10]] : [[20, 10], [20, 15]]));
+  const l0 = tagged[0], l1 = tagged[1];
+  ok(res.updated === 2 && res.rebuilt === 0 && sk.points[l0.b].x === 20 && sk.points[l0.b].y === 10 && sk.points[l1.b].y === 15, 'reprojectLinked: yapı aynıysa nesneler yerinde taşınır');
+  ok(sk.ents.find((e) => e.id === own).a === l0.a && l0.b === l1.a, 'paylaşılan noktalar ve kendi nesneler korunur');
+  const circ = []; for (let i = 0; i <= 40; i++) circ.push([20 + 5 * Math.cos((i / 40) * TAU()), 10 + 5 * Math.sin((i / 40) * TAU())]);
+  const res2 = O.reprojectLinked(sk, (m) => (m.g === 0 ? circ : null));
+  ok(res2.rebuilt === 1 && res2.lost === 1 && sk.ents.some((e) => e.type === 'circle' && e.proj && e.proj.g === 0) && sk.ents.some((e) => e.proj && e.proj.g === 1 && e.proj.lost), 'yapı değişince yeniden kurulur; kaynağı olmayan grup "lost" işaretlenir');
+  const none = O.reprojectLinked(sk, () => null); ok(none.updated === 0 && none.rebuilt === 0, 'kenar bulunamazsa geometriye dokunulmaz');
+}
 // ---- pano
 { const sk = empty(); const R = rect(sk, 0, 0, 10, 5); const clip = O.copySelection(sk, R.l); ok(clip.ents.length === 4 && clip.cons.length === 4, 'pano: 4 çizgi + 4 kısıt'); const r = O.pasteClip(sk, clip, 20, 0); ok(r.ok && sk.ents.length === 8, 'yapıştır'); ok(findRegions(sk).regions.length === 2, 'iki dikdörtgen'); const s = await solve(sk); ok(s.ok, 'yapıştırma çözülür'); }
 // ---- kutu seçimi

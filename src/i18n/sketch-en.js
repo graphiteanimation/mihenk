@@ -32,4 +32,10 @@ export default {
   "cf.auto_ref": "Add over-constraining dimensions as reference without asking",
   "sk.over_hint": "Ctrl+Enter: add as reference (driven) dimension.",
   "sk.dim_made_ref": "The dimension would have over-constrained the sketch; added as a reference (driven) dimension.",
+  "cf.proj_title": "Projections",
+  "cf.proj_refresh": "Update projections",
+  "sk.proj_updated": "{n} projection group(s) updated from the body.",
+  "sk.proj_lost": "The source edge of {n} projected object(s) was not found; left as is.",
+  "sk.proj_none": "This sketch has no body-linked projections.",
+  "sk.proj_same": "Projections are already up to date.",
 };

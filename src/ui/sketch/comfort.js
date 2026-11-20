@@ -2,10 +2,12 @@
 import './comfort.css';
 import { COL } from '../viewport.js';
 import { h } from '../dom.js';
-import { t } from '../../shared/i18n.js';
+import { t, tk } from '../../shared/i18n.js';
 import { SNAP_LABEL } from './snap.js';
 import { DEFS } from './tools.js';
 import { findPointAt } from './core.js';
+import { reprojectLinked } from './ops.js';
+import { toLocal } from '../../shared/vec.js';
 import { evalExpr } from '../../shared/expr.js';
 import { fmtNum, errText } from '../../shared/i18n.js';
 import { SKO, SNAP_KINDS, GRID_STEPS, SEL_KINDS, snapOn, setSnapKind, setGridStep, selOn, setSelKind, AUTO_KINDS, autoOn, setAuto, setAutoKind, setAutoRef, onSkOptsChange } from './opts.js';
@@ -19,6 +21,7 @@ function sections(S) {
   ];
   out.push({ id: 'sel', title: 'cf.sel_title', items: SEL_KINDS.map((k) => chk('sel-' + k, SEL_LABEL[k], () => selOn(k), (v) => setSelKind(k, v))) });
   out.push({ id: 'auto', title: 'cf.auto_title', items: [chk('auto-all', 'cf.auto_all', () => SKO.auto, (v) => setAuto(v)), ...AUTO_KINDS.map((k) => chk('auto-' + k, AUTO_LABEL[k], () => !SKO.autoOff.has(k), (v) => setAutoKind(k, v))), chk('auto-ref', 'cf.auto_ref', () => SKO.autoRef, (v) => setAutoRef(v))] });
+  out.push({ id: 'proj', title: 'cf.proj_title', button: { id: 'proj-refresh', label: 'cf.proj_refresh', run: () => S.refreshProjections() } });
   for (const f of S._cfSections || []) out.push(f(S));
   return out;
 }
@@ -60,6 +63,7 @@ export const COMFORT_METHODS = {
         inp.checked = !!it.get();
         pop.append(h('label', {}, inp, h('span', {}, lbl)));
       }
+      if (sec.button) pop.append(h('button', { type: 'button', 'data-cf': sec.button.id, onclick: () => sec.button.run() }, t(sec.button.label)));
       if (sec.select) {
         const s = sec.select, vals = [...new Set([...s.values, s.get()])].sort((a, b) => a - b);
         const sel = h('select', { 'data-cf': s.id, onchange: (ev) => s.set(ev.target.value) }, ...vals.map((v) => h('option', { value: String(v) }, String(v) + ' mm')));
@@ -148,5 +152,34 @@ export const COMFORT_METHODS = {
     if (!this._lastTool || this.tool !== 'select' || this._hasStage() || this._input || this._dlg || this._ctxEl) return false;
     if (t0 && (t0.tagName === 'BUTTON' || t0.tagName === 'A' || (t0.getAttribute && /^(button|menuitem|tab|checkbox|option)$/.test(t0.getAttribute('role') || '')))) return false;
     this.setTool(this._lastTool); return true;
+  },
+  // ---------- ilişkisel izdüşüm ----------
+  _edgeBodies() { const bodies = this.getBodies && this.getBodies(); return bodies && bodies.length ? bodies : [...this.vp.bodies.values()].filter((b) => b.grp.visible).map((b) => b.data); },
+  // bağın (gövde, kenar grubu) güncel yerel noktaları; kenar numarası yoksa eski ağırlık merkezine en yakın kenar; hiçbiri yoksa null
+  _edgeByMeta(meta) {
+    const b = this._edgeBodies().find((x) => x.id === meta.b); if (!b) return null;
+    const pl = this.plane, groups = b.edgeGroups || [];
+    const ptsOf = (g) => { const a = b.lines.subarray(g.start * 3, (g.start + g.count) * 3), pts = []; for (let i = 0; i + 5 < a.length; i += 6) { if (!pts.length) pts.push([a[i], a[i + 1], a[i + 2]]); pts.push([a[i + 3], a[i + 4], a[i + 5]]); } return pts; };
+    let g = groups.find((x) => x.idx === meta.g);
+    if (!g && meta.c) {
+      let best = null;
+      for (const q of groups) { const pts = ptsOf(q); if (pts.length < 2) continue; const c = [0, 1, 2].map((k) => pts.reduce((s, p) => s + p[k], 0) / pts.length); const d = Math.hypot(c[0] - meta.c[0], c[1] - meta.c[1], c[2] - meta.c[2]); if (!best || d < best.d) best = { d, q }; }
+      if (best && best.d < 5) g = best.q; // 5 mm içindeki en yakın kenar; daha uzaksa bağ kopuk sayılır
+    }
+    if (!g) return null; const pts = ptsOf(g); if (pts.length < 2) return null;
+    const out = pts.map((p) => toLocal(pl, p)); out.g = g.idx; out.c = [0, 1, 2].map((k) => Math.round(pts.reduce((q, p) => q + p[k], 0) / pts.length * 1e4) / 1e4); return out;
+  },
+  // Eskiz açılırken: bağlı izdüşümleri güncel gövdeden okur (geri alma adımı yok)
+  _reprojectOnOpen() {
+    if (!this.sk.ents.some((e) => e.proj)) return;
+    try { const r = reprojectLinked(this.sk, (m) => this._edgeByMeta(m)); if (r.updated || r.rebuilt) this._status('sk.proj_updated', { n: r.updated + r.rebuilt }); else if (r.lost) this._status('sk.proj_lost', { n: r.lost }); } catch (e) { console.warn('reproject', e && e.message); }
+  },
+  // Elle güncelle (panel düğmesi): çözülür, geri alınabilir
+  refreshProjections() {
+    if (!this.active) return Promise.resolve({ ok: false });
+    if (!this.sk.ents.some((e) => e.proj)) { this._status('sk.proj_none'); return Promise.resolve({ ok: false }); }
+    let res = null;
+    return this._apply((sk) => { res = reprojectLinked(sk, (m) => this._edgeByMeta(m)); if (!res.updated && !res.rebuilt) return () => (res.lost ? t('sk.proj_lost', { n: res.lost }) : t('sk.proj_same')); },
+      { kind: tk('sk.kind.project'), note: () => (res ? t('sk.proj_updated', { n: res.updated + res.rebuilt }) : '') });
   },
 };

@@ -803,6 +803,52 @@ try:
     check('otomatik referans açıkken gereksiz ölçü sormadan referans olur', len(ds) == 2 and sum(1 for c in ds if c.get('ref')) == 1 and not ev("!!document.querySelector('.sk-input')") and 'referans' in (status() or ''), (len(ds), status()))
     tool('select'); ev('sk.setAutoRef(false)')
     ev("(() => { sk.setAuto(true); })()")
+    # ---------------------------------------------------------------- WP-09 dilim 4: ilişkisel izdüşüm
+    print('WP-09 dilim 4: ilişkisel izdüşüm (gövde kenarı eskize bağlı, model değişince güncellenir)')
+    ev("""(() => { window.mkBody = (segs) => { const lines = new Float32Array(segs.flatMap((s) => s.pts.flat())); let off = 0; const eg = segs.map((s) => { const g = { idx: s.idx, start: off, count: s.pts.length }; off += s.pts.length; return g; }); return { id: 'b1', lines, edgeGroups: eg }; }; })()""")
+    ev("window.body = mkBody([{ idx: 0, pts: [[10, 5, 0], [50, 5, 0]] }, { idx: 1, pts: [[50, 5, 0], [50, 25, 0]] }]); sk.getBodies = () => [window.body];")
+    fresh()
+    r = ev("sk._projectGo({ mode: 'all' })"); idle(); s = S()
+    pl = [e for e in s['ents'] if e['type'] == 'line' and e.get('proj')]
+    check('izdüşüm: iki kenar bağlı (proj) çizgi olarak geldi', len(pl) == 2 and all(e['proj']['b'] == 'b1' for e in pl) and sorted(e['proj']['g'] for e in pl) == [0, 1], s['ents'])
+    check('izdüşüm çizgileri sabit noktalı yapı geometrisi', all(e.get('cons') for e in pl) and all(s['points'][e['a']].get('fixed') for e in pl), None)
+    # izdüşüm ucundan çizgi çiz (çakışık), sonra gövde değişsin
+    tool('line'); click(50, 25); click(80, 40); key('Escape'); s = S()
+    own = [e for e in s['ents'] if e['type'] == 'line' and not e.get('proj')][0]
+    shared = own['a']
+    ev("window.body.lines.set([10, 5, 0, 70, 25, 0, 70, 25, 0, 70, 45, 0])")
+    r = ev("sk.refreshProjections()"); idle(); page.wait_for_timeout(150); idle(); s = S()
+    p0 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 0][0]; p1 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 1][0]
+    check('model değişince izdüşüm yeni kenara taşınır: (10;5)→(70;25)', P_(s, p0['a']) == (10, 5) and P_(s, p0['b']) == (70, 25), (P_(s, p0['a']), P_(s, p0['b'])))
+    check('ikinci kenar (70;25)→(70;45)', P_(s, p1['a']) == (70, 25) and P_(s, p1['b']) == (70, 45), (P_(s, p1['a']), P_(s, p1['b'])))
+    check('izdüşüm ucunu paylaşan kendi çizgisi uçla birlikte taşınır (50;25 → 70;45)', P_(s, shared) == (70, 45) and ev('sk.lastSolve.ok'), P_(s, shared))
+    check('güncelleme geri alınabilir', ev('sk._undo.length') > 0 and (ev('sk.undo()') is None or True) and (idle() or True) and P_(S(), p0['b']) == (50, 5), P_(S(), p0['b']))
+    ev("sk.redo()"); idle()
+    # düğme (arayüz) ve değişmemiş durum
+    page.click('.sk-cf .cf-btn') if not ev("!!document.querySelector('.sk-cf .pop')") else None
+    page.click('.sk-cf [data-cf=proj-refresh]'); idle(); st = status() or ''
+    check('değişiklik yokken güncelle düğmesi "zaten güncel" der', 'güncel' in st, st)
+    # eskiz yeniden açılırken otomatik güncelleme (kaydet-kapat-aç)
+    feat = ev("sk.stop()")
+    ev("window.body.lines.set([10, 5, 0, 90, 5, 0, 90, 5, 0, 90, 30, 0])")
+    ev("(f) => begin('XY', f)", feat); idle(); s = S()
+    p0 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 0][0]
+    check('eskiz yeniden açılınca bağlı izdüşüm gövdeden güncellenir', P_(s, p0['b']) == (90, 5), P_(s, p0['b']))
+    check('açılışta güncelleme bildirilir', 'güncellendi' in ' '.join(ev('window.statusLog.slice(-6)')), ev('window.statusLog.slice(-6)'))
+    # kenar numarası değişti: ağırlık merkezine en yakın kenar bulunur
+    ev("window.body = mkBody([{ idx: 7, pts: [[10, 5, 0], [94, 5, 0]] }, { idx: 9, pts: [[94, 5, 0], [94, 30, 0]] }]); sk.getBodies = () => [window.body];")
+    ev("sk.refreshProjections()"); idle(); s = S(); p0 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 7][0]
+    check('kenar numarası değişince ağırlık merkezine en yakın kenar izlenir (0 → 7, bağ güncellenir)', P_(s, p0['b']) == (94, 5) and not p0['proj'].get('lost') and p0['proj']['g'] == 7, (P_(s, p0['b']), p0['proj']))
+    # kenar yok olursa: nesne korunur, bağ kopuk işaretlenir
+    ev("window.body = mkBody([{ idx: 0, pts: [[300, 300, 0], [320, 300, 0]] }]); sk.getBodies = () => [window.body];")
+    ev("sk.refreshProjections()"); idle(); s = S(); p1 = [e for e in s['ents'] if e.get('proj') and e['proj']['g'] == 9][0]
+    check('kaynak kenar yoksa nesne olduğu gibi kalır, bağ korunur ve kullanıcı uyarılır', 'bulunamadı' in (status() or '') and P_(s, p1['a']) == (94, 5) and p1['proj']['g'] == 9, (status(), p1))
+    # yapı değişimi: doğru → daire (yeniden kurulur, bağ korunur)
+    ev("window.body = mkBody([{ idx: 7, pts: Array.from({ length: 73 }, (_, i) => [52 + 10 * Math.cos(i * Math.PI / 36), 5 + 10 * Math.sin(i * Math.PI / 36), 0]).flatMap((p, i, a) => i < a.length - 1 ? [p, a[i + 1]] : []) }]); sk.getBodies = () => [window.body];")
+    ev("sk.refreshProjections()"); idle(); s = S()
+    circ = [e for e in s['ents'] if e['type'] == 'circle' and e.get('proj')]
+    check('doğru kenar daireye dönünce izdüşüm yeniden kurulur (daire, bağ korunur)', len(circ) == 1 and near(circ[0]['r'], 10, 1e-3) and circ[0]['proj']['g'] == 7, [e for e in s['ents'] if e.get('proj')])
+    ev("sk.getBodies = () => []"); fresh()
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()

@@ -3,7 +3,7 @@
 import { THREE, COL } from '../viewport.js';
 import { h } from '../dom.js';
 import { G, clone, getEnt, segOf, entPts } from './core.js';
-import { trimAt, extendAt, breakAt, trimSpan, offsetEnts, cornerAt, mirrorEnts, patternRect, patternCirc, transformEnts, projectPolylines, copySelection, pasteClip } from './ops.js';
+import { trimAt, extendAt, breakAt, trimSpan, offsetEnts, cornerAt, mirrorEnts, patternRect, patternCirc, transformEnts, projectPolylines, reprojectLinked, copySelection, pasteClip } from './ops.js';
 import { sketchPolylines } from '../viewport.js';
 import { evalExpr } from '../../shared/expr.js';
 import { t, tk, errText, fmtNum } from '../../shared/i18n.js';
@@ -289,7 +289,8 @@ export const EDIT_METHODS = {
         for (let i = 0; i + 5 < a.length + 0; i += 6) { if (!pts.length) pts.push([a[i], a[i + 1], a[i + 2]]); pts.push([a[i + 3], a[i + 4], a[i + 5]]); }
         if (pts.length < 2) continue;
         if (!sel.length && mode === 'plane' && !pts.every((p) => Math.abs(((p[0] - pl.o[0]) * nrm[0] + (p[1] - pl.o[1]) * nrm[1] + (p[2] - pl.o[2]) * nrm[2]) / nl) < 1e-4)) continue;
-        out.push({ pts: pts.map((p) => toLocal(pl, p)) });
+        const cen = [0, 1, 2].map((k) => Math.round(pts.reduce((q, p) => q + p[k], 0) / pts.length * 1e4) / 1e4);
+        out.push({ pts: pts.map((p) => toLocal(pl, p)), meta: { b: b.id, g: g.idx, c: cen } }); // meta: ilişkisel izdüşüm bağı
       }
     }
     return out;

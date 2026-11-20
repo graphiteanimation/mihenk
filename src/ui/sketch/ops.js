@@ -1,5 +1,5 @@
 // Düzenleme işlemleri: ofset, köşe yuvarlat/pah, ayna, desenler, dönüşümler, izdüşüm, pano. Saf işlevler: sk'yi yerinde değiştirir.
-import { G, clone, entPts, conRefs, getEnt, segOf, newId, addPoint, addEnt, addCon, cleanup, findPointAt, usersOf, DIM_TYPES, TAU, measureDim } from './core.js';
+import { G, clone, entPts, conRefs, deleteItems, getEnt, segOf, newId, addPoint, addEnt, addCon, cleanup, findPointAt, usersOf, DIM_TYPES, TAU, measureDim } from './core.js';
 import { ellipseGeom } from '../../shared/profiles.js';
 import { evalExpr } from '../../shared/expr.js';
 
@@ -247,7 +247,7 @@ function fitCircle(p) {
   const uy = ((a[0] ** 2 + a[1] ** 2) * (c[0] - b[0]) + (b[0] ** 2 + b[1] ** 2) * (a[0] - c[0]) + (c[0] ** 2 + c[1] ** 2) * (b[0] - a[0])) / d;
   return { c: [ux, uy], r: Math.hypot(a[0] - ux, a[1] - uy) };
 }
-export function projectPolylines(sk, polylines, tol = 2e-3) {
+function projectCore(sk, polylines, tol = 2e-3) {
   const created = []; let lines = 0, circles = 0, splines = 0;
   const has = (seg) => created.some((x) => x.sig === seg);
   for (const pl of polylines) {
@@ -273,6 +273,57 @@ export function projectPolylines(sk, polylines, tol = 2e-3) {
     if (sel.length >= 2) { const ids = sel.map((p) => mkFixedPt(p)); addEnt(sk, { type: 'spline', pts: ids, ...(closed ? { closed: true } : {}), cons: true }); splines++; }
   }
   return ok({ lines, circles, splines, count: lines + circles + splines });
+}
+
+// Gövde kenarını eskize izdüşürür; her polyline'a `meta` ({b: gövde, g: kenar grubu, c: ağırlık merkezi}) verilmişse
+// üretilen nesnelere `proj` yazılır (ilişkisel bağ; reprojectLinked ile güncellenir).
+export function projectPolylines(sk, polylines, tol = 2e-3) {
+  const tot = { lines: 0, circles: 0, splines: 0 };
+  for (const pl of polylines) {
+    const n0 = sk.ents.length; const r = projectCore(sk, [pl], tol);
+    for (const k of Object.keys(tot)) tot[k] += (r.lines !== undefined ? r[k] : 0) || 0;
+    if (pl.meta) for (const e of sk.ents.slice(n0)) e.proj = { ...pl.meta };
+  }
+  return ok({ ...tot, count: tot.lines + tot.circles + tot.splines });
+}
+
+// İlişkisel izdüşümleri yeniden okur. resolve(meta) → yerel nokta dizisi ya da null (kenar bulunamadı).
+// Yapı aynıysa nesneler yerinde taşınır (üzerlerindeki kısıt/ölçü korunur); değiştiyse (çizgi→yay vb.) yeniden kurulur.
+export function reprojectLinked(sk, resolve, tol = 2e-3) {
+  const groups = new Map();
+  for (const e of sk.ents) if (e.proj) { const k = e.proj.b + '|' + e.proj.g; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
+  let updated = 0, rebuilt = 0, lost = 0;
+  for (const ents of groups.values()) {
+    const meta = ents[0].proj; const pts = resolve(meta);
+    if (!pts) { for (const e of ents) if (!e.proj.lost) e.proj = { ...e.proj, lost: true }; lost += ents.length; continue; }
+    const nm = { b: meta.b, g: pts.g !== undefined ? pts.g : meta.g, c: pts.c || meta.c }; // eşleşen kenar numarası ve merkez izlenir
+    const scratch = { points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [], seq: 0 };
+    projectCore(scratch, [{ pts }], tol);
+    const nw = scratch.ents;
+    const same = nw.length === ents.length && nw.every((n, i) => n.type === ents[i].type && entPts(n).length === entPts(ents[i]).length);
+    if (same) {
+      let moved = false;
+      ents.forEach((e, i) => {
+        const n = nw[i], op = entPts(e), np = entPts(n);
+        op.forEach((id, j) => { const a = sk.points[id], b = scratch.points[np[j]]; if (a && b && (Math.abs(a.x - b.x) > 1e-9 || Math.abs(a.y - b.y) > 1e-9)) { a.x = b.x; a.y = b.y; moved = true; } });
+        if (e.type === 'circle' && Math.abs(e.r - n.r) > 1e-9) { e.r = n.r; moved = true; }
+        if (e.proj.lost || e.proj.g !== nm.g) moved = true;
+        e.proj = { ...nm };
+      });
+      if (moved) updated++;
+    } else {
+      deleteItems(sk, ents.map((e) => ({ kind: 'ent', id: e.id })));
+      const map = {}; const pid = (id) => (map[id] || (map[id] = addPoint(sk, scratch.points[id].x, scratch.points[id].y, true)));
+      for (const n of nw) {
+        const e = clone(n); delete e.id;
+        for (const k of ['a', 'b', 'c', 'f', 'p']) if (e[k]) e[k] = pid(e[k]);
+        if (e.pts) e.pts = e.pts.map(pid);
+        e.proj = { ...nm }; addEnt(sk, e);
+      }
+      rebuilt++;
+    }
+  }
+  return { updated, rebuilt, lost, groups: groups.size };
 }
 
 // ---------------------------------------------------------------- PANO (kes/kopyala/yapıştır)
