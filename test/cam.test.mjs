@@ -690,5 +690,36 @@ section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');
   ok(findRegions(toSketch(c1)).regions.length === 1, 'kapatilmis dongu eskizde bir bolge');
 }
 
+section('10. WP-06 T-01 ilk dalma: guvenli yukseklikten retract\'a HIZLI inis');
+{
+  const { simulate } = await import('../src/cam/sim/index.js');
+  const tool = flat(10);
+  const firstFeed = (tp) => { let last = null; for (const m of tp.moves) { if (m.t === 'feed' || m.t === 'arc') return { m, from: last }; if (m.t === 'rapid') last = m; } return null; };
+  const mkC = () => CAM.computeOp({ id: 'c', type: 'contour', ...base, geom: [{ kind: 'face', loops: 'outer' }], stepdown: 4 }, { setup: S0, tool, geom: { faces: [{ z: -10, outer: sq(20, 15, 80, 45), inners: [] }] } });
+  const mkP = () => CAM.computeOp({ id: 'p', type: 'pocket', ...base, geom: [{ kind: 'face' }], stepover: 4, stepdown: 4, entry: { kind: 'plunge' } }, { setup: S0, tool, geom: { faces: [{ z: -8, normalOk: true, outer: sq(20, 15, 80, 45), inners: [] }] } });
+  const mkF = () => CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, stepdown: 2, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -2 } } }, { setup: S0, tool });
+  for (const [nm, mk_] of [['kontur', mkC], ['cep', mkP], ['yuzey', mkF]]) {
+    const tp = mk_(); const ff = firstFeed(tp);
+    // clearance Z10 -> retract Z2 HIZLI; ilk ilerleme retract'tan (Z2) baslar
+    ok(ff && ff.from && Math.abs(ff.from.z - 2) < 1e-9, `T-01 ${nm}: ilk ilerleme retract'tan (Z2) baslar: ${ff?.from?.z}`);
+    ok(tp.moves[0].t === 'rapid' && Math.abs(tp.moves[0].z - 10) < 1e-9 && tp.moves[1].t === 'rapid' && Math.abs(tp.moves[1].z - 2) < 1e-9 && tp.moves[1].x === tp.moves[0].x, `T-01 ${nm}: ilk iki hareket hizli: clearance sonra retract`);
+    ok(validateToolpath(tp), `T-01 ${nm}: IR gecerli`);
+    // havada ilerleme: yalniz retract (2 mm) kadar (+ sonraki paso inisleri); clearance'tan (10 mm) degil
+    const firstAir = (() => { const f = firstFeed(tp); return f.from.z - 0; })();
+    ok(firstAir < 2 + 1e-9, `T-01 ${nm}: ilk dalmada havada ilerleme <= retract (2): ${firstAir}`);
+    // sim: stok ustunde hizli inis temiz; stoga hizli inis hala yakalanir
+    const flat0 = heightmapFromFn([0, 0], [100, 60], 0.5, () => 0);
+    const sr = simulate(tp, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flat0 });
+    ok(!sr.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), `T-01 ${nm}: yeni hizli inis sim rapid_in_stock vermez`);
+  }
+  // sim yeni hareketleri GORUR: retract stok icinde olsaydi (stoktan gecen hizli inis) rapid_in_stock cikar
+  {
+    const tp = mkC(); const bad = { ...tp, moves: tp.moves.map((m, i) => (i === 1 ? { ...m, z: -3 } : m)) };
+    const flat0 = heightmapFromFn([0, 0], [100, 60], 0.5, () => 0);
+    const sr = simulate(bad, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flat0 });
+    ok(sr.issues.some((i) => i.code === 'cam.sim.rapid_in_stock' && i.moveIndex === 1), "T-01: hizli inisin kendisi (hareket 1) stok icine kaydirilinca sim rapid_in_stock verir: " + JSON.stringify(sr.issues.map((i) => [i.code, i.moveIndex])));
+  }
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
