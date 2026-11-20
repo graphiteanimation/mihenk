@@ -78,7 +78,13 @@ check('Kaydet: .bak önceki sürüm', fs.existsSync(bak) && JSON.parse(fs.readFi
 // Gerçek kayıt diyaloğu: writeOut() ürün kodunun kullandığı yoldur; yolu diyaloğa Windows tuş gönderimiyle yazarız.
 const viaDialog = async (label, name, kind, text, outFile) => {
   const pr = page.evaluate(([n, k, t]) => window.app.writeOut(new TextEncoder().encode(t), n, k, true), [name, kind, text]);
-  const drv = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.join(ROOT, 'scripts', 'win-dialog-type.ps1'), '-ProcId', String(child.pid), '-Path', outFile], { encoding: 'utf8', timeout: 90000 });
+  // spawnSync KULLANILMAZ: olay döngüsünü kilitler, yukarıdaki page.evaluate isteği DevTools'a hiç gitmez
+  const drv = await new Promise((res) => {
+    const c = spawn('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.join(ROOT, 'scripts', 'win-dialog-type.ps1'), '-ProcId', String(child.pid), '-Path', outFile], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let so = '', se = ''; c.stdout.on('data', (d) => { so += d; }); c.stderr.on('data', (d) => { se += d; });
+    const tm = setTimeout(() => { c.kill(); }, 90000);
+    c.on('close', (status) => { clearTimeout(tm); res({ status, stdout: so, stderr: se }); });
+  });
   const out = (drv.stdout || '').trim();
   if (drv.status !== 0) { check(`${label}: kayıt diyaloğu bulundu ve yol yazıldı`, false, `${out} ${drv.stderr || ''}`.trim()); return; }
   let ret; try { ret = await Promise.race([pr, sleep(20000).then(() => '__zaman_asimi__')]); } catch (e) { ret = '__hata__ ' + e.message; }
