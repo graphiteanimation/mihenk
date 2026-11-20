@@ -327,6 +327,8 @@ try:
     tb('sketch'); page.wait_for_timeout(300)
     check('sketch: düzlem seç ipucu', 'düzlem' in ev('document.querySelector("#hint").textContent'))
     click_world([50, 55, 0]); page.wait_for_function('() => (app.sketchSession)', timeout=10000); ev('app.sketcher.idle()')
+    page.keyboard.press('p'); ev('app.sketcher.idle()')
+    check('C-07: tümleşik uygulamada küçük "p" nokta aracını seçer', ev('app.sketcher.tool') == 'point', ev('app.sketcher.tool')); page.keyboard.press('Escape'); ev('app.sketcher.idle()')
     check('sketch kipine girildi (XY düzlemi)', ev('app.sketcher.active') and ev('app.sketchSession.draft.plane.name') == 'XY', ev('JSON.stringify([app.sketcher.active, app.sketchSession.draft.plane])'))
     check('sketch araç çubuğu: ÇİZ, ÖLÇÜ, KISIT', page.locator('#toolbar button[data-cmd="rect"]').count() == 1 and page.locator('#toolbar button[data-cmd="c-parallel"]').count() == 1 and page.locator('#sk-finish').count() >= 1)
     def sk_px(u, v):

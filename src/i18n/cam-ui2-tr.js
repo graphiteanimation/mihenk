@@ -134,6 +134,7 @@ export default {
   "cam.op.res_err": "Yol hesaplanamadı",
   "cam.op.res_none": "Yol henüz hesaplanmadı. \"Yolu hesapla\" ile deneyin; kaydetmeden önce sonucu görürsünüz.",
   "cam.op.res_ok": "Yol hesaplandı",
+  "cam.op.res_blocked": "Hesaplanamadı: alanlarda düzeltilecek hata var.",
   "cam.op.res_stale": "Bu yol eski. Değişiklikten sonra \"Yolu hesapla\" deyin.",
   "cam.op.res_stats": "{moves} hareket · kesme {cut} mm · hızlı {rapid} mm · yaklaşık {min} dk",
   "cam.op.retract": "Geri çekilme yüksekliği",

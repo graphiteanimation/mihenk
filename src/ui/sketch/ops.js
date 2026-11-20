@@ -139,7 +139,14 @@ export function cornerAt(sk, vid, kind, val, exprText, entA, entB) {
     const swap = G.wrap(a2 - a1) > Math.PI; const [s, t] = swap ? [pb, pa] : [pa, pb];
     const arc = addEnt(sk, { type: 'arc', c: cp, a: s, b: t, ...(A.cons && B.cons ? { cons: true } : {}) });
     addCon(sk, 'tangent', A.id, arc); addCon(sk, 'tangent', B.id, arc); addCon(sk, 'radius', arc, undefined, { expr: String(exprText) });
-  } else addEnt(sk, { type: 'line', a: pa, b: pb, ...(A.cons && B.cons ? { cons: true } : {}) });
+  } else {
+    addEnt(sk, { type: 'line', a: pa, b: pb, ...(A.cons && B.cons ? { cons: true } : {}) });
+    // pah ölçü kısıtı (yuvarlattaki yarıçap ölçüsü gibi): pah çizgisinin uzunluğu. İki çizgi arasında ifade yazılan değere bağlı kalır
+    // (kol uzunluğu × 2·sin(açı/2) çarpanı), aksi halde oluşturulan geometrinin ölçüsü sayı olarak yazılır.
+    const chord = G.dist(tA, tB), numeric = /^[-+]?\d*[.,]?\d+$/.test(String(exprText).trim());
+    const expr = A.type === 'line' && B.type === 'line' && !numeric ? '(' + String(exprText) + ')*' + (chord / val).toFixed(10) : String(+chord.toFixed(6));
+    addCon(sk, 'dist', pa, pb, { expr });
+  }
   const removed = cleanup(sk);
   return ok({ removedCons: removed });
 }

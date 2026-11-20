@@ -550,6 +550,8 @@ try:
     pg.click('[data-testid=op-tab-heights]')
     pg.click('[data-testid=op-compute]'); time.sleep(0.3)
     check('U-10: Hesapla hatalı sekmeye (Pasolar) geçer', pg.evaluate("document.querySelector('[data-testid=op-tab-passes]').getAttribute('aria-pressed')") == 'true' and count(pg, '#panel .input.err') >= 1)
+    rt = txt(pg, '[data-testid=op-result]')
+    check('U-10 (ikinci kısım): engellenen Hesapla sonrası sonuç kutusu "Bu yol eski" demez, hesaplanamadığını söyler', 'Hesaplanamadı' in rt and 'eski' not in rt, rt)
     pg.click('[data-testid=op-tab-heights]'); pg.click('[data-testid=panel-ok]'); time.sleep(0.3)
     check('U-10: Tamam da hatalı sekmeye geçer, panel açık kalır', pg.evaluate("document.querySelector('[data-testid=op-tab-passes]').getAttribute('aria-pressed')") == 'true' and not pg.evaluate("document.querySelector('#panel').classList.contains('hidden')"))
     pg.keyboard.press('Escape')

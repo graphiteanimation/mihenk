@@ -508,7 +508,7 @@ export class Sketcher {
     const c = this._ci.c, r = Math.hypot(s.x - c.x, s.y - c.y);
     if (r < 1e-6) { this._status('sk.radius_zero'); return; }
     this._ci = null; this.setHint(HINT_KEY.circle);
-    this._apply(() => { const cp = this._ptFor(c); this._addEnt({ type: 'circle', c: cp, r }); }, { kind: tk('sk.kind.circle') });
+    return this._apply(() => { const cp = this._ptFor(c); this._addEnt({ type: 'circle', c: cp, r }); }, { kind: tk('sk.kind.circle') }); // C-01: sonuç döner (yazılan yarıçap ölçü kısıtına bağlanır)
   }
 
   // ---- yay (merkez, başlangıç, bitiş; saat yönü tersi)
@@ -816,7 +816,8 @@ export class Sketcher {
     if (k === 'Delete' || k === 'Backspace') { this.deleteSelection(); return done(); }
     // sayısal giriş: çizerken uzunluk/açı yazılır
     if (/^[0-9.,]$/.test(k) && this._numericStart(k)) return done();
-    const lk = k.toLowerCase();
+    // C-07: harf kısayolları düzen bağımsız: Latin olmayan düzende (ör. 'з') fiziksel tuş koduna (KeyP) düşülür
+    let lk = k.toLowerCase(); if (!/^[a-z]$/.test(lk) && /^Key[A-Z]$/.test(ev.code || '')) lk = ev.code.slice(3).toLowerCase();
     if (this._ln && this.tool === 'line' && (lk === 'a' || lk === 'l')) { this.chainMode(lk === 'a' ? 'arc' : 'line'); return done(); }
     const map = { l: 'line', r: 'rect', c: 'circle', a: 'arc', d: 'dim', p: 'point', t: 'trim', x: 'extend', k: 'break', o: 'offset', q: 'fillet', w: 'chamfer', m: 'mirror', g: 'polygon', u: 'slot', y: 'ellipse', b: 'spline', j: 'project' };
     const shiftMap = { r: 'rectc', c: 'circle3', a: 'arc3' };
@@ -984,8 +985,10 @@ export class Sketcher {
       if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return; moved = true;
       const loc = this.vp.rayToPlane(e, this.plane); if (!loc) return; last = loc; el._loc = loc; el._off = [0, 0]; this._posOverlay();
     };
-    const up = () => {
+    const up = (e) => {
       window.removeEventListener('mousemove', mv, true); window.removeEventListener('mouseup', up, true);
+      // C-02: sürüklenmeden bırakılan tıklama etiketin altındaki nokta/nesneye iletilir (etiket nokta yakalamayı engellemez)
+      if (!moved) { const loc = this._loc(e); if (loc && this.tool === 'select' && this._hit(loc)) { this._pointer('down', e); this._pointer('up', e); } return; }
       if (moved && last) { const base = el._base; this._apply((sk) => { const k = sk.cons.find((x) => x.id === c.id); if (k) k.lo = [last[0] - base[0], last[1] - base[1]]; }, { kind: tk('sk.kind.change') }); }
     };
     window.addEventListener('mousemove', mv, true); window.addEventListener('mouseup', up, true);

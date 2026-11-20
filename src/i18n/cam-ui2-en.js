@@ -134,6 +134,7 @@ export default {
   "cam.op.res_err": "The path could not be computed",
   "cam.op.res_none": "The path is not computed yet. Try \"Compute path\"; you see the result before saving.",
   "cam.op.res_ok": "Path computed",
+  "cam.op.res_blocked": "Not computed: some fields need to be fixed.",
   "cam.op.res_stale": "This path is out of date. Press \"Compute path\" after changes.",
   "cam.op.res_stats": "{moves} moves · cutting {cut} mm · rapid {rapid} mm · about {min} min",
   "cam.op.retract": "Retract height",

@@ -63,7 +63,7 @@ export class OpPanel {
     this.cam.mut((c) => { for (const s of c.setups) { const i = (s.ops || []).findIndex((x) => x.id === d.id); if (i >= 0) s.ops[i] = d; } });
   }
   async compute() {
-    const bad = this.problems(); if (bad) { this.app.toastInfo(bad); return; }
+    const bad = this.problems(); if (bad) { this.out = { blocked: true }; this.showResult(); this.app.toastInfo(bad); return; } // U-10: engellenen Hesapla "Bu yol eski" demez
     const setup = this.cam.setup(this.setupId); const d = clone(this.draft);
     this.out = { busy: true }; this.showResult();
     this.out = await this.cam.ops.computeDraft(setup, d); this.showResult();
@@ -74,6 +74,7 @@ export class OpPanel {
     const o = this.out;
     if (!o) { const st = this.cam.ops.state(this.draft, this.cam.setup(this.setupId)); box.append(callout('info', null, t(st.state === 'stale' ? 'cam.op.res_stale' : 'cam.op.res_none'))); return; }
     if (o.busy) { box.append(callout('info', null, t('cam.run.busy'))); return; }
+    if (o.blocked) { box.append(callout('warn', null, t('cam.op.res_blocked'))); return; }
     if (o.error) { box.append(callout('err', t('cam.op.res_err'), errText(o.error))); return; }
     const s = o.tp.stats || {};
     box.append(callout('ok', t('cam.op.res_ok'), t('cam.op.res_stats', { moves: o.tp.moves.length, cut: fmtNum(s.cutLen ?? 0, 1), rapid: fmtNum(s.rapidLen ?? 0, 1), min: fmtNum(s.timeMin ?? 0, 1) }), 'check'));
