@@ -59,7 +59,7 @@ export default {
   "err.cam.sim.no_stock": "Simülasyon için ham parça (stok) tanımı yok (kurulum {setup}).",
   "err.cam.sim.tool_geom": "Simülasyon için takım geometrisi eksik ya da geçersiz: {field} (takım türü {type}).",
   "err.cam.sim.rapid_in_stock": "Hızlı hareket stok içine giriyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",
-  "err.cam.sim.gouge": "Takım model yüzeyinin altına iniyor: oyma (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",
+  "err.cam.sim.gouge": "Takım model yüzeyinin altına iniyor: oyma (işlem {op}, X {x} Y {y} Z {z}; yüzeye dik {depth} mm, düşey fark {vertical} mm).",
   "err.cam.sim.flute_exceeded": "Kesme boyundan derin kesiliyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.shaft_collision": "Takım şaftı stoğa çarpıyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.holder_collision": "Tutucu stoğa çarpıyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",

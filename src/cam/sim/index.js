@@ -83,12 +83,50 @@ export function createSim(input, opts = {}) {
         const zb = pz + g.profile(r);
         if (mode === 0) { if (h > zb + tol) note('rapid_in_stock', h - zb, px, py, pz); continue; }
         if (h > zb) {
-          if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) note('gouge', m - zb, px, py, pz); }
+          if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) noteGouge(g, r, m, zb, pz, px, py, cx, cy); }
           const nz = zb < S.zFloor ? S.zFloor : zb;
           if (nz < h) { const dv = (h - nz) * rs * rs; S.removed += dv; removedTotal += dv; d[idx2] = nz; }
         }
       }
     }
+    if (gc) finishGouge();
+  }
+  // T-17: oyma miktari = model malzemesinin takim zarfina YUZEYE DIK girme derinligi (yan yuzeye R-r, uca normal uzaklik);
+  // dusey fark (m - zb) ayrica 'vertical' olarak tutulur. Engel olcutu degismez (dusey fark > tolerans = oyma).
+  function noteGouge(g, r, m, zb, pz, px, py, cx0, cy0) {
+    const v = m - zb, Rc = g.cutR;
+    let end = v;
+    if (g.kind === 'cone') end = v * Math.sin(Math.atan(g.tanHalf));
+    else if (g.kind === 'ball') { const c = pz + g.R; if (m < c) end = g.R - Math.hypot(r, c - m); else end = Infinity; }
+    else if (g.kind === 'bull') { const c = pz + g.cr, rc = g.R - g.cr; if (r > rc && m < c) end = g.cr - Math.hypot(r - rc, c - m); }
+    const a = cur.acc.gouge || (cur.acc.gouge = { n: 0, depth: -Infinity, x: 0, y: 0, z: 0, vertical: -Infinity });
+    a.n++; if (v > a.vertical) a.vertical = v;
+    // takim zarfi icindeki model derinligi (yan: Rc - r, uc: normal uzaklik); dusey farki asamaz
+    const d = Math.min(v, Math.max(0, Math.min(Rc - r, end)));
+    if (d > a.depth) { a.depth = d; a.x = px; a.y = py; a.z = pz; }
+    // ornek basina en derin (dusey) hucre: yatay model yuzeyi uzakligi touch sonunda bir kez aranir
+    if (!gc || v > gc.v) gc = { v, cx: cx0, cy: cy0, zb, px, py, pz, g };
+  }
+  let gc = null;
+  function finishGouge() {
+    const c = gc; gc = null; const a = cur.acc.gouge; if (!c || !a) return;
+    const lim = Math.min(c.v, 2 * c.g.R + cur.setup.mh.res);
+    if (!(lim > a.depth)) return;
+    const lat = Math.min(c.v, lateralFree(cur.setup.mh, c.cx, c.cy, c.zb, lim));
+    if (lat > a.depth) { a.depth = lat; a.x = c.px; a.y = c.py; a.z = c.pz; }
+  }
+  // (x,y) hucresinden, model ustu zb'nin altinda kalan (bos) en yakin hucreye uzaklik - res (alt sinir). Halka halka aranir, ilk
+  // bulunan halkadan sonra durur; arama yaricapi lim ile sinirli (bulunamazsa lim: yine alt sinir).
+  function lateralFree(mh, x, y, zb, lim) {
+    const rs = mh.res, n = Math.min(Math.ceil((lim + rs) / rs), 64);
+    const i0 = Math.floor((x - mh.x0) / rs), j0 = Math.floor((y - mh.y0) / rs);
+    let best = Infinity;
+    const at = (i, j) => { if (i < 0 || j < 0 || i >= mh.nx || j >= mh.ny) return; const m = mh.data[j * mh.nx + i]; if (m <= zb) { const dd = Math.hypot(i - i0, j - j0) * rs; if (dd < best) best = dd; } };
+    for (let k = 1; k <= n; k++) {
+      if (best <= (k - 1) * rs) break; // daha dis halkalar daha uzak
+      for (let t = -k; t <= k; t++) { at(i0 + t, j0 - k); at(i0 + t, j0 + k); if (t > -k && t < k) { at(i0 - k, j0 + t); at(i0 + k, j0 + t); } }
+    }
+    return best === Infinity ? Math.min(lim, n * rs) : Math.max(0, best - rs);
   }
   function mhAt(mh, x, y) {
     const i = Math.floor((x - mh.x0) / mh.res), j = Math.floor((y - mh.y0) / mh.res);
@@ -178,6 +216,7 @@ export function createSim(input, opts = {}) {
       if (counts[key] > capPerCode) { suppressed++; continue; }
       const lvl = key === 'below_stock' && a.depth <= cur.allow + belowTol ? 'warn' : LEVEL[key];
       const it = { level: lvl, code, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
+      if (a.vertical != null) it.params.vertical = a.vertical;
       issues.push(it); fresh.push(it);
     }
     return fresh;

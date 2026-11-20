@@ -204,5 +204,52 @@ console.log('6. T-22 kilavuz: dis dibi capi (gercek hatalar hala yakalanir)');
   ok(codes(r).includes('cam.sim.gouge'), 'takim minorDia (2,8) model deliginden buyuk: oyma: ' + codes(r));
 }
 
+console.log('7. T-17 oyma olcusu (yuzeye dik) + T-16 koruma (gercek oymalar hala engel)');
+{
+  const bx = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const drill = (dia, tipAngle) => ({ number: 7, H: 7, type: 'drill', dia, tipAngle, fluteLen: 30, bodyLen: 50 });
+  const cyc = (x, bottom) => [mk.rapid(x, 0, 10), mk.cycle({ cycle: 'drill', points: [[x, 0]], top: 0, bottom, retract: 5, clearance: 10, f: 200 }), mk.rapid(x, 0, 10)];
+  const gouges = (r) => r.issues.filter((i) => i.code === 'cam.sim.gouge');
+  // a) O6,1 matkap O6 model deliginde (P2 o7 / P4 o9 tipi): engel kalir, olcu ~0,05 (dusey fark degil)
+  const hole6 = heightmapFromFn([-20, -20], [20, 20], 0.05, (x, y) => (Math.hypot(x, y) <= 3 ? -20 : 0));
+  let r = simulate(TP(drill(6.1, 118), cyc(0, -15)), { stockBox: bx, modelHeightmap: hole6, res: 0.05 });
+  let g = gouges(r);
+  ok(g.length === 1 && g[0].level === 'error', 'O6,1 > O6: oyma hala engel: ' + codes(r));
+  ok(g.length && g[0].params.depth > 0 && g[0].params.depth <= 0.06, 'oyma olcusu yuzeye dik ~0,05: ' + (g[0]?.params.depth));
+  ok(g.length && g[0].params.vertical > 5, 'dusey fark ayrica raporlanir: ' + (g[0]?.params.vertical));
+  r = simulate(TP(drill(6.0, 118), cyc(0, -15)), { stockBox: bx, modelHeightmap: hole6, res: 0.05 });
+  ok(!codes(r).includes('cam.sim.gouge'), 'O6 matkap O6 delikte temiz: ' + codes(r));
+  // b) kati modele dalma: olcu buyuk kalir (kucuk gosterilmez)
+  const solid = heightmapFromFn([-20, -20], [20, 20], 0.25, () => 0);
+  r = simulate(TP(S.TOOLS.flat6, [mk.rapid(0, 0, 10), mk.rapid(0, 0, 1), mk.feed(0, 0, -10, 100, 'plunge'), mk.rapid(0, 0, 10)]), { stockBox: bx, modelHeightmap: solid, res: 0.25 });
+  g = gouges(r);
+  ok(g.length === 1 && g[0].level === 'error' && g[0].params.depth >= 3 && Math.abs(g[0].params.vertical - 10) < 1e-6, 'kati modele 10 mm dalma: olcu >= R, dusey 10: ' + JSON.stringify(g[0]?.params));
+  // c) T-16: duvar dibi yuvarlatmasi (R1,52 ve R0,76): duz uclu takim yuvarlatmaya girer -> engel
+  const fillet = (rf) => heightmapFromFn([-20, -20], [20, 20], 0.05, (x) => {
+    if (x >= 10) return 0; const c = 10 - rf; if (x <= c) return -10; return -10 + rf - Math.sqrt(Math.max(0, rf * rf - (x - c) * (x - c)));
+  });
+  const wallPass = (xc, z) => TP(S.TOOLS.flat6, [mk.rapid(xc, -15, 10), mk.rapid(xc, -15, 1), mk.feed(xc, -15, z, 100, 'plunge'), mk.feed(xc, 15, z, 300), mk.rapid(xc, 15, 10)]);
+  const deep = { min: [-20, -20, -30], max: [20, 20, 0] };
+  for (const rf of [1.52, 0.76]) {
+    r = simulate(wallPass(10 - 3 - 0.3, -10 + 0.05), { stockBox: deep, modelHeightmap: fillet(rf), res: 0.05, tool: { fluteLen: 15, bodyLen: 40 } });
+    g = gouges(r);
+    ok(g.length >= 1 && g.every((i) => i.level === 'error'), `T-16: R${rf} yuvarlatma oymasi engel: ` + codes(r));
+    ok(g.length && g[0].params.depth > 0.01 && g[0].params.depth < 1, `R${rf}: olcu kucuk ve pozitif: ` + (g[0]?.params.depth));
+  }
+  r = simulate(wallPass(10 - 3 - 1.6, -10 + 0.05), { stockBox: deep, modelHeightmap: fillet(1.52), res: 0.05, tool: { fluteLen: 15, bodyLen: 40 } });
+  ok(!codes(r).includes('cam.sim.gouge'), 'radyal pay 1,6 ile R1,52 temiz: ' + codes(r));
+  // d) T-16: uc acisi uyusmazligi: 140 derece matkap 118 derece model delik dibine (ayni uc z) -> engel; 118 -> temiz
+  const cone = heightmapFromFn([-20, -20], [20, 20], 0.05, (x, y) => { const q = Math.hypot(x, y); return q <= 1.25 ? -15 + q / Math.tan(59 * Math.PI / 180) : 0; });
+  r = simulate(TP(drill(2.5, 140), cyc(0, -15)), { stockBox: bx, modelHeightmap: cone, res: 0.05 });
+  g = gouges(r);
+  ok(g.length === 1 && g[0].level === 'error', 'T-16: 140/118 uc acisi oymasi engel: ' + codes(r));
+  ok(g.length && g[0].params.depth > 0.1 && g[0].params.depth < 0.3, '140/118 olcu (koniye dik) ~0,1-0,3: ' + (g[0]?.params.depth));
+  r = simulate(TP(drill(2.5, 118), cyc(0, -15)), { stockBox: bx, modelHeightmap: cone, res: 0.05 });
+  ok(!codes(r).includes('cam.sim.gouge'), '118 matkap 118 delikte temiz: ' + codes(r));
+  // e) T-16: flute asimi hala engel (yukseklik haritasi stok)
+  r = simulate(TP({ ...S.TOOLS.flat6, fluteLen: 5, bodyLen: 40, holder: null }, [mk.rapid(30, 0, 10), mk.rapid(30, 0, -8), mk.feed(0, 0, -8, 200), mk.rapid(0, 0, 10)]), { stockBox: bx, res: 0.25 });
+  ok(r.issues.some((i) => i.code === 'cam.sim.flute_exceeded' && i.level === 'error'), 'T-16: flute asimi engel: ' + codes(r));
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

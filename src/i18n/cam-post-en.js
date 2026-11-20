@@ -59,7 +59,7 @@ export default {
   "err.cam.sim.no_stock": "No stock definition for the simulation (setup {setup}).",
   "err.cam.sim.tool_geom": "Tool geometry for the simulation is missing or invalid: {field} (tool type {type}).",
   "err.cam.sim.rapid_in_stock": "Rapid move enters the stock (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
-  "err.cam.sim.gouge": "Tool cuts below the model surface: gouge (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
+  "err.cam.sim.gouge": "Tool cuts below the model surface: gouge (operation {op}, X {x} Y {y} Z {z}; {depth} mm normal to the surface, {vertical} mm vertical).",
   "err.cam.sim.flute_exceeded": "Cutting deeper than the flute length (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.shaft_collision": "The tool shaft hits the stock (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.holder_collision": "The holder hits the stock (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
