@@ -1,7 +1,7 @@
 // Fanuc tarzi ortak post cekirdegi. Makineye/kontrole ozgu degerler KODA GOMULMEZ: ya ozellik (props) ya makine profili.
 // Varsayilanlar genel Fanuc kurallaridir (spesifikasyonda M80V icin dogrulanmadi); turetilen postlar (mitsubishi-m80v.js) ezer.
 // Bu dosyanin urettigi NC YALNIZ TEST CIKTISIDIR; makinede kosturulabilir diye sunulmaz.
-import { createFormat, createVariable, createModal, sanitizeComment, perr, MIHENK_VERSION } from './engine.js';
+import { createFormat, createVariable, createModal, sanitizeComment, perr, isEmptyProp, MIHENK_VERSION } from './engine.js';
 import { describeIssue } from './describe.js';
 
 export const FANUC_DEFAULT_PROPS = {
@@ -61,15 +61,15 @@ export function createFanucPost(over = {}) {
     _resetPos() { this.v.x.reset(); this.v.y.reset(); this.v.z.reset(); },
     _dwellWord(addr, unit, s, inCycle = false) {
       if (inCycle && addr != null && 'XYZRQFI'.includes(addr)) throw perr('cam.post.bad_prop', { prop: 'cycleDwellAddress', value: String(addr) });
-      if (addr == null) throw perr('cam.post.prop_missing', { prop: inCycle ? 'cycleDwellAddress' : 'dwellAddress', post: this.post.id });
-      if (unit == null) throw perr('cam.post.prop_missing', { prop: inCycle ? 'cycleDwellUnit' : 'dwellUnit', post: this.post.id });
+      if (isEmptyProp(addr)) throw perr('cam.post.prop_missing', { prop: inCycle ? 'cycleDwellAddress' : 'dwellAddress', post: this.post.id });
+      if (isEmptyProp(unit)) throw perr('cam.post.prop_missing', { prop: inCycle ? 'cycleDwellUnit' : 'dwellUnit', post: this.post.id });
       if (unit === 'ms') return addr + String(Math.round(s * 1000));
       if (unit === 's') return createFormat({ prefix: addr, decimals: 3 }).format(s);
       throw perr('cam.post.bad_prop', { prop: 'dwellUnit', value: String(unit) });
     },
     _coolantCode(name) {
       const table = this.need('coolantCodes'); const c = table[name];
-      if (c == null) throw perr('cam.post.prop_missing', { prop: 'coolantCodes.' + name, post: this.post.id });
+      if (isEmptyProp(c)) throw perr('cam.post.prop_missing', { prop: 'coolantCodes.' + name, post: this.post.id });
       return c;
     },
     _safeRetract() {
@@ -152,7 +152,7 @@ export function createFanucPost(over = {}) {
       // aAngle = A KELIMESI (docs/POST.md, CAM-DESIGN.md). Isaret (A.dir) YALNIZ cekirdek cercevesinde (resolveSetup) uygulanir;
       // burada ikinci kez uygulanmaz (V-01).
       let out = angle;
-      if (R.limits && (out < R.limits[0] - eps || out > R.limits[1] + eps)) this.fail('cam.post.a_out_of_limits', { angle: out, min: R.limits[0], max: R.limits[1] });
+      if (R.limits && R.wrap !== 'signed' && (out < R.limits[0] - eps || out > R.limits[1] + eps)) this.fail('cam.post.a_out_of_limits', { angle: out, min: R.limits[0], max: R.limits[1] }); // signed: yazilan aciya asagida bakilir
       const norm = (a) => ((a % 360) + 360) % 360;
       if (R.wrap === 'shortest' || R.wrap === '0-360') out = norm(out);
       else if (R.wrap === 'signed') { out = norm(out); if (out > 180 + eps) out -= 360; }
@@ -260,7 +260,7 @@ export function createFanucPost(over = {}) {
         return;
       }
       if (c.cycle === 'tap') {
-        if (p.tapMode === 'feed' && p.rigidTapM) this.writeBlock(p.rigidTapM, 'S' + Math.round(tp.rpm));
+        if (p.tapMode === 'feed') this.writeBlock(this.need('rigidTapM'), 'S' + Math.round(tp.rpm));
       }
     },
     _cycleCode(c) {

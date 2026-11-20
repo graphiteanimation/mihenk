@@ -99,7 +99,7 @@ export class PostContext {
     this.pos = null; this.section = null; this.sectionIndex = -1;
     this.rotary = resolveRotary(machine);
   }
-  need(name) { const v = this.props[name]; if (v === null || v === undefined) throw perr('cam.post.prop_missing', { prop: name, post: this.post.id }); return v; }
+  need(name) { const v = this.props[name]; if (isEmptyProp(v)) throw perr('cam.post.prop_missing', { prop: name, post: this.post.id }); return v; }
   fail(code, params = {}) { throw perr(code, { ...params, section: this.cur.section, move: this.cur.move }); }
   warn(code, params = {}) { this.warnings.push({ code, params: { ...params, section: this.cur.section, move: this.cur.move } }); }
   writeBlock(...words) {
@@ -135,8 +135,10 @@ const need = (post, name) => { if (typeof post[name] !== 'function') throw perr(
 // Kosullu post ozellikleri: yalniz program kullaniyorsa gerekir (kullanilinca post need/prop_missing ile durur).
 // Bu listede OLMAYAN her ozellik ZORUNLU: bossa (null/undefined) post hic calismaz (M-03 / dogrulama: sessiz satir atlama yok).
 // lineNumberMax: null = N ust siniri yok (kod acikca null'i ele alir).
+// bos deger: null / undefined / '' (yalniz bosluk dahil)
+export const isEmptyProp = (v) => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
 export const CONDITIONAL_PROPS = Object.freeze(['dwellAddress', 'dwellUnit', 'cycleDwellAddress', 'cycleDwellUnit', 'g541Range', 'safeRetractZ', 'highSpeedOn', 'highSpeedOff', 'coolantCodes', 'rigidTapM', 'lineNumberMax']);
-export const requiredPropsMissing = (post, props) => Object.keys(post.defaultProps).filter((k) => !CONDITIONAL_PROPS.includes(k) && (props[k] === null || props[k] === undefined));
+export const requiredPropsMissing = (post, props) => Object.keys(post.defaultProps).filter((k) => !CONDITIONAL_PROPS.includes(k) && isEmptyProp(props[k]));
 export function runPost(post, program, machine, opts = {}) {
   validateProgram(program);
   const props = resolveProps(post, machine, opts.props);
