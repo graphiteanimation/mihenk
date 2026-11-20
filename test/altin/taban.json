@@ -1,0 +1,201 @@
+{
+ "format": "mihenk-altin-taban",
+ "parcalar": {
+  "P1": {
+   "id": "P1",
+   "tur": "compare",
+   "setups": {
+    "S1": {
+     "block": 19,
+     "warn": 4,
+     "temiz": false,
+     "estS": 747.28,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 0,
+     "warn": 2,
+     "temiz": true,
+     "estS": 22.269,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S3": {
+     "block": 5,
+     "warn": 3,
+     "temiz": false,
+     "estS": 7.46,
+     "G81": 2,
+     "G83": 2,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": {
+    "S1": 19,
+    "S2": 0,
+    "S3": 3
+   },
+   "delik": {
+    "elle": 2,
+    "bulunan": 2,
+    "taninan": 5
+   },
+   "hesapS": 2.902
+  },
+  "P2": {
+   "id": "P2",
+   "tur": "compare",
+   "setups": {
+    "S1": {
+     "block": 2,
+     "warn": 8,
+     "temiz": false,
+     "estS": 11213.834,
+     "G81": 1,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 20,
+     "warn": 6,
+     "temiz": false,
+     "estS": 4823.084,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": null,
+   "delik": {
+    "elle": 4,
+    "bulunan": 4,
+    "taninan": 21
+   },
+   "hesapS": 74.554
+  },
+  "P3": {
+   "id": "P3",
+   "tur": "compare",
+   "setups": {
+    "S1": {
+     "block": 5,
+     "warn": 83,
+     "temiz": false,
+     "estS": 30936.351,
+     "G81": 4,
+     "G83": 4,
+     "G84": 0,
+     "opHata": 1
+    },
+    "S2": {
+     "block": 0,
+     "warn": 6,
+     "temiz": true,
+     "estS": 2557.449,
+     "G81": 4,
+     "G83": 4,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S3": {
+     "block": 0,
+     "warn": 4,
+     "temiz": true,
+     "estS": 527.304,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S4": {
+     "block": 0,
+     "warn": 2,
+     "temiz": true,
+     "estS": 170.743,
+     "G81": 0,
+     "G83": 0,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": {
+    "S1": 5,
+    "S2": 0,
+    "S3": 0,
+    "S4": 0
+   },
+   "delik": {
+    "elle": 8,
+    "bulunan": 8,
+    "taninan": 12
+   },
+   "hesapS": 168.273
+  },
+  "P4": {
+   "id": "P4",
+   "tur": "compare",
+   "setups": {
+    "S1": {
+     "block": 11,
+     "warn": 29,
+     "temiz": false,
+     "estS": 2608.772,
+     "G81": 2,
+     "G83": 5,
+     "G84": 1,
+     "opHata": 0
+    },
+    "S2": {
+     "block": 0,
+     "warn": 4,
+     "temiz": true,
+     "estS": 242.154,
+     "G81": 4,
+     "G83": 4,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S3": {
+     "block": 0,
+     "warn": 6,
+     "temiz": true,
+     "estS": 464.259,
+     "G81": 4,
+     "G83": 4,
+     "G84": 0,
+     "opHata": 0
+    },
+    "S4": {
+     "block": 0,
+     "warn": 8,
+     "temiz": true,
+     "estS": 1669.581,
+     "G81": 0,
+     "G83": 1,
+     "G84": 0,
+     "opHata": 0
+    }
+   },
+   "zincir": {
+    "S1": 11,
+    "S2": 0,
+    "S3": 0,
+    "S4": 0
+   },
+   "delik": {
+    "elle": 32,
+    "bulunan": 32,
+    "taninan": 30
+   },
+   "hesapS": 183.031
+  }
+ }
+}
