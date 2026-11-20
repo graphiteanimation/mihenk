@@ -6,9 +6,11 @@ O2005
 (T34 H34 D34 DIA 12.000 FLAT)
 (T35 H35 D35 DIA 12.000 BULLNOSE)
 (WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING)
-(GATES 0 BLOCK 4 WARN)
+(GATES 0 BLOCK 6 WARN)
+(WARNING: T35: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
 (WARNING: No machine position for "P3-S3 Arka A": absolute travel could not be checked. Only the toolpath span was checked.)
-(WARNING: 16 Yatay temizleme karsiligi: arka yuz s0 T35: About 19.688 mm? of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: 16 Yatay temizleme karsiligi: arka yuz s0 T35: About 19.688 mm2 of the pocket cannot be machined [tight corners/areas]. Finish with a smaller tool.)
+(WARNING: T34: shaftDia is not entered. The simulation assumes the shaft diameter equals the cutter diameter and the tip is sharp [flat-tip diameter 0]. Enter the real values in the tool editor.)
 (WARNING: A axis direction [profile dir [-1,0,0]] is not verified on the machine. Confirm the A direction with a marked part before cutting.)
 (WARNING: The simulation cannot see side gouges smaller than 0.5 mm [half the grid size]. Wall accuracy comes from the toolpath calculation.)
 G90 G17 G21 G40 G49 G80 G94
@@ -22,6 +24,7 @@ S8000 M3
 G0 G90 G58 X118.096 Y-7.245
 G43 H35 Z15.
 M8
+Z5.
 G1 Z-1. F500.
 G2 X111.639 Y-17.895 I-29.196 J10.42 F1500.
 G1 X121.4
@@ -357,6 +360,7 @@ S8000 M3
 G0 G90 G58 X127.144 Y29.845
 G43 H34 Z15.
 M8
+Z5.
 G1 Z-3.926 F500.
 G3 X126.856 I-0.144 J0. F1500.
 X127.144 I0.144 J0.
