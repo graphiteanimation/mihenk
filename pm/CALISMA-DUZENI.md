@@ -23,7 +23,7 @@ Kural: bir bilgi tek yerde durur. Zip kopyası, tarihli devam günlüğü, sohbe
 
 ## 3. İş birimi: iş paketi (WP)
 - Her iş BACKLOG'da bir WP'dir: amaç, kapsam (kaynak numaraları), dokunacağı dosya alanı, kabul ölçütü, model.
-- Bir oturum = bir WP (ya da dosya alanı çakışmayan en çok 3 WP, paralel alt ajanlarla). WP kendi dalında (`wp-NN`) yapılır, kabul geçince `master`'a birleşir.
+- Bir oturum = bir WP (ya da dosya alanı çakışmayan en çok 5 WP, paralel alt ajanlarla; K-041). WP kendi dalında (`wp-NN`) yapılır, kabul geçince `master`'a birleşir.
 - WP durumu: Hazır → Sürüyor → Doğrulamada → Bitti. "Bitti" = kabul testleri geçti + bağımsız doğrulayıcı (kodu yazmamış ajan) onayladı + birleşti.
 - Alan sahipliği (paralel çalışmayı mümkün kılar): `src/kernel` · `src/ui/sketch*` · `src/ui` (kabuk) · `src/cam/ops+geom` · `src/cam/sim` · `src/cam/post+machines` · `src/ui/cam` · `electron+build`. Aynı alana aynı anda iki WP girmez.
 - Program tek uygulama ve tek depo olarak kalır; bölünme modül ve dal düzeyindedir, ayrı programlar yoktur.
@@ -84,5 +84,14 @@ Token kuralları:
 3. Alt ajan sözleşmesi dosya yolu verir, içerik yapıştırmaz. Alt ajan raporu en çok 30 satır: commit'ler, test sayıları, sapmalar, açıklar.
 4. Ana model test çıktısını değil son satırını görür (`| tail -3`); ayrıntı dosyaya yazılır.
 5. Doğrulama: yazan ajandan farklı ve daha ucuz bir ajan testleri koşar ve farkı sözleşmeyle karşılaştırır; ana model yalnız `git diff --stat` ve riskli dosyaların farkına bakar.
-6. Paralellik yalnız alanlar ayrıksa; bir oturumda en çok 3 alt ajan.
+6. Paralellik yalnız alanlar ayrıksa; aynı anda en çok 5 alt ajan (K-041).
 7. Bağlam bir kez özetlendiyse oturum WP'yi kapatıp çıkar; yeni oturum ucuzdur.
+
+## 10. Hız önceliği (K-041)
+Öncelik duvar saatidir. Token kuralları (§9) yalnız israfı önler; işi uzatan hiçbir tasarruf uygulanmaz. Bir kural hem süreyi uzatıp hem az token kazandırıyorsa süre kazanır.
+1. **Boru hattı, ardışık bekleme yok.** Dilim N doğrulanırken aynı WP'de dilim N+1 (ya da başka WP) yazılır. Orkestratör bir alt ajanı ya da CI'ı beklerken boş durmaz; bekleyecek başka iş yoksa beklemek serbesttir.
+2. **Tam test zinciri yerelde koşulmaz.** Alt ajan değiştirdiği alanın hedefli testlerini koşar (dakikalar). `npm run test:all` dal push edilince GitHub Actions'ta koşar (Linux + Windows); birleşme kararı CI yeşiline bağlıdır. Yerel tam zincir yalnız CI'ın yakalayıp yerelde yeniden üretilmesi gereken bir hatada koşulur.
+3. **Tek doğrulama turu hedefi.** Sözleşmede kabul ölçütü ölçülebilir yazılır; doğrulayıcı bulduklarını tek listede verir; yazan ajan hepsini bir turda düzeltir; ikinci doğrulama yalnız düzeltilen satırlara bakar.
+4. **Toplu birleşme.** Aynı oturumda biten WP'ler tek entegrasyon dalında birleşir, CI bir kez koşar.
+5. **Model seçimi hız için de yapılır.** Zor iş (çekirdek, takım yolu algoritması, simülasyon) baştan opus'a verilir: düzeltme turu azalır, hem süre hem token düşer. Sonnet'in iki turda takıldığı iş opus'a devredilir.
+6. **Oturum boyu.** Bağlam bir kez özetlenince oturum açık işleri dala kaydedip kapanır (§9-7); uzun bağlam her orkestratör adımını yavaşlatır ve pahalılaştırır.

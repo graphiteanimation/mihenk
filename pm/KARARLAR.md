@@ -39,6 +39,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 - **K-039** (2026-11-20) — "Durmadan çalış: bir iş paketi bitince turu kapatma, aynı turda sıradakini al. Tur herhangi bir nedenle biterse, bitmeden önce send_later ile kendine 1 dakika sonrasına \"Mihenk: devam\" kur ve uyanınca beni beklemeden sürdür. 0.6 bilgisayarıma kurulup denenene kadar böyle devam et." Anlam: bir WP bitince aynı turda sıradaki alınır; tur biterse uyandırma 1 dk sonrasına kurulur. Yerine geçer: K-038 (60 dk).
 - **K-040** (2026-11-20) — "Bu işler bitince bir dur, yani bir sonraki aşamaya geçme, şu an devam eden işleri bitir ve dur." Anlam: süren paketler (WP-07, WP-08, WP-10) bitirilip doğrulanıp birleştirilir; yeni paket, sürüm kapısı ya da sonraki sürüm başlatılmaz; kendi kendini uyandırma kurulmaz. Kullanıcı yeniden `Mihenk: devam` yazana kadar K-035 ve K-039 askıdadır.
 
+- **K-041** (2026-11-21) — "normalde iş 1 saat sürünce 100 birim token tüketiyor ama token tüketimini düşürmek istediğimiz için iş 5 saat sürüyor ama 90 birim token tüketiyorsa bunu değiştirelim." Anlam: öncelik duvar saati; token yalnız israfı önlemek için gözetilir. Uygulama: CALISMA-DUZENI §10 (paralellik 3 → 5, boru hattı, tam test zinciri yerel değil CI'da, tek doğrulama turu, toplu birleşme).
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
