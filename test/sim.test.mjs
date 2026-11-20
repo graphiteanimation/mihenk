@@ -367,5 +367,23 @@ console.log('9. T-04 setup zinciri: onceki setup stogu (cerceve donusumu, alt ke
   r = run(prog(sec('A', null, boxA, tp(mA)), sec('B', FB, boxB, rapidY(-5, -10)))); ok(rin(r, 1).length === 1 && !r.chainedSetups.length, 'onceki setup cercevesiz -> zincir yok (muhafazakar)');
 }
 
+console.log('10. T-15 serbest/kopmus parca');
+{
+  const tl = { number: 4, H: 4, D: 4, type: 'flat', dia: 4, cornerR: 0, tipAngle: null, fluteLen: 40, bodyLen: 50, centerCutting: true, pitch: null };
+  const ring = (z) => TP(tl, [mk.rapid(-10, -10, 10), mk.rapid(-10, -10, 1), mk.feed(-10, -10, z, 100, 'plunge'), mk.feed(10, -10, z, 500), mk.feed(10, 10, z, 500), mk.feed(-10, 10, z, 500), mk.feed(-10, -10, z, 500), mk.rapid(-10, -10, 10)]);
+  const bx = { min: [-20, -20, -30], max: [20, 20, 0] };
+  let r = simulate(ring(-30), { stockBox: bx, res: 0.25 }); let f = r.issues.filter((i) => i.code === 'cam.sim.free_piece');
+  ok(f.length === 1 && f[0].level === 'warn' && Math.abs(f[0].params.area - 256) <= 8 && Math.abs(f[0].params.x) < 0.2 && Math.abs(f[0].params.y) < 0.2, 'boydan boya halka: ic ada serbest parca (alan ~256, merkez 0,0) uyari: ' + JSON.stringify(f.map((i) => i.params)));
+  ok(!r.issues.some((i) => i.code === 'cam.sim.below_stock'), 'taban duzeyinde kesim below_stock degil');
+  r = simulate(ring(-30), { stockBox: bx, res: 0.25, freePieceBlock: true }); f = r.issues.filter((i) => i.code === 'cam.sim.free_piece');
+  ok(f.length === 1 && f[0].level === 'error', 'ayarla (freePieceBlock) engel');
+  r = simulate(ring(-29.5), { stockBox: bx, res: 0.25 }); ok(!r.issues.some((i) => i.code === 'cam.sim.free_piece'), 'tabana inmeyen halka (0,5 mm deri): serbest parca yok');
+  r = simulate(ring(-30), { stockBox: bx, res: 0.25, freePieces: false }); ok(!r.issues.some((i) => i.code === 'cam.sim.free_piece'), 'freePieces:false kapatir');
+  r = simulate(ring(-30), { stockBox: bx, res: 0.25, freePieceMinArea: 300 }); ok(!r.issues.some((i) => i.code === 'cam.sim.free_piece'), 'en kucuk alan esigi (300 mm2) alti bildirilmez');
+  // gates: uyari olarak gelir, engel degil
+  const gl = gates(S.wrapProgram ? S.wrapProgram(ring(-30)) : { name: 'F', units: 'mm', number: null, machine: null, sections: [{ setup: { id: 'A', name: 'A', workOffset: { kind: 'G54' }, aAngle: null, stockBox: bx }, toolpath: ring(-30) }] }, S.testMachine(), { sim: { res: 0.25, modelHeightmaps: { A: heightmapFromFn([-20, -20], [20, 20], 0.25, () => -Infinity) } } });
+  const gf = gl.filter((g) => g.code === 'cam.sim.free_piece'); ok(gf.length === 1 && gf[0].level === 'warn', 'kapilarda serbest parca uyari (engel degil): ' + gf.map((g) => g.level));
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

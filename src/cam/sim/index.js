@@ -1,6 +1,6 @@
 // Stok simulasyonu: yukseklik haritasi (tek degerli dexel) + takim sweep. Saf JS (three.js yok).
 // API: simulate(input, opts) -> sonuc;  createSim(input, opts) -> adim adim oynatici ({step(n), run(), state(), heightmap(), reset()}).
-// Denetimler: hizlinin stok icine girmesi, oyma (gouge), takim boyu asimi (flute), saft/tutucu carpmasi, stok tabaninin altina inis.
+// Denetimler: serbest/kopmus parca (T-15, sim sonu), hizlinin stok icine girmesi, oyma (gouge), takim boyu asimi (flute), saft/tutucu carpmasi, stok tabaninin altina inis.
 // Setup'lar arasi stok (T-04): bolum setup'inda frame (model uzayi) varsa yeni setup'in baslangic stogu onceki setup'larin son
 // haritalarindan (chain.js; opts.chain:false ile kapali; opts.initialHeightmaps once gelir).
 // SINIRLAR: yalniz ustten (takim ekseni +Z) kesilen tek degerli stok; alt kesme (undercut) ve ters yuz modellenmez; tutucu/saft
@@ -10,6 +10,7 @@ import { validateProgram, validateToolpath, splitRapid, sampleArc } from '../ir.
 import { createHeightmap, cloneHeightmap } from './heightmap.js';
 import { toolGeom } from './tool.js';
 import { stockFromPrevious } from './chain.js';
+import { freePieces } from './free.js';
 export { stockFromPrevious } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom } from './tool.js';
@@ -95,6 +96,20 @@ export function createSim(input, opts = {}) {
       else issues.push({ level: key === 'holder_contact' ? 'error' : 'warn', code: CODE(key), params: { x: c.clrAt.x, y: c.clrAt.y, z: c.clrAt.z, clearance: Math.max(0, st.holderClearance), min: key === 'holder_contact' ? clrContact : clrLow, op: c.tp.opId }, moveIndex: c.clrAt.k, section: c.si });
     }
     c.pre = null; c.mask = null;
+  }
+
+  // T-15: sim sonu her setup'in son haritasinda serbest/kopmus parca (uyari; opts.freePieceBlock ile engel; opts.freePieces:false kapali)
+  function freeCheck() {
+    if (opts.freePieces === false) return;
+    const lastSec = new Map(); sections.forEach((sec, si) => lastSec.set(sec.setup?.id ?? 'default', si));
+    for (const [id, st] of setups) {
+      const r = freePieces(st.hm, st.zFloor, { minArea: opts.freePieceMinArea ?? 1 });
+      for (const c of r.free) {
+        counts.free_piece = (counts.free_piece || 0) + 1; if (counts.free_piece > capPerCode) { suppressed++; continue; }
+        const si = lastSec.get(id) ?? 0;
+        issues.push({ level: opts.freePieceBlock ? 'error' : 'warn', code: CODE('free_piece'), params: { area: Math.round(c.area * 100) / 100, x: c.x, y: c.y, z: c.top, n: r.free.length, setup: id, op: sections[si].toolpath.opId }, moveIndex: sections[si].toolpath.moves.length - 1, section: si });
+      }
+    }
   }
 
   function note(code, depth, px, py, pz) {
@@ -282,7 +297,7 @@ export function createSim(input, opts = {}) {
     doMove(sections[si].toolpath.moves[k]);
     const fresh = [...cur.cycFresh, ...flush(si, k)];
     idx++;
-    if (idx >= steps.length) { const n0 = issues.length; closeSection(); fresh.push(...issues.slice(n0)); }
+    if (idx >= steps.length) { const n0 = issues.length; closeSection(); freeCheck(); fresh.push(...issues.slice(n0)); }
     if (opts.frames > 0 && idx % opts.frames === 0) frames.push({ index: idx, section: si, moveIndex: k, removedVolume: removedTotal, heightmap: new Float32Array(cur.setup.hm.data) });
     return fresh;
   }

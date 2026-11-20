@@ -83,7 +83,7 @@ export async function annotateHoleExits(holes, query, fallbackBodies = []) {
 export function advanceStock(st, tps, S, res) {
   if (st.failed) return null;
   try {
-    for (; st.done < tps.length; st.done++) st.hm = simulate(tps[st.done], { res, stockBox: S.stockBox, ...(st.hm ? { stockHeightmap: st.hm } : {}) }).remainHeightmap;
+    for (; st.done < tps.length; st.done++) st.hm = simulate(tps[st.done], { res, stockBox: S.stockBox, freePieces: false, ...(st.hm ? { stockHeightmap: st.hm } : {}) }).remainHeightmap;
     return st.hm;
   } catch (e) { st.failed = true; return null; }
 }
