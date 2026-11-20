@@ -57,6 +57,26 @@ export function sketchPoints(sel, { rebuild, doc }) {
   return src.map((q) => ({ p: [0, 1, 2].map((k) => plane.o[k] + plane.x[k] * q.x + plane.y[k] * q.y) }));
 }
 
+// T-14: boydan boya (through / derinliksiz) deliklerin her konumu icin delik ekseninde modelden son cikis (cekirdek
+// 'camHoleExit'). Yalniz model iki ucu da acik (gercekten boydan boya) ayni eksenli delik duvari bulursa h.exits[i] = uzunluk;
+// aksi halde null: drill eski muhafazakar kurala (model tabani) doner ve uyarir. Sorgu hatasi da null (yanlis "kisa" dip yok).
+export async function annotateHoleExits(holes, query, fallbackBodies = []) {
+  const out = [];
+  for (const h of holes || []) {
+    if (!h || !(h.through || h.depth == null) || Array.isArray(h.exits) || !Array.isArray(h.positions)) { out.push(h); continue; }
+    const exits = [];
+    for (let i = 0; i < h.positions.length; i++) {
+      const bodies = h.bodies?.[i]?.length ? h.bodies[i] : fallbackBodies; let t = null;
+      if (bodies.length) {
+        try { const r = await query('camHoleExit', { bodies, p: h.positions[i], d: h.dirs?.[i] || h.dir, r: h.dia > 0 ? h.dia / 2 : null }); if (r && r.through && r.deepOpen && Number.isFinite(r.t) && r.t > 0) t = r.t; } catch (e) { t = null; }
+      }
+      exits.push(t);
+    }
+    out.push({ ...h, exits });
+  }
+  return out;
+}
+
 // generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
 //   doc: sketch secimleri icin belge (sketch ozellikleri); query komutlari: camFaceLoops, camSection, camZLevels, facePlane
 //   query(cmd, args) -> Promise: cekirdek worker komutu ('camFaceLoops', 'facePlane')
@@ -66,6 +86,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
   const { resolveSetup, computeOp } = await import('./index.js');
   const ops = []; const sections = []; const pre = [];
   const tools = cam?.tools || [];
+  let holesX = null; // T-14: delik cikislari bir kez (tum setup'lar icin ayni model uzayi verisi)
   for (const setup of cam?.setups || []) {
     let S;
     try {
@@ -79,7 +100,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
       try {
         const tool = tools.find((t) => t.id === op.toolId); if (!tool) throw cerr('cam.op.no_tool', { op: op.name || op.id });
         const geom = {};
-        if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else geom.holes = rebuild?.holes || []; }
+        if (op.type === 'drill') { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
         if (op.type === 'contour' || op.type === 'pocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
         const tp = computeOp(opx, { setup: S, tool, geom, machine });

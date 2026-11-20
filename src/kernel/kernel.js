@@ -601,6 +601,7 @@ export class Kernel {
   camSection(args) { return CAM.camSection(this, args || {}); }
   camHeightmap(args) { return CAM.camHeightmap(this, args || {}); }
   camZLevels(args) { return CAM.camZLevels(this, args || {}); }
+  camHoleExit(args) { return CAM.camHoleExit(this, args || {}); }
   async exportFile(format, ids, names) {
     const shapes = [...(this.last?.bodies || [])].filter(([id]) => !ids || ids.includes(id));
     if (!shapes.length) throw new KErr('export.no_body');

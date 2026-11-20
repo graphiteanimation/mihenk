@@ -284,9 +284,11 @@ const cam = { machineId: M.id, tools, setups: [S1, S2, S3, S4].filter((s) => ONL
 
 // ------------------------------------------------------------------ 6. uretim
 const query = async (cmd, args) => { if (cmd === 'facePlane') return K.facePlane(args.ref); if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+// T-14: boydan boya delik cikislari (generateProgram ile ayni yol); ortam P_NOEXIT=1 -> eski kural (karsilastirma)
+const holesX = process.env.P_NOEXIT ? rbX.holes : await CAM.annotateHoleExits(rbX.holes, query, rbX.bodies.map((b) => b.id));
 async function computeOne(S, op0, toolOverride, variant = 0) {
   const { alts, fop, ...base } = op0; const op = variant ? { ...base, ...(alts?.[variant - 1] || {}) } : base; const tool = toolOverride || tools.find((t) => t.id === op.toolId); const geom = {}; let opx = op;
-  if (op.type === 'drill') geom.holes = rbX.holes;
+  if (op.type === 'drill') geom.holes = holesX;
   if (op.type === 'contour' || op.type === 'pocket') { const g = await CAM.resolveGeom(op, S, { rebuild: rbX, doc, query }); geom.faces = g.faces; opx = { ...op, geom: g.sels }; }
   return CAM.computeOp(opx, { setup: S, tool, geom, machine: M });
 }

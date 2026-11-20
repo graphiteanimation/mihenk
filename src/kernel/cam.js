@@ -8,6 +8,7 @@ import * as V from '../shared/vec.js';
 import * as G from '../shared/geom2d.js';
 import * as TP from './topo.js';
 import * as R from 'replicad';
+import { recognizeBody, holeExit } from './holes.js';
 
 export const CHORD_TOL = 0.005;  // mm
 export const OPEN_TOL = 1e-4;    // mm: komsu yuz bu kadar yukselmiyorsa kenar acik
@@ -265,4 +266,21 @@ export function camZLevels(K, { body: bodyId, frame }) {
   }
   lv.sort((a, c) => a - c); const levels = []; for (const z of lv) if (!levels.length || z - levels[levels.length - 1] > 1e-6) levels.push(z);
   return { levels, prismatic: bad === 0, bad, badBoxes };
+}
+
+// camHoleExit {bodies, p, d, r} -> { t, through, deepOpen } | { t: null }  (T-14)
+// p, d model uzayinda (delik ustu ve delme yonu); r = delik yaricapi (bilinmiyorsa null). t = p'den d yonunde, ayni eksenli
+// delik duvarlarinin (ic silindir + uc konisi) en derin ucuna uzaklik ("son cikis"). Eslesen delik yoksa t null.
+export function camHoleExit(K, { bodies, p, d, r = null }) {
+  if (!Array.isArray(bodies) || !bodies.length) throw E('cam.body_missing', { body: '' });
+  if (!Array.isArray(p) || p.length !== 3 || !p.every(Number.isFinite) || !Array.isArray(d) || d.length !== 3 || !d.every(Number.isFinite) || !(Math.hypot(...d) > 0)) throw E('cam.frame_bad');
+  let best = null;
+  for (const id of bodies) {
+    const b = K.last?.bodies.get(id); if (!b) throw E('cam.body_missing', { body: String(id) });
+    const mesh = K.mesh(b); if (mesh.error) throw E('cam.mesh_failed');
+    const bb = b.shape.boundingBox; const scale = Math.max(1, Math.hypot(bb.width, bb.height, bb.depth));
+    const h = holeExit(recognizeBody(b, mesh), p, d, r, scale);
+    if (h && (!best || h.t > best.t)) best = h;
+  }
+  return best || { t: null };
 }

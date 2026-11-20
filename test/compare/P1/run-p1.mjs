@@ -157,6 +157,8 @@ R.sema = vd;
 
 // ------------------------------------------------------------------ 5. uretim (generateProgram'a esdeger; zincir ve sentetik delik icin kendi donguler)
 const query = async (cmd, args) => { if (cmd === 'facePlane') return K.facePlane(args.ref); if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+// T-14: boydan boya delik cikislari (generateProgram ile ayni yol); ortam P_NOEXIT=1 -> eski kural (karsilastirma)
+const holesX = process.env.P_NOEXIT ? rbX.holes : await CAM.annotateHoleExits(rbX.holes, query, rbX.bodies.map((b) => b.id));
 const toS = (F, p) => { const d = [p[0] - F.o[0], p[1] - F.o[1], p[2] - F.o[2]]; return [0, 1, 2].map((k) => { const a = [F.x, F.y, F.z][k]; return d[0] * a[0] + d[1] * a[1] + d[2] * a[2]; }); };
 function chainItem(S) { // yarik: model (0,Y,22) -> (0,Y,35), setup uzayina cevrilmis acik zincir
   const a = toS(S.frame, [0, 0, 22]), b = toS(S.frame, [0, 0, 35]);
@@ -174,7 +176,7 @@ for (const setup of cam.setups) {
     const ta = now();
     try {
       const tool = tools.find((t) => t.id === op.toolId); const geom = {}; let opx = op;
-      if (op.type === 'drill') geom.holes = rbX.holes;
+      if (op.type === 'drill') geom.holes = holesX;
       if (op.type === 'contour' || op.type === 'pocket') {
         if (op.geom?.[0]?.kind === 'chain') { // generateProgram/resolveGeom 'chain' desteklemez: once onu dene ve kaydet
           try { await CAM.resolveGeom(op, S, { rebuild: rbX, doc, query }); o.chain_resolveGeom = 'kabul'; } catch (e) { o.chain_resolveGeom = 'REDDETTI ' + (e.code || e.message); }

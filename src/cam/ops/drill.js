@@ -1,6 +1,7 @@
 // Delik islemleri: rebuild holes[] (O-008) ya da verilen noktalar -> cevrim hareketleri (IR 'cycle').
 // Ekseni takim eksenine (setup -Z) paralel olmayan delik bu setup'ta listelenmez (uyari). Takim capi/hatvesi denetlenir.
-// R duzlemi = delik ustu + heights.retract. Noktalar ayni cevrimde yalniz R duzlemi stok ustundeyse birlesir (G99 ile
+// Boydan boya delik dibi = delik ekseninde modelden son cikis (geom.holes[].exits, T-14) - breakThrough - uc boyu; cikis
+// bilinmiyorsa model kutusunun tabani (uyari). R duzlemi = delik ustu + heights.retract. Noktalar ayni cevrimde yalniz R duzlemi stok ustundeyse birlesir (G99 ile
 // noktalar arasi gecis stok icinden gecmesin); degilse her nokta kendi cevrimidir (ustteki duzleme doner).
 import { cerr } from '../geom/err.js';
 import { tipLength } from '../tools.js';
@@ -25,7 +26,7 @@ export function collectHoles(op, S, geom) {
       h.positions.forEach((p, i) => {
         const d = toSd(S.frame, h.dirs[i] || h.dir); const q = toS(S.frame, p);
         if (Math.abs(d[2] + 1) > 1e-6) { skipped++; return; }
-        out.push({ x: q[0], y: q[1], top: q[2], dia: h.dia, depth: h.depth, through: !!h.through, thread: h.thread || null, tipAngle: h.tipAngle, feature: h.feature });
+        out.push({ x: q[0], y: q[1], top: q[2], dia: h.dia, depth: h.depth, through: !!h.through, thread: h.thread || null, tipAngle: h.tipAngle, feature: h.feature, exit: Number.isFinite(h.exits?.[i]) ? h.exits[i] : null });
       });
     }
   } else if (sel.kind === 'points') {
@@ -79,7 +80,9 @@ export function computeDrill(op, ctx) {
     if (dep.from === 'abs') bottom = need(op, 'depth.z', anyNum, 'number');
     else if (dep.from === 'hole') {
       if (h.dia == null) throw cerr('cam.drill.depth_from_hole_needs_feature');
-      if (h.through || h.depth == null) { bottom = S.modelBBox.min[2] - brk - tipL; thru++; }
+      // T-14: boydan boya dip = delik ekseninde modelden son cikis (annotateHoleExits); bilinmiyorsa model tabani (uyari)
+      if ((h.through || h.depth == null) && h.exit != null) bottom = h.top - h.exit - brk - tipL;
+      else if (h.through || h.depth == null) { bottom = S.modelBBox.min[2] - brk - tipL; thru++; }
       else bottom = h.top - h.depth - tipL;
     } else throw cerr('cam.op.bad_field', { field: 'depth.from', expect: 'hole/abs', op: op.name || op.id });
     if (h.dia != null) {
@@ -129,5 +132,5 @@ export function computeDrill(op, ctx) {
   }
   const passDepth = Math.max(...pts.map((p) => p.top - p.bottom));
   const hh = { zClr, zRet: zCyc, zTop: Math.max(...pts.map((p) => p.top)), zBot: Math.min(...pts.map((p) => p.bottom)), stockTop };
-  return finishToolpath(op, tool, { ...cut }, hh, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { holes: pts.length, cycles: groups.length, belowStock: thru ? Math.max(0, S.stockBox.min[2] - Math.min(...pts.filter((p) => p.through || p.depth == null).map((p) => p.bottom))) : 0 } });
+  return finishToolpath(op, tool, { ...cut }, hh, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined, meta: { holes: pts.length, cycles: groups.length, belowStock: pts.some((p) => p.through || p.depth == null) ? Math.max(0, S.stockBox.min[2] - Math.min(...pts.filter((p) => p.through || p.depth == null).map((p) => p.bottom))) : 0 } });
 }

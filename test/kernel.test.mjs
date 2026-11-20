@@ -238,4 +238,35 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   dF.features[1].suppressed = true; o = await KF.rebuild(dF);
   ok(o.featInfo.b.changed && o.featInfo.b.sum === 'sup' && o.status.b.suppressed, 'bastırma: sonuç değişti');
 }
+
+console.log('T-14 camHoleExit: delik ekseninde son çıkış');
+{
+  const KX = await initKernel(opencascade, () => wasm);
+  const pt = (id, x, y) => ({ id, type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '30' }, points: { a: { x, y } }, ents: [{ id: id + 'p', type: 'point', p: 'a' }] });
+  const dH = { params: [], features: [
+    { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '60', h: '30', op: 'new' },
+    pt('s1', 10, 10), { id: 'h1', type: 'hole', sketch: 's1', kind: 'simple', dia: '6.8', extent: 'dist', depth: '15', tipAngle: '118' },
+    pt('s2', 30, 30), { id: 'h2', type: 'hole', sketch: 's2', kind: 'cbore', dia: '5.5', cboreDia: '10', cboreDepth: '5', extent: 'all' },
+    pt('s3', 60, 30), { id: 'h3', type: 'hole', sketch: 's3', kind: 'csink', dia: '4', csinkDia: '8', csinkAngle: '90', extent: 'all' },
+  ] };
+  const rH = await KX.rebuild(dH); const bid = rH.bodies[0].id;
+  const ex = (p, r, d = [0, 0, -1]) => KX.camHoleExit({ bodies: [bid], p, d, r });
+  let e = ex([30, 30, 30], 2.75); ok(e.t != null && Math.abs(e.t - 30) < 1e-6 && e.through && e.deepOpen, 'havşalı (cbore) boydan boya: çıkış 30: ' + JSON.stringify(e));
+  e = ex([60, 30, 30], 2); ok(Math.abs(e.t - 30) < 1e-6 && e.through, 'havşa (csink) boydan boya: çıkış 30: ' + JSON.stringify(e));
+  e = ex([10, 10, 30], 3.4); ok(!e.through && !e.deepOpen && e.t > 15 && e.t < 17.1, 'kör delik: boydan boya değil, en derin uç konisi: ' + JSON.stringify(e));
+  e = ex([50, 10, 30], 3.4); ok(e.t === null, 'delik olmayan eksen: t null');
+  e = ex([30, 30, 0], 2.75, [0, 0, 1]); ok(Math.abs(e.t - 30) < 1e-6 && e.through, 'ters yönden (alttan) sorgu: çıkış 30');
+  e = ex([30, 30, 30], 12); ok(e.t === null, 'çap çok farklı (Ø24 sorgu, Ø5,5/Ø10 delik): eşleşme yok');
+  // P2 benzeri: flanş (z 25..30) altında boşluk, altında plaka (z 0..10); flanş deliği yalnız flanşı deler
+  const dF = { params: [], features: [
+    { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '60', h: '10', op: 'new' },
+    { id: 'w', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '5', d: '60', h: '30', op: 'join', targets: ['b'] },
+    { id: 'f', type: 'primitive', kind: 'box', x: '0', y: '0', z: '25', w: '40', d: '60', h: '5', op: 'join', targets: ['b'] },
+    pt('s1', 20, 30), { id: 'h', type: 'hole', sketch: 's1', kind: 'simple', dia: '6', extent: 'dist', depth: '5', tipAngle: '118' },
+  ] };
+  const rF = await KX.rebuild(dF); ok(Object.values(rF.status).every((x) => x.ok) && rF.bodies.length === 1, 'flanş modeli kuruldu');
+  e = KX.camHoleExit({ bodies: [rF.bodies[0].id], p: [20, 30, 30], d: [0, 0, -1], r: 3 });
+  ok(Math.abs(e.t - 5) < 1e-6 && e.through && e.deepOpen, 'flanş deliği: çıkış flanş altı (5), plaka değil: ' + JSON.stringify(e));
+  let er = null; try { KX.camHoleExit({ bodies: ['yok'], p: [0, 0, 0], d: [0, 0, -1] }); } catch (x) { er = x.code; } ok(er === 'cam.body_missing', 'bilinmeyen gövde: cam.body_missing');
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

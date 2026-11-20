@@ -199,6 +199,8 @@ R.sema = vd; log('sema', vd);
 
 // ------------------------------------------------------------------ 6. uretim
 const query = async (cmd, args) => { if (cmd === 'facePlane') return K.facePlane(args.ref); if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+// T-14: boydan boya delik cikislari (generateProgram ile ayni yol); ortam P_NOEXIT=1 -> eski kural (karsilastirma)
+const holesX = process.env.P_NOEXIT ? rbX.holes : await CAM.annotateHoleExits(rbX.holes, query, rbX.bodies.map((b) => b.id));
 const opError = (e) => ({ code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } });
 const progs = [];
 for (const setup of cam.setups) {
@@ -215,7 +217,7 @@ for (const setup of cam.setups) {
       const { alts, ...base } = op0; const op = { ...base, ...variants[vi] };
       try {
         const tool = tools.find((t) => t.id === op.toolId); const geom = {}; let opx = op;
-        if (op.type === 'drill') geom.holes = rbX.holes;
+        if (op.type === 'drill') geom.holes = holesX;
         if (op.type === 'contour' || op.type === 'pocket') { const g = await CAM.resolveGeom(op, S, { rebuild: rbX, doc, query }); geom.faces = g.faces; opx = { ...op, geom: g.sels }; }
         const tp = CAM.computeOp(opx, { setup: S, tool, geom, machine: M });
         o.hesap_s = r3(now() - ta); o.ok = true; o.varyant = vi; o.varyant_deger = vi ? JSON.stringify(variants[vi]) : 'birincil';
@@ -308,7 +310,7 @@ function ncStats(text) {
 R.deneyler = {};
 async function computeOne(S, op0, toolOverride) {
   const { alts, ...op } = op0; const tool = toolOverride || tools.find((t) => t.id === op.toolId); const geom = {}; let opx = op;
-  if (op.type === 'drill') geom.holes = rbX.holes;
+  if (op.type === 'drill') geom.holes = holesX;
   if (op.type === 'contour' || op.type === 'pocket') { const g = await CAM.resolveGeom(op, S, { rebuild: rbX, doc, query }); geom.faces = g.faces; opx = { ...op, geom: g.sels }; }
   return CAM.computeOp(opx, { setup: S, tool, geom, machine: M });
 }

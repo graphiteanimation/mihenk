@@ -541,6 +541,30 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
     ok(opR('p5') && !opR('p5').ok && opR('p5').error.code === 'cam.geom.sketch_missing', 'T-05a: bulunmayan sketch acik hata');
     ok(rp.gates.some((g) => g.level === 'block' && g.opId === 'p4'), 'T-05a: basarisiz islem kapida engel');
   }
+  // T-14: boydan boya delik dibi = delik ekseninde modelden son cikis (P2 benzeri: flans altinda bosluk, altinda plaka)
+  {
+    const pt = (id, x, y) => ({ id, type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '30' }, points: { a: { x, y } }, ents: [{ id: id + 'p', type: 'point', p: 'a' }] });
+    const dF = { params: [], features: [
+      { id: 'fb', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '60', h: '10', op: 'new' },
+      { id: 'fw', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '5', d: '60', h: '30', op: 'join', targets: ['fb'] },
+      { id: 'ff', type: 'primitive', kind: 'box', x: '0', y: '0', z: '25', w: '40', d: '60', h: '5', op: 'join', targets: ['fb'] },
+      pt('fs', 20, 30), { id: 'fh', type: 'hole', sketch: 'fs', kind: 'simple', dia: '6.8', extent: 'dist', depth: '5', tipAngle: '118' },
+    ] };
+    const rF = await K.rebuild(dF); const fbid = rF.bodies[0].id;
+    const thr = (pos) => ({ feature: 'T', kind: 'simple', dia: 6.8, depth: null, through: true, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: pos, dirs: pos.map(() => [0, 0, -1]), bodies: pos.map(() => [fbid]), count: pos.length, lost: 0 });
+    const rbF = { ...rF, holes: [thr([[20, 30, 30], [30, 50, 30]])] }; // ikincisi: modelde delik yok (eksen eslesmez) -> eski kural
+    const camF = { ...cam, setups: [{ ...cam.setups[0], bodies: [fbid], ops: [{ id: 't1', type: 'drill', name: 'Boydan', toolId: 'dr', ...base, heights: hh, holes: { kind: 'feature' }, cycle: 'peck', peck: 3, depth: { from: 'hole', tipComp: false, breakThrough: 1 }, order: 'asis' }] }] };
+    const queryF = async (cmd, args) => { if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+    const rT = await CAM.generateProgram(camF, { rebuild: rbF, machine: M, query: queryF, doc: dF, name: 'O1002' });
+    const tp = rT.ops[0]?.toolpath; const cy = (tp?.moves || []).filter((m) => m.t === 'cycle');
+    const botAt = (x, y) => cy.find((m) => m.points.some((q) => Math.abs(q[0] - x) < 1e-6 && Math.abs(q[1] - y) < 1e-6))?.bottom;
+    // stok ust Z31 (top 1), orijin x-y-z+ (side 2): flans alti Z25 -> setup -6, -1 delip gecme -> -7; model tabani Z0 -> -31 - 1 = -32
+    ok(rT.ops[0]?.ok && Math.abs(botAt(22, 32) + 7) < 1e-6, 'T-14: flans deligi dibi flans alti - 1 (-7), plaka degil: ' + botAt(22, 32) + ' ' + JSON.stringify(rT.ops[0]?.error));
+    ok(Math.abs(botAt(32, 52) + 32) < 1e-6 && tp.warnings.some((w) => w.code === 'cam.drill.through_to_model_bottom' && w.params.n === 1), 'T-14: cikisi bulunamayan delik eski muhafazakar kural (model tabani) + uyari (n=1)');
+    const rQ = await CAM.generateProgram(camF, { rebuild: rbF, machine: M, query: async () => { throw new Error('yok'); }, doc: dF, name: 'O1003' });
+    ok(rQ.ops[0]?.ok && rQ.ops[0].toolpath.warnings.some((w) => w.code === 'cam.drill.through_to_model_bottom' && w.params.n === 2), 'T-14: cekirdek sorgusu basarisiz -> tum delikler eski kural + uyari');
+    await K.rebuild(doc);
+  }
 }
 
 section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');
