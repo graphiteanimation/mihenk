@@ -63,6 +63,7 @@ export default {
   "err.cam.sim.flute_exceeded": "Cutting deeper than the flute length (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.shaft_collision": "The tool shaft hits the stock (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.holder_collision": "The holder hits the stock (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
+  "err.cam.sim.free_piece": "Free piece: at the end of setup {setup}, {area} mm² of material is separated from the clamped body (X {x} Y {y}, {n} pieces). It may be ejected or break the tool; leave tabs or check the workholding.",
   "err.cam.sim.below_stock": "The tool goes below the stock bottom (operation {op}, Z {z}, {depth} mm). The table and workholding are not modeled; only an intentional through-cut (bottom offset below the model/stock bottom, or a through hole) is allowed as a warning.",
   "err.cam.sim.holder_clearance_low": "The holder passes very close to the stock (operation {op}, X {x} Y {y} Z {z}): minimum clearance {clearance} mm, limit {min} mm.",
   "err.cam.sim.holder_contact": "The holder touches the stock (operation {op}, X {x} Y {y} Z {z}): clearance {clearance} mm (at or below the contact limit {min} mm). Increase the stick-out or change the path.",

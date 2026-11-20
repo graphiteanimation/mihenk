@@ -238,4 +238,75 @@ try { await K2.exportFile('step', ['yok']); ok(false, 'hata beklenirdi'); } catc
   dF.features[1].suppressed = true; o = await KF.rebuild(dF);
   ok(o.featInfo.b.changed && o.featInfo.b.sum === 'sup' && o.status.b.suppressed, 'bastırma: sonuç değişti');
 }
+
+console.log('T-14 camHoleExit: delik ekseninde son çıkış');
+{
+  const KX = await initKernel(opencascade, () => wasm);
+  const pt = (id, x, y) => ({ id, type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '30' }, points: { a: { x, y } }, ents: [{ id: id + 'p', type: 'point', p: 'a' }] });
+  const dH = { params: [], features: [
+    { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '60', h: '30', op: 'new' },
+    pt('s1', 10, 10), { id: 'h1', type: 'hole', sketch: 's1', kind: 'simple', dia: '6.8', extent: 'dist', depth: '15', tipAngle: '118' },
+    pt('s2', 30, 30), { id: 'h2', type: 'hole', sketch: 's2', kind: 'cbore', dia: '5.5', cboreDia: '10', cboreDepth: '5', extent: 'all' },
+    pt('s3', 60, 30), { id: 'h3', type: 'hole', sketch: 's3', kind: 'csink', dia: '4', csinkDia: '8', csinkAngle: '90', extent: 'all' },
+  ] };
+  const rH = await KX.rebuild(dH); const bid = rH.bodies[0].id;
+  const ex = (p, r, d = [0, 0, -1]) => KX.camHoleExit({ bodies: [bid], p, d, r });
+  let e = ex([30, 30, 30], 2.75); ok(e.t != null && Math.abs(e.t - 30) < 1e-6 && e.through && e.deepOpen, 'havşalı (cbore) boydan boya: çıkış 30: ' + JSON.stringify(e));
+  e = ex([60, 30, 30], 2); ok(Math.abs(e.t - 30) < 1e-6 && e.through, 'havşa (csink) boydan boya: çıkış 30: ' + JSON.stringify(e));
+  e = ex([10, 10, 30], 3.4); ok(!e.through && !e.deepOpen && e.t > 15 && e.t < 17.1, 'kör delik: boydan boya değil, en derin uç konisi: ' + JSON.stringify(e));
+  e = ex([50, 10, 30], 3.4); ok(e.t === null, 'delik olmayan eksen: t null');
+  e = ex([30, 30, 0], 2.75, [0, 0, 1]); ok(Math.abs(e.t - 30) < 1e-6 && e.through, 'ters yönden (alttan) sorgu: çıkış 30');
+  e = ex([30, 30, 30], 12); ok(e.t === null, 'çap çok farklı (Ø24 sorgu, Ø5,5/Ø10 delik): eşleşme yok');
+  // P2 benzeri: flanş (z 25..30) altında boşluk, altında plaka (z 0..10); flanş deliği yalnız flanşı deler
+  const dF = { params: [], features: [
+    { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '60', h: '10', op: 'new' },
+    { id: 'w', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '5', d: '60', h: '30', op: 'join', targets: ['b'] },
+    { id: 'f', type: 'primitive', kind: 'box', x: '0', y: '0', z: '25', w: '40', d: '60', h: '5', op: 'join', targets: ['b'] },
+    pt('s1', 20, 30), { id: 'h', type: 'hole', sketch: 's1', kind: 'simple', dia: '6', extent: 'dist', depth: '5', tipAngle: '118' },
+  ] };
+  const rF = await KX.rebuild(dF); ok(Object.values(rF.status).every((x) => x.ok) && rF.bodies.length === 1, 'flanş modeli kuruldu');
+  e = KX.camHoleExit({ bodies: [rF.bodies[0].id], p: [20, 30, 30], d: [0, 0, -1], r: 3 });
+  ok(Math.abs(e.t - 5) < 1e-6 && e.through && e.deepOpen, 'flanş deliği: çıkış flanş altı (5), plaka değil: ' + JSON.stringify(e));
+  let er = null; try { KX.camHoleExit({ bodies: ['yok'], p: [0, 0, 0], d: [0, 0, -1] }); } catch (x) { er = x.code; } ok(er === 'cam.body_missing', 'bilinmeyen gövde: cam.body_missing');
+}
+
+console.log('T-05b STEP/B-rep delik tanıma → rebuild.holes');
+{
+  const KR = await initKernel(opencascade, () => wasm);
+  const pt = (id, pts) => ({ id, type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '30' }, points: Object.fromEntries(pts.map((q, i) => ['a' + i, { x: q[0], y: q[1] }])), ents: pts.map((q, i) => ({ id: id + 'p' + i, type: 'point', p: 'a' + i })) });
+  const dM = { params: [], features: [
+    { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '120', d: '60', h: '30', op: 'new' },
+    pt('s1', [[10, 10], [10, 50]]), { id: 'h1', type: 'hole', sketch: 's1', kind: 'simple', dia: '6.8', extent: 'dist', depth: '15', tipAngle: '118' },
+    pt('s2', [[30, 30]]), { id: 'h2', type: 'hole', sketch: 's2', kind: 'cbore', dia: '5.5', cboreDia: '10', cboreDepth: '5', extent: 'all' },
+    pt('s3', [[50, 30]]), { id: 'h3', type: 'hole', sketch: 's3', kind: 'csink', dia: '4', csinkDia: '8', csinkAngle: '90', extent: 'all' },
+    pt('s4', [[70, 15]]), { id: 'h4', type: 'hole', sketch: 's4', kind: 'simple', dia: '5', extent: 'dist', depth: '12', tipAngle: '118' },
+    { id: 'fc', type: 'primitive', kind: 'cylinder', x: '70', y: '45', z: '20', dia: '8', h: '10', axis: 'Z', op: 'cut', targets: ['b'] },
+    { id: 'sx', type: 'primitive', kind: 'cylinder', x: '0', y: '30', z: '15', dia: '6', h: '120', axis: 'X', op: 'cut', targets: ['b'] },
+    // yarik (iki yari silindir uc) ve dis boss silindiri: delik DEGIL
+    { id: 'sl', type: 'primitive', kind: 'box', x: '90', y: '20', z: '25', w: '20', d: '6', h: '5', op: 'cut', targets: ['b'] },
+    { id: 'sl1', type: 'primitive', kind: 'cylinder', x: '90', y: '23', z: '25', dia: '6', h: '5', axis: 'Z', op: 'cut', targets: ['b'] },
+    { id: 'sl2', type: 'primitive', kind: 'cylinder', x: '110', y: '23', z: '25', dia: '6', h: '5', axis: 'Z', op: 'cut', targets: ['b'] },
+    { id: 'bo', type: 'primitive', kind: 'cylinder', x: '100', y: '45', z: '30', dia: '12', h: '8', axis: 'Z', op: 'join', targets: ['b'] },
+  ] };
+  const r0 = await KR.rebuild(dM); ok(Object.values(r0.status).every((x) => x.ok) && r0.bodies.length === 1, 'tanıma modeli kuruldu: ' + JSON.stringify(Object.entries(r0.status).filter(([, x]) => !x.ok)));
+  ok(r0.holes.length === 4 && !r0.holes.some((h) => h.recognized), 'içe aktarma yok: tanıma çalışmaz (yalnız özellik delikleri)');
+  const stp = await KR.exportFile('step');
+  const rI = await KR.rebuild({ params: [], features: [{ id: 'imp', type: 'import', format: 'step', data: Buffer.from(stp).toString('base64'), name: 'rec' }] });
+  const H = rI.holes; const near = (a, b, t = 1e-3) => Math.abs(a - b) <= t;
+  const at = (x, y) => H.find((h) => h.positions.some((p) => near(p[0], x) && near(p[1], y)));
+  ok(H.every((h) => h.recognized && h.feature.startsWith('rec:')), 'STEP gövdesi: tanınan delikler rebuild.holes içinde');
+  let h = at(10, 10); ok(h && h === at(10, 50) && h.kind === 'simple' && near(h.dia, 6.8) && near(h.depth, 15) && near(h.tipAngle, 118, 0.01) && !h.through && h.count === 2 && h.dir.join() === '0,0,-1' && near(h.positions[0][2], 30), 'kör Ø6,8 ×2 (aynı kayıt): derinlik 15, uç 118°, yön -Z, üst Z30: ' + JSON.stringify(h && { k: h.kind, d: h.dia, dep: h.depth, t: h.tipAngle, n: h.count }));
+  h = at(30, 30); ok(h && h.kind === 'cbore' && near(h.dia, 5.5) && h.through && near(h.cboreDia, 10) && near(h.cboreDepth, 5) && near(h.exits[0], 30) && h.dir.join() === '0,0,-1', 'havşa (cbore) boydan boya: Ø5,5 / Ø10×5, boy 30, havşa tarafından: ' + JSON.stringify(h && { k: h.kind, d: h.dir }));
+  h = at(50, 30); ok(h && h.kind === 'csink' && near(h.dia, 4) && h.through && near(h.csinkDia, 8, 0.01) && near(h.csinkAngle, 90, 0.05) && h.dir.join() === '0,0,-1', 'havşa (csink) boydan boya: Ø4 / Ø8 90°: ' + JSON.stringify(h && { k: h.kind, cs: h.csinkDia, a: h.csinkAngle }));
+  h = at(70, 15); ok(h && near(h.dia, 5) && h.threadHint && h.threadHint.major === 6 && h.threadHint.pitch === 1 && h.thread === null, 'Ø5 kör: M6 kılavuz matkabı önerisi (threadHint), thread onaysız boş');
+  h = at(70, 45); ok(h && near(h.dia, 8) && near(h.depth, 10) && h.tipAngle === 180, 'düz tabanlı kör Ø8 (silindir kesim): uç 180°');
+  h = H.find((q) => q.dir && Math.abs(q.dir[0]) === 1); ok(h && near(h.dia, 6) && h.through && near(h.exits[0], 120) && near(h.positions[0][1], 30) && near(h.positions[0][2], 15), 'X eksenli boydan boya Ø6 (yan delik): boy 120');
+  ok(!H.some((q) => near(q.dia, 6) && q.positions.some((p) => p[0] > 85 && near(p[1], 23))), 'yarık uçları (yarım silindir) delik sayılmaz');
+  ok(!H.some((q) => near(q.dia, 12)), 'dış boss silindiri delik sayılmaz');
+  ok(H.length === 6 && H.reduce((a, q) => a + q.count, 0) === 7, 'toplam 6 kayıt / 7 konum: ' + H.map((q) => q.kind + q.dia + '×' + q.count).join(' '));
+  // özellik deliği ile aynı eksende tanınan delik yinelenmez (içe aktarılan gövdeye delik özelliği)
+  const rJ = await KR.rebuild({ params: [], features: [{ id: 'imp', type: 'import', format: 'step', data: Buffer.from(stp).toString('base64'), name: 'rec' }, pt('s9', [[60, 50]]), { id: 'h9', type: 'hole', sketch: 's9', kind: 'simple', dia: '6.8', extent: 'dist', depth: '15', tipAngle: '118', targets: ['imp'] }] });
+  const at9 = rJ.holes.filter((q) => q.positions.some((p) => near(p[0], 60) && near(p[1], 50)));
+  ok(Object.values(rJ.status).every((x) => x.ok) && at9.length === 1 && at9[0].feature === 'h9', 'özellik deliği ile eş eksenli tanınan delik atlanır: ' + at9.map((q) => q.feature));
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

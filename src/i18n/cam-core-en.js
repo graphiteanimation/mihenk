@@ -33,6 +33,7 @@ export default {
   "err.cam.drill.bottom_above_r": "Hole bottom ({bottom}) is above the R plane ({r}). Check the depth.",
   "err.cam.drill.depth_from_hole_needs_feature": "\"From hole\" depth only works with hole features in the model. Enter an absolute depth.",
   "err.cam.drill.dia_mismatch": "{n} holes differ from the tool diameter (Ø{dia}). Check the tool.",
+  "err.cam.drill.point_missing": "Hole point not found: element {ent} is missing in sketch {sketch} or is not a point/circle.",
   "err.cam.drill.no_holes": "No holes to drill in this setup (empty selection or hole axis not parallel to the tool axis).",
   "err.cam.drill.no_thread": "{n} holes have no thread data; check that these are the holes to tap.",
   "err.cam.drill.pitch_mismatch": "{n} holes have a thread pitch different from the tap pitch ({pitch} mm).",

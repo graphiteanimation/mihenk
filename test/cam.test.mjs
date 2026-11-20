@@ -136,6 +136,37 @@ section('3. yuzey frezeleme ve delme');
   throwsCode(() => CAM.computeOp({ ...dop, cycle: 'tap' }, { setup: S0, tool: drill, geom: { holes } }), 'cam.drill.tool_cycle', 'kilavuz cevrimi matkapla olmaz');
   throwsCode(() => CAM.computeOp({ ...dop, cycle: 'peck', peck: undefined }, { setup: S0, tool: drill, geom: { holes } }), 'cam.op.missing', 'gagalama derinligi zorunlu');
   throwsCode(() => CAM.computeOp(dop, { setup: S0, tool: drill, geom: { holes: [holes[1]] } }), 'cam.drill.no_holes', 'eksen uyumsuz tek delik -> delik yok');
+  // T-23: R stok kutusu altinda; islem basi stok + model haritasiyla G99 gecisi dogrulanirsa tek cevrim, engel varsa bolunur
+  {
+    const hp = [{ feature: 'p', dia: 6.8, depth: 5, through: false, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: [[20, 30, -10], [35, 30, -10], [80, 30, -10]], dirs: [[0, 0, -1], [0, 0, -1], [0, 0, -1]] }];
+    const op23 = { ...dop, depth: { from: 'hole', tipComp: false }, order: 'asis' };
+    const flatMap = (rib) => heightmapFromFn([0, 0], [100, 60], 0.5, (x) => (rib && x > 45 && x < 55 ? 0 : -10));
+    const cyc = (ctx) => CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, ...ctx }).moves.filter((m) => m.t === 'cycle');
+    const n0 = cyc({}), n1 = cyc({ stockMap: flatMap(false), modelMap: flatMap(false) }), n2 = cyc({ stockMap: flatMap(true), modelMap: flatMap(false) }), n3 = cyc({ stockMap: flatMap(false) });
+    const n4 = cyc({ stockMap: flatMap(false), modelMap: flatMap(true) });
+    ok(n0.length === 3, 'T-23: harita yok + R stok altinda -> her nokta ayri cevrim (eski muhafazakar): ' + n0.length);
+    ok(n1.length === 1 && n1[0].points.length === 3 && n1[0].retract < n1[0].clearance, 'T-23: islenmis yuzey (stok + model R altinda) -> tek G99 cevrimi: ' + n1.length);
+    ok(n2.length === 2 && n2[0].points.length === 2 && n2[1].points.length === 1, 'T-23: stokta kaburga gecisi keser -> bolunur (2+1): ' + n2.map((c) => c.points.length));
+    ok(n3.length === 3, 'T-23: model haritasi yok -> gecis guvenli sayilmaz');
+    ok(n4.length === 2, 'T-23: model haritasinda kaburga (ince duvar guvencesi) -> bolunur');
+    const { simulate } = await import('../src/cam/sim/index.js');
+    const tp1 = CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, stockMap: flatMap(false), modelMap: flatMap(false) });
+    const sr = simulate(tp1, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(false) });
+    ok(!sr.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23: tek cevrim G99 gecisleri sim\'de stok icinden gecmiyor');
+    const tp2 = CAM.computeOp(op23, { setup: S0, tool: drill, geom: { holes: hp }, stockMap: flatMap(true), modelMap: flatMap(true) });
+    const sr2 = simulate(tp2, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(true) });
+    ok(!sr2.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23: kaburgali stokta bolunmus cevrim sim\'de temiz');
+    const tpBad = { ...tp2, moves: tp2.moves.map((m) => (m.t === 'cycle' && m.points.length === 2 ? { ...m, points: [...m.points, [80, 30]] } : m)).filter((m) => !(m.t === 'cycle' && m.points.length === 1)) };
+    const sr3 = simulate(tpBad, { res: 0.5, stockBox: S0.stockBox, stockHeightmap: flatMap(true) });
+    ok(sr3.issues.some((i) => i.code === 'cam.sim.rapid_in_stock'), 'T-23 kontrol: kaburgayi R\'de gecen birlesik cevrim sim\'de rapid_in_stock (gecis denetimi gercek)');
+  }
+  // T-05b: boyu bilinen boydan boya delik (taninan, alttan yonlu) ustten delinir; boyu bilinmeyen ters delik atlanir
+  {
+    const up = [{ feature: 'r', dia: 6.8, depth: null, through: true, tipAngle: null, thread: null, dir: [0, 0, 1], positions: [[50, 30, -30]], dirs: [[0, 0, 1]], exits: [30] }];
+    const c = CAM.computeOp({ ...dop, depth: { from: 'hole', tipComp: false, breakThrough: 1 }, order: 'asis' }, { setup: S0, tool: drill, geom: { holes: up } }).moves.filter((m) => m.t === 'cycle');
+    ok(c.length === 1 && Math.abs(c[0].top) < 1e-9 && Math.abs(c[0].bottom + 31) < 1e-9, 'T-05b: ters yonlu boydan boya delik karsi uctan: ust 0, dip -31: ' + JSON.stringify(c.map((m) => [m.top, m.bottom])));
+    throwsCode(() => CAM.computeOp(dop, { setup: S0, tool: drill, geom: { holes: [{ ...up[0], exits: undefined }] } }), 'cam.drill.no_holes', 'T-05b: boyu bilinmeyen ters delik atlanir');
+  }
 }
 
 // ================================================================== 4. kontur
@@ -517,6 +548,91 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
   await K.rebuild(doc);
   // eksik veri: genel makine sablonu -> block
   const r2b = await CAM.generateProgram(cam, { rebuild: rb, machine: builtinMachines()[0], query, name: 'O1' }); ok(r2b.blocked && r2b.gates.some((g) => g.code === 'cam.gate.missing'), 'sablon makine: eksik veri block');
+  // T-05a: holes.kind 'points' (sketch noktalari) ve 'feature' (filtreli) generateProgram'da calisir
+  {
+    const dbase = { toolId: 'dr', ...base, heights: hh, cycle: 'peck', peck: 3, order: 'asis' };
+    const pOps = [
+      { id: 'p1', type: 'drill', name: 'Nokta', ...dbase, holes: { kind: 'points', sketch: 's3' }, depth: { from: 'abs', tipComp: false, z: -10 } },
+      { id: 'p2', type: 'drill', name: 'Nokta2', ...dbase, holes: { kind: 'points', sketch: 's3', ents: ['hp2'] }, depth: { from: 'abs', tipComp: false, z: -10 } },
+      { id: 'p3', type: 'drill', name: 'Ozellik', ...dbase, holes: { kind: 'feature', filter: { feature: 'h' } }, depth: { from: 'hole', tipComp: false } },
+      { id: 'p4', type: 'drill', name: 'Yok', ...dbase, holes: { kind: 'points', sketch: 's3', ents: ['yok'] }, depth: { from: 'abs', tipComp: false, z: -10 } },
+      { id: 'p5', type: 'drill', name: 'YokSk', ...dbase, holes: { kind: 'points', sketch: 'yok' }, depth: { from: 'abs', tipComp: false, z: -10 } },
+    ];
+    const camP = { ...cam, setups: [{ ...cam.setups[0], ops: pOps }] };
+    ok(validateDoc({ ...doc, cam: camP }), 'T-05a: points/feature secimli belge semadan gecer');
+    const rp = await CAM.generateProgram(camP, { rebuild: rb, machine: M, query, doc, name: 'O1001' });
+    const opR = (id) => rp.ops.find((o) => o.opId === id);
+    const cyPts = (id) => (opR(id)?.toolpath?.moves || []).filter((m) => m.t === 'cycle').flatMap((m) => m.points.map((q) => [q[0], q[1], m.top]));
+    const want = [[12, 12, -1], [12, 52, -1], [52, 7, -1]]; // sketch z=30, setup orijini (-2,-2,31)
+    const same = (a, b) => a.length === b.length && b.every((w) => a.some((q) => Math.hypot(q[0] - w[0], q[1] - w[1], q[2] - w[2]) < 1e-9));
+    ok(opR('p1')?.ok && same(cyPts('p1'), want), 'T-05a points: uc sketch noktasi setup uzayinda: ' + JSON.stringify(cyPts('p1')) + ' ' + JSON.stringify(opR('p1')?.error));
+    ok(opR('p2')?.ok && same(cyPts('p2'), [want[1]]), 'T-05a points + ents: yalniz secilen nokta');
+    ok(opR('p3')?.ok && same(cyPts('p3'), want), 'T-05a feature filtresi: delik ozelligi konumlari');
+    ok(opR('p4') && !opR('p4').ok && opR('p4').error.code === 'cam.drill.point_missing', 'T-05a: bulunmayan oge acik hata: ' + JSON.stringify(opR('p4')?.error));
+    ok(opR('p5') && !opR('p5').ok && opR('p5').error.code === 'cam.geom.sketch_missing', 'T-05a: bulunmayan sketch acik hata');
+    ok(rp.gates.some((g) => g.level === 'block' && g.opId === 'p4'), 'T-05a: basarisiz islem kapida engel');
+  }
+  // T-14: boydan boya delik dibi = delik ekseninde modelden son cikis (P2 benzeri: flans altinda bosluk, altinda plaka)
+  {
+    const pt = (id, x, y) => ({ id, type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '30' }, points: { a: { x, y } }, ents: [{ id: id + 'p', type: 'point', p: 'a' }] });
+    const dF = { params: [], features: [
+      { id: 'fb', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '100', d: '60', h: '10', op: 'new' },
+      { id: 'fw', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '5', d: '60', h: '30', op: 'join', targets: ['fb'] },
+      { id: 'ff', type: 'primitive', kind: 'box', x: '0', y: '0', z: '25', w: '40', d: '60', h: '5', op: 'join', targets: ['fb'] },
+      pt('fs', 20, 30), { id: 'fh', type: 'hole', sketch: 'fs', kind: 'simple', dia: '6.8', extent: 'dist', depth: '5', tipAngle: '118' },
+    ] };
+    const rF = await K.rebuild(dF); const fbid = rF.bodies[0].id;
+    const thr = (pos) => ({ feature: 'T', kind: 'simple', dia: 6.8, depth: null, through: true, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: pos, dirs: pos.map(() => [0, 0, -1]), bodies: pos.map(() => [fbid]), count: pos.length, lost: 0 });
+    const rbF = { ...rF, holes: [thr([[20, 30, 30], [30, 50, 30]])] }; // ikincisi: modelde delik yok (eksen eslesmez) -> eski kural
+    const camF = { ...cam, setups: [{ ...cam.setups[0], bodies: [fbid], ops: [{ id: 't1', type: 'drill', name: 'Boydan', toolId: 'dr', ...base, heights: hh, holes: { kind: 'feature' }, cycle: 'peck', peck: 3, depth: { from: 'hole', tipComp: false, breakThrough: 1 }, order: 'asis' }] }] };
+    const queryF = async (cmd, args) => { if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+    const rT = await CAM.generateProgram(camF, { rebuild: rbF, machine: M, query: queryF, doc: dF, name: 'O1002' });
+    const tp = rT.ops[0]?.toolpath; const cy = (tp?.moves || []).filter((m) => m.t === 'cycle');
+    const botAt = (x, y) => cy.find((m) => m.points.some((q) => Math.abs(q[0] - x) < 1e-6 && Math.abs(q[1] - y) < 1e-6))?.bottom;
+    // stok ust Z31 (top 1), orijin x-y-z+ (side 2): flans alti Z25 -> setup -6, -1 delip gecme -> -7; model tabani Z0 -> -31 - 1 = -32
+    ok(rT.ops[0]?.ok && Math.abs(botAt(22, 32) + 7) < 1e-6, 'T-14: flans deligi dibi flans alti - 1 (-7), plaka degil: ' + botAt(22, 32) + ' ' + JSON.stringify(rT.ops[0]?.error));
+    ok(Math.abs(botAt(32, 52) + 32) < 1e-6 && tp.warnings.some((w) => w.code === 'cam.drill.through_to_model_bottom' && w.params.n === 1), 'T-14: cikisi bulunamayan delik eski muhafazakar kural (model tabani) + uyari (n=1)');
+    const rQ = await CAM.generateProgram(camF, { rebuild: rbF, machine: M, query: async () => { throw new Error('yok'); }, doc: dF, name: 'O1003' });
+    ok(rQ.ops[0]?.ok && rQ.ops[0].toolpath.warnings.some((w) => w.code === 'cam.drill.through_to_model_bottom' && w.params.n === 2), 'T-14: cekirdek sorgusu basarisiz -> tum delikler eski kural + uyari');
+    await K.rebuild(doc);
+  }
+  // T-04: setup n'in son stogu setup n+1'in baslangic stogu (P1 S3 hayalet stok durumunu kuran sentetik cok-setup testi)
+  {
+    const dP = { params: [], features: [{ id: 'pb', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '60', d: '40', h: '20', op: 'new' }, ...[15, 45].map((x, i) => ({ id: 'pc' + i, type: 'primitive', kind: 'cylinder', x, y: 0, z: 10, dia: 6.8, h: 10, axis: 'Y', op: 'cut', targets: ['pb'] }))] };
+    const rP = await K.rebuild(dP); const pid = rP.bodies[0].id; ok(Object.values(rP.status).every((x) => x.ok) && Math.abs(rP.bodies[0].volume - (60 * 40 * 20 - 2 * Math.PI * 3.4 * 3.4 * 10)) < 1, 'T-04 modeli: kutu + 2 yan delik');
+    const side = { feature: 'S', kind: 'simple', dia: 6.8, depth: 10, through: false, tipAngle: 118, thread: null, dir: [0, 1, 0], positions: [[15, 0, 10], [45, 0, 10]], dirs: [[0, 1, 0], [0, 1, 0]], bodies: [[pid], [pid]], count: 2, lost: 0 };
+    const rbP = { ...rP, holes: [side] };
+    let pBot = null; for (let i = 0; i < rP.bodies[0].nFaces; i++) { const d = K.describe({ body: pid, idx: i }, 'face'); if (d.geom === 'PLANE' && d.normal[2] < -0.99 && Math.abs(d.fp[2]) < 1e-6) pBot = d; }
+    const MA = { ...M, axes: { ...M.axes, A: { ...NEWAY_FIXTURE.axes.A } } }; const aDeg = -90 * Math.sign(MA.axes.A.dir[0]);
+    const stk = { kind: 'boxOffset', side: 5, top: 5, bottom: 0 };
+    const S1o = [{ id: 'q1', type: 'face', name: 'Yuzey', toolId: 'em10', ...base, heights: { ...hh, top: { from: 'stockTop', off: 0 }, bottom: { from: 'modelTop', off: 0 } }, stepover: 7, stepdown: 2.5, extend: 1 },
+      { id: 'q2', type: 'contour', name: 'Dis', toolId: 'em10', ...base, heights: { ...hh, top: { from: 'modelTop', off: 0 }, bottom: { from: 'abs', off: -20 } }, geom: [{ kind: 'face', ref: pBot, loops: 'outer' }], stepdown: 5, leadIn: { kind: 'arc', r: 4 }, leadOut: { kind: 'arc', r: 4 } }];
+    const S2o = [{ id: 'q3', type: 'drill', name: 'Yan', toolId: 'dr', ...base, heights: hh, holes: { kind: 'feature' }, cycle: 'peck', peck: 3, depth: { from: 'hole', tipComp: false }, order: 'asis' }];
+    const mkCam = (s2) => ({ ...cam, setups: [
+      { id: 'T1', name: 'Ust', bodies: [pid], frame: { origin: { kind: 'stockTopCenter' }, zAxis: { kind: 'base', dir: '+Z' }, xAxis: { kind: 'base', dir: '+X' } }, workOffset: { kind: 'G54' }, stock: stk, clearanceZ: 5, ops: S1o },
+      { id: 'T2', name: 'Yan', bodies: [pid], workOffset: { kind: 'G55' }, stock: stk, clearanceZ: 5, ops: S2o, ...s2 }] });
+    const yan = { frame: { origin: { kind: 'stockTopCenter' }, zAxis: { kind: 'base', dir: '-Y' }, xAxis: { kind: 'base', dir: '+X' } } };
+    const rot = { frame: { origin: { kind: 'stockTopCenter' }, zAxis: { kind: 'base', dir: '+Z' }, xAxis: { kind: 'base', dir: '+X' } }, rotary: { enabled: true, aAngle: aDeg } };
+    const hmFor = (camX) => { const out = {}; for (const st of camX.setups) { const S = CAM.resolveSetup(st, rbP, MA); out[st.id] = K.camHeightmap({ bodies: [pid], frame: S.frame, res: 0.5, bbox: [S.stockBox.min[0], S.stockBox.min[1], S.stockBox.max[0], S.stockBox.max[1]] }); } return out; };
+    const ghost = (g) => g.filter((x) => x.level === 'block' && ['cam.sim.rapid_in_stock', 'cam.sim.holder_collision', 'cam.sim.shaft_collision', 'cam.sim.flute_exceeded'].includes(x.code));
+    for (const [nm, s2] of [['yan (-Y)', yan], ['3+1 A' + aDeg, rot]]) {
+      const cX = mkCam(s2); const mh = hmFor(cX);
+      const S2 = CAM.resolveSetup(cX.setups[1], rbP, MA); ok(Math.abs(S2.frame.z[1] + 1) < 1e-9, `T-04 ${nm}: S2 takim ekseni -Y`);
+      const qP = async (cmd, args) => { if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
+      const r1 = await CAM.generateProgram(cX, { rebuild: rbP, machine: MA, query: qP, doc: dP, name: 'O1004', sim: { res: 0.5, modelHeightmaps: mh } });
+      const r0 = await CAM.generateProgram(cX, { rebuild: rbP, machine: MA, query: qP, doc: dP, name: 'O1004', sim: { res: 0.5, modelHeightmaps: mh, chain: false } });
+      ok(r1.ops.every((o) => o.ok), `T-04 ${nm}: islemler hesaplandi ` + JSON.stringify(r1.ops.filter((o) => !o.ok).map((o) => o.error)));
+      const g0 = ghost(r0.gates).filter((x) => x.params.op === 'q3' || x.opId === 'q3'), g1 = ghost(r1.gates);
+      ok(g0.length > 0, `T-04 ${nm} kontrol: zincirsiz S2 hayalet stok engeli var (${g0.map((x) => x.code)})`);
+      ok(g1.length === 0, `T-04 ${nm}: zincirle hayalet BLOCK 0: ` + JSON.stringify(g1.slice(0, 3)));
+      ok(!r1.gates.some((x) => x.level === 'block' && x.code === 'cam.sim.gouge'), `T-04 ${nm}: oyma yok ` + JSON.stringify(r1.gates.filter((x) => x.code === 'cam.sim.gouge').map((x) => [x.params.op, x.params.depth, x.params.vertical, x.params.x, x.params.y, x.params.z])));
+    }
+    // yanlis "temiz" yok: S1 yan duvari kesmezse (yalniz yuzey) S2 hizlisi hala engel
+    const cY = mkCam(yan); cY.setups[0].ops = [S1o[0]];
+    const rY = await CAM.generateProgram(cY, { rebuild: rbP, machine: MA, query: async (c, a) => K[c](a), doc: dP, name: 'O1005', sim: { res: 0.5, modelHeightmaps: hmFor(cY) } });
+    ok(ghost(rY.gates).length > 0, 'T-04: S1 yan stogu kaldirmadiysa S2 engel kalir (yanlis temiz yok)');
+    await K.rebuild(doc);
+  }
 }
 
 section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');

@@ -277,6 +277,14 @@ const rbX = { ...rb, holes: [
   hrec('P4caprazZarti', 7, CX.map((x) => [x, 23, 27.5]), [0, 0, -1], { through: true }),
   hrec('P4taban25', 2.5, CX.flatMap((x) => [[x, 17, 15.5], [x, 17, -15.5]]), [0, 1, 0], { depth: 3.73 }),
 ] };
+// T-05b: elle girilen delik kayitlari ile B-rep taniyicinin (rb.holes, recognized) eslesmesi: ayni eksen (<0,05 mm), cap farki <= 0,1
+{
+  const recH = (rb.holes || []).filter((h) => h.recognized); const unit = (d) => { const l = Math.hypot(...d); return d.map((x) => x / l); };
+  const same = (p, d, q, e) => { const u = unit(d), v = unit(e); if (Math.abs(Math.abs(u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) - 1) > 1e-6) return false; const w = [p[0] - q[0], p[1] - q[1], p[2] - q[2]]; const t = w[0] * v[0] + w[1] * v[1] + w[2] * v[2]; return Math.hypot(w[0] - v[0] * t, w[1] - v[1] * t, w[2] - v[2] * t) < 0.05; };
+  const kayit = rbX.holes.map((m) => { const bul = m.positions.map((p, i) => recH.find((r) => Math.abs(r.dia - m.dia) <= 0.1 && r.positions.some((q, j) => same(p, m.dirs[i] || m.dir, q, r.dirs[j] || r.dir)))); return { feature: m.feature, dia: m.dia, konum: m.positions.length, bulunan: bul.filter(Boolean).length, taninan: [...new Set(bul.filter(Boolean).map((r) => `${r.feature} ${r.kind} D${r.dia} ${r.through ? 'thru' : 'd' + r.depth}`))] }; });
+  R.delik_tanima = { taninan_kayit: recH.length, taninan_konum: recH.reduce((a, h) => a + h.count, 0), elle_kayit: kayit.length, elle_konum: kayit.reduce((a, k) => a + k.konum, 0), bulunan_konum: kayit.reduce((a, k) => a + k.bulunan, 0), bulunan_kayit: kayit.filter((k) => k.bulunan === k.konum).length, kayit };
+  log('delik tanima', JSON.stringify(R.delik_tanima));
+}
 ASSUME('rebuild.holes', 'P4kulak 4x O6 (+-70,Y6,+-28,5) through yon -Y; P4d35kaide/boss 3+3x O3,5 kor; P4m3 6x O2,459 (dis M3x0,5) ust Y27 derinlik 12; P4capraz 4+4x O7 (X-52/-30/-8/14, Y23) ust Z-+27,5 yon +-Z; P4taban25 8x O2,5 ust Y17 yon +Y derinlik 3,73', 'STEP ice aktarmada delik ozelligi tanimaz (T-05); konumlar Plan + kesit olcumu');
 
 const cam = { machineId: M.id, tools, setups: [S1, S2, S3, S4].filter((s) => ONLY.includes(s.id)), verified: null };
@@ -284,25 +292,30 @@ const cam = { machineId: M.id, tools, setups: [S1, S2, S3, S4].filter((s) => ONL
 
 // ------------------------------------------------------------------ 6. uretim
 const query = async (cmd, args) => { if (cmd === 'facePlane') return K.facePlane(args.ref); if (typeof K[cmd] === 'function' && cmd.startsWith('cam')) return K[cmd](args); throw new Error('cmd ' + cmd); };
-async function computeOne(S, op0, toolOverride, variant = 0) {
+// T-14: boydan boya delik cikislari (generateProgram ile ayni yol); ortam P_NOEXIT=1 -> eski kural (karsilastirma)
+const holesX = process.env.P_NOEXIT ? rbX.holes : await CAM.annotateHoleExits(rbX.holes, query, rbX.bodies.map((b) => b.id));
+async function computeOne(S, op0, toolOverride, variant = 0, mctx = null) {
   const { alts, fop, ...base } = op0; const op = variant ? { ...base, ...(alts?.[variant - 1] || {}) } : base; const tool = toolOverride || tools.find((t) => t.id === op.toolId); const geom = {}; let opx = op;
-  if (op.type === 'drill') geom.holes = rbX.holes;
+  if (op.type === 'drill') geom.holes = holesX;
+  // T-23: islem basi stok + model haritasi (generateProgram ile ayni yol; ortam P_NODMAP=1 -> eski muhafazakar gruplama)
+  if (op.type === 'drill' && mctx && !process.env.P_NODMAP && !process.env.P_NOCHAIN) CAM.chainStock(mctx.recs, mctx.ri, 0.5); // T-04
+  const maps = op.type === 'drill' && mctx && !process.env.P_NODMAP ? await CAM.drillMaps(mctx.stk, mctx.tps, S, { res: 0.5, query }) : {};
   if (op.type === 'contour' || op.type === 'pocket') { const g = await CAM.resolveGeom(op, S, { rebuild: rbX, doc, query }); geom.faces = g.faces; opx = { ...op, geom: g.sels }; }
-  return CAM.computeOp(opx, { setup: S, tool, geom, machine: M });
+  return CAM.computeOp(opx, { setup: S, tool, geom, machine: M, ...maps });
 }
-const progs = [];
+const progs = []; const RECS = [];
 for (const setup of cam.setups) {
   const rec = { id: setup.id, ad: setup.name, wcs: setup.workOffset.kind, islemler: [], gates: [] };
   let S; try { S = CAM.resolveSetup(setup, rbX, M); } catch (e) { rec.setup_hata = opError(e); R.setups.push(rec); log('SETUP HATA', setup.id, JSON.stringify(rec.setup_hata)); continue; }
   rec.cozulmus = { frame: { o: S.frame.o.map(r3), x: S.frame.x.map(r3), y: S.frame.y.map(r3), z: S.frame.z.map(r3) }, aAngle: S.aAngle, stockBox: { min: S.stockBox.min.map(r3), max: S.stockBox.max.map(r3) }, modelBBox: { min: S.modelBBox.min.map(r3), max: S.modelBBox.max.map(r3) }, stockBoyut: S.stockBox.max.map((v, i) => r3(v - S.stockBox.min[i])) };
   log(`\n== ${setup.id} cozuldu, stok ${rec.cozulmus.stockBoyut.join('x')} frame.z ${rec.cozulmus.frame.z} aAngle ${S.aAngle} model ${JSON.stringify(rec.cozulmus.modelBBox)}`);
-  const tps = [];
+  const tps = []; const stk = { hm: null, done: 0 }; const ri = RECS.push({ S, tps, stk }) - 1;
   for (const op0 of setup.ops) {
     const o = { id: op0.id, fop: op0.fop, ad: op0.name, tur: op0.type, takim: 'T' + tools.find((t) => t.id === op0.toolId).number, denemeler: [] };
     const ta = now(); const nv = 1 + (op0.alts?.length || 0);
     for (let vi = 0; vi < nv; vi++) {
       try {
-        const tp = await computeOne(S, op0, null, vi);
+        const tp = await computeOne(S, op0, null, vi, { stk, tps, recs: RECS, ri });
         o.hesap_s = r3(now() - ta); o.ok = true; o.varyant = vi; o.varyant_deger = vi ? JSON.stringify(op0.alts[vi - 1]) : 'birincil';
         o.uyarilar = (tp.warnings || []).map((w) => ({ code: w.code, params: w.params }));
         o.kesme_mm = r3(tp.stats.cutLen); o.hizli_mm = r3(tp.stats.rapidLen); o.sure_s = r3(tp.stats.timeMin * 60); o.zMin = tp.stats.zMin; o.hareket = tp.moves.length; o.passDepth = tp.meta?.passDepth ?? null;
@@ -411,6 +424,18 @@ const tool = (n, o) => ({ ...tools.find((q) => q.number === n), ...o });
   }
 }
 
+// T-04 zincir deneyi: tum setup'lar tek programda, sim setup n+1 baslangic stogunu setup n'in son stogundan kurar
+// (ana kapi sayilari setup basina ayri program: karsilastirma icin degismez). P_NOCHAIN=1 ile atlanir.
+if (!NOSIM && !process.env.P_NOCHAIN) {
+  const okr = progs.filter((r) => r.program && r.hm);
+  try {
+    const tz = now(); const pz = CAM.buildProgram({ name: 'OZ', number: 1, machine: M, sections: okr.map((r) => ({ setup: r.S, toolpaths: r.tps })) });
+    const gz = CAM.gates(pz, M, { sim: { res: RES, modelHeightmaps: Object.fromEntries(okr.map((r) => [r.S.id, r.hm])), tools: simTools } });
+    const by = {}; for (const g of gz) { const id = g.section != null ? pz.sections[g.section].setup.id : 'genel'; const k = `${g.level} ${g.code}`; (by[id] ||= { block: 0, kod: {} }); if (g.level === 'block') by[id].block++; by[id].kod[k] = (by[id].kod[k] || 0) + 1; }
+    R.deneyler.T04_zincir = { aciklama: 'tek program, setup zinciri (sim chain)', s: r3(now() - tz), setup: Object.fromEntries(Object.entries(by).map(([id, v]) => [id, { block: v.block, kod: Object.fromEntries(Object.entries(v.kod).filter(([k]) => k.startsWith('block') || k.includes('sim'))) }])) };
+  } catch (e) { R.deneyler.T04_zincir = { hata: opError(e) }; }
+  log('deney T04_zincir', JSON.stringify(R.deneyler.T04_zincir));
+}
 // ------------------------------------------------------------------ cikti
 R.sure_s = r3(now() - t0);
 { // Fusion islem no -> Mihenk islem ozeti (+ Fusion sayilari, JSON'dan)
