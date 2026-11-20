@@ -36,7 +36,7 @@ try:
     txt = lambda pg, sel: pg.evaluate('(s) => document.querySelector(s)?.innerText || ""', sel)
     count = lambda pg, sel: pg.evaluate('(s) => document.querySelectorAll(s).length', sel)
     # K-026: Neway artık yerleşik değil; kullanıcı profili olarak tohumlanır ve seçilir (dokunulmaz liste, A ekseni gerektiren testler için)
-    NEWAY = json.load(open(os.path.join(ROOT, 'ornekler', 'tezgahlar', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json'), encoding='utf-8'))['machines'][0]
+    NEWAY = json.load(open(os.path.join(ROOT, 'pm', 'arsiv', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json'), encoding='utf-8'))['machines'][0]
     def nw_page(doc, **kw):
         ctx, pg = newpage(**kw); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", NEWAY)
         load(pg, doc); pg.click('[data-testid=tab-manufacture]'); pg.evaluate("app.cam.setMachine('user-neway-vm1160h-m80v-gsa')"); return ctx, pg
@@ -70,14 +70,14 @@ try:
     check('kullanıcı profili yokken boş durum metni', 'Kendi tezgâhınızı eklemek için bir şablonu kopyalayın veya dosyadan içe aktarın.' in txt(pg, '[data-testid=mc-empty]') and count(pg, '#modal [data-testid=mc-import]') == 1)
     # dosyadan içe aktar (ornekler/ altındaki Neway profili) ve dışa aktar
     with pg.expect_file_chooser() as fc: pg.click('#modal [data-testid=mc-import]')
-    fc.value.set_files(os.path.join(ROOT, 'ornekler', 'tezgahlar', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json')); pg.wait_for_timeout(500)
+    fc.value.set_files(os.path.join(ROOT, 'pm', 'arsiv', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json')); pg.wait_for_timeout(500)
     check('içe aktarma: profil eklendi ve yönetici açık', count(pg, '#modal [data-testid=mc-row]') == 4 and 'Neway VM1160H' in txt(pg, '#modal') and count(pg, '[data-testid=mc-empty]') == 0)
     check('içe aktarılan profil kullanıcı verisi (yerleşik değil) ve kaydedildi', pg.evaluate("JSON.parse(localStorage.getItem('mihenk.machines')||'[]').map(m => m.id).join()") == 'user-neway-vm1160h-m80v-gsa')
     with pg.expect_download() as dl: pg.click('#modal [data-testid=mc-row]:nth-child(4) [data-testid=mc-export]')
     exp = json.loads(open(dl.value.path(), encoding='utf-8').read())
     check('dışa aktarma: mihenk-machine biçimi', exp['format'] == 'mihenk-machine' and exp['version'] == 1 and len(exp['machines']) == 1 and exp['machines'][0]['id'] == 'user-neway-vm1160h-m80v-gsa')
     with pg.expect_file_chooser() as fc: pg.click('#modal [data-testid=mc-import]')
-    fc.value.set_files(os.path.join(ROOT, 'ornekler', 'tezgahlar', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json')); pg.wait_for_timeout(500)
+    fc.value.set_files(os.path.join(ROOT, 'pm', 'arsiv', 'Neway-VM1160H-M80V-GSA.mhnk-tezgah.json')); pg.wait_for_timeout(500)
     check('aynı dosya tekrar alınınca kimlik çakışması çözülür (" (2)")', count(pg, '#modal [data-testid=mc-row]') == 5 and 'GSA A (2)' in txt(pg, '#modal'))
     pg.evaluate("localStorage.setItem('mihenk.machines', JSON.stringify(JSON.parse(localStorage.getItem('mihenk.machines')).slice(0, 1)))")
     pg.click('#modal .btn.pri'); pg.click('[data-cmd=cam-machine]')

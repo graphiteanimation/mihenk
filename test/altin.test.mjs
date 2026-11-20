@@ -15,10 +15,14 @@ ok(karsilastir(taban, clone(taban)).kotulesme.length === 0, 'aynı sonuç kalmaz
 { const c = clone(taban); c.P4.delik.bulunan -= 1; ok(karsilastir(taban, c).kotulesme.length === 1, 'tanınan delik azalması kalır'); }
 { const c = clone(taban); c.P3.setups.S1.estS = taban.P3.setups.S1.estS * 1.10; ok(karsilastir(taban, c).kotulesme.length === 1, 'tahmini süre +%10 kalır'); }
 { const c = clone(taban); c.P3.setups.S1.estS = taban.P3.setups.S1.estS * 1.03; ok(karsilastir(taban, c).kotulesme.length === 0, 'tahmini süre +%3 geçer'); }
-{ const c = clone(taban); c.P4.setups.S1.G83 += 2; const r = karsilastir(taban, c); ok(r.kotulesme.length === 0 && r.bilgi.length === 1, 'çevrim sayısı değişimi yalnız bilgi'); }
+{ const c = clone(taban); c.P4.setups.S1.G83 += 2; const r = karsilastir(taban, c); ok(r.kotulesme.length === 1 && /G83 çevrim sayısı arttı/.test(r.kotulesme[0]), 'çevrim sayısı ARTIŞI kalır: ' + r.kotulesme); }
+{ const c = clone(taban); c.P3.setups.S1.G81 -= 1; const r = karsilastir(taban, c); ok(r.kotulesme.length === 0 && r.bilgi.length === 1 && /azaldı/.test(r.bilgi[0]), 'çevrim sayısı AZALMASI yalnız bilgi'); }
+{ const c = clone(taban); c.P3.setups.S1.kodlar = { 'cam.sim.yeni_kod': taban.P3.setups.S1.block }; const r = karsilastir(taban, c); ok(r.kotulesme.length === 1 && /yeni_kod/.test(r.kotulesme[0]), 'BLOCK sayısı aynı, kod farklı → kalır: ' + r.kotulesme); }
+ok(Object.values(taban).every((p) => Object.values(p.setups).every((s) => s.kodlar && Object.values(s.kodlar).reduce((a, b) => a + b, 0) === s.block)), 'taban her setup için BLOCK kodlarını içerir ve toplamı BLOCK sayısına eşit');
+{ const c = clone(taban); c.P1.setups.S9 = clone(c.P1.setups.S1); const r = karsilastir(taban, c); ok(r.kotulesme.length === 1 && /S9: taban yok/.test(r.kotulesme[0]), 'tabanda olmayan setup kalır: ' + r.kotulesme); }
 { const c = clone(taban); c.P4.setups.S1.block = 3; const r = karsilastir(taban, c); ok(r.kotulesme.length === 0, 'iyileşme kalmaz'); }
 { const c = clone(taban); delete c.P1; ok(karsilastir(taban, c).kotulesme.length === 1, 'kayıp parça kalır'); }
-{ const c = clone(taban); c.YENI = clone(taban.P1); const r = karsilastir(taban, c); ok(r.kotulesme.length === 0 && r.bilgi.some((x) => /YENI/.test(x)), 'yeni parça yalnız bilgi'); }
+{ const c = clone(taban); c.YENI = clone(taban.P1); const r = karsilastir(taban, c); ok(r.kotulesme.length === 1 && /YENI: taban yok: açık komutla güncelle/.test(r.kotulesme[0]), 'tabanda olmayan parça kalır: ' + r.kotulesme); }
 ok(/P1 \| S1/.test(tablo(taban)) && /Temiz NC oranı/.test(tablo(taban)), 'tablo üretilir');
 ok(ozet({ id: 'X', R: { setups: [{ id: 'S1', gates: [{ level: 'block' }, { level: 'warn' }], post: { ok: false }, islemler: [{ ok: true }, { ok: false }], nc_bloklu: { G83: 2 }, tahmini_sure_s: 10 }], sure_s: 1 } }).setups.S1.block === 1, 'ozet BLOCK sayar');
 console.log(`altin: ${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
