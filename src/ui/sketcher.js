@@ -258,10 +258,6 @@ export class Sketcher {
     if (s.pid) return s.pid;
     const id = this._newPt(s.x, s.y);
     const okOn = (eid) => { const e = this.sk.ents.find((x) => x.id === eid); return e && e.type !== 'spline' && e.type !== 'ellarc' && e.type !== 'point'; };
-    // WP-08 devir (g): hizalama izinden otomatik yatay/dikey (nokta-nokta) kısıt; "yatay/dikey" otomatik kısıt ayarına bağlı.
-    // Çizginin kendi yatay/dikey kısıtıyla aynı eksendeki iz atlanır (fazla kısıt olmasın).
-    // Yalnız Çizgi aracında (daire merkezi vb. için eklenince sonraki eş merkez/ölçü kısıtlarıyla fazla kısıt oluşuyordu).
-    if (s.kind === 'align' && this.tool === 'line' && autoOn('hv') && Array.isArray(s.refs)) for (const r of s.refs) { if (!r.id || r.id === id || !this.sk.points[r.id] || (s.align === 'h' && r.axis === 'h') || (s.align === 'v' && r.axis === 'v')) continue; this._addCon(r.axis === 'v' ? 'vertical_pp' : 'horizontal_pp', id, r.id); }
     if (!autoOn('on') && s.kind !== 'mid') return id; // otomatik "nesne üstünde" kapalı: yalnız nokta konur
     if (s.kind === 'int' && s.ents) { for (const e of s.ents) if (okOn(e)) this._addCon('pointOn', id, e); }
     else if (s.kind === 'quad' && s.ent) { // çeyrek nokta: daire/yayın üstünde ve merkezle yatay/dikey hizada
