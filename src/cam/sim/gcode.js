@@ -4,9 +4,10 @@
 // etkisi olmayan M kodlari (sogutma, kilit, ...) olay olarak kaydedilip yok sayilir.
 // Desteklenen: G0/G1/G2/G3 (IJK ya da R; tam daire), G17/G18/G19 (G18/G19 yaylari dogru parcalara bolunur), G90/G91, G20/G21,
 // G4, G28/G53 (Z: guvenli geri cekilme), G40/G41/G42 (D), G43/G49 (H), G54-G59/G54.1 P, G80-G89/G73/G74/G76 (G98/G99, G91'de
-// artimli R/Z), G94, G5/G5.1/G8/G9/G61/G64 (yok sayilir), T/M6 takim degisimi, S/M3/M4/M5, A indeksleme (3+1), M0/1/2/30.
-// Desteklenmeyen (hata): makro/degisken, alt program (M98/M99), G10/G52/G68/G92/G51, G87, ',R'/',C' kose kelimeleri, B/C/U/V/W
-// eksenleri, eszamanli A (A ile ayni blokta XYZ ya da G1 A), G90.1/G91.1 yay merkezi kipi.
+// artimli R/Z; G87 R = alt baslangic, Z = ustte bitis), G94, G5/G5.1/G8/G9/G61/G64 (yok sayilir), T/M6 takim degisimi, S/M3/M4/M5, A indeksleme (3+1), M0/1/2/30.
+// Desteklenmeyen (hata): makro/degisken, alt program (M98/M99), G10/G52/G68/G92/G51, ',R'/',C' kose kelimeleri, B/C/U/V/W
+// eksenleri, eszamanli A (A ile ayni blokta XYZ ya da G1 A), G90.1/G91.1 yay merkezi kipi. G76/G87: Q = kayma (IR shift);
+// kayma yonu tezgah parametresidir (NC'de yok; sim'de gerekmez: sim/index.js oriented()).
 // Bolum: takim degisimi, WCS degisimi, A acisi degisimi ve G28/G53 geri cekilmesi yeni bolum baslatir. Bolumun Z'si bilinmeden
 // ilk konumlanma "ev" yuksekligindedir: opts.homeZ, yoksa bolumdeki en yuksek programlanmis Z (muhafazakar degil: ev Z'si bilinmez).
 // opts: { tools: {[T]: takim geometrisi (IR tool alanlari + shaftDia/holder)}, setups?: [{id, workOffset, aAngle, ...}] (WCS + A ile
@@ -18,7 +19,7 @@ import { computeStats, ARC_MIN_CHORD } from '../ir.js';
 
 const gerr = (code, params = {}) => new KErr(code, params);
 const LETTERS = 'NOGMXYZAIJKRQPFSTHDL';
-const CYC = { 81: 'drill', 82: 'drill', 83: 'peck', 73: 'chipbreak', 84: 'tap', 74: 'tap', 85: 'ream', 86: 'bore', 88: 'bore', 89: 'bore', 76: 'bore' };
+const CYC = { 81: 'drill', 82: 'drill', 83: 'peck', 73: 'chipbreak', 84: 'tap', 74: 'tap', 85: 'ream', 86: 'bore', 88: 'bore', 89: 'bore', 76: 'fineBore', 87: 'backBore' }; // WP-14 IR: fineBore (G76), backBore (G87)
 const IGNORED_G = new Set([5, 5.1, 8, 9, 15, 61, 61.1, 64, 94, 17.1]);
 
 function tokenize(src, ln) {
@@ -149,7 +150,6 @@ export function gcodeToProgram(text, opts = {}) {
       if (newMotion != null && wantCyc == null) { finishCycle(); }
       else {
         if (wantCyc != null) {
-          if (wantCyc === 87) fail('cam.gcode.unsupported', ln, { what: 'G87' });
           if (S.z == null) fail('cam.gcode.no_position', ln);
           const prev = S.cyc; const init = prev ? prev.init : S.z;
           S.cyc = { code: wantCyc, init, R: prev?.R ?? null, Z: prev?.Z ?? null, Q: prev?.Q ?? null, f: prev?.f ?? S.f };
@@ -160,17 +160,24 @@ export function gcodeToProgram(text, opts = {}) {
         if (Z != null) cy.Z = S.inc ? (cy.R ?? cy.init) + Z : Z;
         if (cy.R == null || cy.Z == null) fail('cam.gcode.missing_word', ln, { word: cy.R == null ? 'R' : 'Z' });
         if (!(cy.f > 0)) fail('cam.gcode.missing_word', ln, { word: 'F' });
-        if ((cy.code === 83 || cy.code === 73) && !(cy.Q > 0)) fail('cam.gcode.missing_word', ln, { word: 'Q' });
+        if ((cy.code === 83 || cy.code === 73 || cy.code === 76 || cy.code === 87) && !(cy.Q > 0)) fail('cam.gcode.missing_word', ln, { word: 'Q' });
         if (S.x == null || S.y == null) { if (X == null || Y == null) fail('cam.gcode.no_position', ln); }
         const px = X != null ? (S.inc ? S.x + X : X) : S.x, py = Y != null ? (S.inc ? S.y + Y : Y) : S.y;
         ensureStartXY(ln, px, py);
         const kind = CYC[cy.code];
+        if (kind === 'backBore') { // G87: R = alttaki baslangic, Z = ustte bitis (Z > R); yalniz G98 (baslangic duzlemine doner)
+          if (!(cy.Z > cy.R) || S.retMode !== 98 || !(cy.Z < S.z)) fail('cam.gcode.cycle_heights', ln);
+          emit({ t: 'cycle', cycle: kind, points: [[px, py]], top: cy.Z, bottom: cy.R, cutTo: cy.Z, retract: S.z, clearance: S.z, f: cy.f, shift: cy.Q }, ln);
+          S.x = px; S.y = py; if (!near(cy.init, S.z)) { emit({ t: 'rapid', x: px, y: py, z: cy.init }, ln); S.z = cy.init; }
+          return;
+        }
         if (!(cy.Z < cy.R)) fail('cam.gcode.cycle_heights', ln);
         if (cy.R > S.z + 1e-9) fail('cam.gcode.cycle_heights', ln);
         // her nokta ayri IR cevrimi: baslangic = bulunulan Z (G99 sonrasi R), IR noktadan sonra oraya doner; tezgahin donus duzlemi
         // (G98: ilk cevrim blogundaki baslangic Z'si, G99: R) farkliysa ayni sutunda dusey hizli eklenir.
         const mv = { t: 'cycle', cycle: kind, points: [[px, py]], top: cy.R, bottom: cy.Z, retract: cy.R, clearance: S.z, f: cy.f };
         if (kind === 'peck' || kind === 'chipbreak') mv.peck = cy.Q;
+        if (kind === 'fineBore') mv.shift = cy.Q;
         if (kind === 'tap') { if (opts.tapMode === 'pitch') { mv.pitch = cy.f; mv.f = cy.f * S.rpm; } else mv.pitch = cy.f / S.rpm; }
         emit(mv, ln);
         S.x = px; S.y = py;

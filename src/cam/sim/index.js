@@ -311,16 +311,55 @@ export function createSim(input, opts = {}) {
       m.points.forEach((p, n) => {
         const last = n === m.points.length - 1;
         if (cur.pos.x !== p[0] || cur.pos.y !== p[1]) rapidTo({ x: p[0], y: p[1], z: cur.pos.z });
-        if (cur.pos.z !== m.retract) rapidTo({ x: p[0], y: p[1], z: m.retract });
-        const b = { x: p[0], y: p[1], z: m.bottom }; sweep(cur.pos, b, 1); cur.pos = b;
-        // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
-        if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
-        rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance || m.returnTo === 'clearance' ? m.clearance : m.retract }); // WP-06: returnTo 'clearance' = her nokta G98
+        const ret = { x: p[0], y: p[1], z: last || m.retract === m.clearance || m.returnTo === 'clearance' ? m.clearance : m.retract }; // WP-06: returnTo 'clearance' = her nokta G98
+        if (m.cycle === 'backBore') { // WP-13 (WP-14 G87): yonlendirilmis + kaydirilmis takimla deligin icinden hizli inis, alttan cutTo'ya kesme, kaydirilmis cikis
+          cur.allowNow = Math.max(cur.allowNow, cur.setup.zFloor - m.bottom); // alttan baslama: stok tabani alti kasitli (bu hareket icin uyari)
+          oriented(m.shift, () => rapidTo({ x: p[0], y: p[1], z: m.bottom }));
+          backCut(p[0], p[1], m.bottom, m.cutTo); cur.pos = { x: p[0], y: p[1], z: m.cutTo };
+          oriented(m.shift, () => rapidTo(ret));
+        } else {
+          if (cur.pos.z !== m.retract) rapidTo({ x: p[0], y: p[1], z: m.retract });
+          const b = { x: p[0], y: p[1], z: m.bottom }; sweep(cur.pos, b, 1); cur.pos = b;
+          // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
+          if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
+          if (m.cycle === 'fineBore') oriented(m.shift, () => rapidTo(ret)); // G76: dipte yonlendirme + kaydirma, hizli cikis
+          else rapidTo(ret);
+        }
         // T-23: cok noktali cevrimde sorunlar NOKTA basina yazilir (hangi delik; tek noktali cevrimlerle ayni sayim)
         if (m.points.length > 1) { cur.cycFresh.push(...flush(cur.si, cur.move, n)); cur.acc = {}; }
       });
       const lp = m.points[m.points.length - 1]; cur.prog = { x: lp[0], y: lp[1], z: m.clearance };
     }
+  }
+
+  // WP-13: G76/G87 yonlendirilmis (M19) ve shift kadar kaydirilmis takim. Takim modeli eksenel simetrik oldugundan kaydirilmis tek
+  // kesicili bar, DELIK EKSENI etrafinda R - shift yaricapli zarfla temsil edilir (kesici ucu duvardan shift kadar uzak; bar govdesinin
+  // bu zarfin icinde kaldigi VARSAYILIR). Kayma yonu (shiftDir) bu yuzden sonucu degistirmez. Tutucu degismez.
+  function oriented(shift, fn) {
+    const g = cur.geom, Rs = Math.max(1e-3, g.R - (shift > 0 ? shift : 0));
+    const prof = g.profile;
+    cur.geom = { ...g, R: Rs, cutR: Math.min(g.cutR, Rs), shaftR: Math.min(g.shaftR, Rs), profile: (r) => prof(r), rho: (u) => Math.min(g.rho(u), Rs), rhoEnv: (u) => Math.min(g.rhoEnv(u), Rs) };
+    try { fn(); } finally { cur.geom = g; }
+  }
+  // WP-13: alttan yukari kesme (G87): (x, y) ekseninde kesme yaricapli silindir [z0, z1] kaldirilir. Uc dexel: tam; yukseklik haritasi
+  // alttan kesimi temsil edemez: yalniz sutun ustu z1'in altindaysa (ustu acik) kaldirir, degilse malzeme KALIR (muhafazakar).
+  // Model oyma denetimi yapilmaz (model haritasi alttan acilan havsayi gostermez); fikstur denetimi orneklerde yapilir.
+  function backCut(x, y, z0, z1) {
+    const S = cur.setup, hm = S.hm, d = hm.data, g = cur.geom, R = g.cutR, rs = hm.res, nx = hm.nx;
+    if (S.fix) for (let z = z0, n = Math.max(1, Math.ceil((z1 - z0) / step)), k = 0; k <= n; k++, z = z0 + (z1 - z0) * k / n) {
+      samples++; const fh = fixtureHit(S.fix, g, x, y, z, fixTol);
+      if (fh) { const key = fh.part === 'tool' ? 'fixture_collision' : 'fixture_' + fh.part; const a = cur.acc[key] || (cur.acc[key] = { n: 0, depth: -Infinity, x: 0, y: 0, z: 0 }); a.n++; if (fh.depth > a.depth) { a.depth = fh.depth; a.x = x; a.y = y; a.z = z; a.part = fh.part; a.fixture = fh.fixture; } }
+    }
+    const i0 = Math.max(0, Math.floor((x - R - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((x + R - hm.x0) / rs));
+    const j0 = Math.max(0, Math.floor((y - R - hm.y0) / rs)), j1 = Math.min(hm.ny - 1, Math.floor((y + R - hm.y0) / rs));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const cx = hm.x0 + (i + 0.5) * rs, cy = hm.y0 + (j + 0.5) * rs; if (Math.hypot(cx - x, cy - y) > R) continue;
+      const k = j * nx + i; let rem = 0;
+      if (S.tri) { rem = subRay(S.tri.zr[k], z0, z1); d[k] = rayTop(S.tri.zr[k], S.zFloor); }
+      else { const h = d[k], lo = Math.max(z0, S.zFloor); if (h > lo && h <= z1 + tol) { rem = h - lo; d[k] = lo; } }
+      if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; }
+    }
+    if (S.tri) triCut(S.tri, g.rho, null, { x, y, z: z0 }, z1);
   }
 
   function flush(si, k, point = null) {

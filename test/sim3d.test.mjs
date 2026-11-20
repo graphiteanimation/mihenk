@@ -239,5 +239,37 @@ console.log('5. uc yonlu dexel: geriye uyum, yan yuz, alt kesme');
   const q = [0, 10]; ok(subRay(q, 2, 3) === 1 && JSON.stringify(q) === '[0,2,3,10]' && subRay(q, -5, 2.5) === 2 && JSON.stringify(q) === '[3,10]', 'subRay');
 }
 
+console.log('6. G76 ince delik / G87 arka havsa (WP-14 IR cevrimleri)');
+{
+  const bx = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const pre = heightmapFromFn([-20, -20], [20, 20], 0.25, (x, y) => (Math.hypot(x, y) <= 5 ? -30 : 0)); // O10 boydan boya on delik
+  const bore14 = { number: 5, H: 5, type: 'bore', dia: 14, fluteLen: 5, bodyLen: 60 };
+  const bb = (shift, cutTo = -25) => TP(bore14, [mk.rapid(0, 0, 30), mk.rapid(0, 0, 10), mk.cycle({ cycle: 'backBore', points: [[0, 0]], top: cutTo, bottom: -32, cutTo, retract: 10, clearance: 10, f: 80, shift }), mk.rapid(0, 0, 30)]);
+  const run = (tp, o = {}) => simulate(tp, { stockBox: bx, initialHeightmaps: { default: pre }, res: 0.25, ...o });
+  let r = run(bb(2.5), { dexel: 'tri' });
+  const want = Math.PI * (49 - 25) * 5;
+  ok(Math.abs(r.removedVolume - want) / want < 0.04, 'G87 tri: alttan havsa hacmi ' + r.removedVolume.toFixed(1) + ' ~ ' + want.toFixed(1));
+  ok(!r.issues.some((i) => i.level === 'error'), 'G87: kaydirilmis inis delige degmez (R7 - 2,5 < 5): ' + codes(r));
+  ok(r.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'warn'), 'G87: stok tabani alti baslangic uyari (engel degil)');
+  const T = r.triBySetup.default, zr = T.zr[Math.floor((0 - T.y0) / T.res) * T.nx + Math.floor((6 - T.x0) / T.res)];
+  ok(zr.length === 2 && Math.abs(zr[0] + 25) < 1e-6 && zr[1] === 0, 'G87 tri: r=6 sutununda malzeme yalniz [-25, 0] (alttan acilan havsa): ' + JSON.stringify(zr));
+  r = run(bb(2.5));
+  ok(r.removedVolume === 0 && !r.issues.some((i) => i.level === 'error'), 'G87 yukseklik haritasi: alttan kesim temsil edilemez -> malzeme kalir (muhafazakar)');
+  r = run(bb(1));
+  ok(r.issues.some((i) => i.code === 'cam.sim.rapid_in_stock' && i.level === 'error'), 'G87: kayma yetersiz (R7 - 1 > 5): hizli inis delige carpar: ' + codes(r));
+  // G76: kesme D10 ile, dipte kaydirilip hizli cikis
+  const fb = TP({ ...bore14, dia: 10 }, [mk.rapid(0, 0, 30), mk.rapid(0, 0, 10), mk.cycle({ cycle: 'fineBore', points: [[0, 0]], top: 0, bottom: -20, retract: 2, clearance: 10, f: 80, shift: 0.3 }), mk.rapid(0, 0, 30)]);
+  const pre4 = heightmapFromFn([-20, -20], [20, 20], 0.25, (x, y) => (Math.hypot(x, y) <= 4 ? -30 : 0));
+  r = simulate(fb, { stockBox: bx, initialHeightmaps: { default: pre4 }, res: 0.25 });
+  const w2 = Math.PI * (25 - 16) * 20;
+  ok(Math.abs(r.removedVolume - w2) / w2 < 0.04 && !r.issues.some((i) => i.level === 'error'), 'G76: delik buyutme hacmi ve temiz cikis: ' + r.removedVolume.toFixed(1) + ' ~ ' + w2.toFixed(1) + ' ' + codes(r));
+  // G-code: G76 / G87 okunur
+  const g = gcodeToProgram('T5 M6\nS800 M3\nG0 G90 G54 X0 Y0\nZ10.\nG98 G76 X0 Y0 Z-20. R2. Q0.3 F80.\nG80\nG98 G87 X0 Y0 Z-25. R-32. Q2.5 F80.\nG80\nG0 Z30.\nM30', { tools: { 5: bore14 } });
+  const cy = g.program.sections[0].toolpath.moves.filter((m) => m.t === 'cycle');
+  ok(cy.length === 2 && cy[0].cycle === 'fineBore' && cy[0].shift === 0.3 && cy[1].cycle === 'backBore' && cy[1].bottom === -32 && cy[1].cutTo === -25 && cy[1].retract === cy[1].clearance && cy[1].shift === 2.5, 'G-code G76/G87 -> IR fineBore/backBore: ' + JSON.stringify(cy.map((c) => [c.cycle, c.bottom, c.cutTo, c.shift])));
+  const r2 = simulate(g.program, { stockBox: bx, initialHeightmaps: { 'G54': pre }, res: 0.25, dexel: 'tri' });
+  ok(r2.removedVolume > 0 && !r2.issues.some((i) => i.level === 'error'), 'G-code G76+G87 sim: ' + codes(r2));
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
