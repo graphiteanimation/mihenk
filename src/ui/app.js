@@ -610,6 +610,24 @@ class App {
   }
   sketchTool(id) { this.sketcher?.setTool(id); this.C.renderToolbar(); }
   sketchConstraint(type) { try { this.sketcher?.applyConstraint(type); } catch (e) { toast(t('msg.constraint_failed', { msg: errText(e) }), true); } this.onSketchChange(); }
+  // WP-08: eskiz metni (uygulamayla gelen yazı tipi → kapalı çizgi konturları; çakışmalar çekirdekte temizlenir)
+  async sketchText() {
+    if (!this.sketchSession || !this.sketcher) return;
+    const prev = this._textOpts || { text: '', height: '10', x: '0', y: '0', angle: '0' };
+    const inp = (k, v, lbl) => { const e = h('input', { type: 'text', id: 'sktx-' + k, 'data-testid': 'sktx-' + k, value: v, autocomplete: 'off', spellcheck: 'false' }); return [e, h('div', { class: 'fld' }, h('label', { for: 'sktx-' + k, text: t(lbl) }), e)]; };
+    const [eT, rT] = inp('text', prev.text, 'sk.text_text'), [eH, rH] = inp('height', prev.height, 'sk.text_size'), [eX, rX] = inp('x', prev.x, 'fld.pos_x'), [eY, rY] = inp('y', prev.y, 'fld.pos_y'), [eA, rA] = inp('angle', prev.angle, 'fld.angle');
+    const num = (e) => { try { return Number(evalExpr(e.value, this.vars())); } catch (x) { return NaN; } };
+    let vals = null;
+    const ok = await modal({
+      title: t('sk.text_title'), content: h('div', {}, rT, rH, rX, rY, rA, h('div', { class: 'note', text: t('sk.text_note') })),
+      buttons: [{ label: t('common.ok'), cls: 'pri', value: true, check: () => { vals = { text: eT.value, height: num(eH), x: num(eX), y: num(eY), angle: num(eA) }; return !!vals.text.trim() && vals.height > 0 && [vals.x, vals.y, vals.angle].every(Number.isFinite); } }, { label: t('common.cancel'), value: false }],
+    });
+    if (!ok || !vals) return;
+    this._textOpts = { text: eT.value, height: eH.value, x: eX.value, y: eY.value, angle: eA.value };
+    const r = await this.sketcher.insertText(vals);
+    toast(r.ok ? t('sk.text_done', { n: r.glyphs }) : r.msg || t('sk.text_failed'), !r.ok);
+    this.onSketchChange();
+  }
   sketchConstruction() { this.sketcher?.toggleConstruction(); this.onSketchChange(); }
   async setSketchOffset(expr) {
     const s = this.sketchSession; if (!s || s.draft.plane.kind !== 'base') return;

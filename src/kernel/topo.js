@@ -84,7 +84,7 @@ export function propagate(b, inputs, res, opt = {}) {
 }
 
 // Boolean: args/tools = [{shape, fn, map?}]. Tek BOP çağrısı (çok takım = O(n), F-11).
-export function boolean(op, args, tools) {
+export function boolean(op, args, tools, simplify = true) {
   const O = oc(); const r = scope();
   try {
     const b = r(op === 'fuse' ? new O.BRepAlgoAPI_Fuse() : op === 'cut' ? new O.BRepAlgoAPI_Cut() : new O.BRepAlgoAPI_Common());
@@ -92,9 +92,12 @@ export function boolean(op, args, tools) {
     for (const a of args) app(la, a.shape.wrapped); for (const t of tools) app(lt, t.shape.wrapped);
     b.SetArguments(la); b.SetTools(lt); b.Build(progress(r));
     if (!b.IsDone() || b.HasErrors()) return null;
-    b.SimplifyResult(true, true, 1e-3);
+    if (simplify) b.SimplifyResult(true, true, 1e-3);
     const raw = b.Shape(); if (raw.IsNull()) { raw.delete(); return null; }
     const shape = wrap(raw);
+    // WP-08: SimplifyResult bazı ayrık çok-katılı sonuçlarda (ör. aynı düzlemde kapakları olan ayrık metin harfleri) BRepCheck'ten
+    // geçmeyen şekil üretiyor; yalnız o durumda sadeleştirmesiz sonuç kullanılır (geçerli sonuçlar değişmez).
+    if (simplify && validity(shape)) return boolean(op, args, tools, false);
     const fn = propagate(b, [...args, ...tools], shape);
     return { shape, fn };
   } finally { r.done(); }

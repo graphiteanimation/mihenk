@@ -601,4 +601,47 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   ok(Math.abs(A.v - v0) / v0 > 1e-4, `F-26 yeniden üretildi: varsayılan STL Ø24 mil hacim hatası ${((A.v - v0) / v0).toExponential(2)} (> 1e-4)`);
   ok(Math.abs(B.v - v0) / v0 < 1e-4 && B.n > A.n, `F-26 ince ağ: hacim hatası ${((B.v - v0) / v0).toExponential(2)} < 1e-4 (üçgen ${A.n} → ${B.n})`);
 }
+
+// ------------------------------------------------------------------ WP-08 dilim 6: eskiz metni (Inter, OFL) → kapalı konturlar → extrude profili
+{
+  const { parseFont, textOutlines, segmentsToSketch, cleanSegments } = await import('../src/ui/sketch/text.js');
+  const { selectionFor } = await import('../src/shared/profiles.js');
+  const font = parseFont(new Uint8Array(fs.readFileSync(path.join(here, '../src/ui/sketch/fonts/Inter-Regular.ttf'))));
+  ok(font.upm === 2048 && font.glyphOf(0x11f) > 0 && font.glyphOf(0x15f) > 0 && font.glyphOf(0x130) > 0 && font.glyphOf(0x131) > 0, 'WP-08 metin: yazı tipi okundu, Türkçe karakterler (ğ ş İ ı) var');
+  const K8 = await initKernel(opencascade, () => wasm);
+  // bağımsız alan hesabı: sıfır olmayan sarım bölgesinin tam alanı (tarama: tepe ve kesişim y'leri arasında uzunluk doğrusal)
+  const nzArea = (polys) => {
+    const E = []; for (const p of polys) for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; if (a[1] !== b[1]) E.push(a[1] < b[1] ? [a, b, 1] : [b, a, -1]); }
+    const ys = new Set(); for (const [a, b] of E) { ys.add(a[1]); ys.add(b[1]); }
+    for (let i = 0; i < E.length; i++) for (let j = i + 1; j < E.length; j++) { const [p, q] = E[i], [r2, s2] = E[j]; const d = (q[0] - p[0]) * (s2[1] - r2[1]) - (q[1] - p[1]) * (s2[0] - r2[0]); if (Math.abs(d) < 1e-15) continue; const tt = ((r2[0] - p[0]) * (s2[1] - r2[1]) - (r2[1] - p[1]) * (s2[0] - r2[0])) / d, uu = ((r2[0] - p[0]) * (q[1] - p[1]) - (r2[1] - p[1]) * (q[0] - p[0])) / d; if (tt > 0 && tt < 1 && uu > 0 && uu < 1) ys.add(p[1] + tt * (q[1] - p[1])); }
+    const Y = [...ys].sort((a, b) => a - b); let A = 0;
+    for (let k = 0; k + 1 < Y.length; k++) {
+      const y = (Y[k] + Y[k + 1]) / 2, xs = [];
+      for (const [a, b, w] of E) if (a[1] <= y && b[1] > y) xs.push([a[0] + ((y - a[1]) / (b[1] - a[1])) * (b[0] - a[0]), w]);
+      xs.sort((a, b) => a[0] - b[0]); let wn = 0, len = 0;
+      for (let i = 0; i < xs.length; i++) { const w0 = wn; wn += xs[i][1]; if (w0 !== 0 && i > 0) len += xs[i][0] - xs[i - 1][0]; }
+      A += len * (Y[k + 1] - Y[k]);
+    }
+    return A;
+  };
+  const winding = (polys, x, y) => { let w = 0; for (const p of polys) for (let i = 0; i < p.length; i++) { const [ax, ay] = p[i], [bx, by] = p[(i + 1) % p.length]; if (ay <= y) { if (by > y && (bx - ax) * (y - ay) - (x - ax) * (by - ay) > 0) w++; } else if (by <= y && (bx - ax) * (y - ay) - (x - ax) * (by - ay) < 0) w--; } return w; };
+  for (const txt of ['Mihenk', 'ĞŞİçöü', 'B8%']) {
+    const glyphs = textOutlines(font, txt, { height: 10, x: 5, y: 3 });
+    const segs = cleanSegments(glyphs, 2e-4); const pts = {}, ents = []; let k = 0;
+    segmentsToSketch(segs, (x, y) => { const id = 'p' + (k++); pts[id] = { x, y }; return id; }, (a, b) => ents.push({ id: 'l' + (k++), type: 'line', a, b }), 2e-4);
+    const fr = findRegions({ points: pts, ents });
+    ok(!fr.open && !fr.issues.length, `WP-08 metin "${txt}": kapalı, temiz konturlar (çakışma yok): ` + JSON.stringify(fr.issues.slice(0, 2)));
+    const ink = fr.regions.filter((r) => glyphs.some((g) => winding(g, r.inside[0], r.inside[1]) !== 0));
+    const A = glyphs.reduce((s, g) => s + nzArea(g), 0);
+    const r = await K8.rebuild({ features: [{ id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '0' }, points: pts, ents }, { id: 'e', type: 'extrude', sketch: 's', profiles: ink.map(selectionFor), dist: '2', op: 'new' }] });
+    ok(r.status.e.ok, `WP-08 metin "${txt}" extrude: ` + JSON.stringify(r.status.e.error));
+    near(r.bodies.reduce((a, b) => a + b.volume, 0), 2 * A, `WP-08 metin "${txt}": hacim = 2 × (sıfır olmayan sarım alanı, bağımsız tarama)`, 1e-6);
+  }
+  // kazıma: kutu üzerine metin, Kes 0,5 mm
+  { const glyphs = textOutlines(font, 'Ş', { height: 8, x: 2, y: 2 }); const segs = cleanSegments(glyphs, 2e-4); const pts = {}, ents = []; let k = 0;
+    segmentsToSketch(segs, (x, y) => { const id = 'p' + (k++); pts[id] = { x, y }; return id; }, (a, b) => ents.push({ id: 'l' + (k++), type: 'line', a, b }), 1.6e-4);
+    const ink = findRegions({ points: pts, ents }).regions.filter((r) => glyphs.some((g) => winding(g, r.inside[0], r.inside[1]) !== 0));
+    const r = await K8.rebuild({ features: [{ id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '-5', w: '20', d: '20', h: '5', op: 'new' }, { id: 's', type: 'sketch', plane: { kind: 'base', name: 'XY', offset: '0' }, points: pts, ents }, { id: 'e', type: 'extrude', sketch: 's', profiles: ink.map(selectionFor), dist: '0.5', flip: true, op: 'cut' }] });
+    near(r.bodies[0]?.volume, 2000 - 0.5 * nzArea(glyphs[0]), 'WP-08 metin kazıma "Ş" 0,5 mm: hacim', 1e-6); }
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
