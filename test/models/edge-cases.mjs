@@ -204,7 +204,8 @@ C('D24', 'belge', 'import özelliği olmayan veriyle (data yok, format step)', D
 C('D25', 'belge', 'kopya özellik (aynı belge iki kez rebuild, artımlı önbellek)', D(prim()), (o) => volIs(1000)(o));
 const MUST = new Set(['V02', 'B06', 'B15', 'S06', 'S08', 'S09', 'P01', 'H07b', 'H13', 'H16', 'H19', 'D07', 'D14', 'D25', 'I17', 'I18', 'R11', 'V12b', 'V16b', 'V24b', 'F19c']);
 // Başka işe bağlı (bu çekirdek işinin sahipliği dışında) bekleyen vakalar: silinmez, ayrı sayılır
-const PENDING = { V31: 'F-15 expr.js (ayrı iş)', V32: 'F-15 expr.js (ayrı iş)', V35: 'F-15 expr.js (ayrı iş)' };
+// O-044 (WP-08): V31 ve V35 düzeltildi; V32 bilerek değişmedi (virgül ondalık ayraç, fonksiyon ayracı ';')
+const PENDING = { V32: 'O-044: virgül ondalık ayraç kalır (max(10;5) yazılır)' };
 for (const c of cases) c.mustSucceed = MUST.has(c.id);
 // ---------- çalıştırıcı
 async function runCase(K, c) {

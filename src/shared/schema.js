@@ -36,6 +36,11 @@ const profilesChk = (v, p) => {
   v.forEach((x, i) => { if (typeof x === 'number') num()(x, p + '[' + i + ']'); else obj({ ents: arrOf(str(LIMITS.shortStr), LIMITS.refs), hint: arrOf(num(), 2) })(x, p + '[' + i + ']'); });
 };
 const OPS = ['new', 'join', 'cut', 'intersect'];
+// WP-08 devir (a): ilişkisel izdüşüm bağı (WP-09) ent.proj = {b, g, c, sig, e, fp, pin, lost}; hepsi isteğe bağlı
+const sigPt = arrOf(num(), 2);
+const projChk = obj({ b: str(LIMITS.shortStr), g: num(), c: arrOf(num(), 3), e: str(LIMITS.shortStr), pin: arrOf(str(LIMITS.shortStr), 64), lost: bool(),
+  fp: arrOf((v, p) => { if (v !== null && typeof v !== 'string') num()(v, p); else if (typeof v === 'string') str(40)(v, p); }, 64),
+  sig: nullable(obj({ k: oneOf(['l', 'a', 'o', 's']), a: sigPt, b: sigPt, c: sigPt, r: num() })) });
 const AX = ['X', 'Y', 'Z'];
 const sourceChk = obj({ kind: oneOf(['feature', 'body']), id: str(LIMITS.shortStr), bodies: strArr() });
 const sketchChk = {
@@ -46,23 +51,26 @@ const sketchChk = {
     const ks = Object.keys(v); if (ks.length > LIMITS.sketchItems) fail('schema.too_many', { what: p, max: LIMITS.sketchItems });
     for (const k of ks) { str(LIMITS.shortStr)(k, p + '{key}'); obj({ x: num(), y: num(), fixed: bool() })(v[k], p + '.' + k); }
   },
-  ents: arrOf(obj({ id: str(LIMITS.shortStr), type: oneOf(['line', 'circle', 'arc', 'point', 'ellipse', 'ellarc', 'spline']), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), p: str(LIMITS.shortStr), f: str(LIMITS.shortStr), r: expr(), rmin: num(), pts: arrOf(str(LIMITS.shortStr), LIMITS.sketchItems), closed: bool(), cons: bool() }), LIMITS.sketchItems),
+  ents: arrOf(obj({ id: str(LIMITS.shortStr), type: oneOf(['line', 'circle', 'arc', 'point', 'ellipse', 'ellarc', 'spline']), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), p: str(LIMITS.shortStr), f: str(LIMITS.shortStr), r: expr(), rmin: num(), pts: arrOf(str(LIMITS.shortStr), LIMITS.sketchItems), closed: bool(), cons: bool(), proj: projChk }), LIMITS.sketchItems),
   cons: arrOf(obj({ id: str(LIMITS.shortStr), type: str(40), a: str(LIMITS.shortStr), b: str(LIMITS.shortStr), c: str(LIMITS.shortStr), expr: expr(), ref: bool(), lo: arrOf(num(), 2) }), LIMITS.sketchItems),
 };
 // Özellik türü → alan denetleyicileri. Listede olmayan alanlar genel denetimden (derinlik/uzunluk/boyut) geçer.
 const TYPES = {
   primitive: { kind: oneOf(['box', 'cylinder', 'sphere']), x: expr(), y: expr(), z: expr(), w: expr(), d: expr(), h: expr(), dia: expr(), axis: oneOf(AX), op: oneOf(OPS), targets: strArr() },
   sketch: sketchChk,
-  extrude: { sketch: str(LIMITS.shortStr), profiles: profilesChk, dist: expr(), dist2: expr(), extent: oneOf(['dist', 'all']), dir: oneOf(['one', 'sym', 'two']), flip: bool(), op: oneOf(OPS), targets: strArr() },
+  extrude: { sketch: str(LIMITS.shortStr), profiles: profilesChk, dist: expr(), dist2: expr(), extent: oneOf(['dist', 'all', 'face', 'body']), toFace: obj(), toBody: str(LIMITS.shortStr), taper: expr(), dir: oneOf(['one', 'sym', 'two']), flip: bool(), op: oneOf(OPS), targets: strArr() },
   revolve: { sketch: str(LIMITS.shortStr), profiles: profilesChk, axis: obj({ kind: oneOf(['sketchX', 'sketchY', 'line']), ent: str(LIMITS.shortStr) }), angle: expr(), op: oneOf(OPS), targets: strArr() },
-  hole: { sketch: str(LIMITS.shortStr), kind: oneOf(['simple', 'cbore', 'csink']), dia: expr(), depth: expr(), tipAngle: expr(), cboreDia: expr(), cboreDepth: expr(), csinkDia: expr(), csinkAngle: expr(), extent: oneOf(['dist', 'all']), flip: bool(), thread: nullable(obj({ designation: str(40), pitch: num(), major: num() })), targets: strArr() },
-  fillet: { edges: arrOf(obj(), LIMITS.refs), r: expr() },
-  chamfer: { edges: arrOf(obj(), LIMITS.refs), d: expr() },
+  hole: { sketch: str(LIMITS.shortStr), kind: oneOf(['simple', 'cbore', 'csink']), dia: expr(), depth: expr(), tipAngle: expr(), cboreDia: expr(), cboreDepth: expr(), csinkDia: expr(), csinkAngle: expr(), extent: oneOf(['dist', 'all']), flip: bool(), thread: nullable(obj({ designation: str(40), pitch: num(), major: num(), family: oneOf(['iso', 'iso_fine', 'g', 'npt']), drill: num(), tpi: num(), taper: bool() })), targets: strArr() },
+  fillet: { edges: arrOf(obj(), LIMITS.refs), r: expr(), chain: bool() },
+  chamfer: { edges: arrOf(obj(), LIMITS.refs), d: expr(), mode: oneOf(['equal', 'two', 'angle']), d2: expr(), angle: expr(), flip: bool(), chain: bool() },
   shell: { faces: arrOf(obj(), LIMITS.refs), t: expr() },
   combine: { target: str(LIMITS.shortStr), tools: strArr(), op: oneOf(['join', 'cut', 'intersect']), keepTools: bool() },
   move: { bodies: strArr(), dx: expr(), dy: expr(), dz: expr(), angle: expr(), axis: oneOf(AX), cx: expr(), cy: expr(), cz: expr(), copy: bool() },
-  pattern: { kind: oneOf(['rect', 'circ']), source: sourceChk, count1: expr(), step1: expr(), dir1: oneOf(AX), count2: expr(), step2: expr(), dir2: oneOf(AX), count: expr(), total: expr(), axis: oneOf(AX), cx: expr(), cy: expr(), cz: expr(), join: bool() },
-  mirror: { source: sourceChk, plane: oneOf(['XY', 'XZ', 'YZ']), offset: expr() },
+  pattern: { kind: oneOf(['rect', 'circ']), source: sourceChk, count1: expr(), step1: expr(), dir1: oneOf(AX), count2: expr(), step2: expr(), dir2: oneOf(AX), count: expr(), total: expr(), axis: oneOf([...AX, 'edge']), axisRef: obj(), cx: expr(), cy: expr(), cz: expr(), join: bool() },
+  mirror: { source: sourceChk, plane: oneOf(['XY', 'XZ', 'YZ', 'face']), planeRef: obj(), offset: expr() },
+  split: { body: str(LIMITS.shortStr), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
+  splitface: { faces: arrOf(obj(), LIMITS.refs), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
+  faceop: { faces: arrOf(obj(), LIMITS.refs), mode: oneOf(['offset', 'move', 'delete']), dist: expr(), dx: expr(), dy: expr(), dz: expr() },
   import: { format: oneOf(['step', 'stl']), name: str(LIMITS.str), data: str(LIMITS.fileBytes), hash: str(LIMITS.shortStr) },
 };
 export const KNOWN_TYPES = Object.keys(TYPES);
@@ -163,6 +171,13 @@ export function validateDoc(doc, { byteLength } = {}) {
     for (const k of ks) str(LIMITS.shortStr)(doc.bodyNames[k], 'bodyNames.' + k);
   }
   if (doc.cam !== undefined && doc.cam !== null) validateCam(doc.cam);
+  // WP-08 devir (a): WP-02 grupları [{id, name, first, last}] (ardışık aralık; aralık geçerliliğini arayüz denetler)
+  if (doc.groups !== undefined) {
+    arrOf(obj({ id: str(LIMITS.shortStr), name: str(LIMITS.shortStr), first: str(LIMITS.shortStr), last: str(LIMITS.shortStr) }), LIMITS.features)(doc.groups, 'groups');
+    doc.groups.forEach((g, i) => { for (const k of ['id', 'first', 'last']) if (typeof g[k] !== 'string' || !g[k]) fail('schema.bad_field', { path: `groups[${i}].${k}`, expect: 'text' }); });
+  }
+  // WP-08 devir (c): belgeyle saklanan adlandırılmış görünüşler (en çok 12 yuva; kodlu metin, boş = boş yuva)
+  if (doc.views !== undefined) arrOf(str(200), 12)(doc.views, 'views');
   const feats = doc.features === undefined ? [] : doc.features;
   if (!Array.isArray(feats)) fail('schema.bad_field', { path: 'features', expect: 'list' });
   if (feats.length > LIMITS.features) fail('schema.too_many_features', { max: LIMITS.features });

@@ -3,7 +3,7 @@ import { h, $, toast, modal, fmt, esc } from './dom.js';
 import { icon, featureIcon } from './icons.js';
 import { t, tk, errText } from '../shared/i18n.js';
 import { toErr } from '../shared/errors.js';
-import { fieldsFor, featLabel, THREADS, patternSources } from './features.js';
+import { fieldsFor, featLabel, THREADS, THREAD_TABLES, THREAD_FAMILIES, threadFamily, patternSources } from './features.js';
 import { evalExpr, resolveParams } from '../shared/expr.js';
 import { LIMITS } from '../shared/schema.js';
 import { basePlane } from '../shared/vec.js';
@@ -38,7 +38,7 @@ export class FeaturePanel {
     return { doc: { ...this.app.doc, features: feats }, bodies: this.app.result?.bodies || [], sketches: feats.filter((f) => f.type === 'sketch') };
   }
   fields() { return fieldsFor(this.draft, this.ctx()); }
-  hasSel() { return this.fields().some((f) => f.t === 'sel' || (f.t === 'source' && this.draft.source?.kind === 'body')); }
+  hasSel() { return this.fields().some((f) => f.t === 'sel' || (f.t === 'source' && this.draft.source?.kind === 'body') || (f.t === 'tool' && this.draft.tool?.kind === 'face')); }
   pickBase() { return this.activeSel != null; }
   // düzenlenen işlemin sağında (işaretçiye kadar) işlem var mı
   hasAfter() { const rb = this.app.doc.rollback; const end = rb ?? this.app.doc.features.length; return this.isNew ? this.at < end : this.at + 1 < end; }
@@ -78,7 +78,7 @@ export class FeaturePanel {
 
   dropLost() {
     const by = new Map(); for (const L of this.repair.lost) { if (!by.has(L.field)) by.set(L.field, new Set()); by.get(L.field).add(L.index); }
-    for (const [k, set] of by) { const v = this.draft[k]; if (Array.isArray(v)) this.draft[k] = v.filter((_, j) => !set.has(j)); else if (v && set.has(null)) this.draft[k] = Array.isArray(v) ? [] : ''; }
+    for (const [k, set] of by) { if (k.startsWith('plane')) { if (this.draft.plane) delete this.draft.plane.ref; continue; } const v = this.draft[k]; if (Array.isArray(v)) this.draft[k] = v.filter((_, j) => !set.has(j)); else if (v && set.has(null)) this.draft[k] = Array.isArray(v) ? [] : ''; }
   }
   repairBox() {
     const R = this.repair; if (!R) return null; const app = this.app;
@@ -118,7 +118,7 @@ export class FeaturePanel {
     const d = this.draft, app = this.app;
     switch (fd.t) {
       case 'expr': {
-        const inp = h('input', { type: 'text', 'data-k': fd.k, value: d[fd.k] ?? '', autocomplete: 'off', spellcheck: 'false', class: 'expr' });
+        const inp = h('input', { type: 'text', 'data-k': fd.k, value: d[fd.k] ?? fd.def ?? '', autocomplete: 'off', spellcheck: 'false', class: 'expr' });
         const hint = h('div', { class: 'resolved', 'data-testid': 'resolved' }); const msg = h('div', { class: 'fieldmsg', role: 'alert', hidden: true });
         const box = unitBox(inp, fd.unit);
         const upd = () => {
@@ -170,21 +170,47 @@ export class FeaturePanel {
         return this.row(fd.label, unitBox(s));
       }
       case 'thread': {
+        // WP-08: diş ailesi (ISO kaba / ISO ince / G (BSPP) / NPT) + ölçü. ISO kaba kaydı eski biçimdedir ({designation, pitch, major}).
         const cur = d.thread?.designation || '';
-        const s = h('select', { 'data-k': 'thread' }, [h('option', { value: '' }, t('common.none')), ...THREADS.map((th) => h('option', { value: th.designation, selected: th.designation === cur }, t('fld.thread_opt', { d: th.designation, p: fmt(th.pitch, 3) })))]);
+        const fam = this.thrFam || threadFamily(d.thread); this.thrFam = fam; const table = THREAD_TABLES[fam] || THREAD_TABLES.iso;
+        const fs = h('select', { 'data-k': 'thread.family', 'aria-label': t('fld.thread_family') }, THREAD_FAMILIES.map(([v, l]) => h('option', { value: v, selected: v === fam }, t(l))));
+        fs.addEventListener('change', () => { this.thrFam = fs.value; this.setActive(null); this.render(); this.updateViewport(); });
+        const opt = (th) => (th.tpi ? t('fld.thread_opt_tpi', { d: th.designation, n: fmt(th.tpi, 1) }) : t('fld.thread_opt', { d: th.designation, p: fmt(th.pitch, 3) }));
+        const s = h('select', { 'data-k': 'thread' }, [h('option', { value: '' }, t('common.none')), ...table.map((th) => h('option', { value: th.designation, selected: th.designation === cur }, opt(th)))]);
         s.addEventListener('change', () => {
-          const th = THREADS.find((x) => x.designation === s.value);
-          d.thread = th ? { designation: th.designation, pitch: th.pitch, major: th.major } : null;
-          if (th) d.dia = String(Math.round((th.major - th.pitch) * 1000) / 1000);
+          const th = table.find((x) => x.designation === s.value);
+          d.thread = !th ? null : fam === 'iso' ? { designation: th.designation, pitch: th.pitch, major: th.major } : Object.fromEntries(Object.entries(th).filter(([, v]) => v !== undefined));
+          if (th) d.dia = String(fam === 'iso' ? Math.round((th.major - th.pitch) * 1000) / 1000 : th.drill);
           this.fieldChanged('thread');
         });
-        return this.row(fd.label, unitBox(s));
+        const note = d.thread && d.thread.family ? h('div', { class: 'resolved', 'data-testid': 'thread-drill', text: t('fld.thread_drill', { d: fmt(d.thread.drill, 3) }) + (d.thread.taper ? ' · ' + t('fld.thread_taper') : '') }) : null;
+        return this.row(fd.label, h('div', {}, unitBox(fs), h('div', { style: { marginTop: '4px' } }, unitBox(s)), note));
       }
       case 'sel': {
         const el = h('div', { class: 'selbox input pick', 'data-k': fd.k, 'data-testid': 'sel-' + fd.k, tabindex: '0', role: 'button', onclick: () => this.setActive(fd.k) });
         el.addEventListener('keydown', (e) => { if (e.key === ' ' || (e.key === 'Enter' && e.target === el)) { e.preventDefault(); e.stopPropagation(); this.setActive(fd.k); } });
         el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', title: t('fld.clear_sel'), 'aria-label': t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel(fd.k); }, html: icon('close', 'sm') }));
         return this.row(fd.label, el);
+      }
+      case 'tool': {
+        // WP-08: bölme düzlemi: ana düzlem (+ ofset) ya da düzlemsel yüz
+        const T = d.tool || (d.tool = { kind: 'base', name: 'YZ', offset: '0' });
+        const cur = T.kind === 'face' ? 'face' : T.name || 'YZ';
+        const s = h('select', { 'data-k': 'tool' }, [['XY', 'plane.xy'], ['XZ', 'plane.xz'], ['YZ', 'plane.yz'], ['face', 'fld.plane_face']].map(([v, l]) => h('option', { value: v, selected: v === cur }, t(l))));
+        s.addEventListener('change', () => { d.tool = s.value === 'face' ? { kind: 'face' } : { kind: 'base', name: s.value, offset: T.offset ?? '0' }; this.fieldChanged('tool'); if (s.value === 'face') this.setActive('tool.ref', true); });
+        const wrap = h('div', {}, unitBox(s));
+        if (T.kind === 'face') {
+          const el = h('div', { class: 'selbox input pick', 'data-k': 'tool.ref', 'data-testid': 'sel-tool-ref', style: { marginTop: '4px' }, tabindex: '0', role: 'button', onclick: () => this.setActive('tool.ref') });
+          el.addEventListener('keydown', (e) => { if (e.key === ' ' || (e.key === 'Enter' && e.target === el)) { e.preventDefault(); e.stopPropagation(); this.setActive('tool.ref'); } });
+          el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', 'aria-label': t('fld.clear_sel'), title: t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel('tool.ref'); }, html: icon('close', 'sm') }));
+          wrap.append(el);
+        } else {
+          const inp = h('input', { type: 'text', 'data-k': 'tool.offset', value: T.offset ?? '0', autocomplete: 'off', spellcheck: 'false', class: 'expr', 'aria-label': t('fld.offset') });
+          inp.addEventListener('input', () => { d.tool.offset = inp.value; this.changed(); });
+          inp.addEventListener('focus', () => this.setActive(null));
+          wrap.append(h('div', { style: { marginTop: '4px' } }, unitBox(inp, 'mm')));
+        }
+        return this.row(fd.label, wrap);
       }
       case 'source': {
         const srcs = patternSources(this.ctx().doc);
@@ -206,17 +232,17 @@ export class FeaturePanel {
     this.setActive(null); this.render();
     const first = this.fields().find((x) => x.t === 'sel');
     if (k === 'source' && this.draft.source?.kind === 'body') this.setActive('source.bodies', true);
-    else if (first && k === 'kind') this.setActive(first.k, true);
+    else if (first && ['kind', 'extent', 'mode', 'tool', 'axis', 'plane'].includes(k)) this.setActive(first.k, true);
     this.updateViewport(); this.changed();
   }
   changed() { this.app.previewSoon(); }
 
   // --- seçim alanları
-  selKind(k) { if (k === 'source.bodies') return 'body'; return this.fields().find((f) => f.k === k)?.kind; }
-  getSel(k) { if (k === 'source.bodies') return this.draft.source?.bodies || []; const v = this.draft[k]; return Array.isArray(v) ? v : v ? [v] : []; }
+  selKind(k) { if (k === 'source.bodies') return 'body'; if (k === 'tool.ref' || k === 'sketchFace') return 'face'; return this.fields().find((f) => f.k === k)?.kind; }
+  getSel(k) { if (k === 'source.bodies') return this.draft.source?.bodies || []; if (k === 'tool.ref') return this.draft.tool?.ref ? [this.draft.tool.ref] : []; if (k === 'sketchFace') return this.draft.plane?.ref ? [this.draft.plane.ref] : []; const v = this.draft[k]; return Array.isArray(v) ? v : v ? [v] : []; }
   setSelList(k, list) {
     const f = this.fields().find((x) => x.k === k);
-    if (k === 'source.bodies') this.draft.source.bodies = list; else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
+    if (k === 'source.bodies') this.draft.source.bodies = list; else if (k === 'sketchFace') { if (list.length) this.draft.plane = { ...this.draft.plane, kind: 'face', ref: list[list.length - 1] }; else if (this.draft.plane) delete this.draft.plane.ref; } else if (k === 'tool.ref') { if (list.length) this.draft.tool.ref = list[list.length - 1]; else delete this.draft.tool.ref; } else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
   }
   // C-04: × seçimi temizler ve alanı etkinleştirir (× tıklaması kutunun kendi tıklamasını durdurduğu için alan pasif kalıp kenar tıklamaları boşa gidiyordu)
   clearSel(k) { this.setSelList(k, []); this.setActive(k, true); this.refreshSels(); this.updateViewport(); this.changed(); }
@@ -307,8 +333,14 @@ export class FeaturePanel {
       if (i >= 0) list.splice(i, 1); else if (f?.single) list = [hit.body]; else list.push(hit.body);
     } else {
       const i = list.findIndex((r) => r.body === hit.body && r.idx === hit.idx);
-      if (i >= 0) list.splice(i, 1);
-      else { try { list.push(await this.app.describe(hit, kind)); } catch (e) { toast(t('msg.selection_unreadable', { msg: errText(e) }), true); return; } }
+      // WP-08: teğet zincir (yuvarlat/pah): tıklanan kenarın G1 zinciri birlikte seçilir / bırakılır
+      let chain = [hit.idx];
+      if (kind === 'edge' && (d.type === 'fillet' || d.type === 'chamfer') && d.chain) { try { chain = await this.app.query('tangentChain', { ref: { body: hit.body, idx: hit.idx } }); } catch (e) { chain = [hit.idx]; } }
+      if (i >= 0) list = list.filter((r) => !(r.body === hit.body && chain.includes(r.idx)));
+      else {
+        try { for (const idx of chain) if (!list.some((r) => r.body === hit.body && r.idx === idx)) list.push(await this.app.describe({ ...hit, idx }, kind)); }
+        catch (e) { toast(t('msg.selection_unreadable', { msg: errText(e) }), true); return; }
+      }
     }
     this.setSelList(k, list); this.refreshSels(); this.updateViewport(); this.changed();
   }

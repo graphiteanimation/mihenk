@@ -112,6 +112,28 @@ function buildPrims(sk, vars) {
     return { prims, entById, errs };
 }
 
+const safeBool = (f) => { try { return !!f(); } catch (e) { console.warn('solver: bayrak okunamadı', e && e.message); return false; } };
+// tarayıcıda (CSP) yerleşik liste okuması kapalı; Node'da (testler, CSP yok) açık. Hata olursa günlüğe yazılır ve yerel tanılamaya geçilir.
+let listBroken = typeof document !== 'undefined';
+function readList(f, what) {
+  if (listBroken) return null;
+  try { return f(); } catch (e) { listBroken = true; console.warn(`solver: ${what} kısıt listesi okunamadı (${e && e.name}: ${e && e.message}); yerel tanılamaya geçildi`); return null; }
+}
+// kendi tanılamamız: her sketch kısıtını (aynı kimlikli ilkellerin hepsi) çıkararak yeniden kur; bayrak kalkıyorsa o kısıt listeye girer
+export function culprits(mod, prims, sk, kind, max = 300) {
+  const conIds = new Set((sk.cons || []).map((c) => c.id)); const ids = [...new Set(prims.filter((p) => conIds.has(p.id)).map((p) => p.id))].slice(0, max);
+  const out = [];
+  for (const id of ids) {
+    const g = new GcsWrapper(new mod.GcsSystem());
+    try {
+      g.push_primitives_and_params(prims.filter((p) => p.id !== id)); g.solve();
+      const still = kind === 'redundant' ? g.has_gcs_redundant_constraints() : g.has_gcs_conflicting_constraints();
+      if (!still) out.push(id);
+    } catch (e) { console.warn('solver: tanılama çözümü başarısız', e && e.message); } finally { try { g.destroy_gcs_module(); } catch (e) { /* */ } }
+  }
+  return out;
+}
+export const _solverDiag = { forceLocal(v) { listBroken = !!v; } }; // test: yerel tanılamayı zorla
 export async function solveSketch(sk, vars = {}, drag = null) {
   const mod = await initSolver();
   const gcs = new GcsWrapper(new mod.GcsSystem());
@@ -128,8 +150,13 @@ export async function solveSketch(sk, vars = {}, drag = null) {
     const ok = status === 0 || status === 1;
     let dof = null; try { dof = gcs.gcs.dof(); } catch (e) {}
     let conflicting = [], redundant = [];
-    try { if (gcs.has_gcs_conflicting_constraints()) conflicting = gcs.get_gcs_conflicting_constraints(); } catch (e) {}
-    try { if (gcs.has_gcs_redundant_constraints()) redundant = gcs.get_gcs_redundant_constraints(); } catch (e) {}
+    // WP-08 (CSP): planegcs'in liste okuması (embind IntVector.get) sıkı CSP'de Function() ile EvalError atıyordu ve sessizce
+    // yutuluyordu (gereksiz/çelişen kısıt uyarısı kayboluyordu). Denemenin kendisi CSP ihlali raporu ürettiği için tarayıcıda
+    // yerleşik okuma hiç denenmez: liste kendi tarafımızda bulunur (kısıt çıkarılınca bayrak kalkıyorsa o kısıt listeye girer).
+    // Bayrak okuması (has_*) düz bool döndürür, CSP'ye takılmaz.
+    const hasC = safeBool(() => gcs.has_gcs_conflicting_constraints()), hasR = safeBool(() => gcs.has_gcs_redundant_constraints());
+    if (hasC) conflicting = readList(() => gcs.get_gcs_conflicting_constraints(), 'conflicting') ?? culprits(mod, prims, sk, 'conflicting');
+    if (hasR) redundant = readList(() => gcs.get_gcs_redundant_constraints(), 'redundant') ?? culprits(mod, prims, sk, 'redundant');
     if (ok) {
       gcs.apply_solution();
       for (const p of gcs.sketch_index.get_primitives()) {

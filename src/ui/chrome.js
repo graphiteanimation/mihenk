@@ -4,13 +4,13 @@
 // Test ve erişilebilirlik sözleşmesi: her komut düğmesi `data-cmd`, önemli parçalar `data-testid` taşır; metne bağlı seçici gerekmez.
 import { h, $, ctxMenu, fmt, tip, hideTip, modal, modalOpen as modalUp } from './dom.js';
 import { icon, featureIcon } from './icons.js';
-import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn, moveUnit, dropTargets, groupRanges } from './features.js';
+import { featLabel, featSummary, historyGraph, fusedSketches, closure, tn, moveUnit, dropTargets, groupRanges, groupUnit } from './features.js';
 import { t, tk, errText, getLang, LANGS, tLang } from '../shared/i18n.js';
 import { getStr, setStr, prefs, setPref } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
 
 // Eskiz araç listeleri: [kimlik, etiket anahtarı, simge adı]
-const FEAT_IDS = new Set(['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section']);
+const FEAT_IDS = new Set(['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section', 'split', 'splitface', 'faceop']);
 // Eskiz aracı ile model komutu aynı kimliği paylaşırsa eskiz komutu 'sk-' önekini alır.
 const cid = (id) => (FEAT_IDS.has(id) ? 'sk-' + id : id);
 const SK_DRAW = [['select', tk('tb.select'), 'select'], ['line', tk('tb.line'), 'line'], ['rect', tk('tb.rect'), 'rect'], ['circle', tk('tb.circle'), 'circle'], ['arc', tk('tb.arc'), 'arc']];
@@ -23,7 +23,7 @@ const SK_CONS = [['horizontal', tk('con.horizontal')], ['vertical', tk('con.vert
 const SK_CONS_MORE = [['coincident', tk('con.coincident')], ['midpoint', tk('con.midpoint')], ['concentric', tk('con.concentric')], ['symmetric', tk('con.symmetric')], ['collinear', tk('con.collinear')]];
 // kısayol göstergesi (araç ipucuna eklenir; gerçek tuşlar sketcher.handleKey'de)
 const SHORT = { line: 'L', rect: 'R', circle: 'C', arc: 'A', point: 'P', dim: 'D', trim: 'T', extend: 'X', break: 'K', offset: 'O', fillet: 'Q', chamfer: 'W', mirror: 'M', polygon: 'G', slot: 'U', ellipse: 'Y', spline: 'B', project: 'J', rectc: 'Shift+R', circle3: 'Shift+C', arc3: 'Shift+A' };
-const FEATURE_CMDS = ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section'];
+const FEATURE_CMDS = ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section', 'split', 'splitface', 'faceop'];
 const DEFAULT_RECENT = ['extrude', 'fillet', 'hole', 'measure'];
 const LANG_KEY = { tr: tk('lang.tr'), en: tk('lang.en') };
 
@@ -32,7 +32,7 @@ export function initChrome(app) {
   const cmds = {};            // kimlik → {id, name, icon, kbd, tip, run, off(): neden | null, sk?: yalnız sketch kipi}
   C.cmds = cmds;
   const reg = (id, name, ic, run, o = {}) => { cmds[id] = { id, name, icon: ic, run, ...o }; return cmds[id]; };
-  const label = (c) => t(c.name);
+  const label = (c) => (c.raw != null ? c.raw : t(c.name));
   const reason = (c) => (c.off ? c.off() : null);
 
   // ---------------------------------------------------------------- komut kayıt defteri
@@ -50,6 +50,7 @@ export function initChrome(app) {
   reg('import-dxf', 'menu.import_dxf', 'dxf-import', () => app.importDxf(), { off: inSketch });
   reg('export-step', 'menu.export_step', 'export', () => app.exportFile('step'));
   reg('export-stl', 'menu.export_stl', 'export', () => app.exportFile('stl'));
+  reg('export-stl-fine', 'menu.export_stl_fine', 'export', () => app.exportFile('stl', { quality: 'fine' })); // F-26: ince ağ
   reg('export-dxf', 'menu.export_dxf', 'dxf-export', () => app.exportDxf('2000'), { off: inSketch });
   reg('export-dxf12', 'menu.export_dxf12', 'dxf-export', () => app.exportDxf('R12'), { off: inSketch });
   reg('quit', 'menu.quit', 'close', () => window.close());
@@ -62,9 +63,17 @@ export function initChrome(app) {
   reg('view-right', 'view.right', 'view-right', () => app.viewport.view('right'));
   reg('view-iso', 'menu.iso', 'view-iso', () => app.viewport.view('iso'));
   reg('planes', 'menu.planes', 'planes', () => app.togglePlanes());
+  // WP-08 devir (c): görüntü modları, görünüş kaydet/çağır, çizim ayarları (komut paleti + Görünüm menüsü)
+  for (const m of ['shaded', 'wire', 'ghost']) reg('vd-' + m, 'vd.' + m, m === 'wire' ? 'view-iso' : 'view-iso', () => app.viewport?.setDisplayMode(m));
+  reg('view-save', 'cmd.view_save', 'view-iso', () => app.saveViewPrompt());
+  reg('view-list', 'cmd.view_list', 'view-iso', () => app.showSettings('draw'));
+  reg('draw-settings', 'cmd.draw_settings', 'settings', () => app.showSettings('draw'));
   reg('settings', 'menu.settings', 'settings', () => app.showSettings(), { kbd: 'Ctrl+,', tip: 'tip.settings' });
   reg('shortcuts', 'menu.shortcuts', 'keyboard', () => app.showShortcuts());
   reg('about', 'menu.about', 'info', () => app.showAbout());
+  // WP-10 devri: günlük klasörü (yalnız masaüstü kabuğu sağlıyorsa) ve örnek belgeler (ornekler/*.mhnk; yoksa menüde görünmez)
+  reg('open-logs', 'menu.open_logs', 'file-open', () => window.native?.openLogFolder?.());
+  for (const ex of app.exampleList()) reg('ex-' + ex.key, 'menu.examples', 'file-open', () => app.openExample(ex.key), { raw: ex.name });
   reg('home', 'menu.home', 'home', () => app.showWelcome(true));
   reg('palette', 'ui.palette', 'search', () => C.openPalette(), { kbd: 'Ctrl+K', tip: 'tip.palette' });
   feat('sketch', tk('tb.sketch'), 'sketch', 'sketch').run = () => app.startSketch();
@@ -81,6 +90,10 @@ export function initChrome(app) {
   feat('move', tk('tb.move'), 'move', 'move', null, needBody);
   feat('pattern', tk('tb.pattern'), 'pattern', 'pattern');
   feat('mirror', tk('tb.mirror'), 'mirror', 'mirror');
+  // WP-08: bölme ve doğrudan düzenleme (şeritte "Doğrudan" açılır menüsü)
+  feat('split', tk('tb.split'), 'split', 'split', null, needBody);
+  feat('splitface', tk('tb.splitface'), 'splitface', 'splitface', null, needBody);
+  feat('faceop', tk('tb.faceop'), 'faceop', 'faceop', null, needBody);
   reg('measure', 'tb.measure', 'measure', () => app.toggleTool('measure'), { tip: 'tip.measure', feature: true, tool: true, off: needBody });
   reg('props', 'tb.props', 'properties', () => app.toggleTool('props'), { tip: 'tip.props', feature: true, tool: true, off: needBody });
   reg('interf', 'tb.interf', 'interference', () => app.runInterference(), { tip: 'tip.interf', feature: true, off: needTwo });
@@ -89,6 +102,7 @@ export function initChrome(app) {
   const skTool = ([id, nm, ic]) => reg(cid(id), nm, ic, () => app.sketchTool(id), { kbd: SHORT[id], tip: 'hint.' + id, sk: true, skTool: true });
   [...SK_DRAW, ...SK_DRAW_MORE, ...SK_EDIT, ...SK_EDIT_MORE, ...SK_DIMS, ...SK_DIMS_MORE].forEach(skTool);
   for (const [id, nm] of [...SK_CONS, ...SK_CONS_MORE]) reg('c-' + id, nm, id, () => app.sketchConstraint(id), { sk: true, tip: 'tip.con', tipParams: { name: nm } });
+  reg('sk-text', tk('tb.text'), 'text', () => app.sketchText(), { sk: true, tip: 'tip.sk_text' }); // WP-08: eskiz metni
   reg('c-construct', tk('con.construction'), 'construction', () => app.sketchConstruction(), { sk: true, tip: 'tip.construct' });
   reg('sk-finish', tk('sk.finish'), 'finish', () => app.finishSketch(), { sk: true, tip: 'tip.sk_finish' });
   reg('sk-cancel', tk('common.cancel'), 'cancel', () => app.cancelSketch(), { sk: true, tip: 'tip.sk_cancel' });
@@ -117,9 +131,10 @@ export function initChrome(app) {
   // ---------------------------------------------------------------- başlık şeridi
   const closeMenus = () => { document.querySelectorAll('#menubar .menu.open').forEach((m) => { m.classList.remove('open'); m.querySelector('[data-menu]')?.setAttribute('aria-expanded', 'false'); }); };
   const fileItems = () => [
-    'new', 'open', ['recent'], 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
+    'new', 'open', ['recent'], ...(app.exampleList().length ? [{ head: 'menu.examples' }, ...app.exampleList().map((ex) => 'ex-' + ex.key), { sep: 1 }] : []), 'save', 'saveas', { sep: 1 }, 'import-step', 'import-stl', 'import-dxf', { sep: 1 }, 'export-step', 'export-stl', 'export-stl-fine', 'export-dxf', 'export-dxf12', { sep: 1 }, 'params', 'settings', 'home', { sep: 1 }, 'quit',
   ];
-  const helpItems = () => ['shortcuts', 'about'];
+  const helpItems = () => ['shortcuts', ...(typeof window.native?.openLogFolder === 'function' ? ['open-logs'] : []), 'about'];
+  const viewItems = () => ['fit', 'view-front', 'view-top', 'view-right', 'view-iso', { sep: 1 }, 'vd-shaded', 'vd-wire', 'vd-ghost', { sep: 1 }, 'view-save', 'view-list', 'planes', { sep: 1 }, 'draw-settings'];
   const menuBtn = (c) => { const why = reason(c); const b = h('button', { class: 'mi', role: 'menuitem', 'data-cmd': c.id, 'aria-disabled': why ? 'true' : null, onclick: (e) => { e.stopPropagation(); closeMenus(); C.run(c.id); } },
     h('span', { html: icon(c.icon, 'sm') }), h('span', { text: label(c) }), c.kbd ? h('span', { class: 'kbd', text: c.kbd }) : null); if (why) b.classList.add('is-disabled'); return b; };
   const dropdown = (id, nameKey, ic, items, testid, iconOnly) => {
@@ -131,6 +146,7 @@ export function initChrome(app) {
     const drop = h('div', { class: 'drop ctxmenu', role: 'menu' });
     for (const it of items) {
       if (it.sep) { drop.append(h('hr')); continue; }
+      if (it.head) { drop.append(h('div', { class: 'mhead', role: 'presentation', 'data-testid': 'menu-head-examples', text: t(it.head) })); continue; }
       if (Array.isArray(it) && it[0] === 'recent') { C.recentMenu = h('div', { class: 'recent-sub', 'data-testid': 'recent-sub' }); drop.append(C.recentMenu); continue; }
       drop.append(menuBtn(cmds[it]));
     }
@@ -157,7 +173,7 @@ export function initChrome(app) {
     const helpMenu = dropdown('help', 'menu.help', 'help', helpItems(), 'menu-help', true); helpMenu.classList.add('right');
     bar.replaceChildren(
       h('div', { class: 'brand' }, h('img', { src: logoReverse, height: 22, alt: 'Mihenk', 'data-testid': 'brand' })),
-      dropdown('file', 'menu.file', 'file-open', fileItems(), 'menu-file'), h('span', { class: 'sep' }),
+      dropdown('file', 'menu.file', 'file-open', fileItems(), 'menu-file'), dropdown('view', 'menu.view', 'view-iso', viewItems(), 'menu-view'), h('span', { class: 'sep' }),
       tbtn('undo', 'undo'), tbtn('redo', 'redo'), tbtn('save', 'file-save'), doc, h('span', { class: 'grow' }), search, ...(machine ? [machine] : []), tbtn('settings', 'settings'), helpMenu);
     if (openId) bar.querySelector(`[data-menu="${openId}"]`)?.click();
     C.renderRecentMenu();
@@ -201,7 +217,7 @@ export function initChrome(app) {
   const group = (key, nm, kids, o = {}) => { const g = h('div', { class: 'rgroup' + (o.cls ? ' ' + o.cls : ''), 'data-group': key, role: 'group', 'aria-label': t(nm) }, h('div', { class: 'btns' }, kids), h('div', { class: 'glabel', text: t(nm) })); g._items = o.items || []; return g; };
   const ddBtn = (id, nm, ic) => { const b = h('button', { class: 'tool', 'data-cmd': 'dd-' + id, 'data-testid': 'dd-' + id, 'aria-haspopup': 'menu', 'aria-expanded': C.ddOpen === id ? 'true' : 'false', onclick: (e) => { e.stopPropagation(); C.ddOpen = C.ddOpen === id ? null : id; C.renderDD(); } },
     h('span', { html: icon(ic, 'lg') }), h('span', { class: 'l', text: t(nm) }), h('span', { html: icon('chevron-down', 'caret') })); tip(b, { name: t(nm), body: t('tip.dd') }); if (C.ddOpen === id) b.classList.add('on'); return b; };
-  const ddItems = (id) => id === 'draw' ? SK_DRAW_MORE.map((x) => cid(x[0])) : id === 'edit' ? SK_EDIT_MORE.map((x) => cid(x[0])) : id === 'cons' ? [...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...SK_DIMS_MORE.map((x) => cid(x[0]))] : id === 'prim' ? ['box', 'cylinder', 'sphere'] : [];
+  const ddItems = (id) => id === 'draw' ? [...SK_DRAW_MORE.map((x) => cid(x[0])), 'sk-text'] : id === 'edit' ? SK_EDIT_MORE.map((x) => cid(x[0])) : id === 'cons' ? [...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...SK_DIMS_MORE.map((x) => cid(x[0]))] : id === 'prim' ? ['box', 'cylinder', 'sphere'] : id === 'direct' ? ['split', 'splitface', 'faceop'] : [];
   // açılır alt menü (şeridin kaydırılabilir/taşabilir olması nedeniyle gövdeye sabitlenir)
   C.renderDD = () => {
     document.getElementById('ddpop')?.remove();
@@ -264,7 +280,7 @@ export function initChrome(app) {
       const ids = (list) => list.map((x) => cid(x[0]));
       const consIds = [...SK_CONS.map((x) => 'c-' + x[0])];
       bar.replaceChildren(
-        group('draw', tk('grp.draw'), [...tools(SK_DRAW), ddBtn('draw', tk('dd.draw'), 'more')], { items: [...ids(SK_DRAW), ...ids(SK_DRAW_MORE)] }),
+        group('draw', tk('grp.draw'), [...tools(SK_DRAW), ddBtn('draw', tk('dd.draw'), 'more')], { items: [...ids(SK_DRAW), ...ids(SK_DRAW_MORE), 'sk-text'] }),
         group('edit', tk('grp.edit'), [...tools(SK_EDIT), ddBtn('edit', tk('dd.edit'), 'more')], { items: [...ids(SK_EDIT), ...ids(SK_EDIT_MORE)] }),
         group('dimcons', tk('grp.dimcons'), [...tools(SK_DIMS), h('div', { class: 'icongrid g6' }, [...consIds.map((id) => iconBtn(id)), iconBtn('c-construct', { on: !!sk?.consMode }), (() => { const b = h('button', { class: 'tool icon36' + (C.ddOpen === 'cons' ? ' on' : ''), 'data-cmd': 'dd-cons', 'data-testid': 'dd-cons', 'aria-haspopup': 'menu', 'aria-expanded': C.ddOpen === 'cons' ? 'true' : 'false', onclick: (e) => { e.stopPropagation(); C.ddOpen = C.ddOpen === 'cons' ? null : 'cons'; C.renderDD(); } }, h('span', { html: icon('more', 'lg') })); tip(b, { name: t('dd.cons'), body: t('tip.dd') }); return b; })()])],
           { items: [...ids(SK_DIMS), ...consIds, 'c-construct', ...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...ids(SK_DIMS_MORE)] }),
@@ -273,13 +289,13 @@ export function initChrome(app) {
       C.renderDD(); C.fitRibbon();
       return;
     }
-    C.ddOpen = C.ddOpen === 'prim' ? 'prim' : null;
+    C.ddOpen = C.ddOpen === 'prim' || C.ddOpen === 'direct' ? C.ddOpen : null;
     const on = (id) => (id === 'measure' || id === 'props' ? app.tool === id : id === 'sketch' ? app.tool === 'newsketch' : id === 'section' ? !!app.sectionPanel : false);
     const t1 = (id) => toolBtn(id, { on: on(id) });
     const recent = recentList();
     bar.replaceChildren(
       group('create', tk('grp.create'), [t1('sketch'), t1('extrude'), t1('revolve'), t1('hole'), ddBtn('prim', tk('tb.prim'), 'box')], { items: ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere'] }),
-      group('modify', tk('grp.modify'), ['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror'].map(t1), { items: ['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror'] }),
+      group('modify', tk('grp.modify'), [...['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror'].map(t1), ddBtn('direct', tk('tb.direct'), 'faceop')], { items: ['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'split', 'splitface', 'faceop'] }),
       group('inspect', tk('grp.inspect'), ['measure', 'props', 'interf', 'section'].map(t1), { items: ['measure', 'props', 'interf', 'section'] }),
       group('recent', tk('ui.recent'), [h('div', { class: 'tool-stack', 'data-testid': 'recent' }, recent.map((id) => { const c = cmds[id]; const b = h('button', { class: 'tool sm', 'data-cmd': id, 'data-recent': '1', onclick: () => C.run(id) }, h('span', { html: icon(c.icon, 'sm') }), h('span', { class: 'l', text: label(c) })); tipOf(c, b); return dis(c, b); }))], { cls: 'end recent', items: recent }));
     C.renderDD(); C.fitRibbon();
@@ -508,6 +524,16 @@ export function initChrome(app) {
     if (!horiz) el.addEventListener('dblclick', () => app.renameGroup(r.id));
     el.addEventListener('contextmenu', (e) => groupMenu(e, r));
     el.addEventListener('keydown', (e) => C.groupKey(e, r, horiz));
+    // WP-08 devir (e): grup bütün olarak sürüklenir (bırakma aralıkları işlem satırları/çipleri üzerinde, aynı kurallarla)
+    el.draggable = true;
+    el.addEventListener('dragstart', (e) => {
+      if (app.edit || app.sketchSession || app.mode !== 'design' || app.welcome) { e.preventDefault(); return; }
+      const unit = groupUnit(app.doc, r.id); if (!unit.length) { e.preventDefault(); return; }
+      app.drag = { i: unit[0], id: app.doc.features[unit[0]].id, group: r.id, unit, targets: dropTargets(app.doc, unit[0], app.result?.status || {}, unit) };
+      e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.id);
+      document.body.classList.add('hist-dragging'); markGaps();
+    });
+    el.addEventListener('dragend', endDrag);
     return el;
   };
   const groupRow = (r) => groupEl(r, false);
@@ -625,7 +651,7 @@ export function initChrome(app) {
     el.addEventListener('drop', (e) => {
       const D = app.drag; if (!D) return; e.preventDefault();
       const g = gapAt(el, e, horiz); const P = D.targets[g.gap]; endDrag();
-      if (P && P.ok && !P.noop) app.moveFeature(D.i, g.gap);
+      if (P && P.ok && !P.noop) app.moveFeature(D.i, g.gap, D.unit || null);
     });
     el.addEventListener('dragend', endDrag);
   };
@@ -868,7 +894,7 @@ export function initChrome(app) {
     $('#app').append(root); draw(); inp.focus();
   };
 
-  C.renderAll = () => { C.renderMenu(); C.renderTabs(); C.renderToolbar(); C.renderBrowser(); C.renderTimeline(); C.renderStatus(); C.renderEmpty(); };
+  C.renderAll = () => { C.renderMenu(); C.renderTabs(); C.renderToolbar(); C.renderBrowser(); C.renderTimeline(); C.renderStatus(); C.renderEmpty(); app.viewport?._dispRender?.(); };
   // boş durum: simge + bir cümle + tek eylem
   C.renderEmpty = () => {
     const el = $('#empty'); if (!el) return;

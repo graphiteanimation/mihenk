@@ -10,6 +10,8 @@ import { faceName, edgeName, resolveName, aliasSet, faceKey, vertKey } from './n
 import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
+import * as DE from './direct.js';
+import { reprojectLinked, matchEdge, edgeSig } from '../ui/sketch/ops.js'; // saf eskiz işlevleri (DOM yok)
 
 export { KErr };
 export const LIMITS = { minDim: 1e-3, maxDim: 1e5, maxPattern: 2000, maxStlTris: 50000 };
@@ -151,17 +153,43 @@ export class Kernel {
         if (spec?.kind === 'base') spec = { ...spec, offsetVal: this.coord(N(spec.offset ?? 0, tk('ef.offset')), tk('ef.offset')) };
         const plane = this.resolvePlane(spec, state, { ...ctx, field: 'plane' });
         if (!Array.isArray(f.ents) || !f.points || typeof f.points !== 'object') throw new KErr('sketch.no_profile');
-        state.sketches.set(f.id, { plane, sk: { points: f.points, ents: f.ents } });
+        let sk = { points: f.points, ents: f.ents };
+        // WP-08 devir (b): ilişkisel izdüşümler (ent.proj) bu andaki gövdelerden yeniden okunur (eskiz açık olmasa da);
+        // kaynak kenar bulunamazsa geometri yerinde kalır ve işlem uyarı taşır. Belge değişmez (kopya üzerinde).
+        if (f.ents.some((e) => e && e.proj)) {
+          const c = JSON.parse(JSON.stringify({ points: f.points, ents: f.ents, cons: f.cons || [] }));
+          try {
+            const r = reprojectLinked(c, (meta) => this.projEdge(meta, state, plane));
+            sk = { points: c.points, ents: c.ents };
+            if (r.lost) ctx?.warn?.push({ code: 'sketch.proj_lost', params: { n: r.lost } });
+          } catch (e) { ctx?.warn?.push({ code: 'sketch.proj_failed', params: {} }); }
+        }
+        state.sketches.set(f.id, { plane, sk });
         return [];
       }
       case 'extrude': {
         const S = state.sketches.get(f.sketch); if (!S) throw new KErr('sketch.not_found');
         const op = f.op ?? 'new'; if (!OPS.has(op)) throw new KErr('op.unknown', { op: String(op) });
         const dir = f.dir ?? 'one'; if (!['one', 'sym', 'two'].includes(dir)) throw new KErr('extrude.dir_unknown');
-        const extent = f.extent ?? 'dist'; if (!['dist', 'all'].includes(extent)) throw new KErr('extrude.extent_unknown');
-        let d = extent === 'all' ? this.bigLen(state, S.plane.o) : N(f.dist, tk('ef.dist'));
-        if (Math.abs(d) < 1e-12) throw new KErr('extrude.zero_dist');
-        if (extent !== 'all') this.dim(d, tk('ef.dist'), { allowNeg: dir === 'one' });
+        const extent = f.extent ?? 'dist'; if (!['dist', 'all', 'face', 'body'].includes(extent)) throw new KErr('extrude.extent_unknown');
+        // WP-08: konik açı (derece; pozitif = malzeme uca doğru daralır). Yalnız tek yön + Mesafe / Yüze kadar (paralel yüz).
+        const taper = f.taper == null || f.taper === '' ? 0 : N(f.taper, tk('ef.taper'));
+        if (!Number.isFinite(taper) || Math.abs(taper) >= 89) throw new KErr('extrude.taper_range', { value: taper });
+        if (Math.abs(taper) > 1e-9 && (dir !== 'one' || !['dist', 'face'].includes(extent))) throw new KErr('extrude.taper_mode');
+        let d, trim = null;
+        if (extent === 'face' || extent === 'body') {
+          // WP-08: yüze / nesneye kadar. d: sketch normali boyunca işaretli uzunluk (ters çevir burada yönü belirlemez: hedef belirler)
+          if (dir !== 'one') throw new KErr('extrude.to_one_dir');
+          const t0 = extent === 'face' ? this.toFace(f, S, state, ctx) : this.toBody(f, S, state);
+          if (extent === 'face') this.faceCover(f, S, state, ctx);
+          d = extent === 'face' && f.flip ? -t0.d : t0.d; trim = t0.trim;
+          if (!(Math.abs(t0.d) >= LIMITS.minDim)) throw new KErr('extrude.zero_dist');
+          if (trim && Math.abs(taper) > 1e-9) throw new KErr('extrude.taper_mode');
+        } else {
+          d = extent === 'all' ? this.bigLen(state, S.plane.o) : N(f.dist, tk('ef.dist'));
+          if (Math.abs(d) < 1e-12) throw new KErr('extrude.zero_dist');
+          if (extent !== 'all') this.dim(d, tk('ef.dist'), { allowNeg: dir === 'one' });
+        }
         // F-03: ters çevir iki mesafeyi birlikte çevirir. one: [0,d]; sym: [-d/2,d/2]; two: [-d2, d] (flip: [-d, d2])
         let lo, hi;
         if (dir === 'sym') { lo = -d / 2; hi = d / 2; }
@@ -175,7 +203,21 @@ export class Kernel {
         // simetrik/iki yön: profil yüzü doğrudan başlangıç ofsetinde kurulur (kenar→varlık eşlemesi aynı konumda kalsın)
         const off = dir === 'one' ? 0 : lo; const len = dir === 'one' ? (fwd ? hi : lo) : hi - lo;
         const regs = sketchFaces(S.sk, S.plane, f.profiles, off);
-        const parts = this.sweepParts(f, S, regs, (face) => TP.prism(face, V.mul(S.plane.n, len)), 'side');
+        let parts = this.sweepParts(f, S, regs, (face) => TP.prism(face, V.mul(S.plane.n, len)), 'side');
+        if (Math.abs(taper) > 1e-9) {
+          const pull = V.mul(S.plane.n, len > 0 ? 1 : -1);
+          parts = parts.map((p) => {
+            const side = p.fn.map((ns, i) => (ns.some((x) => x.startsWith(f.id + ':side:')) ? i : -1)).filter((i) => i >= 0);
+            const res = side.length ? TP.draft(p, side, pull, taper, { o: S.plane.o, n: S.plane.n }) : null;
+            if (!res || isEmpty(res.shape) || TP.validity(res.shape)) throw new KErr('extrude.taper_failed');
+            return res;
+          });
+        }
+        if (trim) {
+          // eğik hedef düzlem: uzun prizma, düzlemin sketch tarafındaki yarım uzayla kesişir; kesik yüz "<id>:end" adını alır
+          const hs = TP.halfSpace(trim.c, trim.n, trim.toward, trim.B, trim.L, `${f.id}:end`); if (!hs) throw new KErr('extrude.failed');
+          parts = parts.map((p) => { const res = TP.boolean('common', [p], [hs]); if (!res || isEmpty(res.shape)) throw new KErr('extrude.to_face_miss'); return res; });
+        }
         state.tools.set(f.id, { parts, op, targets: f.targets });
         return this.applyOp(state, parts, op, { id: f.id, name: f.bodyName, targets: f.targets });
       }
@@ -209,12 +251,25 @@ export class Kernel {
         const isF = f.type === 'fillet';
         const val = N(isF ? f.r : f.d, isF ? tk('ef.radius') : tk('ef.dist'));
         if (!(val > 0)) throw new KErr('fc.value_positive'); this.dim(val, isF ? tk('ef.radius') : tk('ef.dist'));
+        // WP-08: pah türü: equal (varsayılan) | two (iki mesafe) | angle (mesafe + açı). Referans yüz: kenarın komşu yüzlerinden
+        // topolojik adı (sıralı) ilk olan; flip diğerini seçer (ad tabanlı: parametre değişince taraf kaymaz).
+        const cm = isF ? 'equal' : f.mode ?? 'equal'; if (!['equal', 'two', 'angle'].includes(cm)) throw new KErr('chamfer.mode_unknown');
+        let v2 = null;
+        if (cm === 'two') { v2 = N(f.d2 ?? '1', tk('ef.dist2')); if (!(v2 > 0)) throw new KErr('fc.value_positive'); this.dim(v2, tk('ef.dist2')); }
+        if (cm === 'angle') { v2 = N(f.angle ?? 45, tk('ef.angle')); if (!(v2 > 0 && v2 < 90)) throw new KErr('chamfer.angle_range', { value: v2 }); }
         if (!Array.isArray(f.edges) || !f.edges.length) throw new KErr('fc.no_edges');
         const byBody = new Map();
         f.edges.forEach((r, k) => { const { body, i } = this.resolveIdx(r, state, 'edge', { ...ctx, field: 'edges', index: k }); const bid = r.body; if (!byBody.has(bid)) byBody.set(bid, { body, sel: new Map() }); const nm = edgeName(body, i); byBody.get(bid).sel.set(i, nm.error ? `#${k}` : `<${nm.a}&${nm.b}${nm.nb ? '|' + nm.nb.join('|') : ''}>`); });
         for (const [bid, { body, sel }] of byBody) {
           let res = null;
-          try { res = TP.edgeBlend(f.type, body, [...sel.keys()], val, (j) => `${f.id}:${isF ? 'blend' : 'cham'}${sel.get(j)}`, (k) => { const vk = vertKey(body, k); return vk ? `${f.id}:${isF ? 'vblend' : 'vcham'}${vk}` : `${f.id}:v?`; }); } catch (e) { res = null; }
+          const T0 = TP.topoOf(body.shape);
+          const spec = cm === 'equal' ? null : (j) => {
+            const fs = [...T0.edgeFaces[j]].map((i) => ({ i, k: faceKey(body, i) || '~' + i })).sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i));
+            if (fs.length < 2) throw new KErr('chamfer.no_face');
+            const face = fs[f.flip ? 1 : 0].i;
+            return cm === 'two' ? { d1: val, d2: v2, face } : { d: val, angle: v2, face };
+          };
+          try { res = TP.edgeBlend(f.type, body, [...sel.keys()], val, (j) => `${f.id}:${isF ? 'blend' : 'cham'}${sel.get(j)}`, (k) => { const vk = vertKey(body, k); return vk ? `${f.id}:${isF ? 'vblend' : 'vcham'}${vk}` : `${f.id}:v?`; }, spec); } catch (e) { if (e instanceof KErr && e.code === 'chamfer.no_face') throw e; res = null; }
           if (!res || isEmpty(res.shape)) throw new KErr(isF ? 'fillet.too_big' : 'chamfer.too_big');
           state.bodies.set(bid, { ...body, shape: res.shape, fn: res.fn });
         }
@@ -297,6 +352,7 @@ export class Kernel {
         return made;
       }
       case 'pattern': case 'mirror': return this.pattern(f, state, N);
+      case 'split': case 'splitface': case 'faceop': return this.direct(f, state, N, ctx);
       case 'import': {
         const ent = this.imports.get(importKey(f, this.hashes));
         if (!ent || ent.error) throw new KErr('import.load_failed', { reason: ent?.error || 'no_data' });
@@ -309,6 +365,88 @@ export class Kernel {
       }
       default: throw new KErr('feature.unknown', { type: String(f.type) });
     }
+  }
+
+  // WP-08: Extrude "yüze kadar". Hedef düzlemsel yüz olmalı. Sketch düzlemine paralelse tam uzunluk; eğikse uzun prizma + yarım uzay kırpması.
+  toFace(f, S, state, ctx) {
+    if (!f.toFace || typeof f.toFace !== 'object') throw new KErr('extrude.no_to_face');
+    const { body, i } = this.resolveIdx(f.toFace, state, 'face', { ...ctx, field: 'toFace' });
+    const F = TP.faceWrap(TP.topoOf(body.shape).faces.list[i]);
+    if (F.geomType !== 'PLANE') throw new KErr('extrude.to_face_planar');
+    const nf = V.norm(F.normalAt(F.center).toTuple()); const c = F.center.toTuple(); const { n, o } = S.plane;
+    const den = V.dot(nf, n); if (Math.abs(den) < 1e-6) throw new KErr('extrude.to_face_parallel');
+    const t = V.dot(V.sub(c, o), nf) / den; // sketch orijininden normal boyunca düzleme uzaklık
+    if (Math.abs(Math.abs(den) - 1) < 1e-9) return { d: t, trim: null };
+    const L = this.bigLen(state, o); const side = Math.sign(V.dot(V.sub(o, c), nf)) || 1;
+    return { d: Math.sign(t) * 2 * L, trim: { c, n: nf, toward: V.mul(nf, side), B: 4 * L, L: 8 * L } };
+  }
+  // WP-08 doğrulama: hedef yüz profili örtmüyorsa (yüzün sonsuz düzlemine uzanılıyor) işlem uyarısı. Profil köşeleri normal boyunca
+  // hedef düzleme indirilir; herhangi biri yüzün dışında kalırsa uyarı (sonuç yine düzleme kadar).
+  faceCover(f, S, state, ctx) {
+    try {
+      const { body, i } = this.resolveIdx(f.toFace, state, 'face', { ...ctx, field: 'toFace' });
+      const raw = TP.topoOf(body.shape).faces.list[i]; const F = TP.faceWrap(raw);
+      const nf = V.norm(F.normalAt(F.center).toTuple()), c = F.center.toTuple(); const { n } = S.plane; const den = V.dot(nf, n); if (Math.abs(den) < 1e-6) return;
+      const regs = sketchFaces(S.sk, S.plane, f.profiles, 0); const sc = Math.max(1, ...c.map(Math.abs));
+      let out = 0;
+      for (const r of regs) for (const [x, y] of r.poly || []) { const p = V.toWorld(S.plane, x, y); const tt = V.dot(V.sub(c, p), nf) / den; const q = V.add(p, V.mul(n, tt)); if (TP.pointFaceDist(raw, q) > 1e-6 * sc) out++; }
+      if (out) ctx?.warn?.push({ code: 'extrude.face_extended', params: { n: out } });
+    } catch (e) { /* örtü denetimi bilgi amaçlı: başarısızsa uyarı yok */ }
+  }
+  // WP-08: Extrude "nesneye kadar" (gövde): sketch düzleminden yön boyunca gövdenin en uzak noktasına (BRepExtrema ile kesin)
+  toBody(f, S, state) {
+    const b = typeof f.toBody === 'string' ? state.bodies.get(f.toBody) : null; if (!b) throw new KErr('extrude.no_to_body');
+    const u = V.mul(S.plane.n, f.flip ? -1 : 1); const D = this.bigLen(state, S.plane.o);
+    const far = TP.planeSquare(V.add(S.plane.o, V.mul(u, D)), u, 4 * D);
+    const m = TP.shapeDist(b.shape.wrapped, far.wrapped); if (!Number.isFinite(m)) throw new KErr('extrude.failed');
+    const t = D - m; if (!(t > LIMITS.minDim)) throw new KErr('extrude.to_body_behind');
+    return { d: t, trim: null };
+  }
+
+  // WP-08 devir (b): izdüşüm bağının (gövde, kenar grubu, imza) bu andaki yerel noktaları (sketcher._edgeByMeta ile aynı eşleme)
+  projEdge(meta, state, pl) {
+    const b = state.bodies.get(meta?.b); if (!b) return null;
+    const m = this.mesh(b); if (m.error) return undefined;
+    const cands = [];
+    for (const g of m.edgeGroups) { const a = m.lines.subarray(g.start * 3, (g.start + g.count) * 3), p3 = []; for (let i = 0; i + 5 < a.length; i += 6) { if (!p3.length) p3.push([a[i], a[i + 1], a[i + 2]]); p3.push([a[i + 3], a[i + 4], a[i + 5]]); } if (p3.length >= 2) cands.push({ idx: g.idx, p3, pts: p3.map((p) => V.toLocal(pl, p)) }); }
+    const mm = matchEdge(meta, cands); if (!mm) return null;
+    const out = mm.pts; out.g = mm.idx; out.c = [0, 1, 2].map((k) => Math.round(mm.p3.reduce((q, p) => q + p[k], 0) / mm.p3.length * 1e4) / 1e4); out.sig = edgeSig(out); return out;
+  }
+  // WP-08: kenardan eksen: doğru kenar → kenar doğrultusu; dairesel kenar → dairenin ekseni (merkez + normal)
+  edgeAxis(ref, state, ctx) {
+    if (!ref || typeof ref !== 'object') throw new KErr('pattern.no_axis');
+    const E = this.resolveRef(ref, state, 'edge', ctx);
+    if (E.geomType === 'LINE') { const a = E.startPoint.toTuple(), b = E.endPoint.toTuple(); if (V.dist(a, b) < 1e-9) throw new KErr('pattern.axis_edge'); return { c: a, ax: V.norm(V.sub(b, a)) }; }
+    if (E.geomType === 'CIRCLE') { const C = E._geomAdaptor().Circle(); const l = C.Location(), d = C.Axis().Direction(); return { c: [l.X(), l.Y(), l.Z()], ax: [d.X(), d.Y(), d.Z()] }; }
+    throw new KErr('pattern.axis_edge');
+  }
+  // WP-08: bölme ve doğrudan düzenleme (src/kernel/direct.js)
+  toolPlane(spec, state, N, ctx) {
+    if (!spec || typeof spec !== 'object') throw new KErr('split.no_tool');
+    const s = spec.kind === 'base' ? { ...spec, offsetVal: this.coord(N(spec.offset ?? 0, tk('ef.offset')), tk('ef.offset')) } : spec;
+    return this.resolvePlane(s, state, { ...ctx, field: 'tool' });
+  }
+  direct(f, state, N, ctx) {
+    if (f.type === 'split') {
+      const b = state.bodies.get(f.body); if (!b) throw new KErr('split.no_body');
+      const pl = this.toolPlane(f.tool, state, N, ctx);
+      const { pos, neg } = DE.splitBody(b, pl, f.id, this.bigLen(state, pl.o));
+      state.bodies.set(f.body, { ...b, shape: pos.shape, fn: pos.fn });
+      const nid = uniqueId(state, f.id); state.bodies.set(nid, { shape: neg.shape, fn: neg.fn, name: { code: 'pat', params: { base: b.name, n: 2 } } });
+      return [f.body, nid];
+    }
+    const field = 'faces'; if (!Array.isArray(f.faces) || !f.faces.length) throw new KErr('faceop.no_faces');
+    const byBody = new Map();
+    f.faces.forEach((r, k) => { const { body, i } = this.resolveIdx(r, state, 'face', { ...ctx, field, index: k }); if (!byBody.has(r.body)) byBody.set(r.body, { body, sel: new Set() }); byBody.get(r.body).sel.add(i); });
+    const pl = f.type === 'splitface' ? this.toolPlane(f.tool, state, N, ctx) : null;
+    const mode = f.mode ?? 'offset';
+    const opt = f.type !== 'faceop' ? {} : mode === 'move' ? { t: [N(f.dx ?? 0, tk('ef.x')), N(f.dy ?? 0, tk('ef.y')), N(f.dz ?? 0, tk('ef.z'))].map((x) => this.coord(x, 'ef.x')) } : mode === 'offset' ? { d: this.dim(N(f.dist ?? 0, tk('ef.dist')), tk('ef.dist'), { allowNeg: true }) } : {};
+    for (const [bid, { body, sel }] of byBody) {
+      const res = f.type === 'splitface' ? DE.splitFaces(body, [...sel], pl, f.id) : DE.faceOp(body, [...sel], mode, opt, f.id);
+      state.bodies.set(bid, { ...body, shape: res.shape, fn: res.fn });
+      if (res.warn?.length) ctx?.warn?.push(...res.warn);
+    }
+    return [...byBody.keys()];
   }
 
   hole(f, state, N) {
@@ -382,15 +520,21 @@ export class Kernel {
   pattern(f, state, N) {
     const xs = [];
     if (f.type === 'mirror') {
-      const pl = f.plane ?? 'XY'; if (!V.BASE_PLANES[pl]) throw new KErr('sketch.plane_unknown'); // F-12
-      const P = V.basePlane(pl, this.coord(N(f.offset ?? 0, tk('ef.offset')), 'ef.offset'));
+      const pl = f.plane ?? 'XY';
+      // WP-08: aynalama düzlemi düzlemsel bir yüzden (planeRef)
+      const P = pl === 'face' ? this.resolvePlane({ kind: 'face', ref: f.planeRef }, state, { feature: f.id, field: 'planeRef' })
+        : (() => { if (!V.BASE_PLANES[pl]) throw new KErr('sketch.plane_unknown'); return V.basePlane(pl, this.coord(N(f.offset ?? 0, tk('ef.offset')), 'ef.offset')); })(); // F-12
       xs.push({ inst: 'm', steps: [{ mirror: { o: P.o, n: P.n } }] });
     } else if (f.kind === 'circ') {
       const n = Math.round(N(f.count, tk('ef.count'))); const tot = N(f.total ?? 360, tk('ef.angle'));
       if (!(n >= 2)) throw new KErr('pattern.count_min'); if (n > LIMITS.maxPattern) throw new KErr('pattern.too_many', { n, max: LIMITS.maxPattern });
       if (!(Math.abs(tot) > 1e-9 && Math.abs(tot) <= 360 + 1e-9)) throw new KErr('pattern.angle_range', { value: tot });
-      const ax = AX[f.axis ?? 'Z']; if (!ax) throw new KErr('prim.axis_unknown');
-      const c = [N(f.cx ?? 0, tk('ef.x')), N(f.cy ?? 0, tk('ef.y')), N(f.cz ?? 0, tk('ef.z'))].map((x) => this.coord(x, 'ef.x'));
+      let ax, c;
+      if (f.axis === 'edge') ({ ax, c } = this.edgeAxis(f.axisRef, state, { feature: f.id, field: 'axisRef' }));
+      else {
+        ax = AX[f.axis ?? 'Z']; if (!ax) throw new KErr('prim.axis_unknown');
+        c = [N(f.cx ?? 0, tk('ef.x')), N(f.cy ?? 0, tk('ef.y')), N(f.cz ?? 0, tk('ef.z'))].map((x) => this.coord(x, 'ef.x'));
+      }
       const step = Math.abs(Math.abs(tot) - 360) < 1e-9 ? tot / n : tot / (n - 1);
       for (let i = 1; i < n; i++) xs.push({ inst: String(i), steps: [{ rot: { c, ax, deg: step * i } }] });
     } else if (f.kind === 'rect') {
@@ -484,12 +628,12 @@ export class Kernel {
       const key = pkey + '|' + featKey(f, this.hashes);
       const c = this.cache[i];
       if (valid && c && c.key === key) { state = cloneState(c.state); status[f.id] = c.status; upgrades.push(...c.upgrades); newCache.push(c); featInfo[f.id] = this.info(f.id, c, true); report(opts, f.id, i, end, status[f.id], featInfo[f.id]); continue; }
-      valid = false; const fu = []; const t0 = now(); let sum;
+      valid = false; const fu = [], fw = []; const t0 = now(); let sum;
       if (f.suppressed === true) { status[f.id] = { ok: true, suppressed: true }; sum = 'sup'; }
       else {
         const snap = cloneState(state);
         try {
-          const made = this.runFeature(f, state, vars, { feature: f.id, upgrades: fu }) || [];
+          const made = this.runFeature(f, state, vars, { feature: f.id, upgrades: fu, warn: fw }) || [];
           // geçerlilik kapısı (F-05)
           for (const id of made) {
             const b = state.bodies.get(id); if (!b) continue; const why = TP.validity(b.shape); if (why) throw new KErr('geom.invalid', { body: id, reason: why });
@@ -499,10 +643,10 @@ export class Kernel {
           status[f.id] = { ok: true, bodies: made };
           sum = resultSum(f, snap, state);
           this.lastGood.set(f.id, { rev, input: snap, sum });
-        } catch (e) { state = snap; status[f.id] = { ok: false, error: errOf(e) }; fu.length = 0; sum = 'err:' + status[f.id].error.code; }
+        } catch (e) { state = snap; status[f.id] = { ok: false, error: errOf(e) }; fu.length = 0; fw.length = 0; sum = 'err:' + status[f.id].error.code; }
       }
       upgrades.push(...fu);
-      const warn = fu.length ? [{ code: 'ref.remapped', params: { n: fu.length } }] : [];
+      const warn = [...(fu.length ? [{ code: 'ref.remapped', params: { n: fu.length } }] : []), ...fw];
       const ce = { key, state: cloneState(state), status: status[f.id], upgrades: fu, ms: now() - t0, sum, warn };
       newCache.push(ce); featInfo[f.id] = this.info(f.id, ce, false);
       this.sums.set(f.id, sum);
@@ -600,6 +744,13 @@ export class Kernel {
     return out;
   }
 
+  // WP-08: teğet zincir sorgusu (arayüz kenar seçimi): son modelde {body, idx} kenarının G1 zinciri → kenar dizinleri
+  tangentChain(ref) {
+    const body = this.last?.bodies.get(ref?.body); if (!body) throw new KErr('body_none');
+    const T = TP.topoOf(body.shape); const i = ref.name ? resolveName(body, 'edge', ref.name, ref.hint) : ref.idx;
+    if (!Number.isInteger(i) || !T.edges.list[i]) throw new KErr('elem_none');
+    return TP.tangentChain(body.shape, i);
+  }
   mesh(b) { let m = this.meshCache.get(b.shape); if (!m) { try { m = meshBody(b); } catch (e) { m = { error: errOf(e) }; } this.meshCache.set(b.shape, m); } return m; }
 
   // ---- sorgular ----
@@ -675,12 +826,20 @@ export class Kernel {
   camHeightmap(args) { return CAM.camHeightmap(this, args || {}); }
   camZLevels(args) { return CAM.camZLevels(this, args || {}); }
   camHoleExit(args) { return CAM.camHoleExit(this, args || {}); }
-  async exportFile(format, ids, names) {
+  async exportFile(format, ids, names, opts = null) {
     const shapes = [...(this.last?.bodies || [])].filter(([id]) => !ids || ids.includes(id));
     if (!shapes.length) throw new KErr('export.no_body');
     let blob;
     if (format === 'step') blob = R.exportSTEP(shapes.map(([id, b]) => ({ shape: b.shape, name: names?.[id] || (typeof b.name === 'string' ? b.name : id) })), { unit: 'MM', modelUnit: 'MM' });
-    else if (format === 'stl') { const comp = shapes.length === 1 ? shapes[0][1].shape : R.makeCompound(shapes.map(([, b]) => b.shape)); blob = comp.blobSTL({ tolerance: 0.01, angularTolerance: 0.1, binary: true }); }
+    else if (format === 'stl') {
+      // F-26 (WP-08): varsayılan (0,01 mm, 0,1 rad) eğrisel yüzlerde kiriş hatasıyla hacmi 1e-4'ten fazla saptırır (kademeli mil −3,7e-4).
+      // Varsayılan değişmedi (dosya boyutu); opts.quality === 'fine': doğrusal tolerans modele oranlı (köşegen × 2e-5, 0,001…0,01 mm),
+      // açısal 0,04 rad → mil −6,6e-5 (üçgen ~6×). Ölçü karşılaştırması için kesin yol STEP (B-rep).
+      const comp = shapes.length === 1 ? shapes[0][1].shape : R.makeCompound(shapes.map(([, b]) => b.shape));
+      const bb = comp.boundingBox; const fine = opts?.quality === 'fine';
+      const tol = fine ? Math.min(0.01, Math.max(0.001, Math.hypot(bb.width, bb.height, bb.depth) * 2e-5)) : 0.01;
+      blob = comp.blobSTL({ tolerance: tol, angularTolerance: fine ? 0.04 : 0.1, binary: true });
+    }
     else throw new KErr('export.format_unknown');
     return new Uint8Array(await blob.arrayBuffer());
   }

@@ -4,9 +4,12 @@ import './style.css';
 import pkg from '../../package.json';
 import planegcsWasm from '@salusoft89/planegcs/dist/planegcs_dist/planegcs.wasm?url';
 import { Viewport, THREE, COL } from './viewport.js';
+import { SKO, onSkOptsChange } from './sketch/opts.js';
+import { TEXT_MAX } from './sketch/text.js';
+const EXAMPLES = import.meta.glob('../../ornekler/*.mhnk', { query: '?raw', import: 'default' });
 import { paintFaces } from './viewport-hist.js';
 import { initSolver, solveSketch } from './solver.js';
-import { evalExpr, resolveParams } from '../shared/expr.js';
+import { evalExpr, resolveParams, changedByO044 } from '../shared/expr.js';
 import { basePlane } from '../shared/vec.js';
 import { h, $, toast, modal, modalOpen, promptText, confirmBox, esc, fmt } from './dom.js';
 import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared/i18n.js';
@@ -15,7 +18,7 @@ import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../s
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
-import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups, groupRanges, groupOf, moveUnit } from './features.js';
+import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups, groupRanges, groupOf, moveUnit, groupUnit } from './features.js';
 import { initChrome } from './chrome.js';
 import { initCam } from './cam/index.js';
 import { onPrefsChange, getStr, setStr } from './prefs.js';
@@ -62,7 +65,7 @@ class App {
     onLangChange(() => this.relang());
     onPrefsChange(() => this.retheme());
     this.pushNativeStrings();
-    try { this.viewport = new Viewport($('#viewport')); }
+    try { this.viewport = new Viewport($('#viewport')); this.installViewStore(); this.viewport.setGridStep(SKO.grid); onSkOptsChange(() => this.viewport?.setGridStep(SKO.grid)); }
     catch (e) { this.loadFail(t('ld.webgl', { detail: e.message }), 420); this._readyRej(e); return; }
     this.viewport.onPick = (hit, ev) => this.onPick(hit, ev);
     this.viewport.onCamera = () => {}; this.viewport.setLeftRotate(getStr('leftRotate') === 'on');
@@ -101,7 +104,7 @@ class App {
   setLanguage(l) { setLang(l); }
   // Tema/yoğunluk değişince 3B görünüm ve eskiz katmanı renkleri CSS değişkenlerinden yeniden okunur.
   retheme() {
-    try { this.viewport?.applyTheme(); this.refreshSketches(); this.sketcher?.retheme?.(); this.cam?.view?.retheme(); } catch (e) { console.error(e); }
+    try { this.viewport?.applyTheme(); if (this.viewport) { this.viewport.snapGrid = null; this.viewport.setGridStep(SKO.grid); } this.refreshSketches(); this.sketcher?.retheme?.(); this.cam?.view?.retheme(); } catch (e) { console.error(e); }
     this.C?.renderAll?.();
   }
   showSettings(tab) { return showSettings(this, tab); }
@@ -170,6 +173,25 @@ class App {
   // ------------------------------------------------------------ belge
   cloneDoc(d) { return clone(d); }
   vars() { try { return resolveParams(this.doc.params).vars; } catch (e) { return {}; } }
+  // WP-10 devri: örnek belgeler (geliştirmede ve paketlenmiş uygulamada ornekler/*.mhnk derlemeye gömülür; yoksa liste boş, menü gizli)
+  exampleList() { return Object.keys(EXAMPLES).sort().map((p) => ({ key: p.split('/').pop().replace(/\.mhnk$/i, '').replace(/[^\w-]/g, '_'), name: p.split('/').pop().replace(/\.mhnk$/i, ''), path: p })); }
+  async openExample(key) {
+    const ex = this.exampleList().find((x) => x.key === key); if (!ex || this.guard()) return;
+    if (!(await this.confirmDiscard())) return;
+    try { const txt = await EXAMPLES[ex.path](); await this.openBytes(new TextEncoder().encode(txt), ex.name + '.mhnk', null); } catch (e) { toast(t('msg.open_failed', { msg: errText(e) }), true); }
+  }
+  async saveViewPrompt() {
+    const nm = await promptText(t('vd.name'), ''); if (!nm) return;
+    const r = this.viewport.saveNamedView(nm); toast(r.ok ? t('cmd.view_saved', { name: r.name }) : t(r.err), !r.ok);
+  }
+  // WP-08 devir (c): adlandırılmış görünüşler belgenin isteğe bağlı `views` alanında (12 yuva, kodlu metin); kaydet/sil geri alınabilir adımdır
+  installViewStore() {
+    const vp = this.viewport; if (!vp) return;
+    vp.viewStore = {
+      get: (i) => (Array.isArray(this.doc?.views) ? this.doc.views[i - 1] || '' : ''),
+      set: (i, v) => this.commitMeta((d) => { const a = Array.isArray(d.views) ? d.views.slice() : []; while (a.length < i) a.push(''); a[i - 1] = v || ''; while (a.length && !a[a.length - 1]) a.pop(); if (a.length) d.views = a; else delete d.views; }),
+    };
+  }
   normalize(d) {
     d = clone(d || {}); d.params = Array.isArray(d.params) ? d.params : []; d.features = Array.isArray(d.features) ? d.features : [];
     if (d.rollback === undefined || (typeof d.rollback === 'number' && d.rollback >= d.features.length)) d.rollback = null;
@@ -267,15 +289,16 @@ class App {
       const ss = this.sketchSession;
       if (ss && !ss.isNew && !(e && !e.closed)) {
         const d = this.cloneDoc(this.doc); d.rollback = ss.idx;
-        const res = await this.rebuildDoc(d, null, true); if (this.sketchSession === ss) this.applyResult(res, true);
+        const res = await this.rebuildDoc(d, null, true); if (seq !== this._seq) return; if (this.sketchSession === ss) this.applyResult(res, true);
         return;
       }
       if (e && !e.closed) {
         const err = e.validate();
         let full = null;
-        if (!err) { full = await this.rebuildDoc(e.makeDoc(e.at + 1), null, true); e.setStatus(full.status[e.draft.id]); this.lastMs = performance.now() - t0; }
+        // WP-10 devri: yalnız en son isteğin sonucu uygulanır (eski uzun hesap yeni düzenlemeden sonra dönerse atılır)
+        if (!err) { full = await this.rebuildDoc(e.makeDoc(e.at + 1), null, true); if (seq !== this._seq) return; e.setStatus(full.status[e.draft.id]); this.lastMs = performance.now() - t0; }
         else e.setStatus({ ok: false, error: err });
-        if (e.pickBase() || err) this.applyResult(await this.rebuildDoc(e.makeDoc(e.at), null, true), true); else this.applyResult(full, true);
+        if (e.pickBase() || err) { const base = await this.rebuildDoc(e.makeDoc(e.at), null, true); if (seq !== this._seq) return; this.applyResult(base, true); } else this.applyResult(full, true);
         // WP-02 "Son hali göster": aynı değişiklik arka planda sona kadar hesaplanır (önbellek yalnız değişen işlemden sonrasını
         // yeniden hesaplar); yeni bir değişiklik gelirse eski sonuç atılır.
         if (this.showFinal && !err && e.hasAfter() && seq === this._seq && !e.closed) {
@@ -288,6 +311,7 @@ class App {
       // WP-02 güncelleme süpürmesi: çekirdek her işlemi bitirdikçe şerit soldan sağa durumunu alır
       if (sw) { this.sweep = { at: sw.at, base: this.sums ? new Map(this.sums) : new Map(), done: new Map(), order: [], cur: doc.features[sw.at]?.id ?? null }; this.C.renderTimeline(); }
       const res = await this.rebuildDoc(doc, sw ? (p) => this.onSweep(p) : null);
+      if (seq !== this._seq) { this.staleDropped = (this.staleDropped || 0) + 1; return; } // daha yeni istek var: eski sonuç uygulanmaz
       this.lastMs = performance.now() - t0; if (doc.rollback == null) this.lastFullMs = this.lastMs;
       const done = this.sweep; this.sweep = null;
       this.applyResult(res, false);
@@ -336,8 +360,10 @@ class App {
   async repairFeature(id) {
     const i = this.doc.features.findIndex((f) => f.id === id); if (i < 0 || this.guard()) return;
     const f = this.doc.features[i]; this.selectFeature(id);
-    if (f.type === 'sketch' || f.type === 'import') return this.editFeature(i);
+    if (f.type === 'import') return this.editFeature(i);
     let info = null; try { info = await this.query('repairInfo', { id }); } catch (e) { console.error(e); }
+    // WP-08 devir (f): yüz üzerine kurulu eskizin kayıp yüz başvurusu onarım kipinde yeniden seçilir; başka sorunda eskiz düzenleyici açılır
+    if (f.type === 'sketch' && !(f.plane?.kind === 'face' && info?.lost?.some((L) => String(L.field).startsWith('plane')))) return this.editFeature(i);
     if (this.guard()) return; this.endTool(true);
     new FeaturePanel(this, clone(f), i, info).open(); this.C.renderAll();
   }
@@ -444,7 +470,7 @@ class App {
     const ctx = this.ctx();
     if (['extrude', 'revolve'].includes(type) && !ctx.sketches.length) { toast(t('msg.need_sketch'), true); return; }
     if (type === 'hole' && !ctx.sketches.length) { toast(t('msg.need_sketch_hole'), true); return; }
-    if (['fillet', 'chamfer', 'shell', 'combine', 'move'].includes(type) && !ctx.bodies.length) { toast(t('msg.need_body'), true); return; }
+    if (['fillet', 'chamfer', 'shell', 'combine', 'move', 'split', 'splitface', 'faceop'].includes(type) && !ctx.bodies.length) { toast(t('msg.need_body'), true); return; }
     if (type === 'combine' && ctx.bodies.length < 2) { toast(t('msg.need_two_bodies'), true); return; }
     const draft = { id: newId(this.doc, type, kind), type, name: autoName(this.doc, type, kind), ...defaults(type, kind, ctx) };
     new FeaturePanel(this, draft, null).open();
@@ -530,9 +556,9 @@ class App {
   modelSig(res) { const B = res?.bodies || []; return { vol: B.reduce((a, b) => a + (b.volume || 0), 0), faces: B.reduce((a, b) => a + (b.nFaces || 0), 0), n: B.length }; }
   sensWhy(ids) { const nm = ids.map((id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }); return t('hs.move_sensitive', { list: nm.join(', ') }); }
   moveWhy(why) { const nm = (id) => { const f = this.doc.features.find((x) => x.id === id); return f ? f.name || featLabel(f) : id; }; return t('hs.move_blocked', { a: nm(why.feat), b: nm(why.dep) }); }
-  async moveFeature(i, to) {
+  async moveFeature(i, to, unit = null) {
     if (this.guard()) return false; const f = this.doc.features[i]; if (!f) return false;
-    const p = planMove(this.doc, i, to, this.result?.status || {});
+    const p = planMove(this.doc, i, to, this.result?.status || {}, null, unit);
     if (!p.ok) { this.histNote(this.moveWhy(p.why)); return false; }
     if (p.noop) return true;
     this._sweepNext = { at: p.at }; this._moveCheck = this.modelSig(this.result);
@@ -545,6 +571,8 @@ class App {
 
   // ------------------------------------------------------------ WP-02 dilim 4: gruplar (belgede isteğe bağlı `groups`)
   toggleGroup(gid) { if (this.groupOpen.has(gid)) this.groupOpen.delete(gid); else this.groupOpen.add(gid); this.C.renderTimeline(); this.C.renderBrowser(); }
+  // WP-08 devir (e): grup bütün olarak taşınır (to: özgün dizideki aralık)
+  async moveGroup(gid, to) { const u = groupUnit(this.doc, gid); if (!u.length) return false; return this.moveFeature(u[0], to, u); }
   async createGroup(ids) {
     if (this.guard()) return null; const F = this.doc.features; const pos = ids.map((id) => F.findIndex((f) => f.id === id)).filter((i) => i >= 0); if (!pos.length) return null;
     const a = Math.min(...pos.flatMap((i) => moveUnit(this.doc, i))), b = Math.max(...pos);
@@ -611,6 +639,32 @@ class App {
   }
   sketchTool(id) { this.sketcher?.setTool(id); this.C.renderToolbar(); }
   sketchConstraint(type) { try { this.sketcher?.applyConstraint(type); } catch (e) { toast(t('msg.constraint_failed', { msg: errText(e) }), true); } this.onSketchChange(); }
+  // WP-08: eskiz metni (uygulamayla gelen yazı tipi → kapalı çizgi konturları; çakışmalar çekirdekte temizlenir)
+  async sketchText() {
+    if (!this.sketchSession || !this.sketcher) return;
+    const prev = this._textOpts || { text: '', height: '10', x: '0', y: '0', angle: '0' };
+    const inp = (k, v, lbl) => { const e = h('input', { type: 'text', id: 'sktx-' + k, 'data-testid': 'sktx-' + k, value: v, autocomplete: 'off', spellcheck: 'false' }); return [e, h('div', { class: 'fld' }, h('label', { for: 'sktx-' + k, text: t(lbl) }), e)]; };
+    const [eT, rT] = inp('text', prev.text, 'sk.text_text'), [eH, rH] = inp('height', prev.height, 'sk.text_size'), [eX, rX] = inp('x', prev.x, 'fld.pos_x'), [eY, rY] = inp('y', prev.y, 'fld.pos_y'), [eA, rA] = inp('angle', prev.angle, 'fld.angle');
+    const num = (e) => { try { return Number(evalExpr(e.value, this.vars())); } catch (x) { return NaN; } };
+    let vals = null;
+    eT.setAttribute('maxlength', String(TEXT_MAX));
+    const msg = h('div', { class: 'callout err', role: 'alert', 'data-testid': 'sktx-msg', hidden: true });
+    const say = (k, p) => { msg.textContent = t(k, p); msg.hidden = false; return false; };
+    const ok = await modal({
+      title: t('sk.text_title'), content: h('div', {}, rT, rH, rX, rY, rA, msg, h('div', { class: 'note', text: t('sk.text_note') + ' ' + t('sk.text_max', { n: TEXT_MAX }) })),
+      buttons: [{ label: t('common.ok'), cls: 'pri', value: true, check: () => {
+        vals = { text: eT.value, height: num(eH), x: num(eX), y: num(eY), angle: num(eA) };
+        if (!vals.text.trim()) return say('sk.text_empty');
+        if ([...vals.text].length > TEXT_MAX) return say('sk.text_long', { n: TEXT_MAX });
+        if (!(vals.height > 0) || ![vals.x, vals.y, vals.angle].every(Number.isFinite)) return say('sk.text_height');
+        return true; } }, { label: t('common.cancel'), value: false }],
+    });
+    if (!ok || !vals) return;
+    this._textOpts = { text: eT.value, height: eH.value, x: eX.value, y: eY.value, angle: eA.value };
+    const r = await this.sketcher.insertText(vals);
+    toast(r.ok ? t('sk.text_done', { n: r.glyphs }) : r.msg || t('sk.text_failed'), !r.ok);
+    this.onSketchChange();
+  }
   sketchConstruction() { this.sketcher?.toggleConstruction(); this.onSketchChange(); }
   async setSketchOffset(expr) {
     const s = this.sketchSession; if (!s || s.draft.plane.kind !== 'base') return;
@@ -780,6 +834,9 @@ class App {
     toast(t('msg.opened', { name }));
     const bad = this.doc.features.filter((f) => this.result?.status[f.id]?.ok === false).length;
     if (bad) toast(t('msg.n_bad', { n: bad }), true);
+    // O-044 (F-15): yeni ifade kuralıyla değeri değişen parametre/alan varsa açılışta bir kez bildirilir
+    let ch = []; try { ch = changedByO044(j.doc); } catch (e) { ch = []; }
+    this.lastO044 = ch; if (ch.length) toast(t('msg.o044_changed', { list: ch.slice(0, 8).join(', ') + (ch.length > 8 ? ' …' : '') }), { kind: 'info' });
     return true;
   }
   async importFile(format) {
@@ -858,13 +915,13 @@ class App {
     window.native?.docState('new'); this.markDirty(true); toast(t('msg.recovered'));
     return true;
   }
-  async exportFile(format) {
+  async exportFile(format, opts = null) {
     if (this.guard()) return;
     const ids = (this.result?.bodies || []).filter((b) => !this.hiddenBodies.has(b.id)).map((b) => b.id);
     if (!ids.length) { toast(t('msg.export_none'), true); return; }
     try {
       const names = Object.fromEntries(ids.map((id) => [id, this.bodyName(id)]));
-      const data = await this.query('export', { format, ids, names });
+      const data = await this.query('export', { format, ids, names, opts });
       const name = (this.fileName || 'Belge').replace(/\.mhnk$/i, '') + '.' + format;
       const p = await this.writeOut(data, name, format, true);
       if (p) toast(t('msg.exported', { fmt: format.toUpperCase(), kb: Math.round(data.length / 1024) }));
@@ -880,9 +937,9 @@ class App {
   showAbout() {
     const dep = (n) => String(pkg.dependencies[n] || '').replace('^', '');
     const el = (window.native?.versions?.electron) || (/Electron\/([\d.]+)/.exec(navigator.userAgent) || [])[1];
-    const rows = [['Mihenk CAD/CAM', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`]];
+    const rows = [['Mihenk CAD/CAM', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`], [t('about.fonts'), 'Inter, JetBrains Mono — SIL OFL 1.1']];
     return modal({ title: t('about.title'), content: h('div', {}, h('div', { class: 'note', text: t('about.tagline') }), h('table', {}, rows.map(([k, v]) => h('tr', {}, h('td', { text: k }), h('td', { style: { fontWeight: 600 }, text: v })))),
-      h('div', { class: 'note', style: { marginTop: '8px' }, text: t('about.license') })), buttons: [{ label: t('common.close'), cls: 'pri', value: true }] });
+      h('div', { class: 'note', style: { marginTop: '8px' }, text: t('about.license') }), h('div', { class: 'note', 'data-testid': 'about-3p', text: t('about.third_party') })), buttons: [{ label: t('common.close'), cls: 'pri', value: true }] });
   }
 
   // ------------------------------------------------------------ klavye
