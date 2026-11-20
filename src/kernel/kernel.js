@@ -18,7 +18,7 @@ const OPS = new Set(['new', 'join', 'cut', 'intersect']);
 export class Kernel {
   constructor() { this.reset(); }
   // Çekirdek durumunu sıfırlar (Yeni/Aç, worker yeniden başlatma eşdeğeri)
-  reset() { this.cache = []; this.meshCache = new WeakMap(); this.last = null; this.imports = new Map(); this.hashes = new Map(); this.upgrades = new Map(); }
+  reset() { this.cache = []; this.meshCache = new WeakMap(); this.last = null; this.imports = new Map(); this.hashes = new Map(); this.upgrades = new Map(); this.sums = new Map(); this.lastGood = new Map(); this.rev = 0; }
 
   // ---- değer yardımcıları ----
   num(expr, vars, label) {
@@ -450,7 +450,8 @@ export class Kernel {
   }
 
   // ---- yeniden hesap ----
-  async rebuild(doc) {
+  // opts.onFeature({id, i, n, ok, cached, ms, sum, error?}): her işlem bitince (arayüzdeki güncelleme süpürmesi için)
+  async rebuild(doc, opts = {}) {
     const empty = (code) => ({ bodies: [], status: {}, sketches: {}, vars: {}, paramErrors: { '#doc': { code, params: {} } }, holes: [], refUpgrades: [], docErrors: [{ code, params: {} }] });
     if (!doc || typeof doc !== 'object' || Array.isArray(doc)) { this.last = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.invalid'); }
     if (!Array.isArray(doc.features)) { this.last = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.no_features'); }
@@ -462,14 +463,17 @@ export class Kernel {
     const rb = doc.rollback; const end = rb == null || !Number.isFinite(rb) ? feats.length : Math.max(0, Math.min(Math.floor(rb), feats.length));
     let state = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [], touch: new Map() };
     const newCache = []; let valid = true;
+    // WP-02: işlem başına iz (status'tan ayrı; status biçimi ve önbellek eşitliği değişmez)
+    // featInfo[id] = {ms, cached, changed, warn:[{code,params}], sum, lastOk:{rev}|null}
+    const featInfo = {}; const rev = ++this.rev;
     for (let i = 0; i < end; i++) {
       const f = feats[i];
       if (!f || typeof f !== 'object' || typeof f.id !== 'string' || !f.id) { docErrors.push({ code: 'feature.invalid', params: { index: i } }); valid = false; newCache.push(null); continue; }
       const key = pkey + '|' + featKey(f, this.hashes);
       const c = this.cache[i];
-      if (valid && c && c.key === key) { state = cloneState(c.state); status[f.id] = c.status; upgrades.push(...c.upgrades); newCache.push(c); continue; }
-      valid = false; const fu = [];
-      if (f.suppressed === true) status[f.id] = { ok: true, suppressed: true };
+      if (valid && c && c.key === key) { state = cloneState(c.state); status[f.id] = c.status; upgrades.push(...c.upgrades); newCache.push(c); featInfo[f.id] = this.info(f.id, c, true); report(opts, f.id, i, end, status[f.id], featInfo[f.id]); continue; }
+      valid = false; const fu = []; const t0 = now(); let sum;
+      if (f.suppressed === true) { status[f.id] = { ok: true, suppressed: true }; sum = 'sup'; }
       else {
         const snap = cloneState(state);
         try {
@@ -481,27 +485,47 @@ export class Kernel {
             state.touch.set(id, f.id);
           }
           status[f.id] = { ok: true, bodies: made };
-        } catch (e) { state = snap; status[f.id] = { ok: false, error: errOf(e) }; fu.length = 0; }
+          sum = resultSum(f, snap, state);
+          this.lastGood.set(f.id, { rev, input: snap, sum });
+        } catch (e) { state = snap; status[f.id] = { ok: false, error: errOf(e) }; fu.length = 0; sum = 'err:' + status[f.id].error.code; }
       }
       upgrades.push(...fu);
-      newCache.push({ key, state: cloneState(state), status: status[f.id], upgrades: fu });
+      const warn = fu.length ? [{ code: 'ref.remapped', params: { n: fu.length } }] : [];
+      const ce = { key, state: cloneState(state), status: status[f.id], upgrades: fu, ms: now() - t0, sum, warn };
+      newCache.push(ce); featInfo[f.id] = this.info(f.id, ce, false);
+      this.sums.set(f.id, sum);
+      report(opts, f.id, i, end, status[f.id], featInfo[f.id]);
     }
+    // önbellek: işaretçinin sağındaki kayıtlar, önek hiç değişmediyse saklanır (geri sar → sona git yeniden hesaplamaz)
+    if (valid && end < feats.length) for (let i = end; i < this.cache.length; i++) newCache.push(this.cache[i]);
     this.cache = newCache; this.last = state;
+    // belgede artık olmayan işlemlerin izi silinir
+    const ids = new Set(feats.map((f) => f && f.id));
+    for (const m of [this.sums, this.lastGood]) for (const k of [...m.keys()]) if (!ids.has(k)) m.delete(k);
     if (docErrors.length) perr['#doc'] = docErrors[0];
     const bodies = [];
     for (const [id, b] of state.bodies) {
       const m = this.mesh(b);
       if (m.error || !meshOk(m)) {
         // görüntü ağı üretilemedi/NaN: gövdeyi son değiştiren özellik açık hata verir (sessiz boş gövde yok)
-        const fid = state.touch.get(id); if (fid && status[fid]) status[fid] = { ok: false, error: { code: 'geom.invalid', params: { body: id, reason: 'mesh' } } };
+        const fid = state.touch.get(id); if (fid && status[fid]) status[fid] = { ok: false, error: { code: 'geom.invalid', params: { body: id, reason: 'mesh' } } }; if (fid && featInfo[fid]) featInfo[fid].sum = 'err:geom.invalid';
         docErrors.push({ code: 'mesh.failed', params: { body: id } }); continue;
       }
       bodies.push({ id, name: typeof b.name === 'string' ? b.name : null, auto: typeof b.name === 'string' ? null : b.name, ...m });
     }
     const sketches = {};
     for (const [id, s] of state.sketches) sketches[id] = { plane: s.plane };
-    return { bodies, status, sketches, vars, paramErrors: perr, holes: holesOut(state), refUpgrades: upgrades, docErrors };
+    return { bodies, status, sketches, vars, paramErrors: perr, holes: holesOut(state), refUpgrades: upgrades, docErrors, featInfo, rev };
   }
+  // işlem izi: changed = sonuç özeti bir önceki hesaplamadakinden farklı (ilk hesapta false)
+  info(id, ce, cached) {
+    let changed = false;
+    if (!cached) { const prev = this.sums.get(id); changed = prev !== undefined && prev !== ce.sum; }
+    const lg = this.lastGood.get(id);
+    return { ms: ce.ms ?? 0, cached, changed, warn: (ce.warn || []).map((w) => ({ ...w })), sum: ce.sum ?? null, lastOk: lg ? { rev: lg.rev } : null };
+  }
+  // son başarılı sonucun girdi durumu (onarım kipi için; dilim 5). Yoksa null.
+  lastGoodState(id) { return this.lastGood.get(id)?.input || null; }
 
   mesh(b) { let m = this.meshCache.get(b.shape); if (!m) { try { m = meshBody(b); } catch (e) { m = { error: errOf(e) }; } this.meshCache.set(b.shape, m); } return m; }
 
@@ -606,6 +630,43 @@ function boxOut([a0, a1], [b0, b1], tol = 1e-7) { for (let i = 0; i < 3; i++) if
 const hasAny = (body, keys) => { if (!body) return false; const al = aliasSet(body); return keys.some((k) => al.has(k)); };
 function sketchScale(S) { let m = 1; for (const p of Object.values(S.sk.points || {})) if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) m = Math.max(m, Math.abs(p.x), Math.abs(p.y)); return m; }
 
+function report(opts, id, i, n, st, fi) {
+  if (typeof opts?.onFeature !== 'function') return;
+  try { opts.onFeature({ id, i, n, ok: !!st?.ok, suppressed: !!st?.suppressed, error: st?.error || null, cached: fi.cached, ms: fi.ms, sum: fi.sum, warn: fi.warn }); } catch (e) { /* ilerleme bildirimi hesaplamayı bozmaz */ }
+}
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+// WP-02: işlem sonucu özeti. Aynı girdi → aynı metin; geometri değişince farklı metin.
+// Sketch: düzlem + noktalar + varlıklar. Diğerleri: işlemin eklediği/değiştirdiği/sildiği gövdelerin imzası.
+const r6 = (x) => (Number.isFinite(x) ? Math.round(x * 1e6) / 1e6 : String(x));
+const sigCache = new WeakMap();
+function bodySig(b) {
+  let s = sigCache.get(b.shape); if (s) return s;
+  try {
+    const T = TP.topoOf(b.shape); const [lo, hi] = b.shape.boundingBox.bounds; const v = TP.volume(b.shape);
+    // konuma duyarlı bileşenler: ağırlık merkezi + yüzlerin alan ağırlıklı merkez toplamı ve ikinci momenti.
+    // Model boyutuna göre nicemlenir (kayan nokta gürültüsü aynı geometride farklı özet üretmesin).
+    const L = Math.max(1, Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]));
+    const q = (x, sc = L) => (Number.isFinite(x) ? Math.round(x / (1e-7 * sc)) : 'nan');
+    let com = [NaN, NaN, NaN]; try { com = R.measureShapeVolumeProperties(b.shape).centerOfMass; } catch (e) { /* hacimsiz */ }
+    let A = 0; const M = [0, 0, 0]; let M2 = 0;
+    for (const raw of T.faces.list) {
+      const F = TP.faceWrap(raw); let a = 0; try { a = R.measureArea(F); } catch (e) { a = 0; }
+      const c = F.center.toTuple(); A += a; for (let i = 0; i < 3; i++) M[i] += a * c[i]; M2 += a * (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+    }
+    s = [T.faces.size, T.edges.size, ...lo.map(r6), ...hi.map(r6), Number.isFinite(v) ? Math.round(v * 1e4) / 1e4 : 'nan',
+      ...com.map((x) => q(x)), q(A, L * L), ...M.map((x) => q(x, L * L * L)), q(M2, L * L * L * L)].join(',');
+  } catch (e) { s = 'x'; }
+  sigCache.set(b.shape, s); return s;
+}
+function resultSum(f, before, after) {
+  if (f.type === 'sketch') { const S = after.sketches.get(f.id); return S ? 'sk:' + fnv(JSON.stringify([S.plane, S.sk.points, S.sk.ents], (k, v) => (typeof v === 'number' ? r6(v) : v))) : 'none'; }
+  const out = [];
+  for (const [id, b] of after.bodies) { const p = before.bodies.get(id); if (!p || p.shape !== b.shape) out.push(id + '=' + bodySig(b)); }
+  for (const id of before.bodies.keys()) if (!after.bodies.has(id)) out.push(id + '=-');
+  return 'b:' + fnv(out.sort().join(';'));
+}
+// 32 bit FNV-1a (özet karşılaştırması için; güvenlik amacı yok)
+function fnv(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); }
 const yieldTask = () => new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0)));
 // özellik önbellek anahtarı: içe aktarma verisi tam içerik özetiyle (F-02)
 function featKey(f, hashes) { return JSON.stringify(f, (k, v) => (k === 'name' ? undefined : k === 'data' && typeof v === 'string' ? 'sha:' + (hashes.get(v) || '?') : v)); }

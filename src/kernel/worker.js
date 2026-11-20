@@ -10,7 +10,7 @@ self.onmessage = async (ev) => {
   try {
     await ready;
     let result;
-    if (cmd === 'rebuild') result = await K.rebuild(args.doc);
+    if (cmd === 'rebuild') result = await K.rebuild(args.doc, args.progress ? { onFeature: (p) => self.postMessage({ id, progress: p }) } : undefined);
     else if (cmd === 'describe') result = K.describe(args.ref, args.kind);
     else if (cmd === 'facePlane') result = K.facePlane(args.ref);
     else if (cmd === 'measure') result = K.measure(args.a, args.b);

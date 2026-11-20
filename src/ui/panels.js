@@ -38,6 +38,8 @@ export class FeaturePanel {
   fields() { return fieldsFor(this.draft, this.ctx()); }
   hasSel() { return this.fields().some((f) => f.t === 'sel' || (f.t === 'source' && this.draft.source?.kind === 'body')); }
   pickBase() { return this.activeSel != null; }
+  // düzenlenen işlemin sağında (işaretçiye kadar) işlem var mı
+  hasAfter() { const rb = this.app.doc.rollback; const end = rb ?? this.app.doc.features.length; return this.isNew ? this.at < end : this.at + 1 < end; }
   makeDoc(rollback) {
     const d = this.app.cloneDoc(this.app.doc);
     if (this.isNew) d.features.splice(this.at, 0, clone(this.draft)); else d.features[this.idx] = clone(this.draft);
@@ -60,6 +62,8 @@ export class FeaturePanel {
 
   open() {
     const app = this.app; app.edit = this;
+    // WP-02 "Son hali göster" uyarlamalı: son tam güncelleme 1 sn altındaysa kendiliğinden açık
+    app.showFinal = this.hasAfter() && (app.lastFullMs == null || app.lastFullMs < 1000); app.setFinal(null);
     this.render();
     // ilk seçim alanı boşsa etkin yap
     const first = this.fields().find((f) => f.t === 'sel');
@@ -75,7 +79,12 @@ export class FeaturePanel {
   render() {
     const rows = []; for (const fd of this.fields()) { const row = this.fieldRow(fd); if (row) rows.push(row); }
     this.errEl = h('div', { class: 'callout err', id: 'p-err', role: 'alert', hidden: true }); this.noteEl = h('div', { class: 'note', id: 'p-note' });
-    shell(this.titleText(), [...rows, this.errEl, this.noteEl],
+    const fin = this.hasAfter() ? (() => {
+      const inp = h('input', { type: 'checkbox', 'data-testid': 'show-final', checked: !!this.app.showFinal });
+      inp.addEventListener('change', () => this.app.setShowFinal(inp.checked));
+      return h('div', { class: 'fld final', title: t('hs.final_tip') }, h('label', { text: t('hs.show_final') }), h('div', { class: 'ctl' }, checkBox(inp)));
+    })() : null;
+    shell(this.titleText(), [...rows, this.errEl, this.noteEl, fin],
       [h('button', { class: 'btn primary pri', id: 'p-ok', 'data-testid': 'panel-ok', onclick: () => this.ok() }, t('common.ok'), h('span', { class: 'kbd', text: 'Enter' })), h('button', { class: 'btn', id: 'p-cancel', 'data-testid': 'panel-cancel', onclick: () => this.cancel() }, t('common.cancel'), h('span', { class: 'kbd', text: 'Esc' }))],
       () => this.cancel(), { 'data-title': '' }, featureIcon(this.draft, 'md'));
     this.setStatus(this.status);
@@ -294,7 +303,7 @@ export class FeaturePanel {
   }
   cancel() { if (this.closed) return; this.close(); this.app.endEdit(); }
   close() {
-    this.closed = true; this.app.edit = null;
+    this.closed = true; this.app.edit = null; this.app.setFinal(null);
     $('#panel').classList.add('hidden'); $('#panel').replaceChildren();
     const vp = this.app.viewport; vp.setRegions(null, null); vp.setSelection([]); this.app.setHint('');
   }

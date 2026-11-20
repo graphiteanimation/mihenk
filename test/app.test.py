@@ -5,7 +5,7 @@ from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = os.path.join(ROOT, 'test', 'shots'); os.makedirs(SHOTS, exist_ok=True)
 TMP = os.path.join(ROOT, 'test', 'tmp'); os.makedirs(TMP, exist_ok=True)
-PORT = 4190
+PORT = int(os.environ.get("MIHENK_TEST_PORT", 4190))
 passed = failed = 0
 
 def check(name, cond, detail=''):
@@ -621,7 +621,7 @@ try:
     check('İngilizce: araç çubuğu düğmeleri', [btn_text(a) for a in ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section']] ==
           ['Sketch', 'Extrude', 'Revolve', 'Hole', 'Box', 'Cylinder', 'Sphere', 'Fillet', 'Chamfer', 'Shell', 'Combine', 'Move/Copy', 'Pattern', 'Mirror', 'Measure', 'Properties', 'Interference', 'Section'])
     check('İngilizce: görünüm düğmeleri', ev('[...document.querySelectorAll("#viewbtns button")].map(b => b.getAttribute("aria-label")).join(",")') == 'Front,Top,Right,Iso,Fit')
-    check('İngilizce: zaman çizelgesi ve tarayıcı', page.inner_text('#timeline .tl-label').lower() == 'timeline' and all(w in page.inner_text('#browser').lower() for w in ['bodies', 'sketches', 'parameters']), page.inner_text('#timeline')+'|'+page.inner_text('#browser'))
+    check('İngilizce: zaman çizelgesi ve tarayıcı', page.inner_text('#timeline .tl-label').lower() == 'timeline' and all(w in page.inner_text('#browser').lower() for w in ['bodies', 'history', 'parameters']), page.inner_text('#timeline')+'|'+page.inner_text('#browser'))
     check('İngilizce: durum çubuğu', all(w in page.inner_text('#statusbar-main') for w in ['1 bodies', '0 selected', 'Compute']), page.inner_text('#statusbar-main'))
     check('İngilizce: gövde adı (varsayılan)', 'Body 1' in page.inner_text('#browser'), page.inner_text('#browser'))
 
@@ -752,6 +752,139 @@ try:
     check('TR: toolbar etiketleri kırpılmıyor', not clipped, clipped)
     tb('sk-cancel'); page.wait_for_timeout(200)
     page.set_viewport_size({'width': 1400, 'height': 860}); page.wait_for_timeout(200)
+
+    # ---------------------------------------------------------------- WP-02: geçmiş (şerit + Geçmiş paneli + düzenleme akışı)
+    print('WP-02: geçmiş')
+    def part12(h='30'):
+        r = subprocess.run(['node', '--input-type=module', '-e', "import('./test/models/part12.mjs').then(m => console.log(JSON.stringify(m.part12(process.argv[1]))))", h], capture_output=True, text=True, cwd=ROOT)
+        return json.loads(r.stdout)
+    P12 = part12('30'); IDS = [f['id'] for f in P12['features']]; AFF = ['bx', 'fb', 'cy', 'cz']
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', P12); idle()
+    check('WP-02: 12 işlemli parça hatasız', ev('Object.values(app.result.status).every(s => s.ok)') and ev('Object.keys(app.result.featInfo).length') == 12)
+    chips = lambda: ev('[...document.querySelectorAll("#timeline [data-testid=chip]")].map(c => c.dataset.id)')
+    check('WP-02 şerit: tek işlemin kullandığı eskiz çip olmaz, rozet olur (10 çip, 2 rozet)', chips() == [x for x in IDS if x not in ('s1', 's2')] and ev('document.querySelectorAll("#timeline [data-testid=chip-sketch]").length') == 2, chips())
+    check('WP-02 şerit: çipte görünür ad/sıra no yok, ad ekran okuyucu metninde', ev('(() => { const c = document.querySelector("#timeline .chip[data-id=bx]"); const vis = [...c.childNodes].filter(n => !(n.classList && n.classList.contains("sr-only"))).map(n => n.textContent).join("").trim(); return vis === "" && c.querySelector(".sr-only").textContent.includes("Kutu 1") && !c.querySelector(".ix"); })()'))
+    check('WP-02 şerit: data-testid chip/tl-* korunur', ev('document.querySelectorAll("#timeline [data-testid=chip][data-i]").length') == 10)
+    rows = lambda: ev('[...document.querySelectorAll("#browser [data-testid=hist-row]")].map(r => r.dataset.hist)')
+    check('WP-02 panel: Geçmiş satırları (tek panel, Gövdeler üstte)', rows() == chips() and ev('(() => { const t = document.querySelector("#browser").innerText; return t.indexOf("Gövdeler") < t.indexOf("Geçmiş"); })()'), rows())
+    summ = lambda fid: ev(f'document.querySelector("#browser [data-hist={fid}] .hs")?.textContent || ""')
+    check('WP-02 panel: parametre özeti', summ('e1') == '20 mm' and summ('bx') == '30×30×30 mm' and summ('fb') == 'R3 · 1 kenar' and summ('ch') == '1 mm · 1 kenar' and summ('e2') == '10 mm · Ekle', [summ(x) for x in ('e1', 'bx', 'fb', 'ch', 'e2')])
+    check('WP-02 panel: süre çubuğu', ev('document.querySelectorAll("#browser [data-testid=hist-row] .msbar").length') == 10)
+    page.click('#browser [data-hist="e1"] [data-testid=hist-disc]')
+    check('WP-02 panel: eskiz satırı açılır (çocuk satır)', ev('!!document.querySelector("#browser .hrow.child[data-hist=s1][data-sketch=s1]")') and ev('document.querySelector("#browser [data-hist=e1] [data-testid=hist-disc]").getAttribute("aria-expanded")') == 'true')
+    page.click('#browser [data-hist="e1"] [data-testid=hist-disc]')
+    lang_menu('en'); page.wait_for_timeout(150)
+    check('WP-02 EN: tekil/çoğul ("1 edge", "4 items")', summ('fb') == 'R3 · 1 edge' and summ('ch') == '1 mm · 1 edge', [summ('fb'), summ('ch')])
+    page.hover('#timeline .chip[data-id="bx"]'); page.wait_for_timeout(100)
+    check('WP-02 EN: bağımlılık özeti çoğul', 'affects 3 features' in ev('document.querySelector("[data-testid=st-deps]").textContent'), ev('document.querySelector("[data-testid=st-deps]").textContent'))
+    page.mouse.move(700, 400); lang_menu('tr'); page.wait_for_timeout(150)
+    # bağımlılık vurgusu: Kutu 1 → Fillet 1, cy, cz
+    page.hover('#timeline .chip[data-id="bx"]'); page.wait_for_timeout(100)
+    down = ev('[...document.querySelectorAll("#timeline .chip.dep-down")].map(c => c.dataset.id)'); dim = ev('[...document.querySelectorAll("#timeline .chip.dep-dim")].map(c => c.dataset.id)')
+    check('WP-02 bağımlılık: etkiledikleri vurgulu, ilgisizler soluk', down == ['fb', 'cy', 'cz'] and set(dim) == {'e1', 'k1', 'k2', 'e2', 'k3', 'ch'}, f'{down} {dim}')
+    check('WP-02 bağımlılık: panel satırları da aynı vurguyu taşır', ev('[...document.querySelectorAll("#browser .hrow.dep-down")].map(c => c.dataset.hist)') == ['fb', 'cy', 'cz'])
+    check('WP-02 bağımlılık: durum çubuğunda özet', '3 işlemi etkiler' in ev('document.querySelector("[data-testid=st-deps]").textContent'), ev('document.querySelector("[data-testid=st-deps]").textContent'))
+    page.hover('#timeline .chip[data-id="ch"]'); page.wait_for_timeout(100)
+    up = ev('[...document.querySelectorAll("#timeline .chip.dep-up")].map(c => c.dataset.id)')
+    check('WP-02 bağımlılık: dayandıkları (aynı gövdedeki önceki işlemler)', up == ['e1', 'k1', 'k2', 'e2', 'k3'], up)
+    page.mouse.move(700, 400); page.wait_for_timeout(100)
+    shot('wp02_history')
+    # durumlar: renk tek kanal değil (simge + desen + metin)
+    bad12 = dict(P12); bad12 = json.loads(json.dumps(P12)); bad12['features'][7]['r'] = '50'; bad12['features'][4]['suppressed'] = True
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d)', bad12); idle()
+    st_err = ev('(() => { const c = document.querySelector("#timeline .chip[data-id=fb]"); const r = document.querySelector("#browser [data-hist=fb]"); return { cls: c.className, icon: !!c.querySelector("[data-ic=error]"), sr: c.textContent, why: document.querySelector("#browser [data-testid=hist-why][data-for=fb]")?.textContent || "", rowmk: !!r.querySelector("[data-mark=error]") }; })()')
+    check('WP-02 durum hata: kırmızı + ünlem simgesi + metin + neden satırı', 'err' in st_err['cls'] and st_err['icon'] and 'Hata' in st_err['sr'] and len(st_err['why']) > 5 and st_err['rowmk'], st_err)
+    st_sup = ev('(() => { const c = document.querySelector("#timeline .chip[data-id=k2]"); const r = document.querySelector("#browser [data-hist=k2]"); return { cls: c.className, bg: getComputedStyle(c).backgroundImage, txt: c.textContent, line: getComputedStyle(r.querySelector(".hn")).textDecorationLine }; })()')
+    check('WP-02 durum bastırılmış: tarama deseni + üstü çizili ad + metin', 'sup' in st_sup['cls'] and 'gradient' in st_sup['bg'] and 'Bastırılmış' in st_sup['txt'] and 'line-through' in st_sup['line'], st_sup)
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d)', dict(P12, rollback=5)); idle()
+    st_pen = ev('(() => { const c = document.querySelector("#timeline .chip[data-id=e2]"); return { cls: c.className, bs: getComputedStyle(c).borderStyle, txt: c.textContent }; })()')
+    check('WP-02 durum bekliyor (işaretçinin sağı): kesik kenarlık + metin', 'rolled' in st_pen['cls'] and 'dashed' in st_pen['bs'] and 'Bekliyor' in st_pen['txt'], st_pen)
+    # eski .mhnk belgeleri değişmeden açılır (0.1 biçimi: rollback yok, eski kenar referansı)
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', {'params': [], 'features': [box0]}); idle()
+    d0 = ev('app.query("describe", { ref: { body: "b1", idx: 0 }, kind: "edge" })')
+    old_doc = {'params': [{'name': 'T', 'expr': '20'}], 'features': [dict(box0, h='T'), {'id': 'fl', 'type': 'fillet', 'name': 'Fillet 1', 'edges': [{'body': 'b1', 'idx': d0['idx'], 'n': d0['n'], 'fp': d0['fp'], 'geom': d0['geom']}], 'r': '2'},
+               {'id': 'sk1', 'type': 'sketch', 'name': 'Sketch 1', 'plane': {'kind': 'base', 'name': 'XY', 'offset': '0'}, 'points': {'O': {'x': 0, 'y': 0, 'fixed': True}, 'c': {'x': 25, 'y': 20}}, 'ents': [{'id': 'c1', 'type': 'circle', 'c': 'c', 'r': 5}], 'cons': []},
+               {'id': 'ex1', 'type': 'extrude', 'name': 'Extrude 1', 'sketch': 'sk1', 'profiles': 'all', 'dist': '5', 'op': 'cut', 'flip': False}]}
+    pth = os.path.join(TMP, 'eski_01.mhnk'); json.dump({'app': 'Mihenk', 'version': 1, 'doc': old_doc}, open(pth, 'w'))
+    open_mhnk(pth)
+    got = ev('JSON.parse(JSON.stringify(app.doc))'); saved = ev('JSON.parse(new TextDecoder().decode(app.fileBytes())).doc')
+    strip = lambda d: {k: v for k, v in d.items() if k != 'rollback'}
+    check('WP-02 eski .mhnk: belge değişmeden açılır ve aynen kaydedilir (yeni alan yok)', strip(got) == old_doc and strip(saved) == old_doc and got.get('rollback') is None, json.dumps(got)[:300])
+    check('WP-02 eski .mhnk: hesap hatasız, geçmişte görünür', ev('Object.values(app.result.status).every(s => s.ok)') and rows() == ['b1', 'fl', 'ex1'] and chips() == ['b1', 'fl', 'ex1'], rows())
+
+    # ---------------------------------------------------------------- WP-02 dilim 3: ortadan düzenleme akışı (K-028)
+    print('WP-02: düzenleme akışı')
+    chipcls = lambda cls: ev(f'[...document.querySelectorAll("#timeline .chip.{cls}")].map(c => c.dataset.id)')
+    toast_btn = lambda label: page.locator('[data-testid=hist-summary] .acts button', has_text=label)
+    summ_text = lambda: ev('(document.querySelector("[data-testid=hist-summary]")?.textContent || "").replace(/\\u00a0/g, " ")')
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', P12); idle()
+    undo0 = ev('app.undoStack.length')
+    page.locator('#timeline .chip[data-id="bx"]').dblclick(); page.wait_for_selector('#panel [data-k="h"]'); idle()
+    if page.locator('#panel [data-testid=show-final]').is_checked(): page.locator('#panel [data-testid=show-final]').evaluate('(e) => e.click()'); idle()
+    check('WP-02 akış: çift tık → model o işlemin anında (yalnız ilk 3 işlem; e1 deliksiz)', ev('Object.keys(app.result.status).join()') == 's1,e1,bx' and near(ev('app.result.bodies.find(b => b.id === "e1").volume'), 120000), ev('Object.keys(app.result.status).join()'))
+    check('WP-02 akış: sağdaki çipler "bekliyor", düzenlenen çip "düzenleniyor"', chipcls('rolled') == ['k1', 'k2', 'e2', 'fb', 'k3', 'ch', 'cy', 'cz'] and chipcls('editing') == ['bx'] and 'Düzenleniyor' in page.inner_text('#timeline .chip[data-id="bx"]'), chipcls('rolled'))
+    fill('h', 40); idle()
+    check('WP-02 akış: ölçü değişince 3. işlem anı yeniden hesaplandı (kutu üstü z=40)', near(ev('app.result.bodies.find(b => b.id === "bx").bbox[1][2]'), 40) and ev('Object.keys(app.result.status).length') == 3)
+    page.locator('#panel [data-testid=show-final]').evaluate('(e) => e.click()'); idle()
+    fin = ev('app.finalResult ? { n: Object.keys(app.finalResult.status).length, ok: Object.values(app.finalResult.status).every(s => s.ok), nb: app.finalResult.bodies.length, ghost: app._ghost ? app._ghost.children.length : 0 } : null')
+    check('WP-02 akış: "Son hali göster" son modeli (12 işlem) yarı saydam gösterir', fin and fin['n'] == 12 and fin['ok'] and fin['ghost'] == 2 * fin['nb'] and ev('app._ghost.children.every(m => m.material.transparent && m.material.opacity < 1)'), fin)
+    check('WP-02 akış: son hal açıkken sağdaki çipler bekliyor değil; etkilenecekler önceden "değişti"', chipcls('rolled') == [] and chipcls('changed') == AFF, chipcls('changed'))
+    check('WP-02 akış: belge Tamam\'a kadar değişmedi', ev('app.doc.features[2].h') == '30')
+    shot('wp02_edit_final')
+    ok()
+    check('WP-02 akış: Tamam sonrası etkilenenler "değişti", etkilenmeyenler işaretsiz', chipcls('changed') == AFF and ev('[...document.querySelectorAll("#browser .hrow.changed")].map(r => r.dataset.hist)') == AFF, chipcls('changed'))
+    check('WP-02 akış: "değişti" işareti simge + metin (renk tek kanal değil)', ev('(() => { const c = document.querySelector("#timeline .chip[data-id=fb]"); return !!c.querySelector("[data-mark=changed] [data-ic=changed]") && c.textContent.includes("Değişti"); })()'))
+    S = ev('app.lastSummary')
+    check('WP-02 akış: süpürme soldan sağa her işlemi bildirdi', S and S['order'] == IDS, S and S['order'])
+    check('WP-02 akış: tek özet bildirimi (10 güncellendi · 4 değişti · 0 hata)', S and S['n'] == 10 and S['c'] == 4 and S['e'] == 0 and '10 işlem güncellendi · 4 değişti · 0 uyarı · 0 hata' in summ_text(), summ_text())
+    geo = ev('(() => { const t = document.querySelector("[data-testid=hist-summary]").getBoundingClientRect(); const b = document.querySelector("#browser").getBoundingClientRect(); const tl = document.querySelector("#timeline").getBoundingClientRect(); return { tl: t.left, br: b.right, tb: t.bottom, tlt: tl.top }; })()')
+    check('WP-02 özet: Geçmiş listesini ve şeridi örtmez (görünüm alanı sağ altı)', geo['tl'] >= geo['br'] and geo['tb'] <= geo['tlt'], geo)
+    check('WP-02 özet: sayı ile adı arasında bölünmez boşluk', ev('document.querySelector("[data-testid=hist-summary]").textContent').count('\xa0') >= 4)
+    check('WP-02 akış: işaretçi sonda kaldı, son hal görüntüsü kalktı', ev('app.doc.rollback') is None and ev('app._ghost') is None and ev('app.finalResult') is None)
+    ev('document.activeElement && document.activeElement.blur()'); page.keyboard.press('Control+z'); page.wait_for_timeout(100); idle()
+    check('WP-02 akış: Ctrl+Z tüm düzenlemeyi tek adımda geri alır', ev('app.doc.features[2].h') == '30' and ev('app.undoStack.length') == undo0 and near(ev('app.result.bodies.find(b => b.id === "bx").bbox[1][2]'), 30))
+    ev('app.redo()'); idle()
+    page.locator('#timeline .chip[data-id="bx"]').dblclick(); page.wait_for_selector('#panel [data-k="h"]'); fill('h', 55); idle()
+    page.click('#p-cancel'); idle()
+    check('WP-02 akış: İptal → belge ve görünüm düzenleme öncesine döner, hesaplanmış bir şey kalmaz', ev('app.doc.features[2].h') == '40' and ev('app.finalResult') is None and ev('app._ghost') is None and ev('Object.keys(app.result.status).length') == 12 and near(ev('app.result.bodies.find(b => b.id === "bx").bbox[1][2]'), 40) and chipcls('rolled') == [])
+    page.click('#timeline .chip[data-id="e1"]'); page.wait_for_timeout(100)
+    page.click('[data-testid=hist-clear]'); page.wait_for_timeout(100)
+    check('WP-02 akış: "Temizle" değişti işaretlerini siler', chipcls('changed') == [])
+    # konuma duyarlı "değişti": delik kaydırma (hacim/kutu/yüz sayısı aynı); değişmeyen yeniden hesapta yanlış pozitif yok
+    hm = {'params': [{'name': 'U', 'expr': '1'}], 'features': [
+        {'id': 'b', 'type': 'primitive', 'name': 'Kutu 1', 'kind': 'box', 'x': '0', 'y': '0', 'z': '0', 'w': '60', 'd': '40', 'h': '20', 'op': 'new'},
+        {'id': 'c', 'type': 'primitive', 'name': 'Silindir 1', 'kind': 'cylinder', 'x': '20', 'y': '20', 'z': '-1', 'dia': '8', 'h': '100', 'axis': 'Z', 'op': 'cut', 'targets': ['b']},
+        {'id': 'f', 'type': 'fillet', 'name': 'Yuvarlat 1', 'edges': [{'body': 'b', 'kind': 'edge', 'name': {'a': 'b:x+', 'b': 'b:z+'}}], 'r': '2'}]}
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', hm); idle()
+    page.locator('#timeline .chip[data-id="c"]').dblclick(); page.wait_for_selector('#panel [data-k="x"]'); fill('x', 35); idle(); ok()
+    check('WP-02 akış: delik x 20→35 → delik ve ona bağlı yuvarlatma "değişti", kutu değil', chipcls('changed') == ['c', 'f'], chipcls('changed'))
+    fps = []
+    for k in (2, 3, 4):
+        ev(f'app.commit((d) => {{ d.params[0].expr = "{k}"; }})'); idle(); fps.append(chipcls('changed'))
+    check('WP-02 akış: hiçbir şeyi değiştirmeyen yeniden hesap ×3 → "değişti" yok', fps == [[], [], []], fps)
+    # yuvarlatmanın kenarını yok eden değişiklik → özet bildiriminde hata + Onar
+    hd = {'params': [], 'features': [
+        {'id': 'b', 'type': 'primitive', 'name': 'Kutu 1', 'kind': 'box', 'x': '0', 'y': '0', 'z': '0', 'w': '40', 'd': '40', 'h': '20', 'op': 'new'},
+        {'id': 'c', 'type': 'primitive', 'name': 'Silindir 1', 'kind': 'cylinder', 'x': '20', 'y': '20', 'z': '-1', 'dia': '10', 'h': '100', 'axis': 'Z', 'op': 'cut', 'targets': ['b']},
+        {'id': 'f', 'type': 'fillet', 'name': 'Yuvarlat 3', 'edges': [{'body': 'b', 'kind': 'edge', 'name': {'a': 'b:z+', 'b': 'c:side'}}], 'r': '1'}]}
+    ev('app.markDirty(false)'); ev('(d) => app.loadDoc(d, { reset: true })', hd); idle()
+    check('WP-02 onarım öncesi: delik ağzı yuvarlatma hatasız', ev('Object.values(app.result.status).every(s => s.ok)'))
+    page.locator('#timeline .chip[data-id="c"]').dblclick(); page.wait_for_selector('#panel [data-k="h"]'); fill('h', 10); idle()
+    if not page.locator('#panel [data-testid=show-final]').is_checked(): page.locator('#panel [data-testid=show-final]').evaluate('(e) => e.click()'); idle()
+    check('WP-02 akış: son hal kırılacak yuvarlatmayı şeritte önceden kırmızı gösterir', chipcls('err') == ['f'], chipcls('err'))
+    ok()
+    S = ev('app.lastSummary')
+    check('WP-02 akış: kenarı yok eden değişiklik → özet bildiriminde hata (ad + neden) ve Onar', S and S['e'] == 1 and S['errors'] == ['f'] and '1 hata: Yuvarlat 3 — ' in summ_text() and toast_btn('Onar').count() == 1, summ_text())
+    check('WP-02 özet: yeni özet öncekinin yerine geçer (tek özet)', ev('document.querySelectorAll("[data-testid=hist-summary]").length') == 1)
+    check('WP-02 akış: hatalı çip kırmızı + neden satırı', chipcls('err') == ['f'] and ev('!!document.querySelector("#browser [data-testid=hist-why][data-for=f]")'))
+    sb = ev("""(() => { const m = document.querySelector('#statusbar-main'); const l = document.querySelector('#st-left');
+      const fixed = [...m.children].filter(e => e !== l && !e.classList.contains('deps') && !e.classList.contains('grow') && e.offsetParent !== null);
+      return { over: m.scrollWidth - m.clientWidth, clipped: fixed.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.dataset.testid || e.className), title: l.title === l.textContent && l.textContent.length > 0, ell: getComputedStyle(l).textOverflow }; })()""")
+    check('WP-02 durum çubuğu: hata varken taşmaz, sabit öğeler ezilmez, uzun metin üç nokta + title', sb['over'] <= 1 and not sb['clipped'] and sb['title'] and sb['ell'] == 'ellipsis', sb)
+    toast_btn('Onar').first.click(); page.wait_for_timeout(300)
+    check('WP-02 akış: Onar hatalı işlemi düzenlemeye açar (onarım kipi dilim 5)', ev('app.edit && app.edit.draft.id') == 'f')
+    page.click('#p-cancel'); idle()
+    shot('wp02_summary_error')
 
     check('CSP: dil değiştirme dahil son aşamada da ihlal yok', ev('window.__csp.length') == 0, str(ev('window.__csp')[:3]))
     print('\nkonsol hataları:', [e for e in errs if 'GL Driver' not in e][:5])

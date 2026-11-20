@@ -55,7 +55,7 @@
 .tool-stack .tool.sm { min-width: 112px; }
 .ddpop { position: fixed; z-index: var(--z-menu); min-width: 220px; max-height: calc(100vh - 120px); overflow: auto; }
 .ctxmenu { z-index: var(--z-menu); }
-#ctx { position: fixed; }
+#ctx { position: fixed; z-index: calc(var(--z-toast) + 1); } /* WP-02: kullanıcının açtığı bağlam menüsü bildirimlerin altında kalmaz (dar şerit çipleri sol alttadır) */
 .tip { position: fixed; pointer-events: none; }
 #viewbtns, #viewtoggles { margin-top: 0; }
 .vbtns button svg { width: 20px; height: 20px; }
@@ -88,7 +88,7 @@
 
 /* ---- zaman çizelgesi ---- */
 .timeline { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
-.timeline .chip { flex: none; font: inherit; color: var(--text); cursor: pointer; }
+.timeline .chip { flex: none; font: inherit; color: var(--text); cursor: pointer; min-width: var(--ctl-h); justify-content: center; }
 .timeline .chip .ic.sm { color: var(--text-muted); }
 .timeline .chip.err .ic.sm { color: var(--err-fg); }
 .timeline .tl-label, .timeline .note { flex: none; white-space: nowrap; }
@@ -99,7 +99,11 @@
 .statusbar .sb-main { display: flex; align-items: center; gap: var(--sp-3); flex: 1; min-width: 0; height: 100%; }
 .statusbar .sb-quick { display: none; align-items: center; gap: var(--sp-4); height: 100%; }
 .statusbar .seg-i { overflow: hidden; text-overflow: ellipsis; }
-.statusbar #st-left { flex: none; max-width: 40vw; }
+/* WP-02: sabit öğeler ezilmez; yalnız uzun metinli bölümler (sol durum, bağımlılık özeti) üç noktayla kısalır, tam metin title'da */
+.statusbar .sb-main > * { flex: none; }
+.statusbar .sb-main > .grow { flex: 1 1 0; min-width: 0; }
+.statusbar #st-left, .statusbar .sb-main > .seg-i.deps { flex: 0 1 auto; min-width: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: var(--status-h); }
+.statusbar #st-left { max-width: 40vw; }
 .statusbar .sbtn { flex: none; min-height: 24px; }
 .statusbar .sbtn:focus-visible, .statusbar :focus-visible { outline-color: var(--focus-on-dark); }
 .welcome-on .statusbar .sb-quick { display: flex; }
@@ -257,6 +261,9 @@
 .btn.pri:disabled { background: var(--bg-disabled); border-color: var(--line); color: var(--text-disabled); }
 /* Bildirim sütunu: sol altta (sağ panelin Tamam/İptal düğmelerini örtmesin); kalıcı hata bildirimi çalışmayı engellemez. */
 .toasts { right: auto; left: var(--sp-5); bottom: calc(var(--status-h) + var(--timeline-h) + var(--sp-5)); max-width: calc(var(--browser-w) - var(--sp-5) * 2 + 80px); }
+/* WP-02 geçmiş özeti: görünüm alanının sağ altında ayrı yer (sol Geçmiş listesini, şeridi ve açık pencereleri örtmez; UI-SPEC §11 sağ alt) */
+#hist-summary-host { position: absolute; left: auto; right: var(--sp-4); bottom: var(--sp-4); z-index: var(--z-dock); max-width: calc(100% - 2 * var(--sp-4)); }
+#hist-summary-host:empty { display: none; }
 /* tıklama hedefi: en az 32 px (Büyük yoğunlukta 40 px = --ctl-h) */
 .trow .tw { min-width: var(--ctl-h); width: var(--ctl-h); height: var(--ctl-h); margin: 0 calc(-1 * (var(--ctl-h) - 20px) / 2); }
 .bsec .btn { height: var(--ctl-h); }
@@ -280,3 +287,4 @@
 .sb-quick .quick { display: inline-flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-xs); }
 .welcome h1 + .lead { margin-top: var(--sp-3); }
 .input.pick > span[data-k=profiles] { flex: 1; color: var(--text); }
+.statusbar .sb-main > .seg-i.deps[hidden] { display: none; }

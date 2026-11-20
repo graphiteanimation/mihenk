@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const files = [
   ['part-a.mjs', 120], ['part-b.mjs', 120], ['part-c.mjs', 120], ['part-d.mjs', 120], ['part-e.mjs', 120], ['part-f.mjs', 120], ['part-g.mjs', 180], ['part-h.mjs', 300],
-  ['param-sweep.mjs', 900], ['param-random.mjs', 900], ['ref-adversarial.mjs', 300], ['naming.mjs', 600], ['edge-cases.mjs', 1500], ['measure.mjs', 120], ['profiles.mjs', 120], ['feature-geo.mjs', 180], ['state-bugs.mjs', 120], ['perf.mjs', 1800, ['--expose-gc']],
+  ['param-sweep.mjs', 900], ['param-random.mjs', 900], ['ref-adversarial.mjs', 300], ['naming.mjs', 600], ['edge-cases.mjs', 1500], ['measure.mjs', 120], ['profiles.mjs', 120], ['feature-geo.mjs', 180], ['state-bugs.mjs', 120], ['history12.mjs', 300], ['perf.mjs', 1800, ['--expose-gc']],
 ];
 const filter = process.argv[2];
 const run = ([f, limit, flags = []]) => new Promise((resolve) => {
