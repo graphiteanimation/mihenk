@@ -88,3 +88,15 @@ export async function openHoleSequence(cam) {
     }
   }
 }
+
+// Mengenede coklu parca: parca sayisi ve siralama (doc.cam.parts). NC uretiminde program is sifirlarina kopyalanir.
+export async function openParts(cam) {
+  const cur = cam.data().parts || { count: 1, order: 'byOp' }; let count = cur.count, order = cur.order || 'byOp';
+  const n = h('input', { type: 'number', min: 1, max: 48, step: 1, value: count, 'data-testid': 'parts-count' }); n.addEventListener('input', () => { count = Math.round(Number(n.value)); });
+  const o = h('select', { 'data-testid': 'parts-order' }, [['byOp', t('cam.parts.by_op')], ['byPart', t('cam.parts.by_part')]].map(([v, l]) => h('option', { value: v, selected: v === order }, l))); o.addEventListener('change', () => { order = o.value; });
+  const v = await modal({ title: t('cam.parts.title'), width: 480, content: h('div', {}, h('label', { text: t('cam.parts.count') }), n, h('label', { text: t('cam.parts.order') }), o, h('div', { class: 'note', text: t('cam.parts.note') })), buttons: [{ label: t('common.ok'), value: 'ok', cls: 'pri primary' }, { label: t('common.giveup'), value: null }] });
+  if (v !== 'ok') return;
+  if (!Number.isInteger(count) || count < 1 || count > 48) { toast(t('err.cam.multi.bad_count', { max: 48 }), true); return; }
+  cam.mut((c) => { if (count === 1) delete c.parts; else c.parts = { count, order }; });
+  toast(t('cam.parts.set', { n: count }));
+}

@@ -132,6 +132,7 @@ export function validateCam(cam) {
   if (cam.cutLib !== undefined) arrOf(obj({ id: idStr, material: str(60), type: oneOf(['endmill', 'drill', 'tap', 'chamfer', 'other']), diaMin: camNum(0), diaMax: camNum(0), vc: camNum(0), fz: camNum(0), note: str(200) }), 500)(cam.cutLib, CP + '.cutLib');
   if (cam.material !== undefined) str(60)(cam.material, CP + '.material');
   if (cam.units !== undefined) oneOf(['mm', 'inch'])(cam.units, CP + '.units'); // WP-14: belge birimi
+  if (cam.parts !== undefined && cam.parts !== null) obj({ count: posInt(48), order: oneOf(['byOp', 'byPart']) })(cam.parts, CP + '.parts'); // WP-14: mengenede coklu parca
   if (cam.verified !== undefined && cam.verified !== null) obj({ by: str(LIMITS.shortStr), date: str(40), note: str(), hash: str(LIMITS.shortStr) })(cam.verified, CP + '.verified');
   const ids = new Set();
   for (const [i, t] of (cam.tools || []).entries()) { if (!t.id) fail('schema.bad_field', { path: `${CP}.tools[${i}].id`, expect: 'text' }); if (ids.has(t.id)) fail('schema.dup_id', { id: t.id }); ids.add(t.id); }

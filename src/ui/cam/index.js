@@ -16,7 +16,7 @@ import { SetupPanel, defaultSetup } from './setup.js';
 import { openMachineManager } from './machines.js';
 import { openToolManager, protectedHits, toolLabel } from './toolui.js';
 import { openCutData } from './cutdata.js';
-import { openTemplates, openHoleSequence } from './templatesui.js';
+import { openTemplates, openHoleSequence, openParts } from './templatesui.js';
 import { setUnits, getUnits } from '../../shared/units.js';
 import { CamView } from './view.js';
 import { CamOps } from './ops.js';
@@ -141,6 +141,7 @@ export class CamCtl {
     reg('cam-sheet', 'cam.cmd.sheet', 'nc-code', () => { this.ops.sheet(); }, { off: needOps, tip: null });
     reg('cam-cutdata', 'cam.cmd.cutdata', 'cam-tool-library', () => openCutData(this));
     reg('cam-units', 'cam.cmd.units', 'cam-stock', () => this.toggleUnits(), { tip: null }); // WP-14: belge birimi mm <-> inc
+    reg('cam-parts', 'cam.cmd.parts', 'cam-stock', () => openParts(this), { off: needSetup, tip: null });
     reg('cam-tpl', 'cam.cmd.tpl', 'cam-tool-library', () => openTemplates(this), { off: needSetup, tip: null }); // WP-14
     reg('cam-holeseq', 'cam.cmd.holeseq', 'op-drill', () => openHoleSequence(this), { off: needSetup, tip: null });
     const opcmd = (id, nm, ic, type, cycle) => reg(id, nm, ic, () => this.ops.create(type, cycle), { off: needSetup });
@@ -157,7 +158,7 @@ export class CamCtl {
   ribbon(R) {
     const { group, toolBtn } = R; const b = (id) => toolBtn(id);
     return [
-      group('cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools', 'cam-units'].map(b), { items: ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools', 'cam-units'] }),
+      group('cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools', 'cam-units', 'cam-parts'].map(b), { items: ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools', 'cam-units', 'cam-parts'] }),
       group('cam-2d', 'cam.grp.2d', ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'].map(b), { items: ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'] }),
       group('cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill', 'cam-holeseq', 'cam-tpl'].map(b), { items: ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill', 'cam-holeseq', 'cam-tpl'] }),
       group('cam-3d', 'cam.grp.3d', [b('cam-op-surface')], { items: ['cam-op-surface'] }),

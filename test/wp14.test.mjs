@@ -1,11 +1,13 @@
 // WP-14 testleri: G76/G87 (IR, op, post, geri okuma, acilim), sonraki dilimlerde sablonlar vb. Calistir: node test/wp14.test.mjs
 import { validateToolpath, mk, compareToolpaths } from '../src/cam/ir.js';
+import { gates } from '../src/cam/gates.js';
 import { postProgram, readNC } from '../src/cam/post/index.js';
 import { expandCyclePoint, expandToolpathCycles } from '../src/cam/cycles.js';
 import * as CAM from '../src/cam/index.js';
 import * as S from './cam-samples/samples.mjs';
 import { mmToUnits, unitsToMm, parseLength, unitLabel, setUnits, getUnits } from '../src/shared/units.js';
 import { validateDoc } from '../src/shared/schema.js';
+import { replicateProgram, shiftOffset } from '../src/cam/multipart.js';
 import { makeTemplate, instantiateTemplate, exportTemplates, importTemplates, matchTool, planHoleOps, checkHoleRules, DEFAULT_HOLE_RULES, classifyHole } from '../src/cam/templates.js';
 
 let pass = 0, fail = 0;
@@ -216,6 +218,50 @@ console.log('6. inc birimi (G20)');
   const d5 = postProgram(S.drillSample().program, S.testMachine({ props: { decimalsInch: 5 } }), { ...OPTS, units: 'inch' });
   ok(/Z-0\.7874[0-9]/.test(d5.text) || /Z-0\.78740/.test(d5.text) || /Z-0\.7874/.test(d5.text), 'decimalsInch ozelligi');
 }
+
+console.log('7. mengenede coklu parca');
+{
+  const d = S.drillSample().program; // 3 bolum, tek setup (s1, G54), takimlar T6, T7, T8
+  const M = S.testMachine();
+  const r3 = replicateProgram(d, { count: 3, order: 'byOp', machine: M });
+  const wcs = (p) => p.sections.map((x) => x.setup.workOffset.kind);
+  ok(r3.program.sections.length === 9 && wcs(r3.program).join() === 'G54,G55,G56,G54,G55,G56,G54,G55,G56', 'byOp: her islem tum parcalara (9 bolum): ' + wcs(r3.program).join());
+  ok(r3.program.sections.slice(0, 3).every((x) => x.toolpath === d.sections[0].toolpath), 'byOp: ayni takim yolu (kopyalanmaz, paylasilir)');
+  const rp = replicateProgram(d, { count: 3, order: 'byPart', machine: M });
+  ok(rp.program.sections.map((x) => x.toolpath.tool.number).join() === '6,7,8,6,7,8,6,7,8' && wcs(rp.program).join() === 'G54,G54,G54,G55,G55,G55,G56,G56,G56', 'byPart: once bir parcanin tum islemleri');
+  ok(r3.program.sections[1].setup.stockFrom === 'blank' && r3.program.sections[1].setup.id === 's1#2' && r3.program.sections[0].setup.id === 's1' && r3.offsets.length === 2, 'kopya setup: yeni kimlik, stockFrom blank, ilk parca degismez');
+  ok(d.sections.length === 3 && wcs(d).every((k) => k === 'G54'), 'kaynak program degismez');
+  const tc = (p) => (postProgram(p, M, OPTS).text.match(/^T\d+ M6/gm) || []).length;
+  ok(tc(r3.program) === 3 && tc(rp.program) === 9, `takim degisimi: byOp ${tc(r3.program)} < byPart ${tc(rp.program)}`);
+  const nc = postProgram(r3.program, M, OPTS).text;
+  ok(/G0 G90 G54 /.test(nc) && /G55 /.test(nc) && /G56 /.test(nc), 'NC: G54, G55, G56 yazilir');
+  ok(replicateProgram(d, { count: 1 }).program === d, 'count 1: ayni program');
+  // iki setup: ayri is sifirlari 2 -> adim 2
+  const ind0 = S.indexedSample().program; const ind = { ...ind0, sections: ind0.sections.slice(0, 2) }; const dist = new Set(ind.sections.map((x) => x.setup.workOffset.kind + (x.setup.workOffset.p || '')));
+  const ri = replicateProgram(ind, { count: 2, order: 'byOp', machine: M });
+  ok(ri.program.sections.length === ind.sections.length * 2 && ri.program.sections.filter((x) => x.setup.part === 2).every((x) => !dist.has(x.setup.workOffset.kind + (x.setup.workOffset.p || ''))), 'coklu setup: kopya is sifirlari mevcutlarla cakismaz');
+  // G54.1 Pn
+  const g1 = JSON.parse(JSON.stringify(d)); g1.sections.forEach((x) => { x.setup.workOffset = { kind: 'G54.1', p: 1 }; });
+  g1.sections.forEach((x, i) => { x.toolpath = d.sections[i].toolpath; });
+  const rg = replicateProgram(g1, { count: 3, order: 'byPart', machine: M });
+  ok(rg.program.sections.map((x) => x.setup.workOffset.p).join() === '1,1,1,2,2,2,3,3,3', 'G54.1: Pn ilerler');
+  ok(/G54\.1 P3/.test(postProgram(rg.program, M, OPTS).text), 'NC: G54.1 P3');
+  // hatalar
+  throwsCode(() => replicateProgram(d, { count: 7, machine: M }), 'cam.multi.out_of_range', 'G59 asimi');
+  throwsCode(() => replicateProgram(d, { count: 0 }), 'cam.multi.bad_count', 'sayi 0');
+  throwsCode(() => replicateProgram(d, { count: 2, order: 'x' }), 'cam.multi.bad_order', 'gecersiz siralama');
+  throwsCode(() => replicateProgram(d, { count: 2, machine: { ...M, protected: { T: [], H: [], D: [], wcs: ['G55'] } } }), 'cam.multi.protected_wcs', 'korumali G55');
+  const mixed = JSON.parse(JSON.stringify(d)); mixed.sections.forEach((x, i) => { x.toolpath = d.sections[i].toolpath; }); mixed.sections[1].setup = { ...mixed.sections[1].setup, id: 's2', workOffset: { kind: 'G54.1', p: 1 } };
+  throwsCode(() => replicateProgram(mixed, { count: 2 }), 'cam.multi.mixed_offsets', 'karisik G54/G54.1');
+  throwsCode(() => shiftOffset({ kind: 'G54' }, 6), 'cam.multi.out_of_range', 'shiftOffset');
+  // kapilar: kopya program statik kapilardan gecer (korumali is sifiri engeli kopyalar icin de)
+  const prot = { ...M, protected: { T: [], H: [], D: [], wcs: ['G56'] } };
+  ok(gatesBlockCount(r3.program, prot) > gatesBlockCount(d, prot), 'korumali G56: kapi kopya bolumde de engel verir');
+  ok(gatesBlockCount(r3.program, M) === gatesBlockCount(d, M), 'korumasiz profilde kopya program ek engel uretmez (' + gatesBlockCount(r3.program, M) + ')');
+  try { validateDoc({ cam: { parts: { count: 3, order: 'byOp' } } }); ok(true, 'sema: parts'); } catch (e) { ok(false, 'sema parts: ' + e.code); }
+  try { validateDoc({ cam: { parts: { count: 0, order: 'byOp' } } }); ok(false, 'sema parts count 0 reddedilir'); } catch (e) { ok(true, 'sema parts count 0 reddedilir'); }
+}
+function gatesBlockCount(prog, M) { return gates(prog, M, { sim: false }).filter((g) => g.level === 'block').length; }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
