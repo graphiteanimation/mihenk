@@ -107,6 +107,18 @@ export function poolMax(fine, x0, y0, res, nx, ny) {
   }
   return out;
 }
+// WP-06 T-03: pah icin ince model haritasi (kenarin modelde pahli olup olmadigi). Cozunurluk width/4 (0,05..0,25); 3,5 M hucreyi asarsa
+// harita yok (kontrol yapilamaz, uyari uretilmez).
+export async function chamferMap(op, S, query) {
+  try {
+    const b = S.stockBox; const w = Number(op.width); const res = Math.min(0.25, Math.max(0.05, (w > 0 ? w : 1) / 4));
+    const m = (w > 0 ? w : 1) * 2 + 1; // kenar stokla ayniysa pah bolgesi stok kutusunun disinda kalir: kutu genisletilir
+    const bb = [b.min[0] - m, b.min[1] - m, b.max[0] + m, b.max[1] + m];
+    if (((bb[2] - bb[0]) / res) * ((bb[3] - bb[1]) / res) > 3.5e6) return {};
+    const fine = await query('camHeightmap', { bodies: S.bodies, frame: S.frame, res, bbox: bb });
+    return fine?.data ? { modelMap: fine } : {};
+  } catch (e) { return {}; }
+}
 export async function drillMaps(st, tps, S, { res, model, query }) {
   let hm = st.hm && st.done === tps.length ? st.hm : advanceStock(st, tps, S, res);
   if (!hm) { if (st.failed) return {}; const b = S.stockBox; hm = st.hm0 || (st.hm0 = createHeightmap([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, b.max[2])); }
@@ -177,7 +189,8 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         let opx = op;
         if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
         if (op.type === 'drill') chainStock(recs, ri, mres);
-        const maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
+        let maps = op.type === 'drill' ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
+        if (op.type === 'chamfer') maps = await chamferMap(op, S, query);
         const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
       } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }

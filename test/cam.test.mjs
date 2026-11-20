@@ -879,6 +879,19 @@ section('T-03. pah (chamfer)');
   throwsCode(() => CAM.computeOp({ ...cop, width: null }, { setup: S0, tool: ch90, geom }), 'cam.op.missing', 'genislik zorunlu');
   throwsCode(() => CAM.computeOp(cop, { setup: S0, tool: ch90, geom: { faces: [{ ...geom.faces[0], z: 5 }] } }), 'cam.chamfer.above_stock', 'kenar stok ustunde');
   throwsCode(() => CAM.computeOp({ ...cop, geom: [{ kind: 'chain' }] }, { setup: S0, tool: ch90, geom: { items: [{ segs: [{ ...G.mkLine([10, 10], [50, 10]), fwd: true }], closed: false, z: 0 }] } }), 'cam.chamfer.chain_side', 'acik zincir icin taraf secilmeli');
+  // model_sharp: pahli modelde uyari yok, keskin kenarda uyari
+  { const mapOf = (fn) => heightmapFromFn([0, 0], [100, 60], 0.1, fn);
+    const mC = mapOf((x, y) => { const d = dOut(x, y); return d <= 1.5 ? -d : -10; });
+    const mS = mapOf((x, y) => (dOut(x, y) > 0 ? -10 : 0));
+    const w = (m) => CAM.computeOp(cop, { setup: S0, tool: ch90, geom, modelMap: m }).warnings.some((x) => x.code === 'cam.chamfer.model_sharp');
+    ok(!w(mC), 'T-03: pahli model -> model_sharp uyarisi yok'); ok(w(mS), 'T-03: keskin kenarli (duz blok) model -> cam.chamfer.model_sharp uyarisi'); ok(!w(null), 'T-03: model haritasi yoksa uyari uretilmez (bilinmiyor)');
+    const tH = CAM.computeOp({ ...cop, geom: [{ kind: 'face', loops: 'inner' }] }, { setup: S0, tool: ch90, geom: { faces: [hole] }, modelMap: mapOf((x, y) => { const d = Math.max(0, Math.max(40 - x, x - 60, 20 - y, y - 40) * -1); void d; return -10; }) });
+    ok(tH.warnings.some((x) => x.code === 'cam.chamfer.model_sharp'), 'T-03: delik kenari keskin model -> uyari'); }
+  // acik zincir kontur: dir yok sayilir (yon zincir yonu); pah dir'e uyar
+  { const cch = { items: [{ segs: [{ ...G.mkLine([10, 10], [50, 10]), fwd: true }], closed: false, z: 0 }] };
+    const cc = (dir, type = 'contour', side = 'left') => CAM.computeOp({ id: 'c', type, ...base, geom: [{ kind: 'chain' }], side, dir, stepdown: 2, width: 1.5, heights: { clearance: 10, retract: 2, bottom: { from: 'abs', off: -2 } } }, { setup: S0, tool: type === 'chamfer' ? ch90 : flat(6), geom: cch });
+    ok(JSON.stringify(cc('climb').moves) === JSON.stringify(cc('conv').moves), 'T-02: acik zincir konturda dir yok sayilir (belgelendi, panelde gizli)');
+    ok(JSON.stringify(cc('climb', 'chamfer').moves) !== JSON.stringify(cc('conv', 'chamfer').moves), 'T-03: pahta dir zincir yonunu belirler'); }
   // spot takimi da kabul
   ok(CAM.computeOp(cop, { setup: S0, tool: { ...ch90, type: 'spot', centerCutting: true }, geom }).moves.length > 5, 'T-03: spot takimi ile de pah');
   // acik zincir: iki taraf, uzatmalar

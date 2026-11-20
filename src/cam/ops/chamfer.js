@@ -43,6 +43,23 @@ export function miterJoins(path, srcVerts, d, closed) {
   return out.filter((_, i) => !drop.has(i));
 }
 
+// Model yukseklik haritasindan (ctx.modelMap, ince cozunurluk) secilen kenarin modelde pahli olup olmadigi: kenardan malzeme disina
+// (delikte bosluga) width/2 uzaklikta CAD pahi yuzu zEdge - dz/2 civarindadir; keskin kenarda bu nokta pahin altindaki duvar/zemindir.
+// Noktalarin yarisindan cogu zEdge - 0,9 dz'den yuksekse pahli sayilir. Harita yoksa null (bilinmiyor: uyari yok).
+export function modelChamfered(map, paths, zEdge, dz) {
+  if (!map?.data) return null;
+  let n = 0, ok = 0;
+  for (const path of paths) for (const sg of path) {
+    const k = Math.max(1, Math.ceil(P.length(sg) / 2));
+    for (let i = 0; i < k; i++) {
+      const q = P.pointAt(sg, (i + 0.5) / k); const ix = Math.floor((q[0] - map.x0) / map.res), iy = Math.floor((q[1] - map.y0) / map.res);
+      if (ix < 0 || iy < 0 || ix >= map.nx || iy >= map.ny) continue;
+      n++; if (map.data[iy * map.nx + ix] > zEdge - 0.9 * dz) ok++;
+    }
+  }
+  return n ? ok / n >= 0.5 : null;
+}
+
 export function computeChamfer(op, ctx) {
   const { setup: S, tool, geom, machine } = ctx;
   if (!CHAMFER_TOOLS.includes(tool.type)) throw cerr('cam.chamfer.tool_type', { type: tool.type, tool: tool.number });
@@ -60,7 +77,7 @@ export function computeChamfer(op, ctx) {
   const zSel = items.find((it) => Number.isFinite(it.z))?.z;
   const h = heights({ ...op, heights: { top: { from: 'selection', off: 0 }, bottom: { from: 'selection', off: 0 }, ...op.heights } }, S, { bottom: zSel, top: zSel });
   const b = new Builder({ zClr: h.zClr, zRet: h.zRet, feed: cut.feedCut, tool });
-  let zLow = Infinity;
+  let zLow = Infinity; const probes = [];
 
   for (const it of items) {
     const zEdge = Number.isFinite(it.z) ? it.z : h.zTop; // pahin ust kenari
@@ -73,6 +90,7 @@ export function computeChamfer(op, ctx) {
       // tirmanma: malzeme gidis yonunun sagi = takim solda (side 'left') zincir yonunde; conv ya da sag taraf ters
       const rev = (side === 'left') !== (dir === 'climb');
       if (rev) ch = P.reverseLoop(ch);
+      try { probes.push({ paths: [P.offsetChainOpen(ch0, side === 'left' ? width / 2 : -width / 2)], zEdge }); } catch (e) { /* kontrol yapilamaz: uyari yok */ }
       b.linkTo(ch[0].a[0], ch[0].a[1], zt, cut.feedPlunge);
       b.segs(ch, zt, cut.feedCut, 'cut'); b.up();
       continue;
@@ -81,6 +99,7 @@ export function computeChamfer(op, ctx) {
     const outside = side === 'outside';
     const regs = P.offsetRegions([{ outer: it.loop, holes: [] }], outside ? -g.off : g.off);
     if (!regs.length) throw cerr('cam.contour.tool_too_big', { dia: tool.dia });
+    try { probes.push({ paths: P.offsetRegions([{ outer: it.loop, holes: [] }], outside ? -width / 2 : width / 2).map((r) => r.outer), zEdge }); } catch (e) { /* kontrol yapilamaz */ }
     if (!outside && regs.length > 1) warnings.push(warn('cam.contour.split', { n: regs.length }));
     // CCW dongu (bolge solda): disari -> malzeme solda; tirmanma icin CW (ters). Iceri: malzeme sagda; tirmanma CCW
     const flip = outside ? dir === 'climb' : dir === 'conv';
@@ -91,6 +110,8 @@ export function computeChamfer(op, ctx) {
       b.segs(L, zt, cut.feedCut, 'cut'); b.up();
     }
   }
+  // model o kenarda pahli degil (keskin kenar): islem modele gore pah kesmez -> sessizlik yerine uyari (WP-07: keskin kenara pah atma kipi)
+  if (probes.some((pr) => modelChamfered(ctx.modelMap, pr.paths, pr.zEdge, g.dz) === false)) warnings.push(warn('cam.chamfer.model_sharp', {}));
   if (!b.moves.length) throw cerr('cam.contour.nothing', { top: r3(h.zTop), bottom: r3(h.zBot) });
   return finishToolpath(op, tool, cut, { ...h, zBot: zLow }, b, { warnings, passDepth: g.tipDrop, comp: 'computer', rapidFeed: machine?.feed?.rapid ?? undefined, meta: { chamfer: { width: r3(width), depth: r3(g.dz), tipDia: tool.tipDia ?? 0 } } });
 }

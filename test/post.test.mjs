@@ -376,6 +376,11 @@ console.log('9. WP-06 T-07 ardisik islemlerde mil/sogutma tekrari yok; T-18 yoru
   }
   // opsiyonel durdurma her islemde korunur
   { const x = run(S3, { props: { optionalStop: true } }); ok(x.cnt(/^M01$/) === 3, 'T-07: optionalStop her islemde M01: ' + x.cnt(/^M01$/)); }
+  // durum makinesi: M00/M01 satirinda mil ve sogutma KAPALI (sadelestirme durdurma iceren gecislerde uygulanmaz)
+  { const x = run(S3, { props: { optionalStop: true } }); let spin = false, cool = false, bad = [];
+    x.lines.forEach((l, i) => { const w = l.split(/\s+/); if (w.some((t) => /^M0?[34]$/.test(t))) spin = true; if (w.includes('M5') || w.includes('M05')) spin = false; if (w.includes('M8') || w.includes('M08')) cool = true; if (w.includes('M9') || w.includes('M09')) cool = false; if (w.includes('M01') || w.includes('M00')) { if (spin || cool) bad.push(i + ':' + l); } });
+    ok(bad.length === 0, 'T-07: M01 satirinda mil/sogutma kapali: ' + bad.join(','));
+    ok(x.cnt(/^M5$/) === 3 && x.cnt(/^M9$/) === 3 && x.cnt(/^S2500 M3$/) === 3 && x.cnt(/\bM8\b/) === 3, 'T-07: durmali programda her gecis M5/M9 + S M3/M8 yeniden: ' + [x.cnt(/^M5$/), x.cnt(/^M9$/), x.cnt(/^S2500 M3$/), x.cnt(/\bM8\b/)]); }
   // T-18
   ok(sanitizeComment('Ø12 mm² 10³ µm ø5') === 'D12 mm2 103 um D5', 'T-18: ², ³, Ø/ø, µ eslemesi: ' + sanitizeComment('Ø12 mm² 10³ µm ø5'));
   ok(!sanitizeComment('Ø6 R² ³ µ ± ≈').includes('?'), "T-18: bu karakterler '?' olmaz: " + sanitizeComment('Ø6 R² ³ µ ± ≈'));

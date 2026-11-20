@@ -55,7 +55,7 @@ Bu özellikler makine profilinde `post.props` altında saklanır (`machine.post.
 | `dwellAddress`, `dwellUnit` | G04 adresi (`P`/`X`) ve birimi (`'ms'`/`'s'`) | `'P'`, `'ms'` | **null**, **null** | M80V [?] (M80 1/2 kılavuz bölüm 8.1-8.2) |
 | `cycleDwellAddress`, `cycleDwellUnit` | G82/G89 bekleme adresi (X/Y/Z/R/Q/F olamaz) ve birimi | `'P'`, `'ms'` | **null**, **null** | [?] |
 | `coolantCodes` | `{flood,mist,air,through,off}` M kodları | M8, M7, null, null, M9 | M8, **null, null, null**, M9 | flood/off sözleşme lehçesi; diğerleri [?] |
-| `optionalStop` | Her işlem başında M01 | false | false | seçenek (CP3) |
+| `optionalStop` | Her işlem başında M01 (mil/soğutma kapalıyken: M5/M9 → M01 → S M3/soğutma yeniden; T-07 sadeleştirmesi bu durumda uygulanmaz) | false | false | seçenek (CP3) |
 | `rapidSplit` | Karışık XY+Z hızlıyı böl (iniş: önce XY sonra Z; çıkış: önce Z sonra XY) | true | true | [Ç] dog-leg önlemi (CP2) |
 | `cannedCycles` | false: delik çevrimini açık harekete aç (drill/spot/ream/bore; diğerleri `cam.post.cycle_unsupported`) | true | true | C6 |
 | `tapMode` | `'feed'`: F = devir x adım (+`rigidTapM`); `'pitch'`: F = adım | `'feed'` | `'pitch'` | M80V [D] (#8159=1, F=adım) |

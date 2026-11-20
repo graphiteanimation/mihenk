@@ -324,4 +324,5 @@ export default {
   "cam.op.h_kind_csink": "countersink",
   "cam.op.h_thread_accept": "Accept {m} thread suggestion",
   "cam.op.h_thread_hint": "The hole diameter matches the tap-drill/minor diameter of this ISO coarse thread. It is used as a thread only if you confirm.",
+  "cam.op.ch_model_note": "The selected edge must be the UPPER edge of the chamfer face in the model. If the model is sharp there, the operation warns and the simulation counts the chamfer as over-cut (chamfering a sharp edge is planned as a separate mode).",
 };

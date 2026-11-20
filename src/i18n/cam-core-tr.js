@@ -151,4 +151,5 @@ export default {
   "err.cam.chamfer.above_stock": "Pah kenarı (Z {z}) stok üstünün (Z {top}) üzerinde; pah havada kalır.",
   "err.cam.chamfer.chain_side": "Açık zincir pahı için takım tarafı (sol ya da sağ) seçilmeli.",
   "err.cam.drill.pocketlike_skipped": "{n} cep benzeri tanınan delik (çap ≥ 2 × derinlik) varsayılan olarak delinmedi; delme panelinde ayrı listeden seçilebilir.",
+  "err.cam.chamfer.model_sharp": "Model bu kenarda pahlı değil; bu işlem modele göre pah kesmez.",
 };

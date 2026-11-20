@@ -216,6 +216,7 @@ export class OpPanel {
     if (!(d.geom || []).length) list.append(h('div', { class: 'note', 'data-testid': 'op-geom-empty', text: t('cam.op.g_empty') }));
     rows.push(sec(t('cam.op.g_selected')), list);
     if (d.type === 'chamfer') {
+      rows.push(callout('info', null, t('cam.op.ch_model_note')));
       const hasCh = (d.geom || []).some((g) => g.kind === 'chain');
       rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ...(hasCh ? [['left', t('cam.op.side_left')], ['right', t('cam.op.side_right')]] : [])], { f: 'side', hint: t('cam.op.chamfer_side_hint') }));
     }
@@ -223,7 +224,9 @@ export class OpPanel {
       rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ['on', t('cam.op.side_on')], ...((d.geom || []).some((g) => g.kind === 'chain') ? [['left', t('cam.op.side_left')], ['right', t('cam.op.side_right')]] : [])], { f: 'side', hint: t('cam.op.side_hint') }),
         this.sel(t('cam.op.comp'), 'comp', [['computer', t('cam.op.comp_computer')], ['wear', t('cam.op.comp_wear')]], { f: 'comp', def: 'computer', hint: t('cam.op.comp_hint'), redraw: true }));
     }
-    rows.push(this.sel(t('cam.op.dir'), 'dir', [['climb', t('cam.op.dir_climb')], ['conv', t('cam.op.dir_conv')]], { f: 'dir', def: 'climb' }));
+    // acik zincir (yalniz zincir secimi olan kontur): yon zincir yonu (+ Ters cevir); dir yok sayilir -> alan gizli. Pah ve kapali dongulerde dir gecerli.
+    const chainOnly = d.type === 'contour' && (d.geom || []).length > 0 && (d.geom || []).every((g) => g.kind === 'chain' && !sketchChains(this.app.doc.features.find((f) => f.id === g.sketch) || {}).some((c) => c.closed && [...c.ents].sort().join() === [...(g.ents || [])].sort().join()));
+    if (!chainOnly) rows.push(this.sel(t('cam.op.dir'), 'dir', [['climb', t('cam.op.dir_climb')], ['conv', t('cam.op.dir_conv')]], { f: 'dir', def: 'climb' }));
     return rows;
   }
   holesRows() {

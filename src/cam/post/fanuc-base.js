@@ -126,7 +126,8 @@ export function createFanucPost(over = {}) {
       // T-07: ayni takim + ayni setup (is koordinati ve A acisi) ve mil/sogutma zaten istenen durumdaysa M5/M9/S M3/M8
       // tekrarlanmaz; devir ya da sogutma degisiyorsa yalniz degisen yazilir. Mil yonu degisiyorsa once M5.
       const wo = st.workOffset, key = `${wo?.kind}|${wo?.p ?? ''}|${st.aAngle ?? 0}`;
-      const keep = S.tool === tp.tool.number && S.setupKey === key && !!S.spindle;
+      // program durdurma (M00/M01) varsa sadelestirme YOK: durmadan once M5/M9, sonra S M3 ve sogutma yeniden (mil/sogutma acikken durma yok)
+      const keep = !p.optionalStop && S.tool === tp.tool.number && S.setupKey === key && !!S.spindle;
       const dirSame = keep && S.spindle.dir === tp.spindleDir;
       const rpmSame = dirSame && Math.round(S.spindle.rpm) === Math.round(tp.rpm);
       const coolSame = keep && S.coolant === tp.coolant;

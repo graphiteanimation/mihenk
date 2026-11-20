@@ -130,6 +130,4 @@ export function silhouetteFaces(zl, sections) {
   clusters.sort((a, b) => { const ka = key(a.big), kb = key(b.big); return ka[0] - kb[0] || ka[1] - kb[1]; });
   return clusters.map((c) => ({ z: zl.levels[0], normalOk: true, outer: toItems(P.mergeLoop(c.big)), inners: [], open: false, above: null, src: 'silhouette' }));
 }
-// Eski tekil API: tek bolge bekleyen cagiranlar icin ilk bolge (birden cok bolgede ilk bolge, hata atmaz)
-export function silhouetteFace(zl, sections) { return silhouetteFaces(zl, sections)[0]; }
 export const midLevels = (levels) => { const out = []; for (let i = 1; i < levels.length; i++) out.push((levels[i - 1] + levels[i]) / 2); return out; };

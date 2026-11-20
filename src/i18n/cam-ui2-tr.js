@@ -324,4 +324,5 @@ export default {
   "cam.op.h_kind_csink": "havşalı (konik)",
   "cam.op.h_thread_accept": "{m} diş önerisini kabul et",
   "cam.op.h_thread_hint": "Delik çapı bu ISO kaba dişin kılavuz matkabı/diş dibi çapına uyuyor. Yalnız siz onaylarsanız diş olarak kullanılır.",
+  "cam.op.ch_model_note": "Seçilen kenar, modeldeki pah yüzünün ÜST kenarı olmalı. Model o kenarda keskinse işlem uyarı verir ve simülasyon pahı fazla kesim sayar (keskin kenara pah atma ayrı bir kip olarak planlı).",
 };
