@@ -44,6 +44,7 @@ export function collectHoles(op, S, geom) {
     const rec = Array.isArray(sel.rec) ? new Set(sel.rec) : null; const acc = new Set(Array.isArray(sel.acceptThread) ? sel.acceptThread : []);
     for (const h of geom?.holes || []) {
       if (f.feature != null && h.feature !== f.feature && h.patternOf !== f.feature && h.copyOf !== f.feature) continue;
+      if (Array.isArray(f.features) && !f.features.includes(h.feature) && !f.features.includes(h.patternOf) && !f.features.includes(h.copyOf)) continue; // WP-14: sira sablonu birden cok ozellik
       if (f.dia != null && Math.abs(h.dia - f.dia) > 1e-6) continue;
       if (h.recognized) {
         if (rec ? !rec.has(h.feature) : (h.pocketLike && f.feature !== h.feature)) { if (!rec && h.pocketLike) pocketLike += h.positions.length; continue; }
@@ -116,18 +117,23 @@ export function computeDrill(op, ctx) {
   const pts = holes.map((h) => {
     let bottom;
     if (dep.from === 'abs') bottom = need(op, 'depth.z', anyNum, 'number');
+    else if (dep.from === 'top') bottom = h.top - need(op, 'depth.d', posNum, 'number > 0') - tipL; // WP-14: delik ustunden d mm asagi (punta/pah)
     else if (dep.from === 'hole') {
       if (h.dia == null) throw cerr('cam.drill.depth_from_hole_needs_feature');
       // T-14: boydan boya dip = delik ekseninde modelden son cikis (annotateHoleExits); bilinmiyorsa model tabani (uyari)
       if ((h.through || h.depth == null) && h.exit != null) bottom = h.top - h.exit - brk - tipL;
       else if (h.through || h.depth == null) { bottom = S.modelBBox.min[2] - brk - tipL; thru++; }
       else bottom = h.top - h.depth - tipL;
-    } else throw cerr('cam.op.bad_field', { field: 'depth.from', expect: 'hole/abs', op: op.name || op.id });
+    } else throw cerr('cam.op.bad_field', { field: 'depth.from', expect: 'hole/abs/top', op: op.name || op.id });
     if (h.dia != null) {
       if (cycle === 'tap') {
         if (!h.thread) nothread++;
         else { if (h.thread.major != null && Math.abs(h.thread.major - tool.dia) > DIA_TOL) mism++; if (h.thread.pitch != null && Math.abs(h.thread.pitch - tool.pitch) > 1e-6) pmism++; }
-      } else if (cycle !== 'spot' && Math.abs(h.dia - tool.dia) > DIA_TOL) mism++;
+      } else if (cycle !== 'spot' && Math.abs(h.dia - tool.dia) > DIA_TOL) {
+        // WP-14: disli deligin on matkabi major-hatve civarindadir: cap uyarisi verilmez
+        const th = h.thread && h.thread.major != null && h.thread.pitch != null ? h.thread : null;
+        if (!(th && (cycle === 'drill' || cycle === 'peck' || cycle === 'chipbreak') && tool.dia >= th.major - th.pitch - 0.02 && tool.dia <= th.major - th.pitch + 0.12 * th.pitch + 1e-9)) mism++;
+      }
     }
     let cutTo = null;
     if (cycle === 'backBore') { // alt baslangic = delik cikisinin startBelow altinda, ustte bitis = cikistan backDepth yukari

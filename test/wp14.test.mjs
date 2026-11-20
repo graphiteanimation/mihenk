@@ -4,6 +4,7 @@ import { postProgram, readNC } from '../src/cam/post/index.js';
 import { expandCyclePoint, expandToolpathCycles } from '../src/cam/cycles.js';
 import * as CAM from '../src/cam/index.js';
 import * as S from './cam-samples/samples.mjs';
+import { makeTemplate, instantiateTemplate, exportTemplates, importTemplates, matchTool, planHoleOps, checkHoleRules, DEFAULT_HOLE_RULES, classifyHole } from '../src/cam/templates.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL:', m); } };
@@ -88,6 +89,93 @@ console.log('3. delme islemi: fineBore / backBore');
   // sema: op alanlari belge dogrulamasindan gecer
   const { validateDoc } = await import('../src/shared/schema.js');
   ok(typeof validateDoc === 'function', 'schema yuklendi');
+}
+
+console.log('4. islem sablonlari');
+{
+  const tools = [{ id: 'tA', number: 2, type: 'flat', dia: 10, name: 'EM10' }, { id: 'tB', number: 7, type: 'drill', dia: 6.8 }, { id: 'tC', number: 8, type: 'tap', dia: 8, pitch: 1.25 }];
+  const ops = [
+    { id: 'o1', type: 'pocket', name: 'Cep', toolId: 'tA', rpm: 8000, feedCut: 900, feedPlunge: 300, coolant: 'flood', heights: { clearance: 5, retract: 2 }, geom: [{ kind: 'face', ref: { id: 'F1' } }], stepdown: 2, suppressed: true },
+    { id: 'o2', type: 'drill', name: 'Delme', toolId: 'tB', rpm: 2500, feedCut: 200, feedPlunge: 200, coolant: 'flood', heights: { clearance: 5, retract: 2 }, cycle: 'peck', peck: 3, holes: { kind: 'feature', filter: { feature: 'hole7' } }, depth: { from: 'hole', tipComp: true } },
+  ];
+  const tpl = makeTemplate('  Cep + delme ', ops, tools, 'tpl1');
+  ok(tpl.name === 'Cep + delme' && tpl.ops.length === 2 && tpl.ops.every((o) => !('id' in o) && !('toolId' in o) && !('geom' in o) && !('suppressed' in o)), 'sablon: kimlik/takim/geometri/bastirma temizlenir');
+  ok(tpl.ops[1].holes.kind === 'feature' && !tpl.ops[1].holes.filter && tpl.ops[1].tool.dia === 6.8 && tpl.ops[1].peck === 3, 'sablon: delik secimi sifirlanir, takim ipucu ve parametreler kalir');
+  ok(ops[0].geom.length === 1 && ops[0].id === 'o1', 'sablon: kaynak islemler degismez');
+  let n = 0; const inst = instantiateTemplate(tpl, { tools, newId: () => 'n' + ++n });
+  ok(inst.ops.length === 2 && inst.ops[0].id === 'n1' && inst.ops[0].toolId === 'tA' && inst.ops[1].toolId === 'tB' && Array.isArray(inst.ops[0].geom) && inst.warnings.length === 0, 'sablondan ekleme: yeni kimlik, takim eslesir');
+  const inst2 = instantiateTemplate(tpl, { tools: [tools[2]] });
+  ok(inst2.ops.every((o) => o.toolId === null) && inst2.warnings.length === 2 && inst2.warnings[0].code === 'cam.tpl.no_tool', 'takim yoksa toolId null + uyari');
+  ok(matchTool({ type: 'tap', dia: 8, pitch: 1.0 }, tools) === null && matchTool({ type: 'tap', dia: 8, pitch: 1.25 }, tools).id === 'tC', 'kilavuz eslesmesi hatveye bakar');
+  // disa/ice aktarma gidis-donus
+  const txt = exportTemplates([tpl]); const back = importTemplates(txt);
+  ok(back.errors.length === 0 && back.templates.length === 1 && JSON.stringify(back.templates[0].ops) === JSON.stringify(tpl.ops) && back.templates[0].id === 'tpl1', 'JSON gidis-donus esit');
+  // bozuk girdiler
+  throwsCode(() => importTemplates('{}'), 'cam.tpl.file_bad', 'bicim yok');
+  throwsCode(() => importTemplates('xx'), 'cam.tpl.file_bad', 'JSON degil');
+  throwsCode(() => importTemplates(JSON.stringify({ format: 'mihenk-op-templates', version: 2, templates: [] })), 'cam.tpl.file_newer', 'yeni surum');
+  const mix = JSON.stringify({ format: 'mihenk-op-templates', version: 1, templates: [JSON.parse(txt).templates[0], { name: 'X', ops: [{ type: 'bilinmeyen' }] }, { name: '', ops: [] }, { name: 'Z', ops: [{ type: 'face', rpm: 'cok', heights: {} }] }, JSON.parse('{"name":"P","ops":[{"type":"face","__proto__":{"x":1}}]}')] });
+  const mx = importTemplates(mix); ok(mx.templates.length === 1 && mx.errors.length === 4, 'karisik dosya: gecersiz kayitlar atlanir, gecerli kalir (' + mx.errors.length + ' hata)');
+  throwsCode(() => makeTemplate('', ops, tools), 'cam.tpl.bad_name', 'bos ad');
+  throwsCode(() => makeTemplate('x', [], tools), 'cam.tpl.empty', 'bos islem listesi');
+  // sablondan gelen islem hesaplanabilir (delme)
+  const S0 = { id: 's1', name: 'S1', workOffset: { kind: 'G55' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min: [0, 0, -30], max: [100, 60, 0] }, modelBBox: { min: [0, 0, -30], max: [100, 60, 0] }, clearance: 5, aAngle: null, stockTop: 0, machinePos: null };
+  const holes = [{ feature: 'hX', dia: 6.8, depth: 15, through: false, tipAngle: 118, thread: null, dir: [0, 0, -1], positions: [[10, 10, 0]], dirs: [[0, 0, -1]] }];
+  const tp = CAM.computeOp(inst.ops[1], { setup: S0, tool: { id: 'tB', number: 7, lengthOffset: 7, type: 'drill', dia: 6.8, tipAngle: 118, fluteLen: 40, bodyLen: 60, flutes: 2, centerCutting: true }, geom: { holes } });
+  ok(validateToolpath(tp) && tp.moves.some((m) => m.t === 'cycle' && m.cycle === 'peck'), 'sablondan eklenen islem hesaplanir');
+}
+
+console.log('5. delik sira sablonu');
+{
+  const tools = [
+    { id: 'sp', number: 6, type: 'spot', dia: 10, tipAngle: 90 }, { id: 'd68', number: 7, type: 'drill', dia: 6.8, tipAngle: 118 }, { id: 'd5', number: 9, type: 'drill', dia: 5, tipAngle: 118 }, { id: 'tap', number: 8, type: 'tap', dia: 8, pitch: 1.25 },
+    { id: 'd6', number: 10, type: 'drill', dia: 6.8 + 0.2 - 0.2, tipAngle: 118 },
+  ];
+  const holes = [
+    { feature: 'h1', dia: 8, depth: 14, through: false, thread: { major: 8, pitch: 1.25 }, tipAngle: 118, positions: [[0, 0, 0], [10, 0, 0]] },
+    { feature: 'h2', dia: 5, depth: 20, through: false, thread: null, positions: [[0, 10, 0]] },
+    { feature: 'h3', dia: 5, depth: 6, through: true, thread: null, positions: [[0, 20, 0]] },
+    { feature: 'h4', dia: 40, depth: 5, through: false, thread: null, pocketLike: true, positions: [[5, 5, 0]] },
+  ];
+  let n = 0; const r = planHoleOps(holes, tools, { newId: () => 'q' + ++n });
+  const seq = r.ops.map((o) => `${o.cycle}:${o.name}`);
+  ok(r.groups.length === 3 && r.warnings.some((w) => w.code === 'cam.tpl.pocketlike_skipped'), 'uc delik sinifi, cep benzeri atlanir: ' + r.groups.length);
+  // sira: punta (hepsi) -> matkap -> pah -> kilavuz
+  const order = r.ops.map((o) => o.cycle); const idx = (c) => order.indexOf(c);
+  ok(order.filter((c) => c === 'spot').length === 4 && idx('tap') === order.length - 1 && order.lastIndexOf('spot') > order.lastIndexOf('drill') - 99, 'siralama: ' + seq.join(' | '));
+  ok(order.slice(0, 3).every((c) => c === 'spot') && order.slice(3, -2).every((c) => c === 'drill' || c === 'peck'), 'punta -> matkap bloklari: ' + order.join(','));
+  const tapDrill = r.ops.find((o) => o.cycle === 'drill' && /M8x1\.25/.test(o.name));
+  ok(tapDrill && tapDrill.toolId === 'd68', 'disli delik matkabi: major - hatve = 6.75 -> 6.8 takimi: ' + tapDrill?.toolId);
+  const tapOp = r.ops.find((o) => o.cycle === 'tap'); const chOp = r.ops.find((o) => o.depth?.from === 'top' && /chamfer/.test(o.name) === false && o.name.startsWith('chamfer'));
+  ok(tapOp.toolId === 'tap' && tapOp.depth.from === 'hole', 'kilavuz adimi: M8x1.25 kilavuzu');
+  const ch = r.ops.filter((o) => o.name.startsWith('chamfer')); ok(ch.length === 1 && ch[0].toolId === 'sp' && Math.abs(ch[0].depth.d - 4.5) < 1e-9, 'pah derinligi (d/2 + 0.5)/tan(45) = 4.5: ' + ch[0]?.depth?.d);
+  const pk = r.ops.filter((o) => o.cycle === 'peck'); ok(pk.length === 1 && pk[0].peck === 5 && pk[0].holes.filter.features.join() === 'h2', 'derin kor delik (20/5 > 3) peck, adim = cap: ' + JSON.stringify(pk.map((o) => [o.peck, o.holes.filter.features])));
+  ok(r.ops.filter((o) => o.cycle === 'drill' && o.holes.filter.features.includes('h3')).length === 1, 'boydan boya kisa delik duz drill');
+  ok(r.ops.every((o) => !('seqRole' in o) && !('_sortDia' in o) && o.holes.kind === 'feature'), 'islemler temiz (gecici alan yok)');
+  // eksik takim -> toolId null + uyari; kural yoksa uyari
+  const r2 = planHoleOps(holes.slice(1, 2), [], {}); ok(r2.ops.length === 2 && r2.ops.every((o) => o.toolId === null) && r2.warnings.filter((w) => w.code === 'cam.tpl.no_tool').length === 2, 'takimsiz: toolId null + uyari');
+  ok(planHoleOps(holes.slice(1, 2), tools, { rules: [{ id: 'x', name: 'x', match: { threaded: true }, steps: [{ role: 'drill' }] }] }).warnings[0].code === 'cam.tpl.no_rule', 'eslesen kural yok -> uyari');
+  // kullanici kurali: 12 mm ustu icin on-delme + raybalama; kabul edilmis diş ipucu
+  const rules = checkHoleRules([{ id: 'big', name: 'Buyuk', match: { diaMin: 12 }, steps: [{ role: 'spot' }, { role: 'drill', diaOffset: -0.2 }, { role: 'ream' }] }, ...DEFAULT_HOLE_RULES]);
+  const big = planHoleOps([{ feature: 'B', dia: 12, depth: 20, through: true, positions: [[0, 0, 0]] }], [{ id: 'dr', number: 1, type: 'drill', dia: 11.8 }, { id: 'rm', number: 2, type: 'reamer', dia: 12 }], { rules });
+  ok(big.ops.map((o) => o.cycle).join() === 'spot,drill,ream' && big.ops[1].toolId === 'dr' && big.ops[2].toolId === 'rm', 'kullanici kurali: punta, 11.8 matkap, 12 rayba');
+  throwsCode(() => checkHoleRules([{ id: 'a', name: 'a', steps: [{ role: 'yok' }] }]), 'cam.tpl.bad_step', 'kural adimi gecersiz');
+  throwsCode(() => checkHoleRules([]), 'cam.tpl.bad_rules', 'bos kural listesi');
+  const hint = planHoleOps([{ feature: 'T', dia: 8, depth: 14, through: false, thread: null, threadHint: { major: 8, pitch: 1.25 }, positions: [[0, 0, 0]] }], tools, { acceptThreadHint: true });
+  ok(hint.ops.some((o) => o.cycle === 'tap') && !planHoleOps([{ feature: 'T', dia: 8, depth: 14, positions: [[0, 0, 0]], threadHint: { major: 8, pitch: 1.25 } }], tools, {}).ops.some((o) => o.cycle === 'tap'), 'threadHint yalniz kabul edilince disli sayilir');
+  ok(classifyHole({ dia: 5, through: true, thread: null }).threaded === false, 'classifyHole');
+  // uctan uca: planlanan her islem hesaplanir, program kurulur ve postlanir
+  const S0 = { id: 's1', name: 'S1', workOffset: { kind: 'G55' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min: [0, 0, -30], max: [100, 60, 0] }, modelBBox: { min: [0, 0, -30], max: [100, 60, 0] }, clearance: 5, aAngle: null, stockTop: 0, machinePos: null };
+  const gh = holes.slice(0, 3).map((h) => ({ ...h, dir: [0, 0, -1], dirs: h.positions.map(() => [0, 0, -1]) }));
+  const full = tools.map((t) => ({ lengthOffset: t.number, diaOffset: t.number, fluteLen: 30, bodyLen: 60, flutes: 2, centerCutting: t.type !== 'tap', ...t }));
+  const sec = [];
+  for (const o of r.ops.filter((x) => x.holes.filter.features.some((f) => f !== 'h4'))) {
+    const tl = full.find((t) => t.id === o.toolId); const op = { ...o, rpm: 1500, feedCut: o.cycle === 'tap' ? 1 : 200, feedPlunge: 200 };
+    const tp = CAM.computeOp(op, { setup: S0, tool: tl, geom: { holes: gh } }); ok(validateToolpath(tp), 'planlanan islem hesaplanir: ' + o.name); sec.push(tp);
+  }
+  const prog = CAM.buildProgram({ name: 'SEQ', machine: S.testMachine(), sections: [{ setup: S0, toolpaths: sec }] });
+  const nc = postProgram(prog, S.testMachine(), OPTS).text;
+  ok(/G81|G82/.test(nc) && /G83/.test(nc) && /G84/.test(nc), 'dizi NC: punta + matkap + kilavuz cevrimleri');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

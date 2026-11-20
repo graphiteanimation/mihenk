@@ -103,8 +103,8 @@ const camOp = obj({
   shift: camNum(0), shiftDir: camNum(-360, 360), backDepth: camNum(0), startBelow: camNum(0), // WP-14: G76/G87
   aAngle: camNum(-36000, 36000),
   sharp: bool(),
-  holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr }), sketch: idStr, ents: strArr(), rec: strArr(), acceptThread: strArr() }),
-  depth: obj({ from: oneOf(['hole', 'abs']), tipComp: bool(), breakThrough: camNum(0), z: camNum() }),
+  holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr, features: strArr() }), sketch: idStr, ents: strArr(), rec: strArr(), acceptThread: strArr() }),
+  depth: obj({ from: oneOf(['hole', 'abs', 'top']), tipComp: bool(), breakThrough: camNum(0), z: camNum(), d: camNum(0) }),
   entry: obj({ kind: oneOf(['helix', 'ramp', 'plunge', 'predrill']), angle: camNum(0, 90), helixDia: camNum(0), points: arrOf(arrOf(camNum(), 2), 500) }),
   leadIn: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }), leadOut: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }),
   tabs: obj({ n: posInt(100), width: camNum(0), height: camNum(0) }), ramp: obj({ kind: oneOf(['plunge', 'ramp', 'helix']), angle: camNum(0, 90), helixDia: camNum(0) }),
