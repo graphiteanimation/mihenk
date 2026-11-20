@@ -288,6 +288,27 @@ console.log('6. M-03: yalniz programin kullandigi bos post ozellikleri engel');
   ok(pm.missing.includes('coolantCodes.flood'), 'kullanilan sogutma kodu bos: ' + pm.missing);
 }
 
+console.log('6b. M-03 dogrulama: zorunlu post alanlari bossa her zaman engel, post da durur');
+{
+  const surf = S.surfaceSample().program;
+  for (const k of ['endCode', 'toolChangeCode', 'tapMode', 'decimals', 'safeRetract', 'programNumberDigits', 'rotaryMode', 'tapR1', 'cannedCycles']) {
+    const m = S.testMachine({ props: { [k]: null } });
+    const pm = postPropsMissing(surf, m);
+    ok(pm.missing.includes(k), `${k}: null -> eksik (program kullanmasa da zorunlu): ` + JSON.stringify(pm));
+    ok(gates(surf, m, { sim: false }).some((g) => g.code === 'cam.gate.post_prop_missing' && g.level === 'block' && g.params.prop === k), `${k}: null -> kapi engeli`);
+    throwsCode(() => postProgram(surf, m, OPTS), 'cam.post.prop_missing', `${k}: null -> post sessizce satir atlamaz, durur`);
+  }
+  // birden cok zorunlu alan bossa hepsi tek listede, kosullu kullanilanlar da eklenir
+  const pm2 = postPropsMissing(S.drillSample().program, S.testMachine({ props: { endCode: null, toolChangeCode: null, dwellAddress: null } }));
+  ok(['endCode', 'toolChangeCode', 'dwellAddress'].every((k) => pm2.missing.includes(k)), 'zorunlu + kullanilan kosullu birlikte: ' + pm2.missing);
+  // kosullu alan bos + kullanilmiyor -> temiz; rigidTapM/highSpeed/lineNumberMax null -> temiz
+  const pm3 = postPropsMissing(surf, S.testMachine({ props: { rigidTapM: null, highSpeedOn: null, highSpeedOff: null, lineNumberMax: null, dwellAddress: null, g541Range: null } }));
+  ok(pm3.complete && pm3.missing.length === 0, 'kosullu alanlar bos + kullanilmiyor -> temiz: ' + JSON.stringify(pm3));
+  // kosullu alan bos + kullaniliyor -> engel (yalniz biri doluysa highSpeed cifti)
+  const pm4 = postPropsMissing(surf, S.testMachine({ props: { highSpeedOn: 'G05 P10000', highSpeedOff: null } }));
+  ok(pm4.missing.includes('highSpeedOff'), 'highSpeedOn dolu, Off bos -> engel: ' + pm4.missing);
+}
+
 console.log('7. T-21b: A kelimesi bicimi profilden (A.wrap)');
 {
   const base = S.testMachine();

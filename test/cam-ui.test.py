@@ -368,7 +368,8 @@ try:
 
     # --- post, NC önizleme, doğrulama
     print('post, NC, doğrulama, engel')
-    ctx, pg = newpage(); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", MACH)
+    MACH_NOEND = json.loads(json.dumps(MACH)); MACH_NOEND['id'] = 'u-gen-noend'; MACH_NOEND['name'] = 'Test Fanuc endCode yok'; MACH_NOEND['post'] = {'props': {'endCode': None}}
+    ctx, pg = newpage(); pg.evaluate("(ms) => localStorage.setItem('mihenk.machines', JSON.stringify(ms))", [MACH, MACH_NOEND])
     load(pg, PART); pg.click('[data-testid=tab-manufacture]')
     pg.evaluate("(m) => app.cam.setMachine(m)", MACH['id']); pg.evaluate("(t) => app.cam.setTools(t)", TOOLS)
     pg.click('[data-cmd=cam-setup]'); pg.click('[data-testid=panel-ok]')
@@ -449,6 +450,12 @@ try:
     pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=issue-list]', timeout=40000)
     check('şablon tezgâh: eksik değerler NC üretimini engeller', count(pg, '[data-testid=issue-row][data-level=block]') >= 1 and pg.evaluate('app.cam.ops.nc') is None, txt(pg, '#modal')[:300])
     pg.click('[data-testid=issues-close]')
+    # M-03 doğrulama engeli: zorunlu post alanı (endCode) boşsa program kullanmasa da NC üretilmez
+    pg.evaluate("() => app.cam.setMachine('u-gen-noend')")
+    pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=nc-text], [data-testid=issue-list]', timeout=40000)
+    check('M-03: endCode boş -> engel listesinde, NC yok', count(pg, '[data-testid=issue-list]') == 1 and '(endCode)' in txt(pg, '#modal') and pg.evaluate('app.cam.ops.nc') is None, txt(pg, '#modal')[:400])
+    if count(pg, '[data-testid=issues-close]'): pg.click('[data-testid=issues-close]')
+    else: pg.click('[data-testid=nc-close]')
     check('konsol hatası yok (işlem akışı)', not [e for e in pg.errs if 'Error' in e or 'Uncaught' in e], pg.errs[:3])
     ctx.close()
 
