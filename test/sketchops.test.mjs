@@ -151,7 +151,16 @@ const area = (sk) => findRegions(sk).regions.reduce((s, r) => s + r.net, 0);
     ok(O.matchEdge(M(5, 0), [Y(5, 0.5), Y(7, 0)]) === null, '0,5 mm ötedeki eski indeks, tam eşleşen yeni indeksi ezmez; ayırt edilemiyorsa lost');
     const r = O.matchEdgeD(M(5, 0), [Y(5, 20)]); ok(r && r.c.idx === 5 && Math.abs(r.d - 20) < 1e-9, 'tek aday, aynı indeks, 20 mm: parametrik değişim kabul, kayma 20 mm bildirilir');
     ok(O.matchEdgeD(M(5, 0), [Y(5, 5), Y(7, 8)]) === null, 'aynı indeks ama ikinci aday yeterince uzak değil (<2 kat) → lost');
-    ok(O.matchEdge(M(5, 0), [L(5, [30, 0], [130, 0])]) === null && O.matchEdge(M(5, 0), [Y(5, 5)]).idx === 5, 'iki uç birlikte: 30 mm kayan kenar lost, 5 mm kayan kabul');
+    ok(O.matchEdge(M(5, 0), [Y(5, 30)]) === null && O.matchEdge(M(5, 0), [Y(5, 5)]).idx === 5, 'yan kayma 30 mm lost, 5 mm kabul');
+    const S50 = { g: 5, sig: O.edgeSig([[0, 0], [50, 0]]) };
+    ok(O.matchEdge(S50, [L(5, [0, 0], [100, 0])]).idx === 5, 'bir ucu sabit, boyu 50 → 100: güncellenir');
+    ok(O.matchEdge(S50, [L(5, [-25, 0], [75, 0])]).idx === 5, 'iki ucu simetrik uzayan (merkezden büyüyen) kenar güncellenir');
+    ok(O.matchEdgeD(S50, [L(5, [0, 3], [100, 3])]).d === 3, 'bildirilen kayma yan kaymadır (3 mm), boy değişimi değil');
+    ok(O.matchEdge(S50, [L(5, [0, 40], [100, 40])]) === null, 'boy uzarken yan kayma 40 mm → lost');
+    const C5 = { g: 3, sig: O.edgeSig(Array.from({ length: 37 }, (_, i) => [5 * Math.cos(i * Math.PI / 18), 5 * Math.sin(i * Math.PI / 18)])) };
+    const circ = (idx, r, cx = 0) => ({ idx, pts: Array.from({ length: 37 }, (_, i) => [cx + r * Math.cos(i * Math.PI / 18), r * Math.sin(i * Math.PI / 18)]) });
+    ok(O.matchEdge(C5, [circ(3, 40)]).idx === 3, 'yarıçapı 5 → 40 olan daire güncellenir');
+    ok(O.matchEdge(C5, [circ(3, 40, 30)]) === null, 'daire merkezi 30 mm kaydı → lost');
   }
   // reprojectLinked: imza ilk başarılı güncellemede yazılır, uyuşmazlıkta nesne yerinde kalır
   const sk = empty(); O.projectPolylines(sk, [{ pts: [[0, 0], [100, 0]], meta: { b: 'B', g: 1, c: [0, 0, 0] } }]); const e0 = sk.ents[0]; delete e0.proj.sig;

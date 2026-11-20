@@ -315,21 +315,39 @@ export function edgeDist(a, b) {
   if (a.k === 'a') return Math.max(G.dist(a.c, b.c), Math.abs(a.r - b.r), pair());
   return Math.max(G.dist(a.c, b.c), pair());
 }
+// Parametrik değişim ölçütü (aynı indeksli aday için): {k: sıralama değeri, sh: bildirilen kayma (mm), ok: makul değişim mi} | null (tür/doğrultu uyuşmaz).
+//  doğru: yan kayma (taşıyıcı doğrular arası dik uzaklık) + en yakın uç farkı; yan kayma <= 25 VE parçalar örtüşüyor / uç yakın ise boy değişimi sınırsız;
+//  yay/daire: merkez kayması <= 25, yarıçap değişimi serbest; eğri: eski ölçüt (iki uç/merkez birlikte).
+export function changeMeasure(a, b) {
+  if (!a || !b || a.k !== b.k) return null;
+  if (a.k === 'l') {
+    const da = [a.b[0] - a.a[0], a.b[1] - a.a[1]], db = [b.b[0] - b.a[0], b.b[1] - b.a[1]]; const la = Math.hypot(...da), lb = Math.hypot(...db);
+    if (!la || !lb || Math.abs(da[0] * db[1] - da[1] * db[0]) / (la * lb) > 0.05) return null;
+    const u = [da[0] / la, da[1] / la], rel = (p) => [p[0] - a.a[0], p[1] - a.a[1]];
+    const lat = Math.abs(rel([(b.a[0] + b.b[0]) / 2, (b.a[1] + b.b[1]) / 2]).reduce((q, v, i) => q + (i ? v * u[0] : -v * u[1]), 0));
+    const t1 = rel(b.a)[0] * u[0] + rel(b.a)[1] * u[1], t2 = rel(b.b)[0] * u[0] + rel(b.b)[1] * u[1];
+    const end = Math.min(G.dist(a.a, b.a), G.dist(a.b, b.b), G.dist(a.a, b.b), G.dist(a.b, b.a));
+    const overlap = Math.min(la, Math.max(t1, t2)) - Math.max(0, Math.min(t1, t2)) > 0;
+    return { k: lat + end, sh: lat, ok: lat <= TOL_A && (overlap || end <= TOL_A) };
+  }
+  if (a.k === 'o' || a.k === 'a') { const c = G.dist(a.c, b.c); return { k: c, sh: c, ok: c <= TOL_A }; }
+  const d = edgeDist(a, b); return isFinite(d) ? { k: d, sh: d, ok: d <= TOL_A } : null;
+}
 // Eşleştirme. cands: [{idx, pts}] (pts: eskiz yerel noktaları). Döner: {c: aday, d: kayma mm} ya da null (belirsiz/uzak → bağlama).
-// Aynı tür + doğrultudaki TÜM adaylar imzaya kenar-kenar uzaklığıyla sıralanır; en yakın seçilir:
-//  (i) en yakın <= 1 mm ve ikinci ondan >= 1 mm uzak → kabul;
-//  (ii) en yakın aynı indeksli kenar, <= 25 mm ve ikinci >= 2 katı ve >= 1 mm uzak → kabul (parametrik değişim);
+//  (i) imzaya <= 1 mm (iki uç/merkez+yarıçap birlikte) en yakın aday, ikincisi >= 1 mm uzak → kabul (indeksten bağımsız);
+//  (ii) aynı indeksli kenar makul değişimse (changeMeasure.ok) ve diğer tüm adaylar ondan >= 2 kat ve >= 1 mm uzaksa → kabul (parametrik değişim; d = yan/merkez kayması);
 //  (iii) aksi halde null. Aynı indeks yalnız "makul değişim" izni verir, daha yakın bir adayı asla ezmez.
 // İmzasız (eski belge) bağda yalnız aynı indeks (d: 0).
 export function matchEdgeD(meta, cands) {
   const sig = meta.sig;
   if (!sig) { const same = cands.find((c) => c.idx === meta.g); return same ? { c: same, d: 0 } : null; }
-  const xs = cands.map((c) => ({ c, d: edgeDist(sig, edgeSig(c.pts)) })).filter((x) => isFinite(x.d)).sort((p, q) => p.d - q.d);
-  if (!xs.length) return null;
-  const best = xs[0], second = xs.length > 1 ? xs[1].d : Infinity;
-  if (best.d <= TOL_B && second - best.d >= CLEAR) return best;
-  if (best.c.idx === meta.g && best.d <= TOL_A && second >= 2 * best.d && second - best.d >= CLEAR) return best;
-  return null;
+  const sigs = cands.map((c) => edgeSig(c.pts));
+  const xs = cands.map((c, i) => ({ c, d: edgeDist(sig, sigs[i]) })).filter((x) => isFinite(x.d)).sort((p, q) => p.d - q.d);
+  if (xs.length) { const second = xs.length > 1 ? xs[1].d : Infinity; if (xs[0].d <= TOL_B && second - xs[0].d >= CLEAR) return xs[0]; }
+  const si = cands.findIndex((c) => c.idx === meta.g); if (si < 0) return null;
+  const cm = changeMeasure(sig, sigs[si]); if (!cm || !cm.ok) return null;
+  for (let i = 0; i < cands.length; i++) { if (i === si) continue; const o = changeMeasure(sig, sigs[i]); if (o && !(o.k >= 2 * cm.k && o.k - cm.k >= CLEAR)) return null; }
+  return { c: cands[si], d: cm.sh };
 }
 export function matchEdge(meta, cands) { const m = matchEdgeD(meta, cands); return m ? m.c : null; }
 
