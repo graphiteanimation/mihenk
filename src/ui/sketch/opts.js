@@ -17,7 +17,7 @@ export const SKO = {
   selOff: loadSet('skopt_seloff', SEL_KINDS), // seçim filtresi: seçilemeyen nesne türleri
   auto: loadBool('skopt_auto', true), // çizerken otomatik kısıtlandırma (ana anahtar)
   autoOff: loadSet('skopt_autooff', AUTO_KINDS), // kapatılan otomatik kısıt türleri
-  autoRef: loadBool('skopt_autoref', true), // aşırı kısıtta ölçü referans (sürülen) ölçüye çevrilebilsin
+  autoRef: loadBool('skopt_autoref', false), // aşırı kısıtlayan ölçü sorulmadan referans (sürülen) ölçü olarak eklensin (kapalıyken Ctrl+Enter ile elle)
 };
 const listeners = new Set();
 const notify = () => { for (const cb of [...listeners]) { try { cb(SKO); } catch (e) { console.error(e); } } };

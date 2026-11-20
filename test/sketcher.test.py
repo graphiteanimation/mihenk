@@ -726,6 +726,83 @@ try:
     key('Escape'); tool('select')
     page.click('.sk-cf [data-cf=sel-line]'); ev('sk._setSel([])'); click(-20, -10)
     check('filtre yeniden açılınca çizgi seçilir', ev('sk.selection.length') == 1)
+    # ---------------------------------------------------------------- WP-09 dilim 3: kısıt
+    print('WP-09 dilim 3: otomatik kısıtlandırma (bugünkü davranış korunur, kapatılabilir), referans ölçü')
+    import math
+    def cf(k):
+        if not ev("!!document.querySelector('.sk-cf .pop')"): page.click('.sk-cf .cf-btn')
+        page.click(f'.sk-cf [data-cf={k}]')
+    def con_types(s): return sorted(c['type'] for c in s['cons'])
+    def auto_reset(): ev("(() => { sk.setAuto(true); ['hv','tan','perp','coin','on','mid'].forEach((k) => sk.setAutoKind(k, true)); sk.setAutoRef(false); })()")
+    def hv_line():
+        fresh(); tool('line'); click(-40, -40); click(20, -39); click(20, 10); key('Escape')   # 1/60 ~ 1 derece, sonra ~ -1,2 derece dikeye
+        return S()
+    auto_reset(); snap_reset()
+    s = hv_line(); ln = ents('line')
+    check('[bugünkü davranış] çizgi ~1° eğik çizilince yatay kısıtlanır ve y eşitlenir', len(ln) == 2 and any(c['type'] == 'horizontal' and c['a'] == ln[0]['id'] for c in s['cons']) and near(P_(s, ln[0]['b'])[1], -40), (s['cons'], ))
+    check('[bugünkü davranış] ikinci çizgi dikey kısıtlanır', any(c['type'] == 'vertical' and c['a'] == ln[1]['id'] for c in s['cons']), s['cons'])
+    # teğet: (30,60) noktasından r=10 daireye
+    fresh(); tool('circle'); click(30, 20); click(40, 20); tool('line'); click(30, 60)
+    ph = 0.25; T = (30 + 10 * math.sqrt(1 - ph * ph), 20 + 10 * ph)
+    hover(T[0], T[1], 1, 0); c = cur(); check('[bugünkü davranış] teğet noktası yakalanır', c and c['kind'] == 'tan', c)
+    x, y = P(T[0], T[1]); page.mouse.click(x + 1, y); idle(); s = S(); circ = ents('circle')[0]
+    check('[bugünkü davranış] çizgi daireye teğet kısıtlanır', any(c['type'] == 'tangent' and circ['id'] in (c['a'], c['b']) for c in s['cons']), s['cons'])
+    key('Escape')
+    # dik
+    fresh(); tool('line'); click(-40, 10); click(40, 10); key('Escape'); tool('line'); click(13, 40); hover(13, 10, 1, 1); c = cur()
+    check('[bugünkü davranış] dik ayak noktası yakalanır', c and c['kind'] == 'perp', c)
+    page.mouse.click(*[v + 1 for v in P(13, 10)]); idle(); s = S()
+    check('[bugünkü davranış] dik kısıtı eklenir', 'perpendicular' in con_types(s), s['cons']); key('Escape')
+    # çakışık (nokta paylaşımı), nesne üstü, orta nokta
+    fresh(); tool('rect'); click(-20, -10); click(20, 10); tool('line'); click(20, 10); click(50, 30); key('Escape'); s = S()
+    ln = [e for e in s['ents'] if e['type'] == 'line'][-1]; corner = [e for e in s['ents'] if e['type'] == 'line'][1]['b']
+    check('[bugünkü davranış] mevcut köşeye başlayan çizgi o noktayı paylaşır (çakışık)', ln['a'] in [e[k] for e in s['ents'] if e['type'] == 'line' and e is not ln for k in ('a', 'b')] and len(s['points']) == 1 + 4 + 1, (len(s['points']), ln))
+    tool('line'); click(7, -10); click(7, -40); key('Escape'); s = S()
+    check('[bugünkü davranış] çizgi üstüne başlayan çizgi pointOn kısıtı alır', 'pointOn' in con_types(s), s['cons'])
+    tool('line'); click(0, 10); click(0, 40); key('Escape'); s = S()
+    check('[bugünkü davranış] orta noktadan başlayan çizgi midpoint kısıtı alır', 'midpoint' in con_types(s), s['cons'])
+    # --- kapatma
+    cf('auto-hv'); s = hv_line(); ln = ents('line')
+    check('otomatik yatay/dikey kapalı: eğik çizgi eğik kalır, kısıt yok', not any(c['type'] in ('horizontal', 'vertical') for c in s['cons']) and not near(P_(s, ln[0]['b'])[1], -40), s['cons'])
+    cf('auto-hv')
+    cf('auto-tan'); fresh(); tool('circle'); click(30, 20); click(40, 20); tool('line'); click(30, 60); hover(T[0], T[1], 1, 0); page.mouse.click(*[v + d for v, d in zip(P(T[0], T[1]), (1, 0))]); idle(); s = S()
+    check('otomatik teğet kapalı: teğet kısıtı eklenmez', 'tangent' not in con_types(s) and len(ents('line')) == 1, s['cons']); key('Escape')
+    cf('auto-tan')
+    cf('auto-coin'); fresh(); tool('rect'); click(-20, -10); click(20, 10); tool('line'); click(20, 10); click(50, 30); key('Escape'); s = S()
+    check('otomatik çakışık kapalı: köşede yeni nokta açılır (paylaşım yok), aynı konumda', len(s['points']) == 1 + 4 + 2 and sum(1 for p in s['points'].values() if p['x'] == 20 and p['y'] == 10) == 2, (len(s['points']), s['points']))
+    cf('auto-coin')
+    cf('auto-on'); fresh(); tool('rect'); click(-20, -10); click(20, 10); tool('line'); click(7, -10); click(7, -40); key('Escape'); s = S()
+    check('otomatik nesne üstünde kapalı: pointOn eklenmez', 'pointOn' not in con_types(s), s['cons']); cf('auto-on')
+    cf('auto-mid'); fresh(); tool('rect'); click(-20, -10); click(20, 10); tool('line'); click(0, 10); click(0, 40); key('Escape'); s = S()
+    check('otomatik orta nokta kapalı: midpoint eklenmez', 'midpoint' not in con_types(s), s['cons']); cf('auto-mid')
+    cf('auto-all'); s = hv_line()
+    check('ana anahtar kapalı: hiçbir otomatik kısıt eklenmez', con_types(s) == [], s['cons'])
+    cf('auto-all'); s = hv_line()
+    check('ana anahtar açılınca eski davranış geri gelir', 'horizontal' in con_types(s) and 'vertical' in con_types(s), s['cons'])
+    # --- aşırı kısıtta referans ölçü
+    fresh(); line((-20, 5), (20, 5)); rl = ents('line')[0]
+    tool('hdim'); click(0, 5); page.keyboard.type('40'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(200); idle()
+    dims0 = [c for c in S()['cons'] if c['type'] == 'hdist']
+    check('önkoşul: 40 mm yatay ölçü sürücü olarak eklendi', len(dims0) == 1 and not dims0[0].get('ref'), S()['cons'])
+    tool('dim'); click(0, 5); page.keyboard.type('25'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(200); idle()
+    st = status() or ''
+    check('çelişen ölçü yine reddedilir; durum satırı Ctrl+Enter ipucunu verir', len([c for c in S()['cons'] if c['type'] in ('hdist', 'dist')]) == 1 and 'çelişiyor' in st and 'Ctrl+Enter' in st, st)
+    check('ret sonrası ölçü kutusu açık kalır', ev("!!document.querySelector('.sk-input')"))
+    page.keyboard.press('Control+Enter'); idle(); page.wait_for_timeout(250); idle()
+    ds = [c for c in S()['cons'] if c['type'] in ('hdist', 'dist')]
+    refs = [c for c in ds if c.get('ref')]
+    check('Ctrl+Enter: aşırı kısıtlayan ölçü referans (sürülen) ölçü olarak eklenir', len(ds) == 2 and len(refs) == 1 and near(float(refs[0]['expr']), 40, 1e-4), ds)
+    check('referans ölçü geometriyi etkilemez (uzunluk 40) ve çözüm geçerli', near(lens(S(), rl['id']), 40, 1e-4) and ev('sk.lastSolve.ok'), None)
+    check('referans ölçü etiketi parantezli', ev("[...document.querySelectorAll('.dim.ref')].some((e) => e.textContent.trim() === '(40)')"), ev("[...document.querySelectorAll('.dim')].map((e) => e.textContent)"))
+    # gereksiz (aynı değer) ölçü de aynı yolla referans olabilir; otomatik ayar sormadan çevirir
+    cf('auto-ref'); page.keyboard.press('Escape')
+    fresh(); line((-20, 5), (20, 5)); rl = ents('line')[0]
+    tool('hdim'); click(0, 5); page.keyboard.type('40'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(200); idle()
+    tool('dim'); click(0, 5); page.keyboard.type('40'); page.keyboard.press('Enter'); idle(); page.wait_for_timeout(250); idle()
+    ds = [c for c in S()['cons'] if c['type'] in ('hdist', 'dist')]
+    check('otomatik referans açıkken gereksiz ölçü sormadan referans olur', len(ds) == 2 and sum(1 for c in ds if c.get('ref')) == 1 and not ev("!!document.querySelector('.sk-input')") and 'referans' in (status() or ''), (len(ds), status()))
+    tool('select'); ev('sk.setAutoRef(false)')
+    ev("(() => { sk.setAuto(true); })()")
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()

@@ -8,7 +8,7 @@ import { snapAt, SNAP_LABEL } from './sketch/snap.js';
 import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
-import { selOn, selClass, autoOn } from './sketch/opts.js';
+import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
@@ -206,21 +206,22 @@ export class Sketcher {
     const sid = this._sid;
     const run = async () => {
       if (this._sid !== sid || !this.active) return { ok: false };
-      const prev = this._badSet(); let r, mk = null;
+      const prev = this._badSet(); let r, mk = null, over = false;
       try { r = await solveSketch(this.sk, this.getVars()); } catch (e) { r = { ok: false, errors: [toErr(e)] }; }
       if (this._sid !== sid || !this.active) return { ok: false };
       const newBad = [...(r.conflicting || []), ...(r.redundant || [])].map(normId).filter((id) => !prev.has(id));
       const K = () => ({ kind: t(kind) });
       const lst = () => { const l = this._badLabels(r); return l.length ? ' ' + t('sk.conflict_list', { list: l.join('; ') }) : ''; };
       if (r.errors && r.errors.length) { const er = r.errors[0]; mk = () => errText(er); }
-      else if (!r.ok) mk = r.conflicting && r.conflicting.length ? (strict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.conflict_undone', K()) + lst()) : () => t('sk.no_solution', K());
+      else if (!r.ok) { over = !!(strict && r.conflicting && r.conflicting.length); mk = r.conflicting && r.conflicting.length ? (strict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.conflict_undone', K()) + lst()) : () => t('sk.no_solution', K()); }
       else if (strict && newBad.length) {
+        over = true;
         const conflict = (r.conflicting || []).map(normId).some((id) => !prev.has(id));
         mk = conflict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.redundant_con', K()) + lst();
       }
       if (mk) {
         this._restore(before); const i = this._undo.indexOf(entry); if (i >= 0) this._undo.splice(i, 1);
-        this._resetDraw(); this._status(mk); this._refresh(); return { ok: false, msg: mk() };
+        this._resetDraw(); this._status(mk); this._refresh(); return { ok: false, msg: mk(), over };
       }
       this.lastSolve = r; this._statusDof(r, note); this._probeSoon(); this._refresh(); return { ok: true };
     };
@@ -252,17 +253,18 @@ export class Sketcher {
     if (s.pid) return s.pid;
     const id = this._newPt(s.x, s.y);
     const okOn = (eid) => { const e = this.sk.ents.find((x) => x.id === eid); return e && e.type !== 'spline' && e.type !== 'ellarc' && e.type !== 'point'; };
+    if (!autoOn('on') && s.kind !== 'mid') return id; // otomatik "nesne üstünde" kapalı: yalnız nokta konur
     if (s.kind === 'int' && s.ents) { for (const e of s.ents) if (okOn(e)) this._addCon('pointOn', id, e); }
     else if (s.kind === 'quad' && s.ent) { // çeyrek nokta: daire/yayın üstünde ve merkezle yatay/dikey hizada
       const e = this.sk.ents.find((x) => x.id === s.ent); if (okOn(s.ent)) this._addCon('pointOn', id, s.ent);
       if (e && (e.type === 'circle' || e.type === 'arc') && e.c) this._addCon(s.qi % 2 === 0 ? 'horizontal_pp' : 'vertical_pp', id, e.c);
     }
-    else if (s.kind === 'mid' && s.ent) { const e = this.sk.ents.find((x) => x.id === s.ent); if (e && e.type === 'line') this._addCon('midpoint', id, s.ent); else if (okOn(s.ent)) this._addCon('pointOn', id, s.ent); }
+    else if (s.kind === 'mid' && s.ent) { const e = this.sk.ents.find((x) => x.id === s.ent); if (e && e.type === 'line' && autoOn('mid')) this._addCon('midpoint', id, s.ent); else if (okOn(s.ent) && autoOn('on')) this._addCon('pointOn', id, s.ent); }
     else if (s.ent && okOn(s.ent)) this._addCon('pointOn', id, s.ent);
     return id;
   }
   _alignEnd(st, s) {
-    if (s.pid || s.ent) return s;
+    if (s.pid || s.ent || !autoOn('hv')) return s;
     if (s.exact) { const ex = s.x - st.x, ey = s.y - st.y; return autoOn('hv') && Math.hypot(ex, ey) > 1e-9 ? (Math.abs(ey) < 1e-9 ? { ...s, align: 'h' } : Math.abs(ex) < 1e-9 ? { ...s, align: 'v' } : s) : s; } // yazılan koordinat: kaydırma yok, tam yatay/dikey ise kısıt
     const dx = s.x - st.x, dy = s.y - st.y; if (Math.hypot(dx, dy) < 1e-9) return s;
     const ang = Math.atan2(Math.abs(dy), Math.abs(dx)) / DEG;
@@ -279,7 +281,12 @@ export class Sketcher {
     for (const e of this.sk.ents) { if (e.type === 'point') continue; if (flt && !selOn(selClass('ent', e))) continue; const r = entDist(this.sk, e, loc); if (r && r.d <= tol && (!best || r.d < best.d)) best = { kind: 'ent', id: e.id, d: r.d, x: r.x, y: r.y }; }
     return best;
   }
-  _snapAt(loc, ev, from) { return snapAt(this, loc, ev, from || this._snapFrom()); }
+  _snapAt(loc, ev, from) {
+    const s = snapAt(this, loc, ev, from || this._snapFrom());
+    // otomatik "çakışık" kapalıysa mevcut noktaya yakalanan çizim noktası paylaşılmaz (konum aynı, yeni nokta, kısıt yok)
+    if (s.pid && !autoOn('coin') && !EDIT_TOOLS.includes(this.tool) && this.tool !== 'select' && !DIM_TOOLS.includes(this.tool)) { const { pid, ...r } = s; return r; }
+    return s;
+  }
   _snapFrom() { // teğet/dik yakalama için çizilmekte olan çizginin başlangıcı
     if (this.tool === 'line' && this._ln) return [this._ln.start.x, this._ln.start.y];
     return null;
@@ -479,7 +486,7 @@ export class Sketcher {
       bId = this._ptFor(s);
       const l = this._addEnt({ type: 'line', a: aId, b: bId });
       if (s.align === 'h') this._addCon('horizontal', l); else if (s.align === 'v') this._addCon('vertical', l);
-      if (s.kind === 'tan' && s.ent) this._addCon('tangent', l, s.ent); else if (s.kind === 'perp' && s.ent && sk.ents.find((e) => e.id === s.ent)?.type === 'line') this._addCon('perpendicular', l, s.ent);
+      if (s.kind === 'tan' && s.ent && autoOn('tan')) this._addCon('tangent', l, s.ent); else if (s.kind === 'perp' && autoOn('perp') && s.ent && sk.ents.find((e) => e.id === s.ent)?.type === 'line') this._addCon('perpendicular', l, s.ent);
       st.lastEnt = l;
     }, { kind: tk('sk.kind.line') });
     st.n++;
@@ -744,7 +751,7 @@ export class Sketcher {
     if (ex) { this._status('sk.dim_exists'); this._editDim(ex.id); return 'ok'; }
     this._openInput({
       anchor: spec.anchor, text: fmt(spec.value), label: nameOf(spec.type),
-      submit: (txt) => this._dimSubmit(spec, txt),
+      submit: (txt, asRef) => this._dimSubmit(spec, txt, asRef),
     });
     this._status('sk.dim_prompt', { name: nameOf(spec.type) });
     return 'ok';
@@ -755,11 +762,17 @@ export class Sketcher {
     if (type === 'angle' && (v === 0 || Math.abs(v) >= 360)) return { err: t('sk.angle_range') };
     return { v };
   }
-  async _dimSubmit(spec, txt) {
+  async _dimSubmit(spec, txt, asRef = false) {
     const e = this._evalDim(spec.type, txt); if (e.err) { this._status(() => e.err); return e.err; }
     this.selection = []; this.onChange();
+    // referans (sürülen) ölçü: değeri çözümden değil geometriden okunur, çözücüyü kısıtlamaz
+    const addRef = () => this._apply((sk) => { const c = { type: spec.type, a: spec.a, expr: '0', ref: true }; if (spec.b !== undefined) c.b = spec.b; const m = measureDim(sk, c); if (Number.isFinite(m)) c.expr = String(+m.toFixed(6)); this._addCon(c.type, c.a, c.b, { expr: c.expr, ref: true }); }, { kind: tk('sk.kind.dim') });
+    if (asRef) { const r = await addRef(); if (r.ok) this._status('sk.dim_made_ref'); return r.ok ? null : r.msg; }
     const r = await this._apply((sk) => { this._addCon(spec.type, spec.a, spec.b, { expr: String(txt).trim() }); }, { strict: true, kind: tk('sk.kind.dim') });
-    return r.ok ? null : r.msg;
+    if (r.ok) return null;
+    if (r.over && SKO.autoRef) { const r2 = await addRef(); if (r2.ok) { this._status('sk.dim_made_ref'); return null; } }
+    if (r.over) { const m = r.msg; this._status(() => m + ' ' + t('sk.over_hint')); }
+    return r.msg;
   }
   _editDim(id) {
     const c = this.sk.cons.find((x) => x.id === id); if (!c) return;
@@ -783,7 +796,7 @@ export class Sketcher {
       if (ev.key === 'Escape') { this._closeInput(); this._setSel([]); }
       else if (ev.key === 'Enter') {
         ev.preventDefault(); if (busy) return; busy = true;
-        const err = await submit(inp.value); busy = false;
+        const err = await submit(inp.value, ev.ctrlKey || ev.metaKey); busy = false; // Ctrl+Enter: referans ölçü olarak ekle
         if (err) inp.classList.add('bad'); else this._closeInput();
       }
     });

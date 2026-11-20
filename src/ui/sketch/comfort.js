@@ -8,7 +8,7 @@ import { DEFS } from './tools.js';
 import { findPointAt } from './core.js';
 import { evalExpr } from '../../shared/expr.js';
 import { fmtNum, errText } from '../../shared/i18n.js';
-import { SKO, SNAP_KINDS, GRID_STEPS, SEL_KINDS, snapOn, setSnapKind, setGridStep, selOn, setSelKind, onSkOptsChange } from './opts.js';
+import { SKO, SNAP_KINDS, GRID_STEPS, SEL_KINDS, snapOn, setSnapKind, setGridStep, selOn, setSelKind, AUTO_KINDS, autoOn, setAuto, setAutoKind, setAutoRef, onSkOptsChange } from './opts.js';
 
 // Ayar bölümleri: sonraki dilimler buraya ekler
 function sections(S) {
@@ -18,11 +18,13 @@ function sections(S) {
     { id: 'grid', title: 'cf.grid_title', select: { id: 'grid-step', label: 'cf.grid_step', values: GRID_STEPS, get: () => SKO.grid, set: (v) => setGridStep(v) } },
   ];
   out.push({ id: 'sel', title: 'cf.sel_title', items: SEL_KINDS.map((k) => chk('sel-' + k, SEL_LABEL[k], () => selOn(k), (v) => setSelKind(k, v))) });
+  out.push({ id: 'auto', title: 'cf.auto_title', items: [chk('auto-all', 'cf.auto_all', () => SKO.auto, (v) => setAuto(v)), ...AUTO_KINDS.map((k) => chk('auto-' + k, AUTO_LABEL[k], () => !SKO.autoOff.has(k), (v) => setAutoKind(k, v))), chk('auto-ref', 'cf.auto_ref', () => SKO.autoRef, (v) => setAutoRef(v))] });
   for (const f of S._cfSections || []) out.push(f(S));
   return out;
 }
 
 const SEL_LABEL = { point: 'cf.sel_point', line: 'cf.sel_line', circle: 'cf.sel_circle', arc: 'cf.sel_arc', other: 'cf.sel_other' };
+const AUTO_LABEL = { hv: 'cf.auto_hv', tan: 'cf.auto_tan', perp: 'cf.auto_perp', coin: 'cf.auto_coin', on: 'cf.auto_on', mid: 'cf.auto_mid' };
 const PT_TOOLS = ['line', 'rect', 'circle', 'arc', 'point', 'spline'];
 const fmt = (v) => fmtNum(Number(v), 4);
 
@@ -73,6 +75,10 @@ export const COMFORT_METHODS = {
   skOpts() { return SKO; },
   setSnapKind(kind, on) { return setSnapKind(kind, on); },
   setGridStep(v) { return setGridStep(v); },
+  setSelKind(kind, on) { return setSelKind(kind, on); },
+  setAuto(on) { return setAuto(on); },
+  setAutoKind(kind, on) { return setAutoKind(kind, on); },
+  setAutoRef(on) { return setAutoRef(on); },
   // hizalama izleri: yakalama bir ya da iki noktayla hizalıysa o noktalardan imlece kesikli çizgi
   _drawTraces(s) {
     if (!s || s.kind !== 'align' || !s.refs) return;
