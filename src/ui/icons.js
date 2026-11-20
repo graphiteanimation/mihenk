@@ -17,6 +17,7 @@ const P = {
   "cam-tool-library": "<path d=\"M3 15v5.5h18V15\"/><path d=\"M7 15V5M12 15V8M17 15V4\"/><path d=\"M5.5 5h3M10.5 8h3M15.5 4h3\"/>",
   "cancel": "<path d=\"M6 6l12 12M18 6L6 18\"/>",
   "chamfer": "<path d=\"M4 20V9.5L9.5 4H20v16z\"/>",
+  "changed": "<circle cx=\"12\" cy=\"12\" r=\"4.5\" fill=\"currentColor\" stroke=\"none\"/>",
   "check": "<path d=\"M5 12.5l4.5 4.5L19 7\"/>",
   "chevron-down": "<path d=\"M6 9l6 6 6-6\"/>",
   "chevron-left": "<path d=\"M15 6l-6 6 6 6\"/>",

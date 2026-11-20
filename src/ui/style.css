@@ -55,7 +55,7 @@
 .tool-stack .tool.sm { min-width: 112px; }
 .ddpop { position: fixed; z-index: var(--z-menu); min-width: 220px; max-height: calc(100vh - 120px); overflow: auto; }
 .ctxmenu { z-index: var(--z-menu); }
-#ctx { position: fixed; }
+#ctx { position: fixed; z-index: calc(var(--z-toast) + 1); } /* WP-02: kullanıcının açtığı bağlam menüsü bildirimlerin altında kalmaz (dar şerit çipleri sol alttadır) */
 .tip { position: fixed; pointer-events: none; }
 #viewbtns, #viewtoggles { margin-top: 0; }
 .vbtns button svg { width: 20px; height: 20px; }

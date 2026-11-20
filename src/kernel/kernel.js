@@ -450,7 +450,8 @@ export class Kernel {
   }
 
   // ---- yeniden hesap ----
-  async rebuild(doc) {
+  // opts.onFeature({id, i, n, ok, cached, ms, sum, error?}): her işlem bitince (arayüzdeki güncelleme süpürmesi için)
+  async rebuild(doc, opts = {}) {
     const empty = (code) => ({ bodies: [], status: {}, sketches: {}, vars: {}, paramErrors: { '#doc': { code, params: {} } }, holes: [], refUpgrades: [], docErrors: [{ code, params: {} }] });
     if (!doc || typeof doc !== 'object' || Array.isArray(doc)) { this.last = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.invalid'); }
     if (!Array.isArray(doc.features)) { this.last = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.no_features'); }
@@ -470,7 +471,7 @@ export class Kernel {
       if (!f || typeof f !== 'object' || typeof f.id !== 'string' || !f.id) { docErrors.push({ code: 'feature.invalid', params: { index: i } }); valid = false; newCache.push(null); continue; }
       const key = pkey + '|' + featKey(f, this.hashes);
       const c = this.cache[i];
-      if (valid && c && c.key === key) { state = cloneState(c.state); status[f.id] = c.status; upgrades.push(...c.upgrades); newCache.push(c); featInfo[f.id] = this.info(f.id, c, true); continue; }
+      if (valid && c && c.key === key) { state = cloneState(c.state); status[f.id] = c.status; upgrades.push(...c.upgrades); newCache.push(c); featInfo[f.id] = this.info(f.id, c, true); report(opts, f.id, i, end, status[f.id], featInfo[f.id]); continue; }
       valid = false; const fu = []; const t0 = now(); let sum;
       if (f.suppressed === true) { status[f.id] = { ok: true, suppressed: true }; sum = 'sup'; }
       else {
@@ -493,6 +494,7 @@ export class Kernel {
       const ce = { key, state: cloneState(state), status: status[f.id], upgrades: fu, ms: now() - t0, sum, warn };
       newCache.push(ce); featInfo[f.id] = this.info(f.id, ce, false);
       this.sums.set(f.id, sum);
+      report(opts, f.id, i, end, status[f.id], featInfo[f.id]);
     }
     // önbellek: işaretçinin sağındaki kayıtlar, önek hiç değişmediyse saklanır (geri sar → sona git yeniden hesaplamaz)
     if (valid && end < feats.length) for (let i = end; i < this.cache.length; i++) newCache.push(this.cache[i]);
@@ -628,6 +630,10 @@ function boxOut([a0, a1], [b0, b1], tol = 1e-7) { for (let i = 0; i < 3; i++) if
 const hasAny = (body, keys) => { if (!body) return false; const al = aliasSet(body); return keys.some((k) => al.has(k)); };
 function sketchScale(S) { let m = 1; for (const p of Object.values(S.sk.points || {})) if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) m = Math.max(m, Math.abs(p.x), Math.abs(p.y)); return m; }
 
+function report(opts, id, i, n, st, fi) {
+  if (typeof opts?.onFeature !== 'function') return;
+  try { opts.onFeature({ id, i, n, ok: !!st?.ok, suppressed: !!st?.suppressed, error: st?.error || null, cached: fi.cached, ms: fi.ms, sum: fi.sum, warn: fi.warn }); } catch (e) { /* ilerleme bildirimi hesaplamayı bozmaz */ }
+}
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 // WP-02: işlem sonucu özeti. Aynı girdi → aynı metin; geometri değişince farklı metin.
 // Sketch: düzlem + noktalar + varlıklar. Diğerleri: işlemin eklediği/değiştirdiği/sildiği gövdelerin imzası.

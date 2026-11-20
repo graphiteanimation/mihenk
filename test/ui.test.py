@@ -4,7 +4,7 @@ import os, re, socket, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PORT = 4193
+PORT = int(os.environ.get("MIHENK_TEST_PORT2", 4193))
 passed = failed = 0
 def check(name, cond, detail=''):
     global passed, failed

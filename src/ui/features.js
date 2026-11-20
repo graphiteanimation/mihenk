@@ -1,6 +1,7 @@
 // Özellik şemaları: varsayılanlar, alan tanımları, adlandırma, bağımlılık taraması.
 // Etiketler sözlük anahtarıdır (tk); panel t() ile çevirir. Varsayılan adlar oluşturulduğu andaki dilde yazılır.
 import { t, tk } from '../shared/i18n.js';
+import { evalExpr } from '../shared/expr.js';
 
 export const TYPE_KEY = {
   sketch: tk('feat.sketch'), extrude: tk('feat.extrude'), revolve: tk('feat.revolve'), hole: tk('feat.hole'), fillet: tk('feat.fillet'), chamfer: tk('feat.chamfer'), shell: tk('feat.shell'),
@@ -136,3 +137,76 @@ export function dependsOn(f, id) {
   return walk(rest, '');
 }
 export const dependents = (doc, feat) => doc.features.filter((g) => g.id !== feat.id && dependsOn(g, feat.id));
+
+// ------------------------------------------------------------------ WP-02: geçmiş (neden-sonuç zinciri)
+// Doğrudan dayanak: işlemin başvurduğu sketch/özellik kimlikleri + başvurduğu ya da değiştirdiği gövdenin
+// o ana kadarki son yazarı (status[id].bodies çekirdekten gelir). Geçişli kapanış arayüzde hesaplanır.
+export function historyGraph(doc, status = {}) {
+  const feats = doc.features || []; const up = new Map(), down = new Map();
+  const writer = new Map(); // gövde kimliği → son yazan özellik
+  const ids = new Set(feats.map((f) => f.id));
+  feats.forEach((f, i) => {
+    const deps = new Set(); up.set(f.id, deps); down.set(f.id, down.get(f.id) || new Set());
+    for (let j = 0; j < i; j++) { const g = feats[j]; if (dependsOn(f, g.id)) deps.add(g.id); }
+    for (const [b, w] of writer) if (w !== f.id && !deps.has(w) && dependsOn(f, b)) deps.add(w);
+    const made = status[f.id]?.ok ? status[f.id].bodies || [] : [];
+    for (const b of made) { const w = writer.get(b); if (w && w !== f.id) deps.add(w); }
+    // gövde kimliği bir özellik kimliğiyle başlıyorsa (e1, e1#2) o gövdenin şimdiki yazarı dayanaktır
+    for (const d of [...deps]) { if (!ids.has(d)) deps.delete(d); }
+    for (const d of deps) { if (!down.has(d)) down.set(d, new Set()); down.get(d).add(f.id); }
+    for (const b of made) writer.set(b, f.id);
+  });
+  // yazar eşlemesi: dayanılan gövdenin yaratıcısı yerine son yazarı (kesme/yuvarlatma zinciri)
+  return { up, down };
+}
+export function closure(map, id) {
+  const out = new Set(); const st = [...(map.get(id) || [])];
+  while (st.length) { const x = st.pop(); if (out.has(x)) continue; out.add(x); for (const y of map.get(x) || []) st.push(y); }
+  return out;
+}
+// Eskiz kaynaşması: tek bir işlemin "sketch" alanıyla kullandığı eskiz o işlemin altına girer.
+// Döner: Map(sketchId → tüketici özellik kimliği). rb: geri sarma işaretçisi (arada kalan eskiz kaynaşmaz).
+export function fusedSketches(doc) {
+  const feats = doc.features || []; const use = new Map(); const pos = new Map(feats.map((f, i) => [f.id, i]));
+  for (const f of feats) if (f.type !== 'sketch' && typeof f.sketch === 'string') use.set(f.sketch, [...(use.get(f.sketch) || []), f.id]);
+  const out = new Map(); const rb = doc.rollback;
+  for (const f of feats) {
+    if (f.type !== 'sketch') continue;
+    const u = use.get(f.id) || []; if (u.length !== 1) continue;
+    // eskizi başka bir şey (yüzüne sketch, desen kaynağı...) de kullanıyorsa ayrı kalır
+    if (feats.some((g) => g.id !== u[0] && dependsOn(g, f.id))) continue;
+    const a = pos.get(f.id), b = pos.get(u[0]); if (!(b > a)) continue;
+    if (rb != null && rb > a && rb <= b) continue;
+    out.set(f.id, u[0]);
+  }
+  return out;
+}
+// Parametre özeti ("14 mm · Kes", "Ø5,5 · Tümü", "R1 · 4 kenar"). vars: çözülmüş parametreler.
+export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
+  const n = (e) => { try { const v = evalExpr(e, vars); return Number.isFinite(v) ? fmt(v) : '?'; } catch (x) { return '?'; } };
+  const mm = (e) => n(e) + ' mm';
+  const op = (o) => (o && o !== 'new' ? t(OPS.find((x) => x[0] === o)?.[1] || 'op.new') : null);
+  const cnt = (k, a) => t(k, { n: Array.isArray(a) ? a.length : 0 });
+  const parts = [];
+  switch (f.type) {
+    case 'sketch': parts.push(f.plane?.kind === 'face' ? t('hs.on_face') : String(f.plane?.name || '')); parts.push(t('hs.n_ents', { n: (f.ents || []).length })); break;
+    case 'extrude': parts.push(f.extent === 'all' ? t('hs.all') : mm(f.dist)); if (f.dir === 'sym') parts.push(t('hs.sym')); parts.push(op(f.op)); break;
+    case 'revolve': parts.push(n(f.angle) + '°'); parts.push(op(f.op)); break;
+    case 'hole': parts.push(f.thread?.designation || 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;
+    case 'fillet': parts.push('R' + n(f.r)); parts.push(cnt('hs.n_edges', f.edges)); break;
+    case 'chamfer': parts.push(mm(f.d)); parts.push(cnt('hs.n_edges', f.edges)); break;
+    case 'shell': parts.push(mm(f.t)); parts.push(cnt('hs.n_faces', f.faces)); break;
+    case 'primitive':
+      if (f.kind === 'box') parts.push([n(f.w), n(f.d), n(f.h)].join('×') + ' mm');
+      else if (f.kind === 'cylinder') parts.push('Ø' + n(f.dia) + ' × ' + mm(f.h));
+      else parts.push('Ø' + n(f.dia));
+      parts.push(op(f.op)); break;
+    case 'combine': parts.push(t(f.op === 'cut' ? 'op.cut' : f.op === 'intersect' ? 'op.intersect' : 'op.combine_join')); parts.push(cnt('hs.n_tools', f.tools)); break;
+    case 'move': parts.push([n(f.dx ?? 0), n(f.dy ?? 0), n(f.dz ?? 0)].join(', ') + ' mm'); if (f.angle && n(f.angle) !== fmt(0)) parts.push(n(f.angle) + '°'); break;
+    case 'pattern': parts.push(f.kind === 'circ' ? '×' + n(f.count) : '×' + n(f.count1) + (f.count2 ? ' × ' + n(f.count2) : '')); break;
+    case 'mirror': parts.push(String(f.plane || '')); break;
+    case 'import': parts.push(String(f.format || '').toUpperCase()); break;
+    default: break;
+  }
+  return parts.filter(Boolean).join(' · ');
+}

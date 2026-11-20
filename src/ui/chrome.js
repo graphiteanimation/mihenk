@@ -4,7 +4,7 @@
 // Test ve erişilebilirlik sözleşmesi: her komut düğmesi `data-cmd`, önemli parçalar `data-testid` taşır; metne bağlı seçici gerekmez.
 import { h, $, ctxMenu, fmt, tip, hideTip, modal } from './dom.js';
 import { icon, featureIcon } from './icons.js';
-import { featLabel } from './features.js';
+import { featLabel, featSummary, historyGraph, fusedSketches, closure } from './features.js';
 import { t, tk, errText, getLang, LANGS, tLang } from '../shared/i18n.js';
 import { getStr, setStr, prefs, setPref } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
@@ -319,33 +319,151 @@ export function initChrome(app) {
     });
     const bodies = (res?.bodies || []).map((b) => { const r = h('div', { class: 'trow' + (app.selection.some((s) => s.kind === 'body' && s.body === b.id) ? ' sel' : '') + (app.hiddenBodies.has(b.id) ? ' hidden-item' : ''), 'data-body': b.id, 'data-testid': 'row-body', onclick: () => app.selectBody(b.id), ondblclick: () => app.renameBody(b.id) },
       eye(!app.hiddenBodies.has(b.id), () => app.toggleBody(b.id), tk('br.eye')), h('span', { class: 'nm', text: app.bodyName(b.id) }), h('span', { class: 'val num', text: fmt(b.volume / 1000, 2) + ' cm³' })); activate(r, () => app.selectBody(b.id)); return r; });
-    const used = new Set(doc.features.map((f) => f.sketch).filter(Boolean));
-    const sketches = doc.features.map((f, i) => [f, i]).filter(([f]) => f.type === 'sketch').map(([f, i]) => { const r = h('div', { class: 'trow' + (app.selFeature === f.id ? ' sel' : '') + (app.hiddenSketches.has(f.id) ? ' hidden-item' : ''), 'data-sketch': f.id, 'data-testid': 'row-sketch', ondblclick: () => app.editFeature(i), onclick: () => app.selectFeature(f.id), oncontextmenu: (e) => featureMenu(e, f, i) },
-      eye(!app.hiddenSketches.has(f.id), () => app.toggleSketch(f.id), tk('br.eye')), h('span', { class: 'nm', text: f.name || f.id }), h('span', { class: 'val', text: used.has(f.id) ? t('br.in_use') : '' })); activate(r, () => app.selectFeature(f.id)); return r; });
     br.replaceChildren(
       sec(t('br.params'), h('button', { class: 'btn sm', id: 'br-params', 'data-cmd': 'params', onclick: () => C.run('params') }, t('br.edit'))), ...(params.length ? params : [note(t('br.no_params'))]),
       sec(t('br.origin')), (() => { const r = h('div', { class: 'trow' }, eye(app.planesVisible, () => app.togglePlanes(), tk('br.eye_planes')), h('span', { class: 'nm', text: t('br.planes_axes') })); return r; })(),
       sec(t('br.bodies')), ...(bodies.length ? bodies : [note(t('br.no_bodies'))]),
-      sec(t('br.sketches')), ...(sketches.length ? sketches : [note(t('br.no_sketches'))]));
+      sec(t('hs.title'), app.marks.changed.size ? h('button', { class: 'btn sm', 'data-testid': 'hist-clear', onclick: () => app.clearMarks(), title: t('hs.clear_tip') }, t('hs.clear')) : null),
+      h('div', { class: 'hist', role: 'list', 'data-testid': 'hist', 'aria-label': t('hs.title') }, ...historyRows()));
+    C.markDeps();
+  };
+
+  // ---------------------------------------------------------------- geçmiş: ortak durum (şerit + panel aynı veriyi paylaşır)
+  // Durum işaretleri renk dışında simge + desen + metinle de ayrışır (ekran okuyucuya metin).
+  const MARK_ICON = { error: 'error', warn: 'warning', changed: 'changed', sup: 'suppress', pending: 'clock', computing: 'refresh' };
+  C.hist = () => {
+    const doc = app.doc, res = app.result; const key = app._histKey;
+    const k2 = [doc, res, doc.rollback, doc.features.length];
+    if (key && key.every((x, i) => x === k2[i]) && app._hist) return app._hist;
+    const fused = fusedSketches(doc); const fusedBy = new Map([...fused].map(([sk, f]) => [f, sk]));
+    const graph = historyGraph(doc, res?.status || {});
+    const maxMs = Math.max(1, ...Object.values(res?.featInfo || {}).map((x) => x.ms || 0));
+    app._histKey = k2; app._hist = { fused, fusedBy, graph, maxMs }; return app._hist;
+  };
+  // Bir işlemin görünen durumu. Kaynak: süpürme sırasında çekirdeğin ilerleme bildirimi; düzenlemede "Son hali" açıksa
+  // sağdaki işlemler için son model; yoksa son sonuç. "Değişti" düzenleme/süpürme sırasında düzenleme öncesi özetle karşılaştırılır.
+  C.featState = (f, i) => {
+    const doc = app.doc, res = app.result;
+    const ed = app.edit && !app.edit.closed ? app.edit : null;
+    const editing = !!(ed && !ed.isNew && ed.idx === i);
+    const after = !!(ed && (ed.isNew ? i >= ed.at : i > ed.at));
+    const SW = app.sweep && i >= app.sweep.at ? app.sweep : null; const P = SW ? SW.done.get(f.id) : null;
+    const useFinal = after && app.showFinal && app.finalResult;
+    const R = useFinal ? app.finalResult : res;
+    const st = SW ? (P ? { ok: P.ok, error: P.error, suppressed: P.suppressed } : null) : R?.status?.[f.id];
+    const info = SW ? P : R?.featInfo?.[f.id];
+    const rb = doc.rollback;
+    const computing = !!(SW && !P && SW.cur === f.id);
+    const pending = (rb != null && i >= rb) || (after && !useFinal) || !!(SW && !P && !computing);
+    const marks = [];
+    if (computing) marks.push({ k: 'computing', text: t('hs.st_computing') });
+    if (f.suppressed) marks.push({ k: 'sup', text: t('hs.st_suppressed') });
+    if (pending && !f.suppressed) marks.push({ k: 'pending', text: t('hs.st_pending') });
+    const bad = !pending && !computing && !!st && st.ok === false;
+    if (bad) marks.push({ k: 'error', text: t('hs.st_error'), why: errText(st.error) });
+    const warns = [...(info?.warn || []).map((w) => t('warn.' + w.code, w.params || {})), ...(f.type === 'sketch' && app.problems[f.id] ? [app.problems[f.id]] : [])];
+    const live = !pending && !computing;
+    if (!bad && live && warns.length) marks.push({ k: 'warn', text: t('hs.st_warn'), why: warns.join(' · ') });
+    const base = SW ? SW.base : ed ? app.sums : null;
+    const changed = live && (base ? !!(info && base.has(f.id) && base.get(f.id) !== info.sum) : app.marks.changed.has(f.id));
+    if (!bad && changed) marks.push({ k: 'changed', text: t('hs.st_changed') });
+    const cls = (app.selFeature === f.id ? ' sel' : '') + (bad ? ' err' : '') + (f.suppressed ? ' sup' : '') + (pending ? ' rolled' : '') + (editing ? ' editing' : '') +
+      (marks.some((m) => m.k === 'warn') ? ' warn' : '') + (marks.some((m) => m.k === 'changed') ? ' changed' : '') + (computing ? ' computing' : '');
+    const ms = info && live ? info.ms : null;
+    return { st, info, bad, pending, editing, marks, cls, ms, summary: featSummary(editing ? ed.draft : f, res?.vars || app.vars(), (v) => fmt(v, 3)) };
+  };
+  const markEl = (m) => h('span', { class: 'mk mk-' + m.k, 'data-mark': m.k, title: m.why || m.text }, h('span', { html: icon(MARK_ICON[m.k], 'sm') }), h('span', { class: 'sr-only', text: m.text + (m.why ? ': ' + m.why : '') }));
+  // CSP: satır içi style özniteliği yasak; özel özellik CSSOM ile yazılır
+  const cssVar = (el, k, v) => { el.style.setProperty(k, v); return el; };
+  const msBar = (ms) => (ms == null ? null : cssVar(h('i', { class: 'msbar', 'aria-hidden': 'true' }), '--ms', Math.max(0.04, Math.min(1, ms / C.hist().maxMs)).toFixed(3)));
+  const msText = (ms) => (ms == null ? '' : t('hs.ms', { t: ms < 10 ? fmt(ms, 1) : String(Math.round(ms)) }));
+  const titleOf = (f, S) => (S.bad ? errText(S.st.error) : [f.name || f.id, S.summary, ...S.marks.map((m) => m.text + (m.why ? ': ' + m.why : '')), msText(S.ms)].filter(Boolean).join(' — '));
+  // satır: [aç/kapa] [simge] ad · özet [işaretler] + süre çubuğu; hata varsa altında neden satırı
+  const historyRows = () => {
+    const doc = app.doc; const H = C.hist(); const rows = [];
+    doc.features.forEach((f, i) => {
+      if (H.fused.has(f.id)) return;
+      const S = C.featState(f, i); const skId = H.fusedBy.get(f.id); const sk = skId ? doc.features.find((x) => x.id === skId) : null;
+      const open = sk && app.histOpen.has(f.id);
+      const row = h('div', { class: 'trow hrow' + S.cls, role: 'listitem', 'data-hist': f.id, 'data-i': i, 'data-testid': 'hist-row', 'aria-current': app.selFeature === f.id ? 'true' : null, title: titleOf(f, S), ...(f.type === 'sketch' ? { 'data-sketch': f.id } : {}),
+        onclick: () => app.selectFeature(f.id), ondblclick: () => app.editFeature(i), oncontextmenu: (e) => featureMenu(e, f, i), onmouseenter: () => C.hoverFeature(f.id), onmouseleave: () => C.hoverFeature(null) },
+        sk ? h('button', { class: 'tw disc', type: 'button', 'data-testid': 'hist-disc', 'aria-expanded': open ? 'true' : 'false', 'aria-label': t(open ? 'hs.collapse' : 'hs.expand', { name: sk.name || sk.id }), onclick: (e) => { e.stopPropagation(); app.toggleHistOpen(f.id); }, html: icon(open ? 'chevron-down' : 'chevron-right', 'sm') }) : null,
+        h('span', { class: 'hic', html: S.bad ? icon('error', 'sm') : featureIcon(f) }),
+        sk ? h('button', { class: 'tw sk-badge', type: 'button', 'data-sketch': sk.id, 'data-testid': 'hist-sketch-badge', 'aria-label': t('hs.sketch_badge', { name: sk.name || sk.id }), title: t('hs.sketch_badge', { name: sk.name || sk.id }), onclick: (e) => { e.stopPropagation(); app.selectFeature(sk.id); }, ondblclick: (e) => { e.stopPropagation(); app.editFeature(doc.features.indexOf(sk)); }, html: icon('sketch', 'sm') }) : null,
+        h('span', { class: 'nm' }, h('span', { class: 'hn', text: f.name || featLabel(f) }), S.summary ? h('span', { class: 'hs', text: S.summary }) : null),
+        ...(S.editing ? [h('span', { class: 'tag', text: t('tl.editing') })] : []),
+        ...S.marks.filter((m) => m.k !== 'pending').map(markEl), msBar(S.ms));
+      activate(row, () => app.selectFeature(f.id));
+      rows.push(row);
+      if (S.bad) rows.push(h('div', { class: 'hwhy', role: 'note', 'data-testid': 'hist-why', 'data-for': f.id, text: errText(S.st.error) }));
+      if (open) {
+        const j = doc.features.indexOf(sk); const SS = C.featState(sk, j);
+        const child = h('div', { class: 'trow hrow child' + SS.cls, role: 'listitem', 'data-hist': sk.id, 'data-i': j, 'data-sketch': sk.id, 'data-testid': 'hist-row', title: titleOf(sk, SS),
+          onclick: () => app.selectFeature(sk.id), ondblclick: () => app.editFeature(j), oncontextmenu: (e) => featureMenu(e, sk, j), onmouseenter: () => C.hoverFeature(sk.id), onmouseleave: () => C.hoverFeature(null) },
+          eye(!app.hiddenSketches.has(sk.id), () => app.toggleSketch(sk.id), tk('br.eye')), h('span', { class: 'nm' }, h('span', { class: 'hn', text: sk.name || sk.id }), SS.summary ? h('span', { class: 'hs', text: SS.summary }) : null), ...SS.marks.filter((m) => m.k !== 'pending').map(markEl));
+        cssVar(child, '--depth', '1'); activate(child, () => app.selectFeature(sk.id)); rows.push(child);
+      }
+    });
+    if (!rows.length) rows.push(h('div', { class: 'trow empty', text: t('hs.empty') }));
+    return rows;
+  };
+  // bağımlılık vurgusu: seçili ya da üstüne gelinen işlemin ataları (dep-up) ve torunları (dep-down); ilgisizler soluk
+  C.hoverFeature = (id) => { app.hoverFeature = id; C.markDeps(); };
+  C.depInfo = (id) => {
+    const H = C.hist(); if (!id || !H.graph.up.has(id)) return null;
+    const up = closure(H.graph.up, id), down = closure(H.graph.down, id);
+    // kaynaşmış eskiz kendi tüketicisiyle aynı satırdadır
+    for (const [sk, f] of H.fused) { if (up.has(sk) && f === id) up.delete(sk); }
+    return { up, down };
+  };
+  C.markDeps = () => {
+    const id = app.hoverFeature || (app.edit ? null : app.selFeature); const D = C.depInfo(id);
+    for (const el of document.querySelectorAll('#timeline .chip[data-id], #browser .hrow[data-hist]')) {
+      const x = el.dataset.id || el.dataset.hist;
+      el.classList.toggle('dep-up', !!D && D.up.has(x)); el.classList.toggle('dep-down', !!D && D.down.has(x));
+      el.classList.toggle('dep-dim', !!D && x !== id && !D.up.has(x) && !D.down.has(x) && !(C.hist().fusedBy.get(id) === x));
+      el.toggleAttribute('data-dep', !!D && (D.up.has(x) || D.down.has(x)));
+      if (D && (D.up.has(x) || D.down.has(x))) el.dataset.dep = D.up.has(x) ? 'up' : 'down';
+    }
+    const seg = document.querySelector('[data-testid="st-deps"]');
+    if (seg) { const txt = C.depText(id, D); seg.textContent = txt; seg.hidden = !txt; }
+  };
+  C.depText = (id, D) => {
+    const f = id && app.doc.features.find((x) => x.id === id); if (!f || !D) return '';
+    const by = new Map(); for (const x of D.down) { const g = app.doc.features.find((y) => y.id === x); if (!g) continue; const l = featLabel(g); by.set(l, (by.get(l) || 0) + 1); }
+    const name = f.name || featLabel(f);
+    if (!D.down.size) return t('hs.deps_none', { name });
+    return t('hs.deps', { name, n: D.down.size, list: [...by].map(([l, n]) => n + ' ' + l).join(', ') });
   };
 
   // ---------------------------------------------------------------- zaman çizelgesi
   C.renderTimeline = () => {
-    const tl = $('#timeline'); const doc = app.doc, st = app.result?.status || {};
+    const tl = $('#timeline'); const doc = app.doc;
     tl.classList.toggle('sim', app.mode === 'cam');
     if (app.mode === 'cam') { app.cam.renderBottom(tl); return; }
-    const rb = doc.rollback; const kids = [h('div', { class: 'tl-label' }, h('span', { html: icon('clock', 'sm') }), h('span', { text: t('tl.label') }))];
+    const rb = doc.rollback; const H = C.hist();
+    const kids = [h('div', { class: 'tl-label' }, h('span', { html: icon('clock', 'sm') }), h('span', { text: t('tl.label') }))];
+    let first = true;
     doc.features.forEach((f, i) => {
-      if (i > 0) kids.push(h('span', { class: 'tl-sep' }));
-      if (rb != null && i === rb) kids.push(h('span', { class: 'tl-marker', id: 'tl-marker', title: t('tl.marker') }));
-      const s = st[f.id]; const rolled = rb != null && i >= rb; const bad = s && s.ok === false;
-      const editing = app.edit && !app.edit.closed && app.edit.idx === i;
-      const cls = 'chip' + (app.selFeature === f.id ? ' sel' : '') + (bad ? ' err' : '') + (f.suppressed ? ' sup' : '') + (rolled ? ' rolled' : '');
-      const chip = h('button', { class: cls, 'data-id': f.id, 'data-i': i, 'data-testid': 'chip', 'aria-pressed': app.selFeature === f.id ? 'true' : 'false', title: bad ? errText(s.error) : f.name || f.id },
-        h('span', { html: bad ? icon('error', 'sm') : featureIcon(f) }), h('span', { class: 'ix', text: String(i + 1) }), h('span', { text: (f.name || featLabel(f)) + (editing ? ' ' + t('tl.editing') : '') }));
+      if (rb != null && i === rb) kids.push(h('span', { class: 'tl-marker', id: 'tl-marker', title: t('tl.marker'), role: 'separator', 'aria-label': t('tl.marker') }));
+      if (H.fused.has(f.id)) return; // tek işlemin kullandığı eskiz, o işlemin çipinde rozet
+      if (!first) kids.push(h('span', { class: 'tl-sep' })); first = false;
+      const S = C.featState(f, i); const skId = H.fusedBy.get(f.id); const sk = skId ? doc.features.find((x) => x.id === skId) : null;
+      // özet şerit: adsız, simge + durum işareti; ad ve durum ekran okuyucu için metin olarak durur
+      const chip = h('button', { class: 'chip' + S.cls, 'data-id': f.id, 'data-i': i, 'data-testid': 'chip', 'aria-pressed': app.selFeature === f.id ? 'true' : 'false', title: titleOf(f, S) },
+        sk ? h('span', { class: 'chip-sk', 'data-sketch': sk.id, 'data-testid': 'chip-sketch', title: t('hs.sketch_badge', { name: sk.name || sk.id }), html: icon('sketch', 'sm'),
+          ondblclick: (e) => { e.stopPropagation(); app.editFeature(doc.features.indexOf(sk)); } }) : null,
+        h('span', { class: 'cic', html: S.bad ? icon('error', 'sm') : featureIcon(f) }),
+        h('span', { class: 'sr-only', text: [f.name || featLabel(f), S.summary].filter(Boolean).join(', ') }),
+        ...(S.editing ? [h('span', { class: 'tag', text: t('tl.editing') })] : []),
+        ...S.marks.filter((m) => m.k !== 'pending' && m.k !== 'error').map(markEl),
+        ...(S.marks.some((m) => m.k === 'pending') ? [h('span', { class: 'sr-only', text: t('hs.st_pending') })] : []),
+        S.bad ? h('span', { class: 'sr-only', text: t('hs.st_error') + ': ' + errText(S.st.error) }) : null, msBar(S.ms));
       chip.addEventListener('click', (e) => { if (e.detail === 0 && app.selFeature === f.id && !app.edit) app.editFeature(i); else app.selectFeature(f.id); });
-      chip.addEventListener('dblclick', () => app.editFeature(i));
+      chip.addEventListener('dblclick', (e) => { if (e.target.closest('.chip-sk')) return; app.editFeature(i); });
       chip.addEventListener('contextmenu', (e) => featureMenu(e, f, i));
+      chip.addEventListener('mouseenter', () => C.hoverFeature(f.id)); chip.addEventListener('mouseleave', () => C.hoverFeature(null));
+      chip.addEventListener('focus', () => C.hoverFeature(f.id)); chip.addEventListener('blur', () => C.hoverFeature(null));
       kids.push(chip);
     });
     if (rb != null) kids.push(h('button', { class: 'btn sm', id: 'tl-end', 'data-testid': 'tl-end', onclick: () => app.rollbackTo(null) }, t('tl.end')));
@@ -353,6 +471,7 @@ export function initChrome(app) {
     if (!doc.features.length) kids.push(h('span', { class: 'note', text: t('tl.empty') }));
     tl.replaceChildren(...kids);
     tl.querySelector('.chip.sel')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    C.markDeps();
   };
 
   // ---------------------------------------------------------------- durum çubuğu
@@ -379,7 +498,7 @@ export function initChrome(app) {
     $('#statusbar-main').replaceChildren(
       h('span', { class: 'seg-i', 'data-testid': 'st-mode', 'data-mode': camMode ? 'cam' : sk ? 'sketch' : 'model' }, h('span', { html: icon(camMode ? 'workspace-manufacture' : sk ? 'sketch' : 'workspace-design', 'sm') }), h('b', { text: camMode ? t('ui.mode_cam') : t(sk ? 'ui.mode_sketch' : 'ui.mode_model') })), div(),
       h('span', { class: 'seg-i', 'data-testid': 'st-tool' }, h('span', { class: 'muted-od', text: t('ui.tool') }), h('b', { text: toolName })), div(),
-      h('span', { class: 'seg-i', id: 'st-left', 'data-testid': 'st-left', text: keep }), h('span', { class: 'grow' }),
+      h('span', { class: 'seg-i', id: 'st-left', 'data-testid': 'st-left', text: keep }), h('span', { class: 'seg-i deps', 'data-testid': 'st-deps', 'aria-live': 'polite', hidden: true }), h('span', { class: 'grow' }),
       ...(app.busy ? [h('span', { class: 'seg-i', 'data-testid': 'st-busy' }, h('span', { class: 'progress indet', role: 'progressbar', 'aria-label': t('ui.busy') }, h('i')), h('span', { text: t('ui.busy') }),
         h('button', { class: 'sbtn', 'data-testid': 'cancel-compute', 'data-cmd': 'cancel-compute', onclick: () => app.cancelCompute() }, h('span', { html: icon('cancel', 'sm') }), h('span', { text: t('ui.cancel_compute') })), div())] : []),
       ...(app.stale ? [h('span', { class: 'seg-i warnc', 'data-testid': 'st-stale' }, h('span', { html: icon('warning', 'sm') }), h('span', { text: t('ui.stale') })), div()] : []),
@@ -390,7 +509,7 @@ export function initChrome(app) {
       h('span', { class: 'seg-i', 'data-testid': 'st-unit', text: 'mm' }), div(),
       h('span', { class: 'seg-i num', 'data-testid': 'st-time', text: t('ui.time', { t: app.lastMs != null ? Math.round(app.lastMs) + ' ms' : '—' }) }), div(),
       h('span', { class: 'seg-i' + (app.lastAutosave ? ' okc' : ''), 'data-testid': 'st-autosave' }, app.lastAutosave ? h('span', { html: icon('check', 'sm') }) : null, h('span', { text: app.lastAutosave ? t('ui.autosaved', { time: hhmm(app.lastAutosave) }) : t('ui.autosave_none') })));
-    C.renderTitle();
+    C.renderTitle(); C.markDeps();
   };
   C.setLeft = (text) => { const e = $('#st-left'); if (e) e.textContent = text; };
 
