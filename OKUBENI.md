@@ -1,6 +1,6 @@
 # Mihenk CAD/CAM 0.3.0
 
-Parametrik CAD/CAM programı. Hedef makine: Neway VM1160H + Mitsubishi M80V + GSA bölme başlığı (A ekseni). Dosya uzantısı `.mhnk`.
+Parametrik CAD/CAM programı. Makineden bağımsızdır; kendi tezgâh profilinizi eklersiniz. Dosya uzantısı `.mhnk`.
 
 **NC çıktısı makinede DOĞRULANMAMIŞTIR.** Her programı önce simülasyonda ve makinede havada, tek blok ile deneyin. A ekseni yönü makinede teyit edilmedi. Ayrıntı: kılavuzun GÜVENLİK bölümü.
 
@@ -11,7 +11,7 @@ Parametrik CAD/CAM programı. Hedef makine: Neway VM1160H + Mitsubishi M80V + GS
 
 ## İlk çalıştırma
 1. Dil ve tema seçin (Türkçe / English).
-2. İmalat çalışma alanında makine profilini seçin. Neway şablonundaki boş alanları doldurmadan post çalışmaz; bu bilerek böyledir.
+2. İmalat çalışma alanında **Tezgâh** ile kendi tezgâh profilinizi ekleyin (bir şablonu kopyalayıp doldurun ya da dosyadan içe aktarın). Genel şablonlardaki boş alanları doldurmadan post çalışmaz; bu bilerek böyledir.
 3. Kayıt otomatik alınır (60 sn); önceki sürüm `.mhnk.bak` olarak saklanır.
 
 ## Kılavuz
