@@ -6,6 +6,7 @@ import * as CAM from '../src/cam/index.js';
 import * as P from '../src/cam/geom/path2d.js';
 import * as G from '../src/shared/geom2d.js';
 import { ringTree, pocketRegion, SegGrid } from '../src/cam/ops/pocket.js';
+import { loopFromKernel } from '../src/cam/ops/common.js';
 import { sketchFaces } from '../src/cam/geom/select.js';
 import { NEWAY_FIXTURE } from './fixtures/machine-neway.mjs';
 import { exportMachines, importMachines, MACHINE_FORMAT } from '../src/cam/machines/io.js';
@@ -536,6 +537,9 @@ section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');
   // yay-yay: araya kisa dogru
   const a1 = { ...G.mkArc([0, 0], 5, 0, Math.PI), fwd: true, open: false }, a2 = { ...G.mkArc([0, 0], 5, Math.PI + 1e-4, Math.PI - 1e-4), fwd: true, open: false };
   const c3 = P.closeItemLoop([a1, a2]); ok(gapOf(c3) < 1e-12 && c3.length === 3 && c3.some((g) => g.type === 'line'), 'yay-yay: kisa dogru eklenir: ' + c3.length);
+  // ops/common.js loopFromKernel (camFaceLoops yolu): 5,85e-4 acik dongu artik loop_open degil, birebir kapali
+  { let lp = null, er = null; try { lp = loopFromKernel(sqGap); } catch (e) { er = e.code; } ok(lp && P.isClosedLoop(lp, 1e-12), 'loopFromKernel: zincir acikligi kapanir (loop_open yok): ' + er); }
+  { let er = null; try { loopFromKernel([ln([0, 0], [10, 0]), ln([10, 0.5], [10, 10]), ln([10, 10], [0, 10]), ln([0, 10], [0, 0])]); } catch (e) { er = e.code; } ok(er === 'cam.geom.loop_open', 'loopFromKernel: 0,5 mm gercek aciklik hala loop_open: ' + er); }
   // buyuk aciklik (gercek acik uc) sessizce kapatilmaz
   const big = [ln([0, 0], [10, 0]), ln([10, 0.5], [10, 10]), ln([10, 10], [0, 10]), ln([0, 10], [0, 0])];
   ok(gapOf(P.closeItemLoop(big)) >= 0.5, 'maxGap ustu aciklik birakilir (kapilar yakalar)');

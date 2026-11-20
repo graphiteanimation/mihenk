@@ -90,6 +90,24 @@ function chainLoops(items, tol) {
   return loops;
 }
 const cleanItem = (it) => ({ ...it.seg, fwd: it.fwd, open: !!it.open, edge: it.edge ?? null });
+// T-24: zincir toleransiyla (tol) birlestirilen ardisik uclari BIREBIR cakistir (eskiz NODE_TOL 1e-6 ile tutarli kapali dongu):
+// dogru-dogru orta nokta, dogru-yay dogrunun ucu, yay-yay araya kisa dogru. Girdi: cleanItem ogeleri. tol'dan buyuk acikliga dokunmaz.
+const cEnd = (g) => (g.fwd === false ? g.p0 : g.p1), cStart = (g) => (g.fwd === false ? g.p1 : g.p0);
+function closeChain(loop, tol) {
+  if (loop.length < 2 || loop.some((g) => g.type === 'circle' || !g.p0 || !g.p1)) return loop;
+  const L = loop.map((g) => ({ ...g, p0: g.p0.slice(), p1: g.p1.slice() })); const out = [];
+  for (let i = 0; i < L.length; i++) {
+    const g = L[i], h = L[(i + 1) % L.length]; out.push(g);
+    const a = cEnd(g), b = cStart(h); const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (!(d > 0) || d > tol) continue;
+    const setE = (q, p) => { if (q.fwd === false) q.p0 = p; else q.p1 = p; }, setS = (q, p) => { if (q.fwd === false) q.p1 = p; else q.p0 = p; };
+    if (g.type === 'line' && h.type === 'line') { const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; setE(g, m); setS(h, m.slice()); }
+    else if (g.type === 'line') setE(g, b.slice());
+    else if (h.type === 'line') setS(h, a.slice());
+    else if (d > 1e-9) out.push({ ...G.mkLine(a, b), fwd: true, open: !!(g.open && h.open), edge: null });
+  }
+  return out;
+}
 // dongu ic-icelik derinligine gore yonlendir (derinlik cift: CCW, tek: CW) -> malzeme/bolge solda
 function orientNested(loops) {
   const polys = loops.map((l) => l.flatMap((it) => { const p = G.sample(it.seg, 0.01); return it.fwd ? p.slice(0, -1) : p.reverse().slice(0, -1); }));
@@ -151,11 +169,12 @@ export function camFaceLoops(K, { ref, frame }) {
   const loops = orientNested(chainLoops(items, 1e-5 * scale));
   loops.sort((a, b) => b.area - a.area);
   const outerL = loops[0]; if (outerL.depth !== 0) throw E('cam.loop_open');
-  const inners = loops.slice(1).map((l) => l.loop.map(cleanItem));
+  const ctol = 1e-5 * scale;
+  const inners = loops.slice(1).map((l) => closeChain(l.loop.map(cleanItem), ctol));
   const open = items.some((it) => it.open);
   // acik kenar varsa: tabanin hemen ustundeki malzeme kesiti (acik kenar uzatmasinin modele carpmadigini denetlemek icin)
   const above = open ? camSection(K, { body: ref.body, frame, z: z + ABOVE_DZ }).loops : null;
-  return { z, normalOk: k > 0, outer: outerL.loop.map(cleanItem), inners, open, above, aboveDz: open ? ABOVE_DZ : null, body: ref.body };
+  return { z, normalOk: k > 0, outer: closeChain(outerL.loop.map(cleanItem), ctol), inners, open, above, aboveDz: open ? ABOVE_DZ : null, body: ref.body };
 }
 
 // camSection {body, frame, z} -> { z, loops:[[seg]] } (malzeme gidis yonunun solunda; dis donguler CCW)
@@ -177,7 +196,7 @@ export function camSection(K, { body: bodyId, frame, z }) {
   if (!items.length) return { z, loops: [] };
   const bb = b.shape.boundingBox; const scale = Math.max(1, Math.hypot(bb.width, bb.height, bb.depth));
   const loops = orientNested(chainLoops(items, 1e-5 * scale));
-  return { z, loops: loops.map((l) => l.loop.map(cleanItem)) };
+  return { z, loops: loops.map((l) => closeChain(l.loop.map(cleanItem), 1e-5 * scale)) };
 }
 
 // camHeightmap {bodies, frame, res, bbox:[x0,y0,x1,y1]} -> { x0, y0, res, nx, ny, data: Float32Array (data[j*nx+i]), err }

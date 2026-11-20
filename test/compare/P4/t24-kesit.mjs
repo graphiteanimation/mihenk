@@ -1,14 +1,14 @@
 // T-24 (WP-03): P4 dolgu govdesi kesitlerinde camSection zincir acikligi ve kapanis denetimi. NC uretmez.
 // Calistir: node test/compare/P4/t24-kesit.mjs
-// 1) ham kesitte ardisik uclar arasinda NODE_TOL'dan buyuk aciklik var (5,85e-4 mm, Y29,05),
-// 2) src/cam/geom/path2d.js closeSectionLoops sonrasi aciklik 0,
+// 1) cekirdek camSection artik kapali dongu verir: ardisik uc acikligi 0 (duzeltme oncesi 5,85e-4 mm, Y29,05; 6,8e-4, Y27,05),
+// 2) src/cam/geom/path2d.js closeSectionLoops etkisiz (zaten kapali) ve aciklik 0,
 // 3) uclari BIREBIR paylasan eskiz (birlestirme yok, NODE_TOL) kapatilmis dongulerde betigin 2e-3 mm birlestirmeli
 //    eskiziyle ayni bolge sayisini verir; ham donguler daha az (ada kaybi).
 import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
 import opencascade from 'replicad-opencascadejs';
 import { initKernel } from '../../../src/kernel/kernel.js';
 import { closeSectionLoops } from '../../../src/cam/geom/path2d.js';
-import { findRegions, NODE_TOL } from '../../../src/shared/profiles.js';
+import { findRegions } from '../../../src/shared/profiles.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)); const ROOT = path.join(here, '..', '..', '..');
 let pass = 0, fail = 0; const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL:', m); } };
@@ -40,7 +40,8 @@ for (const y of [29.05, 27.05]) {
   const g0 = worstGap(raw), g1 = worstGap(fixed);
   const rRaw = regions(raw, 0), rFix = regions(fixed, 0), rRef = regions(raw, 2e-3);
   console.log(`Y${y}: dongu ${raw.length}, ham aciklik ${g0.toExponential(3)} mm, kapatilmis ${g1}; bolge ham ${rRaw} / kapatilmis ${rFix} / betik (2e-3) ${rRef}`);
-  ok(g0 > NODE_TOL, `Y${y}: ham kesitte NODE_TOL ustu aciklik (sorun yeniden uretildi)`);
+  ok(g0 === 0, `Y${y}: cekirdek kesitinde aciklik 0 (once ${y === 29.05 ? '5,85e-4' : '6,8e-4'} mm)`);
+  ok(rRaw === rRef, `Y${y}: cekirdek kesiti birlestirmesiz eskizde ada kaybetmez (${rRaw} = ${rRef})`);
   ok(g1 === 0, `Y${y}: kapanis sonrasi aciklik 0`);
   ok(rFix === rRef, `Y${y}: kapatilmis donguler betik birlestirmesiyle ayni bolge sayisi (${rFix} = ${rRef})`);
 }
