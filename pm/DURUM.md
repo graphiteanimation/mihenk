@@ -13,7 +13,7 @@ Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARAR
 - WP-10 güven altyapısı: test hijyeni (part-h 3,4 GB → 0,7 GB), altın parça seti P1–P4, örnek belgeler, hata günlüğü, NC başlığı model özeti, `pm/KABUL-WINDOWS.md`, sürüm iş akışı (O-046).
 
 ## Test durumu
-- Son tam `npm run test:all` (entegre dal): 25/27 adım, 5704 geçti, 4 kaldı. O 4 denetim düzeltildi ve hedefli testlerle geçti (kernel 285, sketchops 154, i18n 52, app 408, ui 32). Düzeltme sonrası tam zincir YEREL KOŞULMADI; `master`daki GitHub Actions koşusu bekleniyor (sonraki oturumda ilk iş: sonucu oku).
+- Son tam `npm run test:all` (entegre dal): 25/27 adım, 5704 geçti, 4 kaldı. O 4 denetim düzeltildi ve hedefli testlerle geçti (kernel 285, sketchops 154, i18n 52, app 408, ui 32). Düzeltme sonrası `master` (1d66718) GitHub Actions koşusu **yeşil** (2026-11-20 21:16 UTC, 30 dk).
 - Altın set tabanı: P1 BLOCK 19/0/5, P2 2/20, P3 5/0/0/0, P4 11/0/0/0; tanınan delik 46/46. P1/P2 BLOCK'ları plan/model uyumsuzluğu olarak sınıflandı (P1 S3 `holder_collision` ×2 ayrılamadı).
 
 ## Açık
@@ -22,7 +22,7 @@ Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARAR
 - LGPL/WASM dağıtım biçimi (OpenCAMLib) 0.6'dan önce teyit edilecek.
 
 ## Sıradaki (kullanıcı devam deyince)
-1. `master` Actions sonucunu oku; kırmızıysa onar.
+1. Hız önceliği geçerli (K-041, CALISMA-DUZENI §10): en çok 5 paralel alt ajan, tam test zinciri CI'da.
 2. WP-21 (0.4 kapanış devirleri) → sürüm 0.4 kapısı: etiket, Actions, yerel kurulum + `pm/KABUL-WINDOWS.md` (ekran kontrolü izni gerekir).
 3. 0.5: WP-12 ‖ WP-13 ‖ WP-14.
 
