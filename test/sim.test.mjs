@@ -113,7 +113,7 @@ console.log('3. kasitli hatali yollar');
     const rA = simulate(tpA, { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
     ok(rA.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'warn') && !rA.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'error'), 'V-12: bildirilmis boydan boya pay icinde yalniz uyari');
     tpA.meta = { belowStock: 0.5 }; const rB = simulate(tpA, { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
-    ok(rB.issues.some((i) => i.code === 'cam.sim.below_stock' && i.level === 'error'), 'V-12: payi asan inis engel'); }
+    ok(rB.issues.some((i) => i.code === 'cam.sim.below_stock_excess' && i.level === 'error'), 'V-12: payi asan inis engel (B2: ayri kod below_stock_excess)'); }
   // V-13: tabana kadar delinmis hucreye geri cekilme/hizli 'stok icinde' sayilmaz
   { const rC = simulate(TP(flat6, [mk.rapid(0, 0, 10), mk.rapid(0, 0, 1), mk.feed(0, 0, -31, 100, 'plunge'), mk.rapid(0, 0, -30.5), mk.rapid(0, 0, 10)]), { stockBox: BOX, res: 0.25, tool: { fluteLen: 40, bodyLen: 60 } });
     ok(!codes(rC).includes('cam.sim.rapid_in_stock'), 'V-13: delinmis (h=taban) hucrede hizli temiz: ' + codes(rC)); }
@@ -405,6 +405,17 @@ console.log('10. T-15 serbest/kopmus parca');
   // gates: uyari olarak gelir, engel degil
   const gl = gates(S.wrapProgram ? S.wrapProgram(ring(-30)) : { name: 'F', units: 'mm', number: null, machine: null, sections: [{ setup: { id: 'A', name: 'A', workOffset: { kind: 'G54' }, aAngle: null, stockBox: bx }, toolpath: ring(-30) }] }, S.testMachine(), { sim: { res: 0.25, modelHeightmaps: { A: heightmapFromFn([-20, -20], [20, 20], 0.25, () => -Infinity) } } });
   const gf = gl.filter((g) => g.code === 'cam.sim.free_piece'); ok(gf.length === 1 && gf[0].level === 'warn', 'kapilarda serbest parca uyari (engel degil): ' + gf.map((g) => g.level));
+}
+
+console.log('11. B2 delme stok alti payi: breakThrough + uc boyu ile sinirli');
+{
+  const dr = { number: 7, H: 7, type: 'drill', dia: 6, tipAngle: 118, fluteLen: 60, bodyLen: 80 };
+  const bx = { min: [-20, -20, -30], max: [20, 20, 0] };
+  const run = (under, meta) => simulate(mk.toolpath({ tool: dr, rpm: 3000, spindleDir: 'cw', coolant: 'off', clearanceZ: 10, retractZ: 5, meta, moves: [mk.rapid(0, 0, 10), mk.cycle({ cycle: 'drill', points: [[0, 0]], top: 0, bottom: -30 - under, retract: 5, clearance: 10, f: 200 }), mk.rapid(0, 0, 10)] }), { stockBox: bx, res: 0.5 }).issues.filter((i) => i.code.startsWith('cam.sim.below_stock'));
+  let b = run(1, { belowStock: 1 }); ok(b.length === 1 && b[0].level === 'warn' && b[0].code === 'cam.sim.below_stock', 'meta 1 mm, inis 1 (uc boyu 1,8 icinde): uyari');
+  b = run(25, { belowStock: 25 }); ok(b.length === 1 && b[0].level === 'error' && b[0].code === 'cam.sim.below_stock_excess' && Math.abs(b[0].params.allow - 3 / Math.tan(59 * Math.PI / 180)) < 1e-3, 'dogrulayici karsi-ornegi: meta 25 mm ama drillAllow yok -> pay = uc boyu, 25 mm engel: ' + JSON.stringify(b.map((i) => [i.code, i.params.allow])));
+  b = run(2.5, { belowStock: 2.8, drillAllow: 2.8 }); ok(b.length === 1 && b[0].level === 'warn', 'drillAllow 2,8 (brk 1 + uc 1,8) icinde 2,5: uyari');
+  b = run(4, { belowStock: 2.8, drillAllow: 2.8 }); ok(b.length === 1 && b[0].level === 'error' && b[0].code === 'cam.sim.below_stock_excess', 'drillAllow asan 4 mm: engel (below_stock_excess)');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

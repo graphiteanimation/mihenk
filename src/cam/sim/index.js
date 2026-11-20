@@ -62,10 +62,13 @@ export function createSim(input, opts = {}) {
     const id = sec.setup?.id ?? 'default';
     const tool = { ...tp.tool, ...(opts.tools?.[tp.tool.number] || {}), ...(opts.tool || {}) };
     const allow = Number.isFinite(tp.meta?.belowStock) && tp.meta.belowStock > 0 ? tp.meta.belowStock : 0;
+    // B2: delme cevriminde stok alti pay en cok breakThrough + uc boyu (meta.drillAllow; yoksa yalniz takim uc boyu)
+    const tipL = tool.tipAngle > 0 && tool.tipAngle < 180 ? (tool.dia / 2) / Math.tan(tool.tipAngle * Math.PI / 360) : 0;
+    const cycAllow = Math.min(allow, Number.isFinite(tp.meta?.drillAllow) ? tp.meta.drillAllow : tipL);
     const S = setupFor(id, sec.setup), geom = toolGeom(tool);
     // T-08: islem basi stok (yerel stok yuksekligi icin) ve yol izi maskesi; tutucu boslugu
     let preMax = -Infinity; for (let k = 0; k < S.hm.data.length; k++) if (S.hm.data[k] > preMax) preMax = S.hm.data[k];
-    cur = { si, tp, allow, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
+    cur = { si, tp, allow, cycAllow, allowNow: allow, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
       pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
   }
   // T-08: islemin yol bandi (takim merkezinin stok yuksekliginin altindaki izi, en buyuk zarf yaricapi kadar kare genisletme:
@@ -282,10 +285,13 @@ export function createSim(input, opts = {}) {
       const a = acc[key], code = CODE(key);
       counts[key] = (counts[key] || 0) + 1;
       if (counts[key] > capPerCode) { suppressed++; continue; }
-      const lvl = key === 'below_stock' && a.depth <= cur.allow + belowTol ? 'warn' : LEVEL[key];
-      const it = { level: lvl, code, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
+      // below_stock: bildirilen pay icinde uyari; pay varken asan kisim ayri kod (below_stock_excess, engel); pay yoksa engel
+      let lvl = LEVEL[key], code2 = code;
+      if (key === 'below_stock') { if (a.depth <= cur.allowNow + belowTol) lvl = 'warn'; else if (cur.allowNow > 0) code2 = CODE('below_stock_excess'); }
+      const it = { level: lvl, code: code2, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
       if (a.vertical != null) it.params.vertical = a.vertical;
       if (point != null) it.params.point = point;
+      if (key === 'below_stock') it.params.allow = Math.round(cur.allowNow * 1000) / 1000;
       issues.push(it); fresh.push(it);
     }
     return fresh;
@@ -295,7 +301,8 @@ export function createSim(input, opts = {}) {
     const [si, k] = steps[idx];
     if (!cur || cur.si !== si) enterSection(si);
     cur.acc = {}; cur.move = k; cur.cycFresh = [];
-    doMove(sections[si].toolpath.moves[k]);
+    const mv = sections[si].toolpath.moves[k]; cur.allowNow = mv.t === 'cycle' ? cur.cycAllow : cur.allow;
+    doMove(mv);
     const fresh = [...cur.cycFresh, ...flush(si, k)];
     idx++;
     if (idx >= steps.length) { const n0 = issues.length; closeSection(); freeCheck(); fresh.push(...issues.slice(n0)); }
