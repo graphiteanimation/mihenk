@@ -9,6 +9,7 @@ import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
 import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
+import { dropEditedLinks } from './sketch/ops.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
@@ -114,7 +115,7 @@ export class Sketcher {
     const sid = this._sid;
     this._q = this._q.then(async () => {
       if (this._sid !== sid || !this.active) return;
-      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; this._statusDof(r); this._probeSoon(); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
+      try { const r = await solveSketch(this.sk, this.getVars()); this.lastSolve = r; this._statusDof(r, this._openNote); this._openNote = null; this._probeSoon(); } catch (e) { this._status('sk.solve_failed', { msg: errText(e) }); }
       this._refresh();
     });
     return this._q;
@@ -202,6 +203,8 @@ export class Sketcher {
     const before = this._snapStr();
     const abort = mutate(this.sk);
     if (typeof abort === 'function') { this._restore(before); this._status(abort); this._refresh(); return Promise.resolve({ ok: false, msg: abort() }); }
+    const dropped = dropEditedLinks(this.sk); // izdüşürülen nesne düzenlendiyse (kırp/uzat/böl/taşı/kopya…) kaynak bağı düşer
+    if (dropped) { const n0 = note; note = () => [n0 && n0(), t('sk.proj_unlinked', { n: dropped })].filter(Boolean).join('  ·  '); }
     const entry = { s: before }; this._undo.push(entry); if (this._undo.length > 200) this._undo.shift(); this._redo = [];
     this._refresh();
     const sid = this._sid;
@@ -879,11 +882,12 @@ export class Sketcher {
     const isSel = (k, id) => this.selection.some((s) => s.kind === k && s.id === id), isHov = (k, id) => this.hover && this.hover.kind === k && this.hover.id === id;
     for (const s of sketchPolylines(sk)) {
       const e = s.e, sel = isSel('ent', e.id), hov = isHov('ent', e.id);
-      const color = sel ? COL.cons : hov ? COL.hover : e.cons ? COL.sketchDim : entDark(e) ? COL.dark : COL.sketch;
+      const lost = !!(e.proj && e.proj.lost); // kaynağını yitirmiş izdüşüm: ayrı renk ve sık kesikli çizgi
+      const color = sel ? COL.cons : hov ? COL.hover : lost ? COL.err : e.cons ? COL.sketchDim : entDark(e) ? COL.dark : COL.sketch;
       const geo = new THREE.BufferGeometry().setFromPoints(s.pts.map((p) => new THREE.Vector3(p[0], p[1], 0)));
-      const mat = e.cons ? new THREE.LineDashedMaterial({ color, dashSize: 7 * wpp, gapSize: 4 * wpp, depthTest: false }) : new THREE.LineBasicMaterial({ color, depthTest: false });
+      const mat = e.cons ? new THREE.LineDashedMaterial({ color, dashSize: (lost ? 2.5 : 7) * wpp, gapSize: (lost ? 3 : 4) * wpp, depthTest: false }) : new THREE.LineBasicMaterial({ color, depthTest: false });
       const line = new THREE.Line(geo, mat); if (e.cons) line.computeLineDistances();
-      line.renderOrder = 4; line.userData.ent = e.id; this.gMain.add(line);
+      line.renderOrder = 4; line.userData.ent = e.id; if (lost) line.userData.lost = true; this.gMain.add(line);
     }
     const pos = [], col = [], c = new THREE.Color();
     for (const [id, p] of Object.entries(sk.points)) {

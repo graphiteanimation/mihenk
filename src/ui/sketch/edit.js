@@ -374,6 +374,7 @@ export const EDIT_METHODS = {
     const loc = this._loc(ev); const hit = loc ? this._hit(loc) : null;
     if (hit && !this._isSel(hit)) this._setSel([{ kind: hit.kind, id: hit.id }]);
     const hasSel = this.selection.length > 0, hasEnt = this._entsSel().length > 0;
+    const hasProj = this._entsSel().some((id) => { const e = this.sk.ents.find((x) => x.id === id); return e && e.proj; });
     this._menuAt(ev, [
       { id: 'ctx-finish', label: 'ctx.finish', run: () => this.onRequestFinish() },
       hasSel && { id: 'ctx-delete', label: 'ctx.delete', run: () => this.deleteSelection() },
@@ -383,6 +384,8 @@ export const EDIT_METHODS = {
       hasEnt && { id: 'ctx-cut', label: 'ctx.cut', run: () => this.cutClip() },
       CLIP && { id: 'ctx-paste', label: 'ctx.paste', run: () => this.pasteClip() },
       { id: 'ctx-selall', label: 'ctx.selectall', run: () => this.selectAll() },
+      hasProj && { id: 'ctx-unlink', label: 'ctx.proj_unlink', run: () => this.unlinkSelected() },
+      hasProj && { id: 'ctx-relink', label: 'ctx.proj_relink', run: () => this.relinkSelected() },
     ]);
   },
   _dimMenu(ev, c) {

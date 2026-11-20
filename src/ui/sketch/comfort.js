@@ -6,7 +6,7 @@ import { t, tk } from '../../shared/i18n.js';
 import { SNAP_LABEL } from './snap.js';
 import { DEFS } from './tools.js';
 import { findPointAt } from './core.js';
-import { reprojectLinked } from './ops.js';
+import { reprojectLinked, matchEdge, edgeSig, unlinkProjection, relinkProjection } from './ops.js';
 import { toLocal } from '../../shared/vec.js';
 import { evalExpr } from '../../shared/expr.js';
 import { fmtNum, errText } from '../../shared/i18n.js';
@@ -154,32 +154,61 @@ export const COMFORT_METHODS = {
     this.setTool(this._lastTool); return true;
   },
   // ---------- ilişkisel izdüşüm ----------
-  _edgeBodies() { const bodies = this.getBodies && this.getBodies(); return bodies && bodies.length ? bodies : [...this.vp.bodies.values()].filter((b) => b.grp.visible).map((b) => b.data); },
-  // bağın (gövde, kenar grubu) güncel yerel noktaları; kenar numarası yoksa eski ağırlık merkezine en yakın kenar; hiçbiri yoksa null
+  _edgeBodies() { const bodies = this.getBodies && this.getBodies(); return bodies && bodies.length ? bodies : [...this.vp.bodies.values()].map((b) => b.data); },
+  // gövde görünüm alanında var ama gizli mi (gizli gövde "kayıp" sayılmaz: bilinmiyor)
+  _bodyHidden(id) { const e = this.vp.bodies && this.vp.bodies.get && this.vp.bodies.get(id); return !!(e && e.grp && !e.grp.visible); },
+  // bağın (gövde, kenar grubu) güncel yerel noktaları. Kaynak kenarın imzası saklıdır (tür, eskiz düzleminde uçlar/merkez/yarıçap):
+  // aynı indeksli kenar yalnız makul değişimse, değilse imzaya en yakın TEK aday kabul edilir; belirsiz ya da uzaksa null (bağlanma, grup lost).
+  // Gövde gizliyse undefined (bilinmiyor: dokunma).
   _edgeByMeta(meta) {
-    const b = this._edgeBodies().find((x) => x.id === meta.b); if (!b) return null;
+    const b = this._edgeBodies().find((x) => x.id === meta.b); if (!b) return this._bodyHidden(meta.b) ? undefined : null;
     const pl = this.plane, groups = b.edgeGroups || [];
     const ptsOf = (g) => { const a = b.lines.subarray(g.start * 3, (g.start + g.count) * 3), pts = []; for (let i = 0; i + 5 < a.length; i += 6) { if (!pts.length) pts.push([a[i], a[i + 1], a[i + 2]]); pts.push([a[i + 3], a[i + 4], a[i + 5]]); } return pts; };
-    let g = groups.find((x) => x.idx === meta.g);
-    if (!g && meta.c) {
-      let best = null;
-      for (const q of groups) { const pts = ptsOf(q); if (pts.length < 2) continue; const c = [0, 1, 2].map((k) => pts.reduce((s, p) => s + p[k], 0) / pts.length); const d = Math.hypot(c[0] - meta.c[0], c[1] - meta.c[1], c[2] - meta.c[2]); if (!best || d < best.d) best = { d, q }; }
-      if (best && best.d < 5) g = best.q; // 5 mm içindeki en yakın kenar; daha uzaksa bağ kopuk sayılır
-    }
-    if (!g) return null; const pts = ptsOf(g); if (pts.length < 2) return null;
-    const out = pts.map((p) => toLocal(pl, p)); out.g = g.idx; out.c = [0, 1, 2].map((k) => Math.round(pts.reduce((q, p) => q + p[k], 0) / pts.length * 1e4) / 1e4); return out;
+    const cands = []; for (const g of groups) { const p3 = ptsOf(g); if (p3.length >= 2) cands.push({ idx: g.idx, p3, pts: p3.map((p) => toLocal(pl, p)) }); }
+    const m = matchEdge(meta, cands); if (!m) return null;
+    const out = m.pts; out.g = m.idx; out.c = [0, 1, 2].map((k) => Math.round(m.p3.reduce((q, p) => q + p[k], 0) / m.p3.length * 1e4) / 1e4); out.sig = edgeSig(out); return out;
+  },
+  // izdüşüm sonucunun durum metni: güncellenen ve kaybolan AYRI sayılır
+  _projSummary(r) {
+    const u = r.updated + r.rebuilt;
+    const tail = r.unlinked ? '  ·  ' + t('sk.proj_unlinked', { n: r.unlinked }) : '';
+    if (u && r.lost) return t('sk.proj_both', { u, l: r.lost }) + tail;
+    if (u) return t('sk.proj_updated', { n: u }) + tail;
+    if (r.lost) return t('sk.proj_lost', { n: r.lost }) + tail;
+    return (r.unlinked ? t('sk.proj_unlinked', { n: r.unlinked }) : t('sk.proj_same'));
   },
   // Eskiz açılırken: bağlı izdüşümleri güncel gövdeden okur (geri alma adımı yok)
   _reprojectOnOpen() {
+    this._openNote = null;
     if (!this.sk.ents.some((e) => e.proj)) return;
-    try { const r = reprojectLinked(this.sk, (m) => this._edgeByMeta(m)); if (r.updated || r.rebuilt) this._status('sk.proj_updated', { n: r.updated + r.rebuilt }); else if (r.lost) this._status('sk.proj_lost', { n: r.lost }); } catch (e) { console.warn('reproject', e && e.message); }
+    try { const r = reprojectLinked(this.sk, (m) => this._edgeByMeta(m)); if (r.updated || r.rebuilt || r.lost || r.unlinked) { const txt = this._projSummary(r); this._status(() => txt); this._openNote = () => txt; } } catch (e) { console.warn('reproject', e && e.message); }
   },
   // Elle güncelle (panel düğmesi): çözülür, geri alınabilir
   refreshProjections() {
     if (!this.active) return Promise.resolve({ ok: false });
     if (!this.sk.ents.some((e) => e.proj)) { this._status('sk.proj_none'); return Promise.resolve({ ok: false }); }
     let res = null;
-    return this._apply((sk) => { res = reprojectLinked(sk, (m) => this._edgeByMeta(m)); if (!res.updated && !res.rebuilt) return () => (res.lost ? t('sk.proj_lost', { n: res.lost }) : t('sk.proj_same')); },
-      { kind: tk('sk.kind.project'), note: () => (res ? t('sk.proj_updated', { n: res.updated + res.rebuilt }) : '') });
+    return this._apply((sk) => { res = reprojectLinked(sk, (m) => this._edgeByMeta(m)); if (!res.updated && !res.rebuilt && !res.flagged && !res.unlinked) { const txt = this._projSummary(res); return () => txt; } },
+      { kind: tk('sk.kind.project'), note: () => (res ? this._projSummary(res) : '') });
   },
+  // sağ tık: izdüşüm bağını kaldır (nesneler sıradan geometri olur)
+  unlinkSelected() {
+    const ids = this._entsSel().filter((id) => { const e = this.sk.ents.find((x) => x.id === id); return e && e.proj; });
+    if (!ids.length) return this._status('sk.proj_none_sel');
+    return this._apply((sk) => { unlinkProjection(sk, ids); }, { kind: tk('sk.kind.project'), note: () => t('sk.proj_unlinked', { n: ids.length }) });
+  },
+  // sağ tık: yeniden bağla. Modelde TEK kenar seçiliyken çalışır; değilse kullanıcıya ne yapacağı söylenir.
+  relinkSelected() {
+    const ids = this._entsSel().filter((id) => { const e = this.sk.ents.find((x) => x.id === id); return e && e.proj; });
+    if (!ids.length) return this._status('sk.proj_none_sel');
+    const sel = (this.vp.selection || []).filter((s) => s.kind === 'edge');
+    if (sel.length !== 1) return this._status('sk.proj_relink_pick');
+    const s0 = sel[0], b = this._edgeBodies().find((x) => x.id === s0.body); const g = b && (b.edgeGroups || []).find((x) => x.idx === s0.idx);
+    if (!g) return this._status('sk.proj_relink_pick');
+    const a = b.lines.subarray(g.start * 3, (g.start + g.count) * 3), p3 = []; for (let i = 0; i + 5 < a.length; i += 6) { if (!p3.length) p3.push([a[i], a[i + 1], a[i + 2]]); p3.push([a[i + 3], a[i + 4], a[i + 5]]); }
+    const pts = p3.map((p) => toLocal(this.plane, p)); const c = [0, 1, 2].map((k) => Math.round(p3.reduce((q, p) => q + p[k], 0) / p3.length * 1e4) / 1e4);
+    let r = null;
+    return this._apply((sk) => { r = relinkProjection(sk, ids, { b: b.id, g: g.idx, c }, pts); if (!r.ok) return () => t(r.err.key, r.err.params || {}); }, { kind: tk('sk.kind.project'), note: () => t('sk.proj_relinked') });
+  },
+  lostEnts() { return this.sk.ents.filter((e) => e.proj && e.proj.lost).map((e) => e.id); },
 };
