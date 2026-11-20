@@ -296,6 +296,20 @@ console.log('8. T-08 yerel stok yuksekligi (govde boyu) + tutucu boslugu uyarisi
   ok(!r.issues.some((i) => i.code === 'cam.sim.holder_clearance_low'), 'esik secenekle (0,1) degisir');
   gl = gates(prog(face(36), plunge(0, -25.5, t6(25))), M, { sim: simO() });
   ok(has(gl, 'cam.sim.holder_collision') && has(gl, 'cam.gate.body_short'), 'tutucu carpmasi + govde boyu engel kalir: ' + gc(gl).filter((x) => /block/.test(x)));
+  // O-035: bosluk 0 (temas) -> engel; 0,3 -> uyari; 1 -> sessiz
+  const clrRun = (z) => simulate(prog(face(36), plunge(0, z, t6(25))), { res: 0.5, stockBoxes: { s1: box } }).issues.filter((i) => /holder_/.test(i.code));
+  let hc = clrRun(-25);
+  ok(hc.length === 1 && hc[0].code === 'cam.sim.holder_contact' && hc[0].level === 'error', 'O-035: bosluk 0 -> holder_contact engel: ' + JSON.stringify(hc.map((i) => [i.code, i.level, i.params.clearance])));
+  hc = clrRun(-24.995);
+  ok(hc.length === 1 && hc[0].code === 'cam.sim.holder_contact', 'bosluk 0,005 (<= 0,01 eps) -> temas engel');
+  hc = clrRun(-24.7);
+  ok(hc.length === 1 && hc[0].code === 'cam.sim.holder_clearance_low' && hc[0].level === 'warn', 'bosluk 0,3 -> uyari: ' + JSON.stringify(hc.map((i) => i.code)));
+  hc = clrRun(-24);
+  ok(hc.length === 0, 'bosluk 1 mm -> sessiz: ' + JSON.stringify(hc.map((i) => i.code)));
+  gl = gates(prog(face(36), plunge(0, -25, t6(25))), M, { sim: simO() });
+  ok(has(gl, 'cam.sim.holder_contact') && !has(gl, 'cam.gate.body_short'), 'kapi: temas engel (govde boyu tam sinirda, body_short yok)');
+  hc = clrRun(-25.5);
+  ok(hc.some((i) => i.code === 'cam.sim.holder_collision') && !hc.some((i) => i.code === 'cam.sim.holder_contact'), 'carpma varken ayrica temas yazilmaz');
   // f) adim adim oynatici: uyari son adimda da gelir
   const sim2 = createSim(prog(face(36), plunge(0, -24.8, t6(25))), { res: 0.5, stockBoxes: { s1: box } });
   const seen = []; while (!sim2.done) seen.push(...sim2.step(50).newIssues);

@@ -12,7 +12,7 @@ export { toolGeom } from './tool.js';
 
 const err = (code, params = {}) => new KErr(code, params);
 // below_stock: islemin bildirdigi bilincli pay (toolpath.meta.belowStock, mm; boydan boya delik/kontur) icindeyse 'warn', disindaysa 'error' (V-12)
-const LEVEL = { comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
+const LEVEL = { holder_contact: 'error', comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
 const CODE = (k) => 'cam.sim.' + k;
 
 export function createSim(input, opts = {}) {
@@ -26,6 +26,9 @@ export function createSim(input, opts = {}) {
   const steps = []; sections.forEach((s, si) => s.toolpath.moves.forEach((m, k) => steps.push([si, k])));
 
   const clrLow = opts.holderClearanceLow ?? 0.5; // T-08 ek: en kucuk tutucu boslugu bunun altindaysa uyari (mm)
+  // O-035: bosluk <= clrContact = tutucu stoga DEGIYOR -> engel. Varsayilan = dusey oyma toleransi (gougeTol, 0,01 mm): yukseklik
+  // haritasi dusey degerleri bu mertebede kayan nokta/ag hatasi tasir; 0,01 mm takim boyu olcme hassasiyetinin de altindadir.
+  const clrContact = opts.holderContactTol ?? (opts.gougeTol ?? 0.01);
   let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts, secStats;
   const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
   reset();
@@ -79,10 +82,10 @@ export function createSim(input, opts = {}) {
     const c = cur; if (!c || c.closed) return; c.closed = true;
     const st = { localTop: localTop(), holderClearance: c.geom.holderR > 0 && Number.isFinite(c.clr) ? c.clr : null, envelope: c.geom.holderR > 0 ? 'holder' : 'tool' };
     secStats[c.si] = st;
-    if (st.holderClearance != null && st.holderClearance < clrLow) {
-      const key = 'holder_clearance_low'; counts[key] = (counts[key] || 0) + 1;
+    if (st.holderClearance != null && st.holderClearance < clrLow && !c.hadHolderHit) {
+      const key = st.holderClearance <= clrContact ? 'holder_contact' : 'holder_clearance_low'; counts[key] = (counts[key] || 0) + 1;
       if (counts[key] > capPerCode) suppressed++;
-      else issues.push({ level: 'warn', code: CODE(key), params: { x: c.clrAt.x, y: c.clrAt.y, z: c.clrAt.z, clearance: Math.max(0, st.holderClearance), min: clrLow, op: c.tp.opId }, moveIndex: c.clrAt.k, section: c.si });
+      else issues.push({ level: key === 'holder_contact' ? 'error' : 'warn', code: CODE(key), params: { x: c.clrAt.x, y: c.clrAt.y, z: c.clrAt.z, clearance: Math.max(0, st.holderClearance), min: key === 'holder_contact' ? clrContact : clrLow, op: c.tp.opId }, moveIndex: c.clrAt.k, section: c.si });
     }
     c.pre = null; c.mask = null;
   }
@@ -113,7 +116,7 @@ export function createSim(input, opts = {}) {
         if (r2 > Rmax2) continue;
         const r = Math.sqrt(r2);
         if (r <= holderR) {
-          if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); continue; }
+          if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); cur.hadHolderHit = true; continue; }
           const cl = pz + g.bodyLen - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
         }
         if (r <= shaftR && h > zFlute) {
