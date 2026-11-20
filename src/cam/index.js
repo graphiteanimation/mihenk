@@ -1,6 +1,7 @@
 // Mihenk CAM cekirdegi (saf JS): setup cozumu, islem hesabi, kapilar, program kurucu. API: docs/CAM.md.
 import { cerr } from './geom/err.js';
 import { normalizeTool } from './tools.js';
+import { resolveFixtures } from './sim/fixtures.js';
 import { computeFace } from './ops/face.js';
 import { computeDrill } from './ops/drill.js';
 import { computeContour } from './ops/contour.js';
@@ -110,7 +111,9 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
   const clr = setup.clearanceZ ?? 0; if (!(isNum(clr) && clr >= 0)) throw cerr('cam.setup.bad_field', { field: 'clearanceZ' });
   // WP-07: silindir stok (eksen X): sim baslangic haritasi kesit merkezi/yaricapla yuvarlak ust yuzeyi kurar
   const stockCyl = stock.kind === 'cyl' ? { yc: (stockBox.min[1] + stockBox.max[1]) / 2, zc: (stockBox.min[2] + stockBox.max[2]) / 2, R: stock.dia / 2 } : null;
-  return { id: setup.id, name: setup.name ?? setup.id, bodies: ids, workOffset: { ...wo }, frame, frame0: { o, x, y, z }, aAngle, stock, stockCyl, stockBox, modelBBox, clearance: clr, stockTop: stockBox.max[2], machinePos: setup.machinePos ?? null };
+  // WP-13: baglama govdeleri (taban setup cercevesi / model uzayi -> setup cercevesi; sim carpma denetimi + gorunum)
+  const fixtures = resolveFixtures(setup.fixtures, { frame, frame0: { o, x, y, z }, bodies: rebuild?.bodies || [], partBodies: ids });
+  return { id: setup.id, name: setup.name ?? setup.id, bodies: ids, workOffset: { ...wo }, frame, frame0: { o, x, y, z }, aAngle, stock, stockCyl, stockBox, modelBBox, clearance: clr, stockTop: stockBox.max[2], machinePos: setup.machinePos ?? null, ...(fixtures.length ? { fixtures } : {}) };
 }
 
 // computeOp(op, ctx) -> Toolpath (IR) | throw CamErr.  ctx = { setup: resolveSetup sonucu, tool: belge takimi, geom, machine }

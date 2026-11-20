@@ -101,6 +101,7 @@ export default {
   "err.cam.program.no_name": "Program adı girilmeli.",
   "err.cam.setup.axes_not_perpendicular": "Setup'ın X ve Z eksenleri birbirine dik değil.",
   "err.cam.setup.bad_field": "Setup'ta geçersiz değer: {field}.",
+  "err.cam.setup.fixture_is_part": "Bağlama gövdesi olarak seçilen gövde setup'ta işlenen parça: {body}.",
   "err.cam.setup.body_missing": "Setup'taki gövde modelde yok: {body}.",
   "err.cam.setup.cyl_origin": "Silindir stokta iş sıfırı döner eksen üzerinde bir nokta olmalı (nokta ya da model orijini).",
   "err.cam.setup.face_axis_unresolved": "Setup ekseni bir yüze bağlı ama yüz okunamadı. Yüzü yeniden seçin.",

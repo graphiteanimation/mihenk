@@ -7,6 +7,7 @@ export const COOLANTS = ['flood', 'mist', 'air', 'through', 'off'];
 export const LIB_FORMAT = 'mihenk-tool-library';
 export const LIB_LIMITS = { tools: 5000, presets: 100, str: 500, bytes: 20 * 1024 * 1024 };
 const TIP_TYPES = new Set(['drill', 'spot', 'chamfer']);
+export const HOLDER_MAX_SEGMENTS = 20;
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isPosInt = (v) => Number.isInteger(v) && v >= 1 && v <= 99999;
@@ -47,7 +48,22 @@ export function normalizeTool(t, path = 'tool') {
   else opt('pitch', (v) => isNum(v) && v > 0, 'number > 0');
   if (o.type === 'drill' || o.type === 'spot') { if (o.centerCutting !== true) throw bad(`${path}.centerCutting`, 'true'); }
   if (o.holder !== undefined && o.holder !== null) {
-    if (typeof o.holder !== 'object' || !isNum(o.holder.dia) || o.holder.dia <= 0 || !isNum(o.holder.len) || o.holder.len <= 0) throw bad(`${path}.holder`, '{dia, len}');
+    if (typeof o.holder !== 'object' || Array.isArray(o.holder)) throw bad(`${path}.holder`, '{dia, len}');
+    if (o.holder.segments !== undefined) {
+      // WP-13: gercek tutucu profili, takim ucundan bodyLen yukarida baslayip yukari dogru kademeli silindir (d0) ya da koni (d0 -> d1).
+      // dia/len bu profilden turetilir (en buyuk cap, toplam boy): eski okuyucular zarfi gorur.
+      const sg = o.holder.segments;
+      if (!Array.isArray(sg) || !sg.length || sg.length > HOLDER_MAX_SEGMENTS) throw bad(`${path}.holder.segments`, 'list 1..' + HOLDER_MAX_SEGMENTS);
+      const segs = sg.map((q, i) => {
+        const pp = `${path}.holder.segments[${i}]`;
+        if (!q || typeof q !== 'object') throw bad(pp, '{len, d0, d1?}');
+        if (!(isNum(q.len) && q.len > 0)) throw bad(pp + '.len', 'number > 0');
+        if (!(isNum(q.d0) && q.d0 > 0 && q.d0 <= 2000)) throw bad(pp + '.d0', 'number > 0');
+        if (q.d1 != null && !(isNum(q.d1) && q.d1 > 0 && q.d1 <= 2000)) throw bad(pp + '.d1', 'number > 0');
+        return q.d1 != null && q.d1 !== q.d0 ? { len: q.len, d0: q.d0, d1: q.d1 } : { len: q.len, d0: q.d0 };
+      });
+      o.holder = { ...o.holder, segments: segs, dia: Math.max(...segs.map((q) => Math.max(q.d0, q.d1 ?? q.d0))), len: segs.reduce((a, q) => a + q.len, 0) };
+    } else if (!isNum(o.holder.dia) || o.holder.dia <= 0 || !isNum(o.holder.len) || o.holder.len <= 0) throw bad(`${path}.holder`, '{dia, len}');
   }
   if (o.presets === undefined) o.presets = [];
   if (!Array.isArray(o.presets) || o.presets.length > LIB_LIMITS.presets) throw bad(`${path}.presets`, 'list');

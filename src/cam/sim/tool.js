@@ -34,8 +34,22 @@ export function toolGeom(tool) {
   if (!(tool.bodyLen >= tool.fluteLen)) throw bad('bodyLen');
   const shaftR = tool.shaftDia != null ? tool.shaftDia / 2 : R;
   if (!(shaftR > 0)) throw bad('shaftDia');
-  let holderR = 0, holderLen = 0;
-  if (tool.holder) { holderR = tool.holder.dia / 2; holderLen = tool.holder.len; if (!(holderR > 0) || !(holderLen > 0)) throw bad('holder'); }
+  // WP-13: tutucu profili. holder = {dia, len} (tek silindir, eski bicim) ya da {segments:[{len, d0, d1?}]} (takim ucundan bodyLen
+  // yukarida baslayan, asagidan yukari kademeli silindir/koni). holderR = en buyuk yaricap (zarf); holderU(r) = r yaricapindaki
+  // malzemenin tutucuya degdigi en kucuk yukseklik (tutucu tabanindan, mm; hic degmiyorsa Infinity).
+  let holderR = 0, holderLen = 0, holderSegs = null;
+  if (tool.holder) {
+    const hs = holderSegments(tool.holder); if (!hs) throw bad('holder');
+    holderSegs = hs; holderR = Math.max(...hs.map((q) => Math.max(q.r0, q.r1))); holderLen = hs[hs.length - 1].u1;
+  }
+  const holderU = (r) => {
+    if (!holderSegs) return Infinity;
+    for (const q of holderSegs) {
+      if (q.r0 >= r) return q.u0;
+      if (q.r1 >= r) return q.u0 + ((r - q.r0) / (q.r1 - q.r0)) * (q.u1 - q.u0); // koni: r0 < r <= r1
+    }
+    return Infinity;
+  };
   const profile = (r) => {
     if (kind === 'flat') return 0;
     if (kind === 'ball') { const q = R * R - r * r; return R - Math.sqrt(q > 0 ? q : 0); }
@@ -44,5 +58,31 @@ export function toolGeom(tool) {
   };
   // cutR: kesme (talas kaldirma + oyma) yaricapi. Kilavuzda dis dibi; zarf (hizli/saft/tutucu denetimi) R (majör) kalir.
   const cutR = tool.type === 'tap' ? tapMinorDia(tool) / 2 : R;
-  return { kind, R, cutR, cr, tanHalf, shaftR, holderR, holderLen, fluteLen: tool.fluteLen, bodyLen: tool.bodyLen, profile, type: tool.type };
+  // WP-13 (uc dexel): takim ucundan u yukseklikte kesici yaricapi (profile'in tersi; u >= 0). Ustunde silindir (cutR).
+  const rho = (u) => {
+    if (u < 0) return 0; let r;
+    if (kind === 'flat') r = R;
+    else if (kind === 'ball') r = u >= R ? R : Math.sqrt(Math.max(0, R * R - (R - u) * (R - u)));
+    else if (kind === 'bull') r = u >= cr ? R : (R - cr) + Math.sqrt(Math.max(0, cr * cr - (cr - u) * (cr - u)));
+    else r = Math.min(R, tipR + u * tanHalf);
+    return Math.min(r, cutR);
+  };
+  return { kind, R, cutR, cr, tanHalf, shaftR, holderR, holderLen, holderSegs, holderU, fluteLen: tool.fluteLen, bodyLen: tool.bodyLen, profile, rho, type: tool.type };
+}
+
+// WP-13: tutucu verisini kademeli parcalara cevirir: [{u0, u1, r0, r1}] (u: tutucu tabanindan yukari). Gecersizse null.
+export function holderSegments(h) {
+  if (!h || typeof h !== 'object') return null;
+  const fin = (v) => typeof v === 'number' && Number.isFinite(v);
+  if (Array.isArray(h.segments) && h.segments.length) {
+    const out = []; let u = 0;
+    for (const q of h.segments) {
+      const d0 = q?.d0, d1 = q?.d1 ?? q?.d0, len = q?.len;
+      if (!(fin(d0) && d0 > 0 && fin(d1) && d1 > 0 && fin(len) && len > 0)) return null;
+      out.push({ u0: u, u1: u + len, r0: d0 / 2, r1: d1 / 2 }); u += len;
+    }
+    return out;
+  }
+  if (!(fin(h.dia) && h.dia > 0 && fin(h.len) && h.len > 0)) return null;
+  return [{ u0: 0, u1: h.len, r0: h.dia / 2, r1: h.dia / 2 }];
 }

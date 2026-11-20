@@ -14,13 +14,15 @@ import { toolGeom } from './tool.js';
 import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './chain.js';
 import { freePieces } from './free.js';
 import { lowerForChamfer } from './chamfer.js';
+import { fixtureGrid, fixtureHit } from './fixtures.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, stockHeightmap, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
-export { toolGeom } from './tool.js';
+export { toolGeom, holderSegments } from './tool.js';
+export { fixtureGrid, fixtureHit, normalizeFixtures, resolveFixtures, normalizeSolids } from './fixtures.js';
 
 const err = (code, params = {}) => new KErr(code, params);
 // below_stock: islemin bildirdigi bilincli pay (toolpath.meta.belowStock, mm; boydan boya delik/kontur) icindeyse 'warn', disindaysa 'error' (V-12)
-const LEVEL = { holder_contact: 'error', comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
+const LEVEL = { fixture_collision: 'error', fixture_shaft: 'error', fixture_holder: 'error', holder_contact: 'error', comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
 const CODE = (k) => 'cam.sim.' + k;
 
 export function createSim(input, opts = {}) {
@@ -37,6 +39,7 @@ export function createSim(input, opts = {}) {
   // O-035: bosluk <= clrContact = tutucu stoga DEGIYOR -> engel. Varsayilan = dusey oyma toleransi (gougeTol, 0,01 mm): yukseklik
   // haritasi dusey degerleri bu mertebede kayan nokta/ag hatasi tasir; 0,01 mm takim boyu olcme hassasiyetinin de altindadir.
   const clrContact = opts.holderContactTol ?? (opts.gougeTol ?? 0.01);
+  const fixTol = opts.fixtureTol ?? 0.01; // WP-13: baglama govdesine bu kadardan az (dusey/yanal) giris temas sayilmaz (kayan nokta)
   let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts, secStats;
   const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
   reset();
@@ -56,7 +59,10 @@ export function createSim(input, opts = {}) {
     } else hm = stockHeightmap(box, res, sset?.stockCyl ?? null);
     let hmax = -Infinity; for (let k = 0; k < hm.data.length; k++) if (hm.data[k] > hmax) hmax = hm.data[k];
     const mh = opts.modelHeightmaps?.[id] ?? (opts.modelHeightmap?.data ? opts.modelHeightmap : null);
-    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies };
+    // WP-13: baglama govdeleri (setup.fixtures ya da opts.fixtures[setupId]; opts.fixtures === false kapatir)
+    const fxl = opts.fixtures === false ? null : (sset?.fixtures?.length ? sset.fixtures : opts.fixtures?.[id] ?? null);
+    const fix = fxl?.length ? fixtureGrid(fxl, res) : null;
+    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies, fix };
     setups.set(id, s); return s;
   }
 
@@ -138,6 +144,11 @@ export function createSim(input, opts = {}) {
     const g = cur.geom, S = cur.setup, hm = S.hm, d = hm.data, nx = hm.nx, ny = hm.ny, R = g.R, shaftR = g.shaftR, holderR = g.holderR;
     if (pz < S.zFloor - belowTol) note('below_stock', S.zFloor - pz, px, py, pz);
     if (pz < cur.preMax) { const mi = Math.floor((px - hm.x0) / hm.res), mj = Math.floor((py - hm.y0) / hm.res); if (mi >= 0 && mj >= 0 && mi < nx && mj < ny && !cur.mask[mj * nx + mi]) { cur.mask[mj * nx + mi] = 1; cur.marked++; } }
+    if (S.fix) { // WP-13: takim/sap/tutucu ile baglama govdesi (hizli ve kesme hareketlerinde)
+      const fh = fixtureHit(S.fix, g, px, py, pz, fixTol);
+      // kod parcaya gore: kesici fixture_collision, sap fixture_shaft, tutucu fixture_holder (hepsi engel)
+      if (fh) { const key = fh.part === 'tool' ? 'fixture_collision' : 'fixture_' + fh.part; const a = cur.acc[key] || (cur.acc[key] = { n: 0, depth: -Infinity, x: 0, y: 0, z: 0 }); a.n++; if (mode === 0) a.rapid = true; if (fh.depth > a.depth) { a.depth = fh.depth; a.x = px; a.y = py; a.z = pz; a.part = fh.part; a.fixture = fh.fixture; } }
+    }
     if (pz + tol >= S.hmax) return;
     const Rmax = Math.max(R, shaftR, holderR), Rmax2 = Rmax * Rmax, rs = hm.res;
     const i0 = Math.max(0, Math.floor((px - Rmax - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((px + Rmax - hm.x0) / rs));
@@ -152,9 +163,12 @@ export function createSim(input, opts = {}) {
         const cx = hm.x0 + (i + 0.5) * rs, dx = cx - px, r2 = dx * dx + dy * dy;
         if (r2 > Rmax2) continue;
         const r = Math.sqrt(r2);
-        if (r <= holderR) {
-          if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); cur.hadHolderHit = true; continue; }
-          const cl = pz + g.bodyLen - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
+        if (r <= holderR) { // WP-13: tutucu profili (kademeli silindir/koni): bu yaricapta tutucunun basladigi yukseklik zBody + holderU(r)
+          const u = g.holderU(r);
+          if (u < Infinity) {
+            if (h > zBody + u) { note('holder_collision', h - zBody - u + tol, px, py, pz); cur.hadHolderHit = true; continue; }
+            const cl = pz + g.bodyLen + u - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
+          }
         }
         if (cur.zones && r <= R && inZone(cur.zones, cx, cy, pz)) { // WP-07: dis halkasi, yalniz KESICI (flut) boyu icinde kasitli kesimdir; flut boyunu asan malzeme sap yaricapinda engel (flute_exceeded)
           if (h > zFlute && r <= shaftR) note('flute_exceeded', h - zFlute + tol, px, py, pz);
@@ -305,6 +319,7 @@ export function createSim(input, opts = {}) {
       if (key === 'below_stock') { if (a.depth <= cur.allowNow + belowTol) lvl = 'warn'; else if (cur.allowNow > 0) code2 = CODE('below_stock_excess'); }
       const it = { level: lvl, code: code2, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
       if (a.vertical != null) it.params.vertical = a.vertical;
+      if (key.startsWith('fixture_')) { it.params.part = a.part; it.params.fixture = a.fixture; it.params.rapid = !!a.rapid; it.params.depth = Math.round(a.depth * 1000) / 1000; }
       if (point != null) it.params.point = point;
       if (key === 'below_stock') it.params.allow = Math.round(cur.allowNow * 1000) / 1000;
       issues.push(it); fresh.push(it);
