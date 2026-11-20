@@ -16,6 +16,7 @@ export default {
   "err.extrude.no_to_body": "Hedef gövde seçilmedi ya da artık yok",
   "err.extrude.to_face_planar": "Hedef yüz düzlemsel olmalı",
   "err.extrude.to_face_parallel": "Hedef yüz extrude yönüne paralel: ulaşılamaz",
+  "err.extrude.to_face_curve_miss": "Eğri hedef yüz profili tümüyle örtmüyor (profilin bir kısmı yüze ulaşmıyor)",
   "err.extrude.to_face_miss": "Profil hedef yüzün düzlemine ulaşmıyor",
   "err.extrude.to_body_behind": "Hedef gövde extrude yönünde değil (Ters çevir'i deneyin)",
   "fld.chain": "Teğet zincir",

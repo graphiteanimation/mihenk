@@ -11,6 +11,8 @@ import { tLang } from '../src/shared/i18n.js';
 import { alignTraceCons, hvSame, autoHvRedundantAfterFix } from '../src/ui/sketch/autoalign.js';
 import { solveSketch } from '../src/ui/solver.js';
 import { createRequire } from 'node:module';
+import opencascade from 'replicad-opencascadejs';
+import { initKernel } from '../src/kernel/kernel.js';
 import { exampleEntries, wrapExample } from '../src/ui/examples.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -118,6 +120,40 @@ await madde(4, 'kurulu sürümde Örnekler resources/ornekler’den', () => {
   ok(/ipcMain\.handle\('native:examples', guarded\(/.test(main) && /ipcMain\.handle\('native:openExample', guarded\(/.test(main), 'IPC işleyicileri gönderen doğrulamalı (guarded)');
   ok(/examplesList: \(\) => ipcRenderer\.invoke\('native:examples'\)/.test(pre) && /openExample: \(name\) => ipcRenderer\.invoke\('native:openExample', String\(name\)\)/.test(pre), 'köprüde yol parametresi yok (yalnız ad)');
   ok(app.indexOf('await this.loadExamples()') > 0 && app.indexOf('await this.loadExamples()') < app.indexOf('this.C = initChrome(this)'), 'liste menü kurulmadan önce yüklenir');
+});
+
+await madde(5, 'eğri (silindirik, küresel) hedef yüze extrude ("yüze kadar")', async () => {
+  const K = await initKernel(opencascade, () => path.join(ROOT, 'node_modules/replicad-opencascadejs/dist/replicad_single.wasm'));
+  const rect = (id, w, h, ox, oy, z = 0) => { const P = { [id + 1]: { x: ox, y: oy }, [id + 2]: { x: ox + w, y: oy }, [id + 3]: { x: ox + w, y: oy + h }, [id + 4]: { x: ox, y: oy + h } };
+    return { id, type: 'sketch', plane: { kind: 'base', name: 'XY', offset: String(z) }, points: P, ents: [1, 2, 3, 4].map((i) => ({ id: id + 'l' + i, type: 'line', a: id + i, b: id + ((i % 4) + 1) })) }; };
+  const near = (a, b, m, tol = 1e-6) => ok(Math.abs(a - b) <= tol * Math.max(1, Math.abs(b)), `${m}: ${a} != ${b}`);
+  // yatay silindir (eksen X, Ø40, merkez y=10 z=50); 20×20 kare z=0'da, x∈[0,20] y∈[0,20]
+  const cyl = { id: 'c', type: 'primitive', kind: 'cylinder', x: '-10', y: '10', z: '50', dia: '40', h: '60', axis: 'X', op: 'new' };
+  await K.rebuild({ features: [cyl] }); const side = K.describe({ body: 'c', idx: 0 }, 'face');
+  ok(side.geom === 'CYLINDRE', 'hedef silindirik yüz');
+  const ex = (sk, x = {}) => ({ id: 'e1', type: 'extrude', sketch: sk.id, profiles: 'all', extent: 'face', toFace: side, op: 'new', ...x });
+  const Sint = 10 * Math.sqrt(300) + 400 * Math.PI / 6; // ∫_{-10}^{10} sqrt(400 - s²) ds
+  let sk = rect('s1', 20, 20, 0, 0), r = await K.rebuild({ features: [cyl, sk, ex(sk)] });
+  const e1 = () => r.bodies.find((b) => b.id === 'e1');
+  ok(r.status.e1.ok, 'silindire kadar: ' + JSON.stringify(r.status.e1.error)); near(e1()?.volume, 20 * (20 * 50 - Sint), 'silindir alt yüzüne kadar hacim (analitik)', 1e-6);
+  ok(e1()?.nFaces === 6, 'silindire kadar: 6 yüz (5 düzlem + 1 silindir parçası)');
+  { const names = []; for (let i = 0; i < 6; i++) { const d = K.describe({ body: 'e1', idx: i }, 'face'); names.push([d.geom, d.name?.k ?? d.name]); }
+    const cf = names.filter(([g]) => g === 'CYLINDRE'); ok(cf.length === 1 && String(cf[0][1]).includes('e1:end'), 'kesik eğri yüz <id>:end adını alır: ' + JSON.stringify(names)); }
+  r = await K.rebuild({ features: [cyl, sk, ex(sk, { flip: true })] }); near(e1()?.volume, 20 * (20 * 50 - Sint), 'Ters çevir yönü değiştirmez (hedef belirler)', 1e-6);
+  r = await K.rebuild({ features: [cyl, sk, ex(sk, { op: 'join' })] }); ok(r.bodies.length === 1, 'Birleştir: tek gövde'); near(r.bodies[0].volume, Math.PI * 400 * 60 + 20 * (20 * 50 - Sint), 'Birleştir hacmi', 1e-6);
+  sk = rect('s1', 20, 60, 0, -20); r = await K.rebuild({ features: [cyl, sk, ex(sk)] });
+  ok(r.status.e1.error?.code === 'extrude.to_face_curve_miss' && r.bodies.length === 1, 'yüz profili örtmüyorsa açık hata, belge bozulmaz: ' + JSON.stringify(r.status.e1));
+  // borunun içinden duvara: sketch eksen düzleminde (z=50), yön +normal
+  sk = rect('s1', 20, 20, 0, 0, 50); r = await K.rebuild({ features: [cyl, sk, ex(sk)] });
+  near(e1()?.volume, 20 * Sint, 'silindirin içinden üst duvara kadar hacim', 1e-6);
+  // küre (Ø40, merkez 5,5,50); 10×10 kare altında: hacim = ∫∫ (50 - sqrt(400 - (x-5)² - (y-5)²))
+  const sph = { id: 'k', type: 'primitive', kind: 'sphere', x: '5', y: '5', z: '50', dia: '40', op: 'new' };
+  await K.rebuild({ features: [sph] }); const sf = K.describe({ body: 'k', idx: 0 }, 'face'); ok(sf.geom === 'SPHERE', 'hedef küresel yüz');
+  sk = rect('s1', 10, 10, 0, 0); r = await K.rebuild({ features: [sph, sk, { ...ex(sk), toFace: sf }] });
+  let V = 0; const n = 400; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const x = (i + 0.5) * 10 / n - 5, y = (j + 0.5) * 10 / n - 5; V += (50 - Math.sqrt(400 - x * x - y * y)) * (10 / n) ** 2; }
+  ok(r.status.e1.ok, 'küreye kadar: ' + JSON.stringify(r.status.e1.error)); near(e1()?.volume, V, 'küre alt yüzüne kadar hacim (sayısal tümlev)', 1e-5);
+  // düzlemsel hedef davranışı değişmedi (kernel.test kapsar); konik açı eğri hedefte desteklenmez
+  sk = rect('s1', 20, 20, 0, 0); r = await K.rebuild({ features: [cyl, sk, ex(sk, { taper: '3' })] }); ok(r.status.e1.error?.code === 'extrude.taper_mode', 'eğri hedef + konik açı açık hata: ' + r.status.e1.error?.code);
 });
 
 console.log(`${pass} geçti, ${fail} kaldı`);

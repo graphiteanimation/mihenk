@@ -181,7 +181,7 @@ export class Kernel {
           // WP-08: yüze / nesneye kadar. d: sketch normali boyunca işaretli uzunluk (ters çevir burada yönü belirlemez: hedef belirler)
           if (dir !== 'one') throw new KErr('extrude.to_one_dir');
           const t0 = extent === 'face' ? this.toFace(f, S, state, ctx) : this.toBody(f, S, state);
-          if (extent === 'face') this.faceCover(f, S, state, ctx);
+          if (extent === 'face' && !t0.trim?.curve) this.faceCover(f, S, state, ctx);
           d = extent === 'face' && f.flip ? -t0.d : t0.d; trim = t0.trim;
           if (!(Math.abs(t0.d) >= LIMITS.minDim)) throw new KErr('extrude.zero_dist');
           if (trim && Math.abs(taper) > 1e-9) throw new KErr('extrude.taper_mode');
@@ -213,7 +213,9 @@ export class Kernel {
             return res;
           });
         }
-        if (trim) {
+        if (trim?.curve) {
+          parts = parts.map((p) => { const res = TP.curveTrim(p, trim, S.plane, V.mul(S.plane.n, len > 0 ? 1 : -1), `${f.id}:end`); if (!res) throw new KErr('extrude.failed'); if (res.miss || isEmpty(res.shape)) throw new KErr('extrude.to_face_curve_miss'); return res; });
+        } else if (trim) {
           // eğik hedef düzlem: uzun prizma, düzlemin sketch tarafındaki yarım uzayla kesişir; kesik yüz "<id>:end" adını alır
           const hs = TP.halfSpace(trim.c, trim.n, trim.toward, trim.B, trim.L, `${f.id}:end`); if (!hs) throw new KErr('extrude.failed');
           parts = parts.map((p) => { const res = TP.boolean('common', [p], [hs]); if (!res || isEmpty(res.shape)) throw new KErr('extrude.to_face_miss'); return res; });
@@ -371,8 +373,15 @@ export class Kernel {
   toFace(f, S, state, ctx) {
     if (!f.toFace || typeof f.toFace !== 'object') throw new KErr('extrude.no_to_face');
     const { body, i } = this.resolveIdx(f.toFace, state, 'face', { ...ctx, field: 'toFace' });
-    const F = TP.faceWrap(TP.topoOf(body.shape).faces.list[i]);
-    if (F.geomType !== 'PLANE') throw new KErr('extrude.to_face_planar');
+    const raw = TP.topoOf(body.shape).faces.list[i]; const F = TP.faceWrap(raw);
+    if (F.geomType !== 'PLANE') {
+      // WP-21: eğri hedef yüz (silindir, koni, küre, simit, serbest yüzey). Uzun prizma hedef yüzeyle bölünür; sketch düzlemine
+      // değen parçalar kalır (curveTrim). Yön: sketch orijininden yüz ağırlık merkezine (normal boyunca); merkez sketch düzlemindeyse
+      // (ör. borunun içinden duvara) +normal, Ters çevir ile öbür yön.
+      const { n, o } = S.plane; const t = V.dot(V.sub(F.center.toTuple(), o), n);
+      const L = this.bigLen(state, o);
+      return { d: (Math.abs(t) < LIMITS.minDim ? 1 : Math.sign(t)) * 2 * L, trim: { curve: true, faceRaw: raw, geom: F.geomType, L } };
+    }
     const nf = V.norm(F.normalAt(F.center).toTuple()); const c = F.center.toTuple(); const { n, o } = S.plane;
     const den = V.dot(nf, n); if (Math.abs(den) < 1e-6) throw new KErr('extrude.to_face_parallel');
     const t = V.dot(V.sub(c, o), nf) / den; // sketch orijininden normal boyunca düzleme uzaklık

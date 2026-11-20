@@ -340,3 +340,37 @@ export function tangentChain(w, j0, tolAng = 1e-3) {
   if (vs0.length === 2) { walk(j0, vs0[0], (x) => order.push(x)); walk(j0, vs0[1], (x) => order.unshift(x)); }
   return order;
 }
+
+// WP-21: Extrude "yüze kadar" eğri hedef yüz. part: {shape, fn} (sketch düzleminden u yönünde uzun prizma); trim: {faceRaw, geom, L};
+// pl: sketch düzlemi {o, n}. Prizma hedef yüzeyle (analitik yüzeylerde tam tur / eksen boyunca uzatılmış, serbest yüzeyde yüzün kendisi)
+// bölünür; başlangıç kapağına (sketch düzlemi) değen parçalar kalır. Kalan parça uzak kapağa ulaşıyorsa yüz profili örtmüyordur → hata.
+// Hedef yüzeyden gelen yüzler capName adını alır. Döner {shape, fn}; başarısızsa KErr fırlatmak çağırana kalır (null).
+export function curveTrim(part, trim, pl, u, capName) {
+  const O = oc(); const r = scope();
+  try {
+    const L = trim.L; let tool = trim.faceRaw;
+    const ext = { CYLINDRE: 'axis', CONE: 'own', SPHERE: 'full', TORUS: 'full' }[trim.geom];
+    if (ext) {
+      const S = r(O.BRep_Tool.Surface(r(O.TopoDS.Face(trim.faceRaw)))); const B = faceWrap(trim.faceRaw).UVBounds; const T2 = 2 * Math.PI;
+      const [v0, v1] = ext === 'axis' ? [-8 * L, 8 * L] : ext === 'full' ? (trim.geom === 'SPHERE' ? [-Math.PI / 2, Math.PI / 2] : [0, T2]) : [B.vMin, B.vMax];
+      const mf = r(new O.BRepBuilderAPI_MakeFace(S, 0, T2, v0, v1, 1e-7));
+      if (mf.IsDone()) tool = r(mf.Face());
+    }
+    const sp = r(new O.BRepAlgoAPI_Splitter());
+    const args = r(new O.NCollection_List_TopoDS_Shape()), tools = r(new O.NCollection_List_TopoDS_Shape());
+    app(args, part.shape.wrapped); app(tools, tool);
+    sp.SetArguments(args); sp.SetTools(tools); sp.Build(progress(r));
+    if (!sp.IsDone() || sp.HasErrors()) return null;
+    const all = solidsOf(wrap(sp.Shape()));
+    const sc = Math.max(1, Math.hypot(...pl.o)), tol = 1e-6 * Math.max(sc, L);
+    const start = planeSquare(pl.o, u, 4 * L), far = planeSquare([pl.o[0] + u[0] * 2 * L, pl.o[1] + u[1] * 2 * L, pl.o[2] + u[2] * 2 * L], u, 4 * L);
+    const keep = all.filter((s) => shapeDist(s.wrapped, start.wrapped) < tol);
+    if (!keep.length || keep.length === all.length || keep.some((s) => shapeDist(s.wrapped, far.wrapped) < tol)) return { miss: true };
+    const items = keep.map((s) => ({ shape: s, fn: propagate(sp, [part], s) }));
+    const res = items.length === 1 ? items[0] : boolean('fuse', [items[0]], items.slice(1));
+    if (!res) return null;
+    const RT = topoOf(res.shape);
+    res.fn = res.fn.map((names, k) => { const c = faceWrap(RT.faces.list[k]).pointOnSurface(0.5, 0.5).toTuple(); return pointFaceDist(tool, c) < tol ? [...new Set([...names, capName])].sort() : names; }); // eğri yüzün ağırlık merkezi yüzeyde değildir: yüz üstü nokta
+    return res;
+  } finally { r.done(); }
+}

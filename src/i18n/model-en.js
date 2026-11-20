@@ -16,6 +16,7 @@ export default {
   "err.extrude.no_to_body": "No target body selected or it no longer exists",
   "err.extrude.to_face_planar": "Target face must be planar",
   "err.extrude.to_face_parallel": "Target face is parallel to the extrude direction: cannot be reached",
+  "err.extrude.to_face_curve_miss": "The curved target face does not fully cover the profile (part of the profile never reaches it)",
   "err.extrude.to_face_miss": "The profile does not reach the target face's plane",
   "err.extrude.to_body_behind": "Target body is not in the extrude direction (try Flip)",
   "fld.chain": "Tangent chain",
