@@ -16,7 +16,7 @@ import { simulate, heightmapFromFn } from '../../../src/cam/sim/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)); const ROOT = path.join(here, '..', '..', '..');
 const OUT = path.join(here, 'out'); fs.mkdirSync(OUT, { recursive: true });
-const STEP = process.env.P1_STEP || '/mnt/user-data/uploads/Fusion-Klon-Spec/Mihenk/test-fusion-karsilastirma/parcalar/P1_SK8_mil_destegi.step';
+const STEP = process.env.P1_STEP || path.join(here, 'in', 'P1_SK8_mil_destegi.step');
 const FUSION_JSON = process.env.P1_FUSION_JSON || '/mnt/user-data/uploads/Fusion-Klon-Spec/Mihenk/test-fusion-karsilastirma/sonuclar/P1/P1_fusion_rapor.json';
 const SUF = '_KARSILASTIRMA_TEZGAHA_GITMEZ';
 const R = { baslangic: new Date().toISOString(), varsayim: [], import: {}, makine: {}, setups: [], notlar: [] };
