@@ -1,12 +1,12 @@
 {
  "src": "src",
- "at": "2026-11-20T07:21:05.834Z",
+ "at": "2026-11-20T08:09:22.498Z",
  "files": [
   {
    "file": "part-a.mjs",
    "code": 0,
    "sig": null,
-   "secs": 2.8,
+   "secs": 1.1,
    "results": [
     {
      "name": "a-flans",
@@ -33,7 +33,7 @@
    "file": "part-b.mjs",
    "code": 0,
    "sig": null,
-   "secs": 2.9,
+   "secs": 1.1,
    "results": [
     {
      "name": "b-yumusak-cene",
@@ -54,7 +54,7 @@
    "file": "part-c.mjs",
    "code": 0,
    "sig": null,
-   "secs": 3.5,
+   "secs": 1.4,
    "results": [
     {
      "name": "c-ayna-adaptoru",
@@ -75,7 +75,7 @@
    "file": "part-d.mjs",
    "code": 0,
    "sig": null,
-   "secs": 4,
+   "secs": 1.6,
    "results": [
     {
      "name": "d-cepli-adali-plaka",
@@ -96,7 +96,7 @@
    "file": "part-e.mjs",
    "code": 0,
    "sig": null,
-   "secs": 3.6,
+   "secs": 1.6,
    "results": [
     {
      "name": "e-kademeli-mil",
@@ -117,7 +117,7 @@
    "file": "part-f.mjs",
    "code": 0,
    "sig": null,
-   "secs": 4.5,
+   "secs": 1.5,
    "results": [
     {
      "name": "f-l-braket",
@@ -141,7 +141,7 @@
    "file": "part-g.mjs",
    "code": 0,
    "sig": null,
-   "secs": 5.8,
+   "secs": 2.6,
    "results": [
     {
      "name": "g-kutu-govde",
@@ -168,7 +168,7 @@
    "file": "part-h.mjs",
    "code": 0,
    "sig": null,
-   "secs": 203.8,
+   "secs": 150.1,
    "results": [
     {
      "name": "h-step-dongusu",
@@ -199,7 +199,7 @@
    "file": "param-sweep.mjs",
    "code": 0,
    "sig": null,
-   "secs": 96.1,
+   "secs": 77.1,
    "results": [
     {
      "name": "param-tarama",
@@ -3003,7 +3003,7 @@
    "file": "param-random.mjs",
    "code": 0,
    "sig": null,
-   "secs": 118.8,
+   "secs": 131.9,
    "results": [
     {
      "name": "param-rastgele",
@@ -3085,7 +3085,7 @@
    "file": "ref-adversarial.mjs",
    "code": 0,
    "sig": null,
-   "secs": 3.5,
+   "secs": 4.2,
    "results": [
     {
      "name": "ref-kotu-senaryo",
@@ -3138,7 +3138,7 @@
    "file": "naming.mjs",
    "code": 0,
    "sig": null,
-   "secs": 5.1,
+   "secs": 5.9,
    "results": [
     {
      "name": "adlandirma",
@@ -3160,7 +3160,7 @@
    "file": "edge-cases.mjs",
    "code": 0,
    "sig": null,
-   "secs": 7.7,
+   "secs": 9.1,
    "results": [
     {
      "name": "sinir-ve-hata",
@@ -3179,7 +3179,7 @@
         "id": "V01",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 12,
         "f": [
          "e1"
         ]
@@ -3188,7 +3188,7 @@
         "id": "V02",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 77,
+        "ms": 78,
         "f": []
        },
        {
@@ -3204,7 +3204,7 @@
         "id": "V04",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 1,
         "f": [
          "e1"
         ]
@@ -3285,7 +3285,7 @@
         "id": "V12b",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 14,
+        "ms": 20,
         "f": []
        },
        {
@@ -3328,7 +3328,7 @@
         "id": "V16b",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 108,
+        "ms": 94,
         "f": []
        },
        {
@@ -3371,7 +3371,7 @@
         "id": "V21",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 1,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3389,7 +3389,7 @@
         "id": "V23",
         "g": "değer",
         "v": "GEÇTİ(ok:false)",
-        "ms": 7,
+        "ms": 5,
         "f": [
          "e1"
         ]
@@ -3398,7 +3398,7 @@
         "id": "V24",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 4,
         "f": [
          "e1"
         ]
@@ -3407,14 +3407,14 @@
         "id": "V24b",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 27,
+        "ms": 15,
         "f": []
        },
        {
         "id": "V25",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 4,
         "f": [
          "e1"
         ]
@@ -3423,7 +3423,7 @@
         "id": "V26",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 3,
         "f": [
          "e1"
         ]
@@ -3432,7 +3432,7 @@
         "id": "V27",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 0,
         "f": [
          "e1"
         ]
@@ -3468,7 +3468,7 @@
         "id": "V31",
         "g": "değer",
         "v": "YANLIŞ-SONUÇ",
-        "ms": 25,
+        "ms": 23,
         "d": "-2^2 = +4 olarak hesaplandı (gövde z üstü 4); doğrusu -4",
         "f": []
        },
@@ -3476,7 +3476,7 @@
         "id": "V32",
         "g": "değer",
         "v": "YANLIŞ-SONUÇ",
-        "ms": 10,
+        "ms": 22,
         "d": "max(10,5) → 10.5 (beklenen 10; ya hata verilmeli ya 10)",
         "f": []
        },
@@ -3484,7 +3484,7 @@
         "id": "V33",
         "g": "değer",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 6,
         "f": [
          "e1"
         ]
@@ -3502,7 +3502,7 @@
         "id": "V35",
         "g": "değer",
         "v": "YANLIŞ-SONUÇ",
-        "ms": 14,
+        "ms": 20,
         "d": "parametre \"pi\"=3 tanımlandı ama kullanıldığında 3.141592653589793 (sessizce yok sayıldı)",
         "f": []
        },
@@ -3510,14 +3510,14 @@
         "id": "S01",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 65,
+        "ms": 57,
         "f": []
        },
        {
         "id": "S02",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 36,
+        "ms": 18,
         "f": []
        },
        {
@@ -3551,7 +3551,7 @@
         "id": "S06",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 18,
+        "ms": 9,
         "f": []
        },
        {
@@ -3582,7 +3582,7 @@
         "id": "S10",
         "g": "sketch",
         "v": "GEÇTİ(ok:false)",
-        "ms": 6,
+        "ms": 14,
         "f": [
          "e1"
         ]
@@ -3591,7 +3591,7 @@
         "id": "S11",
         "g": "sketch",
         "v": "GEÇTİ(ok:false)",
-        "ms": 3,
+        "ms": 8,
         "f": [
          "e1"
         ]
@@ -3600,28 +3600,28 @@
         "id": "S12",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 32,
+        "ms": 29,
         "f": []
        },
        {
         "id": "S13",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 96,
+        "ms": 126,
         "f": []
        },
        {
         "id": "S14",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 33,
+        "ms": 50,
         "f": []
        },
        {
         "id": "S15",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 69,
+        "ms": 73,
         "f": []
        },
        {
@@ -3646,7 +3646,7 @@
         "id": "S18",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 9,
+        "ms": 12,
         "f": []
        },
        {
@@ -3682,7 +3682,7 @@
         "id": "S22",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 10,
         "f": [
          "s1",
          "e1"
@@ -3721,7 +3721,7 @@
         "id": "S26",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 9,
+        "ms": 16,
         "f": []
        },
        {
@@ -3746,14 +3746,14 @@
         "id": "S29",
         "g": "sketch",
         "v": "GEÇTİ",
-        "ms": 11,
+        "ms": 34,
         "f": []
        },
        {
         "id": "R01",
         "g": "revolve",
         "v": "GEÇTİ(ok:false)",
-        "ms": 1,
+        "ms": 0,
         "d": "reddedildi: r1",
         "f": [
          "r1"
@@ -3773,7 +3773,7 @@
         "id": "R03",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 22,
+        "ms": 17,
         "f": []
        },
        {
@@ -3789,7 +3789,7 @@
         "id": "R05",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 15,
+        "ms": 9,
         "f": []
        },
        {
@@ -3805,21 +3805,21 @@
         "id": "R07",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 27,
+        "ms": 16,
         "f": []
        },
        {
         "id": "R08",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 16,
+        "ms": 18,
         "f": []
        },
        {
         "id": "R09",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 20,
+        "ms": 19,
         "f": []
        },
        {
@@ -3835,7 +3835,7 @@
         "id": "R11",
         "g": "revolve",
         "v": "GEÇTİ",
-        "ms": 14,
+        "ms": 15,
         "f": []
        },
        {
@@ -3896,7 +3896,7 @@
         "id": "B01",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 15,
+        "ms": 16,
         "f": [
          "c"
         ]
@@ -3905,7 +3905,7 @@
         "id": "B02",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 14,
         "f": [
          "c"
         ]
@@ -3914,7 +3914,7 @@
         "id": "B03",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 47,
+        "ms": 44,
         "f": [
          "c2"
         ]
@@ -3923,7 +3923,7 @@
         "id": "B04",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 48,
+        "ms": 46,
         "f": [
          "c"
         ]
@@ -3932,7 +3932,7 @@
         "id": "B05",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 30,
+        "ms": 22,
         "f": [
          "c"
         ]
@@ -3941,35 +3941,35 @@
         "id": "B06",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 35,
+        "ms": 28,
         "f": []
        },
        {
         "id": "B07",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 25,
+        "ms": 33,
         "f": []
        },
        {
         "id": "B08",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 24,
+        "ms": 25,
         "f": []
        },
        {
         "id": "B09",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 16,
+        "ms": 10,
         "f": []
        },
        {
         "id": "B10",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 15,
+        "ms": 19,
         "f": [
          "c"
         ]
@@ -3978,7 +3978,7 @@
         "id": "B11",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 21,
+        "ms": 13,
         "f": [
          "c"
         ]
@@ -3987,14 +3987,14 @@
         "id": "B12",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 17,
+        "ms": 21,
         "f": []
        },
        {
         "id": "B13",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 22,
+        "ms": 28,
         "f": [
          "c"
         ]
@@ -4003,7 +4003,7 @@
         "id": "B14",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 9,
+        "ms": 11,
         "f": [
          "c"
         ]
@@ -4012,14 +4012,14 @@
         "id": "B15",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 19,
+        "ms": 14,
         "f": []
        },
        {
         "id": "B16",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 5,
         "f": [
          "cm"
         ]
@@ -4028,7 +4028,7 @@
         "id": "B17",
         "g": "boolean",
         "v": "GEÇTİ(ok:false)",
-        "ms": 6,
+        "ms": 5,
         "d": "reddedildi: cm",
         "f": [
          "cm"
@@ -4038,7 +4038,7 @@
         "id": "B18",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 6,
         "f": [
          "cm"
         ]
@@ -4047,7 +4047,7 @@
         "id": "B19",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 6,
         "f": [
          "cm"
         ]
@@ -4056,7 +4056,7 @@
         "id": "B20",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 6,
+        "ms": 10,
         "f": [
          "cm"
         ]
@@ -4065,7 +4065,7 @@
         "id": "B21",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 5,
         "f": [
          "e1"
         ]
@@ -4074,7 +4074,7 @@
         "id": "B22",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 6,
         "f": [
          "c"
         ]
@@ -4083,21 +4083,21 @@
         "id": "B23",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 19,
+        "ms": 27,
         "f": []
        },
        {
         "id": "B24",
         "g": "boolean",
         "v": "GEÇTİ",
-        "ms": 30,
+        "ms": 34,
         "f": []
        },
        {
         "id": "H01",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 6,
+        "ms": 11,
         "f": [
          "hh"
         ]
@@ -4106,7 +4106,7 @@
         "id": "H02",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 7,
         "f": [
          "hh"
         ]
@@ -4115,7 +4115,7 @@
         "id": "H03",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 11,
         "f": [
          "hh"
         ]
@@ -4124,7 +4124,7 @@
         "id": "H04",
         "g": "delik",
         "v": "GEÇTİ(ok:false)",
-        "ms": 4,
+        "ms": 10,
         "f": [
          "hh"
         ]
@@ -4133,7 +4133,7 @@
         "id": "H05",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 6,
         "f": [
          "hh"
         ]
@@ -4142,7 +4142,7 @@
         "id": "H06",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 7,
         "f": [
          "hh"
         ]
@@ -4151,7 +4151,7 @@
         "id": "H07",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 7,
         "f": [
          "hh"
         ]
@@ -4160,63 +4160,11 @@
         "id": "H07b",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 15,
+        "ms": 27,
         "f": []
        },
        {
         "id": "H08",
-        "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 4,
-        "f": [
-         "hh"
-        ]
-       },
-       {
-        "id": "H09",
-        "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 4,
-        "f": [
-         "hh"
-        ]
-       },
-       {
-        "id": "H10",
-        "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 4,
-        "f": [
-         "hh"
-        ]
-       },
-       {
-        "id": "H11",
-        "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 4,
-        "f": [
-         "hh"
-        ]
-       },
-       {
-        "id": "H12",
-        "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 4,
-        "f": [
-         "hh"
-        ]
-       },
-       {
-        "id": "H13",
-        "g": "delik",
-        "v": "GEÇTİ",
-        "ms": 13,
-        "f": []
-       },
-       {
-        "id": "H14",
         "g": "delik",
         "v": "GEÇTİ",
         "ms": 5,
@@ -4225,24 +4173,76 @@
         ]
        },
        {
-        "id": "H15",
+        "id": "H09",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H10",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H11",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 5,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H12",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 7,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H13",
         "g": "delik",
         "v": "GEÇTİ",
         "ms": 19,
+        "f": []
+       },
+       {
+        "id": "H14",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 6,
+        "f": [
+         "hh"
+        ]
+       },
+       {
+        "id": "H15",
+        "g": "delik",
+        "v": "GEÇTİ",
+        "ms": 25,
         "f": []
        },
        {
         "id": "H16",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 19,
+        "ms": 22,
         "f": []
        },
        {
         "id": "H17",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 5,
         "f": [
          "hh"
         ]
@@ -4251,7 +4251,7 @@
         "id": "H18",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 5,
         "f": [
          "hh"
         ]
@@ -4260,14 +4260,14 @@
         "id": "H19",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 13,
+        "ms": 17,
         "f": []
        },
        {
         "id": "H20",
         "g": "delik",
         "v": "GEÇTİ(ok:false)",
-        "ms": 4,
+        "ms": 5,
         "f": [
          "hh"
         ]
@@ -4276,7 +4276,7 @@
         "id": "H21",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 8,
+        "ms": 9,
         "f": [
          "hh"
         ]
@@ -4285,14 +4285,14 @@
         "id": "P01",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 2120,
+        "ms": 2547,
         "f": []
        },
        {
         "id": "P02",
         "g": "desen",
         "v": "GEÇTİ(ok:false)",
-        "ms": 107,
+        "ms": 128,
         "f": [
          "pt"
         ]
@@ -4301,7 +4301,7 @@
         "id": "P03",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 14,
+        "ms": 25,
         "f": [
          "pt"
         ]
@@ -4310,7 +4310,7 @@
         "id": "P04",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 11,
+        "ms": 24,
         "f": [
          "pt"
         ]
@@ -4319,7 +4319,7 @@
         "id": "P05",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 11,
+        "ms": 18,
         "f": [
          "pt"
         ]
@@ -4328,7 +4328,7 @@
         "id": "P06",
         "g": "desen",
         "v": "GEÇTİ(ok:false)",
-        "ms": 15,
+        "ms": 21,
         "f": [
          "pt"
         ]
@@ -4337,7 +4337,7 @@
         "id": "P07",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 13,
+        "ms": 17,
         "f": [
          "pt"
         ]
@@ -4346,7 +4346,7 @@
         "id": "P08",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 12,
+        "ms": 17,
         "f": [
          "pt"
         ]
@@ -4355,7 +4355,7 @@
         "id": "P09",
         "g": "desen",
         "v": "GEÇTİ(ok:false)",
-        "ms": 14,
+        "ms": 20,
         "d": "reddedildi: pt",
         "f": [
          "pt"
@@ -4365,7 +4365,7 @@
         "id": "P10",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 14,
+        "ms": 18,
         "f": [
          "pt"
         ]
@@ -4374,7 +4374,7 @@
         "id": "P11",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 12,
+        "ms": 17,
         "f": [
          "pt"
         ]
@@ -4383,7 +4383,7 @@
         "id": "P12",
         "g": "desen",
         "v": "GEÇTİ(ok:false)",
-        "ms": 12,
+        "ms": 17,
         "f": [
          "pt"
         ]
@@ -4392,7 +4392,7 @@
         "id": "P13",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 12,
+        "ms": 17,
         "f": [
          "pt"
         ]
@@ -4401,14 +4401,14 @@
         "id": "P14",
         "g": "desen",
         "v": "GEÇTİ",
-        "ms": 14,
+        "ms": 18,
         "f": []
        },
        {
         "id": "P15",
         "g": "desen",
         "v": "GEÇTİ(ok:false)",
-        "ms": 12,
+        "ms": 17,
         "f": [
          "pt"
         ]
@@ -4417,7 +4417,7 @@
         "id": "P16",
         "g": "desen",
         "v": "GEÇTİ(ok:false)",
-        "ms": 12,
+        "ms": 18,
         "f": [
          "pt"
         ]
@@ -4426,7 +4426,7 @@
         "id": "H22",
         "g": "delik",
         "v": "GEÇTİ",
-        "ms": 17,
+        "ms": 21,
         "f": [
          "hh"
         ]
@@ -4435,7 +4435,7 @@
         "id": "H23",
         "g": "delik",
         "v": "GEÇTİ(ok:false)",
-        "ms": 21,
+        "ms": 24,
         "f": [
          "hh"
         ]
@@ -4480,7 +4480,7 @@
         "id": "F05",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 22,
+        "ms": 27,
         "f": []
        },
        {
@@ -4505,7 +4505,7 @@
         "id": "F08",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 1,
         "f": [
          "ff"
         ]
@@ -4514,7 +4514,7 @@
         "id": "F09",
         "g": "yuvarlatma",
         "v": "GEÇTİ(ok:false)",
-        "ms": 2,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4523,14 +4523,14 @@
         "id": "F10",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 7,
         "f": []
        },
        {
         "id": "F11",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 3,
         "f": [
          "ff"
         ]
@@ -4539,7 +4539,7 @@
         "id": "F12",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 5,
         "f": [
          "ff"
         ]
@@ -4566,21 +4566,21 @@
         "id": "F15",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 28,
+        "ms": 34,
         "f": []
        },
        {
         "id": "F16",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 10,
+        "ms": 15,
         "f": []
        },
        {
         "id": "F17",
         "g": "kabuk",
         "v": "GEÇTİ",
-        "ms": 10,
+        "ms": 14,
         "f": []
        },
        {
@@ -4596,7 +4596,7 @@
         "id": "F19",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 6,
+        "ms": 0,
         "f": [
          "ff"
         ]
@@ -4605,7 +4605,7 @@
         "id": "F19b",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 1,
         "f": [
          "ff"
         ]
@@ -4614,7 +4614,7 @@
         "id": "F19c",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 8,
         "f": []
        },
        {
@@ -4630,7 +4630,7 @@
         "id": "F21",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 8,
         "f": []
        },
        {
@@ -4682,14 +4682,14 @@
         "id": "F27",
         "g": "yuvarlatma",
         "v": "GEÇTİ",
-        "ms": 7,
+        "ms": 8,
         "f": []
        },
        {
         "id": "I01",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 0,
         "f": [
          "imp1"
         ]
@@ -4707,7 +4707,7 @@
         "id": "I03",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 18,
+        "ms": 16,
         "f": [
          "imp1"
         ]
@@ -4716,7 +4716,7 @@
         "id": "I04",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 5,
         "f": [
          "imp1"
         ]
@@ -4788,7 +4788,7 @@
         "id": "I12",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 2,
+        "ms": 8,
         "f": [
          "imp1"
         ]
@@ -4797,14 +4797,14 @@
         "id": "I13",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 80,
+        "ms": 91,
         "f": []
        },
        {
         "id": "I14",
         "g": "içe aktarma",
         "v": "GEÇTİ(ok:false)",
-        "ms": 31,
+        "ms": 33,
         "f": [
          "imp1"
         ]
@@ -4813,7 +4813,7 @@
         "id": "I15",
         "g": "içe aktarma",
         "v": "GEÇTİ(ok:false)",
-        "ms": 2095,
+        "ms": 2445,
         "f": [
          "imp1"
         ]
@@ -4822,28 +4822,28 @@
         "id": "I16",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 10,
+        "ms": 16,
         "f": []
        },
        {
         "id": "I17",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 17,
+        "ms": 39,
         "f": []
        },
        {
         "id": "I18",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 10,
+        "ms": 15,
         "f": []
        },
        {
         "id": "I19",
         "g": "içe aktarma",
         "v": "GEÇTİ",
-        "ms": 16,
+        "ms": 13,
         "f": []
        },
        {
@@ -4886,7 +4886,7 @@
         "id": "D04",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": [
          "e"
         ]
@@ -4895,7 +4895,7 @@
         "id": "D05",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 4,
+        "ms": 5,
         "f": []
        },
        {
@@ -4909,7 +4909,7 @@
         "id": "D07",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": []
        },
        {
@@ -4930,21 +4930,21 @@
         "id": "D10",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 6,
+        "ms": 12,
         "f": []
        },
        {
         "id": "D11",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 7,
         "f": []
        },
        {
         "id": "D12",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 0,
+        "ms": 1,
         "f": []
        },
        {
@@ -4958,21 +4958,21 @@
         "id": "D14",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": []
        },
        {
         "id": "D15",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": []
        },
        {
         "id": "D16",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 5,
+        "ms": 4,
         "f": []
        },
        {
@@ -4988,7 +4988,7 @@
         "id": "D18",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": [
          "hh"
         ]
@@ -5006,7 +5006,7 @@
         "id": "D20",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 5,
         "f": [
          "mv"
         ]
@@ -5015,7 +5015,7 @@
         "id": "D21",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 7,
+        "ms": 10,
         "f": []
        },
        {
@@ -5050,7 +5050,7 @@
         "id": "D25",
         "g": "belge",
         "v": "GEÇTİ",
-        "ms": 3,
+        "ms": 4,
         "f": []
        }
       ],
@@ -5068,7 +5068,7 @@
    "file": "measure.mjs",
    "code": 0,
    "sig": null,
-   "secs": 1.2,
+   "secs": 1.3,
    "results": [
     {
      "name": "olcum",
@@ -5086,7 +5086,7 @@
    "file": "profiles.mjs",
    "code": 0,
    "sig": null,
-   "secs": 0.5,
+   "secs": 0.6,
    "results": [
     {
      "name": "profiller",
@@ -5102,7 +5102,7 @@
    "file": "feature-geo.mjs",
    "code": 0,
    "sig": null,
-   "secs": 1.5,
+   "secs": 1.7,
    "results": [
     {
      "name": "ozellik-geometri",
@@ -5129,7 +5129,7 @@
    "file": "state-bugs.mjs",
    "code": 0,
    "sig": null,
-   "secs": 2.3,
+   "secs": 2.6,
    "results": [
     {
      "name": "durum-onbellek",
@@ -5150,11 +5150,11 @@
    "file": "history12.mjs",
    "code": 0,
    "sig": null,
-   "secs": 1.6,
+   "secs": 2.2,
    "results": [
     {
      "name": "gecmis-izi",
-     "pass": 24,
+     "pass": 27,
      "fail": 0,
      "fails": [],
      "info": {}
@@ -5166,7 +5166,7 @@
    "file": "perf.mjs",
    "code": 0,
    "sig": null,
-   "secs": 78.9,
+   "secs": 92.3,
    "results": [
     {
      "name": "sure-bellek",
@@ -5176,91 +5176,91 @@
      "info": {
       "bellek-30-rebuild": {
        "baş": {
-        "rss": 307.4,
-        "heap": 23.6,
+        "rss": 304.4,
+        "heap": 23.5,
         "ext": 102.4,
         "ab": 0.5,
         "wasm": 0
        },
        "son": {
-        "rss": 326.6,
-        "heap": 24.3,
+        "rss": 330.2,
+        "heap": 24.4,
         "ext": 102.6,
         "ab": 0.5,
         "wasm": 0
        },
        "fark": {
-        "rss": 19.2,
-        "heap": 0.7,
+        "rss": 25.8,
+        "heap": 0.8,
         "ext": 0.2,
         "ab": 0,
         "wasm": 0
        },
        "gc": true,
        "süreler": [
-        313,
-        234,
-        209,
-        213,
-        198,
-        192,
-        175,
-        194,
-        176,
-        175,
-        175,
-        178,
-        179,
-        181,
-        173,
-        173,
-        168,
-        181,
-        180,
-        174,
-        172,
-        170,
-        171,
-        168,
-        178,
-        181,
-        171,
-        171,
-        176,
-        180
+        443,
+        345,
+        281,
+        257,
+        321,
+        295,
+        254,
+        254,
+        277,
+        261,
+        267,
+        256,
+        263,
+        258,
+        265,
+        257,
+        260,
+        290,
+        285,
+        254,
+        246,
+        249,
+        253,
+        252,
+        268,
+        261,
+        291,
+        252,
+        268,
+        265
        ]
       },
       "external-artışı-MB/rebuild (son 20 tur)": 0,
       "bellek-150-rebuild": [
        {
         "i": 60,
-        "rss": 338.1,
-        "heap": 24.6,
-        "ext": 103.3,
-        "ab": 1.3,
+        "rss": 343.4,
+        "heap": 25.1,
+        "ext": 103.5,
+        "ab": 0.7,
         "wasm": 0
        },
        {
         "i": 90,
-        "rss": 339.2,
-        "heap": 23.9,
+        "rss": 344.2,
+        "heap": 24.4,
         "ext": 103.5,
-        "ab": 1.5,
+        "ab": 0.7,
         "wasm": 0
        },
        {
         "i": 120,
-        "rss": 338.7,
-        "heap": 23.9,
+        "rss": 344.4,
+        "heap": 24.3,
         "ext": 103.5,
         "ab": 0.7,
         "wasm": 0
        },
        {
         "i": 150,
-        "rss": 339,
-        "heap": 23.8,
-        "ext": 103.3,
+        "rss": 344.6,
+        "heap": 24.5,
+        "ext": 103.7,
         "ab": 0.7,
         "wasm": 0
        }
@@ -5268,7 +5268,7 @@
       "süre-tablosu": [
        {
         "label": "desen 10x5 = 50 delik (rect)",
-        "ms": 400,
+        "ms": 404,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5276,7 +5276,7 @@
        },
        {
         "label": "desen 10x10 = 100 delik (rect)",
-        "ms": 993,
+        "ms": 1004,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5284,7 +5284,7 @@
        },
        {
         "label": "desen 10x20 = 200 delik (rect)",
-        "ms": 2363,
+        "ms": 2337,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5292,7 +5292,7 @@
        },
        {
         "label": "desen 20x20 = 400 delik (rect)",
-        "ms": 6241,
+        "ms": 6502,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5300,7 +5300,7 @@
        },
        {
         "label": "desen 20x40 = 800 delik (rect)",
-        "ms": 19271,
+        "ms": 19237,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5308,7 +5308,7 @@
        },
        {
         "label": "tek sketch'te 200 nokta + tek delik",
-        "ms": 2241,
+        "ms": 2228,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5316,7 +5316,7 @@
        },
        {
         "label": "dairesel desen 50 delik",
-        "ms": 434,
+        "ms": 405,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5324,7 +5324,7 @@
        },
        {
         "label": "dairesel desen 100 delik",
-        "ms": 723,
+        "ms": 801,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5332,7 +5332,7 @@
        },
        {
         "label": "dairesel desen 200 delik",
-        "ms": 1792,
+        "ms": 1972,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5340,7 +5340,7 @@
        },
        {
         "label": "dairesel desen 400 delik",
-        "ms": 4603,
+        "ms": 4842,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5348,7 +5348,7 @@
        },
        {
         "label": "küre çap 100",
-        "ms": 36,
+        "ms": 41,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5356,7 +5356,7 @@
        },
        {
         "label": "küre çap 1000",
-        "ms": 35,
+        "ms": 40,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5364,7 +5364,7 @@
        },
        {
         "label": "küre çap 3000",
-        "ms": 44,
+        "ms": 38,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5372,7 +5372,7 @@
        },
        {
         "label": "küre çap 6000",
-        "ms": 34,
+        "ms": 43,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5380,7 +5380,7 @@
        },
        {
         "label": "60 özellikli belge (soğuk)",
-        "ms": 4357,
+        "ms": 5946,
         "exc": null,
         "ok": true,
         "bodies": 1,
@@ -5388,11 +5388,11 @@
        },
        {
         "label": "60 özellik: yalnız son özellik değişti (önbellek)",
-        "ms": 380
+        "ms": 500
        },
        {
         "label": "60 özellik: ilk özellik değişti (tam yeniden hesap)",
-        "ms": 4156
+        "ms": 6008
        }
       ]
      }
