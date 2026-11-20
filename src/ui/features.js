@@ -6,9 +6,10 @@ import { evalExpr } from '../shared/expr.js';
 export const TYPE_KEY = {
   sketch: tk('feat.sketch'), extrude: tk('feat.extrude'), revolve: tk('feat.revolve'), hole: tk('feat.hole'), fillet: tk('feat.fillet'), chamfer: tk('feat.chamfer'), shell: tk('feat.shell'),
   combine: tk('feat.combine'), move: tk('feat.move'), pattern: tk('feat.pattern'), mirror: tk('feat.mirror'), import: tk('feat.import'),
+  split: tk('feat.split'), splitface: tk('feat.splitface'), faceop: tk('feat.faceop'),
 };
 export const KIND_KEY = { box: tk('feat.box'), cylinder: tk('feat.cylinder'), sphere: tk('feat.sphere') };
-const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', box: 'box', cylinder: 'cyl', sphere: 'sph' };
+const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', split: 'spl', splitface: 'sfc', faceop: 'fop', box: 'box', cylinder: 'cyl', sphere: 'sph' };
 
 export const featLabel = (f) => (f.type === 'primitive' ? t(KIND_KEY[f.kind] || KIND_KEY.box) : TYPE_KEY[f.type] ? t(TYPE_KEY[f.type]) : f.type);
 
@@ -50,6 +51,9 @@ export function defaults(type, kind, ctx) {
     case 'chamfer': return { edges: [], d: '1', mode: 'equal', chain: true };
     case 'shell': return { faces: [], t: '2' };
     case 'combine': return { target: '', tools: [], op: 'join', keepTools: false };
+    case 'split': return { body: ctx.bodies.length === 1 ? ctx.bodies[0].id : '', tool: { kind: 'base', name: 'YZ', offset: '0' } };
+    case 'splitface': return { faces: [], tool: { kind: 'base', name: 'YZ', offset: '0' } };
+    case 'faceop': return { faces: [], mode: 'offset', dist: '1', dx: '0', dy: '0', dz: '0' };
     case 'move': return { bodies: [], dx: '0', dy: '0', dz: '0', angle: '0', axis: 'Z', cx: '0', cy: '0', cz: '0', copy: false };
     case 'pattern': {
       const src = patternSources(ctx.doc).slice(-1)[0];
@@ -125,6 +129,13 @@ export function fieldsFor(f, ctx) {
       else F.push({ t: 'expr', k: 'count1', label: tk('fld.count1') }, { t: 'expr', k: 'step1', label: tk('fld.step1'), unit: 'mm' }, { t: 'select', k: 'dir1', label: tk('fld.dir1'), opts: AXES },
         { t: 'expr', k: 'count2', label: tk('fld.count2') }, { t: 'expr', k: 'step2', label: tk('fld.step2'), unit: 'mm' }, { t: 'select', k: 'dir2', label: tk('fld.dir2'), opts: AXES });
       if (f.source?.kind === 'body') F.push({ t: 'check', k: 'join', label: tk('fld.join_body') });
+      break;
+    case 'split': F.push({ t: 'sel', k: 'body', label: tk('fld.body'), kind: 'body', single: true }, { t: 'tool', k: 'tool', label: tk('fld.split_tool') }); break;
+    case 'splitface': F.push({ t: 'sel', k: 'faces', label: tk('fld.faces'), kind: 'face' }, { t: 'tool', k: 'tool', label: tk('fld.split_tool') }); break;
+    case 'faceop':
+      F.push({ t: 'sel', k: 'faces', label: tk('fld.faces'), kind: 'face' }, { t: 'select', k: 'mode', label: tk('fld.faceop_mode'), opts: [['offset', tk('faceop.offset')], ['move', tk('faceop.move')], ['delete', tk('faceop.delete')]] });
+      if ((f.mode ?? 'offset') === 'offset') F.push({ t: 'expr', k: 'dist', label: tk('fld.offset_dist'), unit: 'mm' });
+      if (f.mode === 'move') F.push({ t: 'expr', k: 'dx', label: tk('fld.tr_x'), unit: 'mm' }, { t: 'expr', k: 'dy', label: tk('fld.tr_y'), unit: 'mm' }, { t: 'expr', k: 'dz', label: tk('fld.tr_z'), unit: 'mm' });
       break;
     case 'mirror':
       F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')]] }, { t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' });
@@ -219,6 +230,8 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
     case 'pattern': parts.push(f.kind === 'circ' ? '×' + n(f.count) : '×' + n(f.count1) + (f.count2 ? ' × ' + n(f.count2) : '')); break;
     case 'mirror': parts.push(String(f.plane || '')); break;
     case 'import': parts.push(String(f.format || '').toUpperCase()); break;
+    case 'split': case 'splitface': parts.push(f.tool?.kind === 'face' ? t('hs.on_face') : String(f.tool?.name || '') + (f.tool?.offset && n(f.tool.offset) !== fmt(0) ? ' ' + mm(f.tool.offset) : '')); if (f.type === 'splitface') parts.push(cnt('hs.n_faces', f.faces)); break;
+    case 'faceop': parts.push(t(f.mode === 'move' ? 'faceop.move' : f.mode === 'delete' ? 'faceop.delete' : 'faceop.offset')); if ((f.mode ?? 'offset') === 'offset') parts.push(mm(f.dist)); parts.push(cnt('hs.n_faces', f.faces)); break;
     default: break;
   }
   return parts.filter(Boolean).join(' · ');

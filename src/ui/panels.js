@@ -38,7 +38,7 @@ export class FeaturePanel {
     return { doc: { ...this.app.doc, features: feats }, bodies: this.app.result?.bodies || [], sketches: feats.filter((f) => f.type === 'sketch') };
   }
   fields() { return fieldsFor(this.draft, this.ctx()); }
-  hasSel() { return this.fields().some((f) => f.t === 'sel' || (f.t === 'source' && this.draft.source?.kind === 'body')); }
+  hasSel() { return this.fields().some((f) => f.t === 'sel' || (f.t === 'source' && this.draft.source?.kind === 'body') || (f.t === 'tool' && this.draft.tool?.kind === 'face')); }
   pickBase() { return this.activeSel != null; }
   // düzenlenen işlemin sağında (işaretçiye kadar) işlem var mı
   hasAfter() { const rb = this.app.doc.rollback; const end = rb ?? this.app.doc.features.length; return this.isNew ? this.at < end : this.at + 1 < end; }
@@ -186,6 +186,26 @@ export class FeaturePanel {
         el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', title: t('fld.clear_sel'), 'aria-label': t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel(fd.k); }, html: icon('close', 'sm') }));
         return this.row(fd.label, el);
       }
+      case 'tool': {
+        // WP-08: bölme düzlemi: ana düzlem (+ ofset) ya da düzlemsel yüz
+        const T = d.tool || (d.tool = { kind: 'base', name: 'YZ', offset: '0' });
+        const cur = T.kind === 'face' ? 'face' : T.name || 'YZ';
+        const s = h('select', { 'data-k': 'tool' }, [['XY', 'plane.xy'], ['XZ', 'plane.xz'], ['YZ', 'plane.yz'], ['face', 'fld.plane_face']].map(([v, l]) => h('option', { value: v, selected: v === cur }, t(l))));
+        s.addEventListener('change', () => { d.tool = s.value === 'face' ? { kind: 'face' } : { kind: 'base', name: s.value, offset: T.offset ?? '0' }; this.fieldChanged('tool'); if (s.value === 'face') this.setActive('tool.ref', true); });
+        const wrap = h('div', {}, unitBox(s));
+        if (T.kind === 'face') {
+          const el = h('div', { class: 'selbox input pick', 'data-k': 'tool.ref', 'data-testid': 'sel-tool-ref', style: { marginTop: '4px' }, tabindex: '0', role: 'button', onclick: () => this.setActive('tool.ref') });
+          el.addEventListener('keydown', (e) => { if (e.key === ' ' || (e.key === 'Enter' && e.target === el)) { e.preventDefault(); e.stopPropagation(); this.setActive('tool.ref'); } });
+          el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', 'aria-label': t('fld.clear_sel'), title: t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel('tool.ref'); }, html: icon('close', 'sm') }));
+          wrap.append(el);
+        } else {
+          const inp = h('input', { type: 'text', 'data-k': 'tool.offset', value: T.offset ?? '0', autocomplete: 'off', spellcheck: 'false', class: 'expr', 'aria-label': t('fld.offset') });
+          inp.addEventListener('input', () => { d.tool.offset = inp.value; this.changed(); });
+          inp.addEventListener('focus', () => this.setActive(null));
+          wrap.append(h('div', { style: { marginTop: '4px' } }, unitBox(inp, 'mm')));
+        }
+        return this.row(fd.label, wrap);
+      }
       case 'source': {
         const srcs = patternSources(this.ctx().doc);
         const cur = d.source?.kind === 'feature' ? 'f:' + d.source.id : 'b';
@@ -212,11 +232,11 @@ export class FeaturePanel {
   changed() { this.app.previewSoon(); }
 
   // --- seçim alanları
-  selKind(k) { if (k === 'source.bodies') return 'body'; return this.fields().find((f) => f.k === k)?.kind; }
-  getSel(k) { if (k === 'source.bodies') return this.draft.source?.bodies || []; const v = this.draft[k]; return Array.isArray(v) ? v : v ? [v] : []; }
+  selKind(k) { if (k === 'source.bodies') return 'body'; if (k === 'tool.ref') return 'face'; return this.fields().find((f) => f.k === k)?.kind; }
+  getSel(k) { if (k === 'source.bodies') return this.draft.source?.bodies || []; if (k === 'tool.ref') return this.draft.tool?.ref ? [this.draft.tool.ref] : []; const v = this.draft[k]; return Array.isArray(v) ? v : v ? [v] : []; }
   setSelList(k, list) {
     const f = this.fields().find((x) => x.k === k);
-    if (k === 'source.bodies') this.draft.source.bodies = list; else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
+    if (k === 'source.bodies') this.draft.source.bodies = list; else if (k === 'tool.ref') { if (list.length) this.draft.tool.ref = list[list.length - 1]; else delete this.draft.tool.ref; } else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
   }
   // C-04: × seçimi temizler ve alanı etkinleştirir (× tıklaması kutunun kendi tıklamasını durdurduğu için alan pasif kalıp kenar tıklamaları boşa gidiyordu)
   clearSel(k) { this.setSelList(k, []); this.setActive(k, true); this.refreshSels(); this.updateViewport(); this.changed(); }

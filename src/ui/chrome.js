@@ -10,7 +10,7 @@ import { getStr, setStr, prefs, setPref } from './prefs.js';
 import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
 
 // Eskiz araç listeleri: [kimlik, etiket anahtarı, simge adı]
-const FEAT_IDS = new Set(['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section']);
+const FEAT_IDS = new Set(['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section', 'split', 'splitface', 'faceop']);
 // Eskiz aracı ile model komutu aynı kimliği paylaşırsa eskiz komutu 'sk-' önekini alır.
 const cid = (id) => (FEAT_IDS.has(id) ? 'sk-' + id : id);
 const SK_DRAW = [['select', tk('tb.select'), 'select'], ['line', tk('tb.line'), 'line'], ['rect', tk('tb.rect'), 'rect'], ['circle', tk('tb.circle'), 'circle'], ['arc', tk('tb.arc'), 'arc']];
@@ -23,7 +23,7 @@ const SK_CONS = [['horizontal', tk('con.horizontal')], ['vertical', tk('con.vert
 const SK_CONS_MORE = [['coincident', tk('con.coincident')], ['midpoint', tk('con.midpoint')], ['concentric', tk('con.concentric')], ['symmetric', tk('con.symmetric')], ['collinear', tk('con.collinear')]];
 // kısayol göstergesi (araç ipucuna eklenir; gerçek tuşlar sketcher.handleKey'de)
 const SHORT = { line: 'L', rect: 'R', circle: 'C', arc: 'A', point: 'P', dim: 'D', trim: 'T', extend: 'X', break: 'K', offset: 'O', fillet: 'Q', chamfer: 'W', mirror: 'M', polygon: 'G', slot: 'U', ellipse: 'Y', spline: 'B', project: 'J', rectc: 'Shift+R', circle3: 'Shift+C', arc3: 'Shift+A' };
-const FEATURE_CMDS = ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section'];
+const FEATURE_CMDS = ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section', 'split', 'splitface', 'faceop'];
 const DEFAULT_RECENT = ['extrude', 'fillet', 'hole', 'measure'];
 const LANG_KEY = { tr: tk('lang.tr'), en: tk('lang.en') };
 
@@ -81,6 +81,10 @@ export function initChrome(app) {
   feat('move', tk('tb.move'), 'move', 'move', null, needBody);
   feat('pattern', tk('tb.pattern'), 'pattern', 'pattern');
   feat('mirror', tk('tb.mirror'), 'mirror', 'mirror');
+  // WP-08: bölme ve doğrudan düzenleme (şeritte "Doğrudan" açılır menüsü)
+  feat('split', tk('tb.split'), 'split', 'split', null, needBody);
+  feat('splitface', tk('tb.splitface'), 'splitface', 'splitface', null, needBody);
+  feat('faceop', tk('tb.faceop'), 'faceop', 'faceop', null, needBody);
   reg('measure', 'tb.measure', 'measure', () => app.toggleTool('measure'), { tip: 'tip.measure', feature: true, tool: true, off: needBody });
   reg('props', 'tb.props', 'properties', () => app.toggleTool('props'), { tip: 'tip.props', feature: true, tool: true, off: needBody });
   reg('interf', 'tb.interf', 'interference', () => app.runInterference(), { tip: 'tip.interf', feature: true, off: needTwo });
@@ -201,7 +205,7 @@ export function initChrome(app) {
   const group = (key, nm, kids, o = {}) => { const g = h('div', { class: 'rgroup' + (o.cls ? ' ' + o.cls : ''), 'data-group': key, role: 'group', 'aria-label': t(nm) }, h('div', { class: 'btns' }, kids), h('div', { class: 'glabel', text: t(nm) })); g._items = o.items || []; return g; };
   const ddBtn = (id, nm, ic) => { const b = h('button', { class: 'tool', 'data-cmd': 'dd-' + id, 'data-testid': 'dd-' + id, 'aria-haspopup': 'menu', 'aria-expanded': C.ddOpen === id ? 'true' : 'false', onclick: (e) => { e.stopPropagation(); C.ddOpen = C.ddOpen === id ? null : id; C.renderDD(); } },
     h('span', { html: icon(ic, 'lg') }), h('span', { class: 'l', text: t(nm) }), h('span', { html: icon('chevron-down', 'caret') })); tip(b, { name: t(nm), body: t('tip.dd') }); if (C.ddOpen === id) b.classList.add('on'); return b; };
-  const ddItems = (id) => id === 'draw' ? SK_DRAW_MORE.map((x) => cid(x[0])) : id === 'edit' ? SK_EDIT_MORE.map((x) => cid(x[0])) : id === 'cons' ? [...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...SK_DIMS_MORE.map((x) => cid(x[0]))] : id === 'prim' ? ['box', 'cylinder', 'sphere'] : [];
+  const ddItems = (id) => id === 'draw' ? SK_DRAW_MORE.map((x) => cid(x[0])) : id === 'edit' ? SK_EDIT_MORE.map((x) => cid(x[0])) : id === 'cons' ? [...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...SK_DIMS_MORE.map((x) => cid(x[0]))] : id === 'prim' ? ['box', 'cylinder', 'sphere'] : id === 'direct' ? ['split', 'splitface', 'faceop'] : [];
   // açılır alt menü (şeridin kaydırılabilir/taşabilir olması nedeniyle gövdeye sabitlenir)
   C.renderDD = () => {
     document.getElementById('ddpop')?.remove();
@@ -273,13 +277,13 @@ export function initChrome(app) {
       C.renderDD(); C.fitRibbon();
       return;
     }
-    C.ddOpen = C.ddOpen === 'prim' ? 'prim' : null;
+    C.ddOpen = C.ddOpen === 'prim' || C.ddOpen === 'direct' ? C.ddOpen : null;
     const on = (id) => (id === 'measure' || id === 'props' ? app.tool === id : id === 'sketch' ? app.tool === 'newsketch' : id === 'section' ? !!app.sectionPanel : false);
     const t1 = (id) => toolBtn(id, { on: on(id) });
     const recent = recentList();
     bar.replaceChildren(
       group('create', tk('grp.create'), [t1('sketch'), t1('extrude'), t1('revolve'), t1('hole'), ddBtn('prim', tk('tb.prim'), 'box')], { items: ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere'] }),
-      group('modify', tk('grp.modify'), ['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror'].map(t1), { items: ['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror'] }),
+      group('modify', tk('grp.modify'), [...['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror'].map(t1), ddBtn('direct', tk('tb.direct'), 'faceop')], { items: ['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'split', 'splitface', 'faceop'] }),
       group('inspect', tk('grp.inspect'), ['measure', 'props', 'interf', 'section'].map(t1), { items: ['measure', 'props', 'interf', 'section'] }),
       group('recent', tk('ui.recent'), [h('div', { class: 'tool-stack', 'data-testid': 'recent' }, recent.map((id) => { const c = cmds[id]; const b = h('button', { class: 'tool sm', 'data-cmd': id, 'data-recent': '1', onclick: () => C.run(id) }, h('span', { html: icon(c.icon, 'sm') }), h('span', { class: 'l', text: label(c) })); tipOf(c, b); return dis(c, b); }))], { cls: 'end recent', items: recent }));
     C.renderDD(); C.fitRibbon();

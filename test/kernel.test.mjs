@@ -505,4 +505,59 @@ console.log('T-05b/H1 eş eksenli ama malzemeyle ayrılmış delikler; çapraz d
   r = await K8.rebuild({ features: [...rr, { id: 'f', type: 'chamfer', edges, d: '1', mode: 'two', d2: '2', chain: true }] });
   ok(r.status.f.ok, 'WP-08 teğet zincir üzerinde iki mesafeli pah: ' + r.status.f.error?.code);
 }
+
+// ------------------------------------------------------------------ WP-08 dilim 3: gövde/yüz bölme, doğrudan düzenleme (yüz ofsetle/taşı/sil), STEP'te
+{
+  const K8 = await initKernel(opencascade, () => wasm);
+  const bx = { id: 'b', type: 'primitive', kind: 'box', x: '0', y: '0', z: '0', w: '40', d: '30', h: '20', op: 'new' };
+  const hl = { id: 'h', type: 'primitive', kind: 'cylinder', x: '20', y: '15', z: '-1', dia: '10', h: '30', axis: 'Z', op: 'cut' };
+  const faceBy = (bid, pred) => { for (let i = 0; i < 64; i++) { let d; try { d = K8.describe({ body: bid, idx: i }, 'face'); } catch (e) { return null; } if (pred(d)) return d; } return null; };
+  let r = await K8.rebuild({ features: [bx, { id: 'sp', type: 'split', body: 'b', tool: { kind: 'base', name: 'YZ', offset: '10' } }] });
+  ok(r.status.sp.ok && r.bodies.length === 2, 'WP-08 gövde böl (YZ, x=10): iki gövde ' + r.status.sp.error?.code);
+  near(r.bodies.find((b) => b.id === 'b').volume, 30 * 30 * 20, 'WP-08 gövde böl: + taraf 30×30×20', 1e-9); near(r.bodies.find((b) => b.id !== 'b').volume, 10 * 30 * 20, 'WP-08 gövde böl: - taraf 10×30×20', 1e-9);
+  r = await K8.rebuild({ features: [bx, { id: 'sp', type: 'split', body: 'b', tool: { kind: 'base', name: 'YZ', offset: '50' } }] });
+  ok(r.status.sp.error?.code === 'split.no_effect' && r.bodies.length === 1, 'WP-08 gövde böl: düzlem dışarıda → açık hata, gövde değişmez');
+  await K8.rebuild({ features: [bx] }); const top = faceBy('b', (d) => d.normal && d.normal[2] > 0.99), side = faceBy('b', (d) => d.normal && d.normal[0] > 0.99);
+  r = await K8.rebuild({ features: [bx, { id: 'm', type: 'move', bodies: ['b'], dx: '0' }, { id: 'sp', type: 'split', body: 'b', tool: { kind: 'face', ref: side } }] });
+  ok(r.status.sp.error?.code === 'split.no_effect', 'WP-08 gövde böl: kendi yan yüzüyle (kesmez) açık hata');
+  r = await K8.rebuild({ features: [bx, { id: 'sf', type: 'splitface', faces: [top], tool: { kind: 'base', name: 'YZ', offset: '10' } }] });
+  ok(r.status.sf.ok && r.bodies[0].nFaces === 7, 'WP-08 yüz böl: üst yüz ikiye (7 yüz) ' + r.status.sf.error?.code); near(r.bodies[0].volume, 24000, 'WP-08 yüz böl: hacim değişmez', 1e-12);
+  { const a = faceBy('b', (d) => d.normal && d.normal[2] > 0.99 && d.fp[0] < 10), b2 = faceBy('b', (d) => d.normal && d.normal[2] > 0.99 && d.fp[0] > 10);
+    ok(a && b2 && Math.abs(a.area - 300) < 1e-6 && Math.abs(b2.area - 900) < 1e-6 && a.name && b2.name && JSON.stringify(a.name) !== JSON.stringify(b2.name), 'WP-08 yüz böl: parçalar 10×30 ve 30×30, ayrı adlı (seçilebilir)');
+    r = await K8.rebuild({ features: [bx, { id: 'sf', type: 'splitface', faces: [top], tool: { kind: 'base', name: 'YZ', offset: '10' } }, { id: 'fo', type: 'faceop', mode: 'offset', faces: [b2], dist: '5' }] });
+    near(r.bodies[0]?.volume, 24000 + 900 * 5, 'WP-08 yüz böl + parçayı ofsetle: basamak', 1e-9); }
+  for (const [d, v] of [['5', 30000], ['-5', 18000]]) { r = await K8.rebuild({ features: [bx, { id: 'fo', type: 'faceop', mode: 'offset', faces: [top], dist: d }] }); ok(r.status.fo.ok && r.bodies[0].nFaces === 6, 'WP-08 yüz ofset ' + d); near(r.bodies[0].volume, v, 'WP-08 yüz ofset ' + d + ' hacim', 1e-9); }
+  r = await K8.rebuild({ features: [bx, { id: 'fo', type: 'faceop', mode: 'offset', faces: [top], dist: '5' }, { id: 'sh', type: 'shell', faces: [top], t: '2' }] });
+  ok(r.status.sh.ok, 'WP-08 yüz ofset: ötelenen yüz adını korur (sonraki kabuk aynı yüz başvurusuyla çalışır) ' + r.status.sh.error?.code);
+  r = await K8.rebuild({ features: [bx, { id: 'fo', type: 'faceop', mode: 'move', faces: [top], dx: '3', dy: '0', dz: '2' }] });
+  near(r.bodies[0].volume, 40 * 30 * 22, 'WP-08 yüz taşı (düzlemsel): normal bileşeni (dz=2) uygulanır', 1e-9);
+  // eğik komşu: ofset desteklenmez → açık hata, belge bozulmaz
+  const wedge = [bx, { id: 'c', type: 'chamfer', edges: [], d: '5' }];
+  await K8.rebuild({ features: [bx] }); let te = null; for (let i = 0; i < 12; i++) { const d = K8.describe({ body: 'b', idx: i }, 'edge'); if ([d.start, d.end].every((p) => Math.abs(p[1]) < 1e-9 && Math.abs(p[2] - 20) < 1e-9)) te = d; }
+  wedge[1].edges = [te]; await K8.rebuild({ features: wedge }); const top2 = faceBy('b', (d) => d.normal && d.normal[2] > 0.99);
+  r = await K8.rebuild({ features: [...wedge, { id: 'fo', type: 'faceop', mode: 'offset', faces: [top2], dist: '3' }] });
+  ok(r.status.fo.error?.code === 'faceop.neighbors' && r.bodies.length === 1 && Math.abs(r.bodies[0].volume - (24000 - 12.5 * 40)) < 1e-6, 'WP-08 yüz ofset: eğik (pah) komşu → açık hata, gövde pahlı haliyle kalır');
+  // delik: sil (doldur) ve taşı
+  await K8.rebuild({ features: [bx, hl] }); const wall = faceBy('b', (d) => d.geom === 'CYLINDRE');
+  const vh = 24000 - Math.PI * 25 * 20;
+  r = await K8.rebuild({ features: [bx, hl, { id: 'fo', type: 'faceop', mode: 'delete', faces: [wall] }] });
+  ok(r.status.fo.ok && r.bodies[0].nFaces === 6, 'WP-08 yüz sil: delik duvarı → delik dolar (6 yüz) ' + r.status.fo.error?.code); near(r.bodies[0].volume, 24000, 'WP-08 yüz sil: hacim dolu kutu', 1e-9);
+  r = await K8.rebuild({ features: [bx, hl, { id: 'fo', type: 'faceop', mode: 'move', faces: [wall], dx: '5', dy: '-3', dz: '0' }] });
+  near(r.bodies[0].volume, vh, 'WP-08 yüz taşı: delik taşınır, hacim aynı', 1e-9);
+  { const w2 = faceBy('b', (d) => d.geom === 'CYLINDRE'); ok(w2 && Math.abs(w2.axis.o[0] - 25) < 1e-6 && Math.abs(w2.axis.o[1] - 12) < 1e-6 && w2.name, 'WP-08 yüz taşı: delik ekseni (25, 12), duvar adı korunur: ' + JSON.stringify(w2?.axis?.o)); }
+  // yuvarlatma yüzünü silmek: kapak düzlemsel değil → açık hata
+  const fil = [bx, { id: 'f', type: 'fillet', edges: [te], r: '4' }]; await K8.rebuild({ features: fil }); const ff = faceBy('b', (d) => d.geom === 'CYLINDRE');
+  r = await K8.rebuild({ features: [...fil, { id: 'fo', type: 'faceop', mode: 'delete', faces: [ff] }] });
+  ok(!r.status.fo.ok && ['faceop.cap_not_planar', 'faceop.not_closed', 'faceop.ambiguous'].includes(r.status.fo.error.code) && r.bodies.length === 1, 'WP-08 yüz sil: yuvarlatma yüzü → açık hata (desteklenmez): ' + r.status.fo.error?.code);
+  // içe aktarılan STEP (test modeli burada üretilir: delikli kutu → STEP → içe aktar)
+  await K8.rebuild({ features: [bx, hl] }); const data = Buffer.from(await K8.exportFile('step')).toString('base64');
+  const imp = { id: 'imp', type: 'import', format: 'step', data, name: 'delikli' };
+  r = await K8.rebuild({ features: [imp] }); near(r.bodies[0].volume, vh, 'WP-08 STEP içe aktarıldı', 1e-9);
+  const iw = faceBy('imp', (d) => d.geom === 'CYLINDRE'), itop = faceBy('imp', (d) => d.normal && d.normal[2] > 0.99);
+  r = await K8.rebuild({ features: [imp, { id: 'fo', type: 'faceop', mode: 'move', faces: [iw], dx: '-8', dy: '0', dz: '0' }] });
+  ok(r.status.fo.ok, 'WP-08 STEP: delik yüzü taşı ' + r.status.fo.error?.code); near(r.bodies[0].volume, vh, 'WP-08 STEP: taşıma sonrası hacim', 1e-9);
+  ok(Math.abs(faceBy('imp', (d) => d.geom === 'CYLINDRE')?.axis?.o[0] - 12) < 1e-6, 'WP-08 STEP: delik x=12');
+  r = await K8.rebuild({ features: [imp, { id: 'fo', type: 'faceop', mode: 'delete', faces: [iw] }] }); near(r.bodies[0].volume, 24000, 'WP-08 STEP: delik yüzü sil → dolu', 1e-9);
+  r = await K8.rebuild({ features: [imp, { id: 'fo', type: 'faceop', mode: 'offset', faces: [itop], dist: '-4' }] }); near(r.bodies[0].volume, vh * 16 / 20, 'WP-08 STEP: üst yüz -4 ofset', 1e-9);
+}
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

@@ -119,6 +119,8 @@ const P = {
   "slot": "<rect x=\"3\" y=\"8\" width=\"18\" height=\"8\" rx=\"4\"/><path d=\"M8.5 12h7\" stroke-dasharray=\"2 2.5\"/>",
   "sphere": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><ellipse cx=\"12\" cy=\"12\" rx=\"9\" ry=\"3.4\"/><ellipse cx=\"12\" cy=\"12\" rx=\"3.6\" ry=\"9\"/>",
   "spline": "<path d=\"M3.5 17.5C9 17.5 8 6.5 13 6.5s4.5 8 7.5 8\"/><rect x=\"2\" y=\"16\" width=\"3\" height=\"3\" rx=\"0.3\"/><rect x=\"19\" y=\"13\" width=\"3\" height=\"3\" rx=\"0.3\"/>",
+  "splitface": "<path d=\"M4 6h16v12H4z\"/><path d=\"M12 4v16\" stroke-dasharray=\"2 2\"/>",
+  "faceop": "<path d=\"M4 9l8-4 8 4-8 4z\"/><path d=\"M4 9v6l8 4 8-4V9\"/><path d=\"M12 13v-9M9.5 6.5L12 4l2.5 2.5\"/>",
   "split": "<path d=\"M3.5 20l6-6M14.5 10l6-6\"/><circle cx=\"12\" cy=\"12\" r=\"1.9\" fill=\"currentColor\" stroke=\"none\"/>",
   "step-back": "<path d=\"M18 5v14M13.5 5l-9 7 9 7z\"/>",
   "step-forward": "<path d=\"M6 5v14M10.5 5l9 7-9 7z\"/>",

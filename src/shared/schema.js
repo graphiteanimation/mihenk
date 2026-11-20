@@ -63,6 +63,9 @@ const TYPES = {
   move: { bodies: strArr(), dx: expr(), dy: expr(), dz: expr(), angle: expr(), axis: oneOf(AX), cx: expr(), cy: expr(), cz: expr(), copy: bool() },
   pattern: { kind: oneOf(['rect', 'circ']), source: sourceChk, count1: expr(), step1: expr(), dir1: oneOf(AX), count2: expr(), step2: expr(), dir2: oneOf(AX), count: expr(), total: expr(), axis: oneOf(AX), cx: expr(), cy: expr(), cz: expr(), join: bool() },
   mirror: { source: sourceChk, plane: oneOf(['XY', 'XZ', 'YZ']), offset: expr() },
+  split: { body: str(LIMITS.shortStr), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
+  splitface: { faces: arrOf(obj(), LIMITS.refs), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
+  faceop: { faces: arrOf(obj(), LIMITS.refs), mode: oneOf(['offset', 'move', 'delete']), dist: expr(), dx: expr(), dy: expr(), dz: expr() },
   import: { format: oneOf(['step', 'stl']), name: str(LIMITS.str), data: str(LIMITS.fileBytes), hash: str(LIMITS.shortStr) },
 };
 export const KNOWN_TYPES = Object.keys(TYPES);

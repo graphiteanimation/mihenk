@@ -10,6 +10,7 @@ import { faceName, edgeName, resolveName, aliasSet, faceKey, vertKey } from './n
 import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
+import * as DE from './direct.js';
 
 export { KErr };
 export const LIMITS = { minDim: 1e-3, maxDim: 1e5, maxPattern: 2000, maxStlTris: 50000 };
@@ -338,6 +339,7 @@ export class Kernel {
         return made;
       }
       case 'pattern': case 'mirror': return this.pattern(f, state, N);
+      case 'split': case 'splitface': case 'faceop': return this.direct(f, state, N, ctx);
       case 'import': {
         const ent = this.imports.get(importKey(f, this.hashes));
         if (!ent || ent.error) throw new KErr('import.load_failed', { reason: ent?.error || 'no_data' });
@@ -373,6 +375,34 @@ export class Kernel {
     const m = TP.shapeDist(b.shape.wrapped, far.wrapped); if (!Number.isFinite(m)) throw new KErr('extrude.failed');
     const t = D - m; if (!(t > LIMITS.minDim)) throw new KErr('extrude.to_body_behind');
     return { d: t, trim: null };
+  }
+
+  // WP-08: bölme ve doğrudan düzenleme (src/kernel/direct.js)
+  toolPlane(spec, state, N, ctx) {
+    if (!spec || typeof spec !== 'object') throw new KErr('split.no_tool');
+    const s = spec.kind === 'base' ? { ...spec, offsetVal: this.coord(N(spec.offset ?? 0, tk('ef.offset')), tk('ef.offset')) } : spec;
+    return this.resolvePlane(s, state, { ...ctx, field: 'tool' });
+  }
+  direct(f, state, N, ctx) {
+    if (f.type === 'split') {
+      const b = state.bodies.get(f.body); if (!b) throw new KErr('split.no_body');
+      const pl = this.toolPlane(f.tool, state, N, ctx);
+      const { pos, neg } = DE.splitBody(b, pl, f.id, this.bigLen(state, pl.o));
+      state.bodies.set(f.body, { ...b, shape: pos.shape, fn: pos.fn });
+      const nid = uniqueId(state, f.id); state.bodies.set(nid, { shape: neg.shape, fn: neg.fn, name: { code: 'pat', params: { base: b.name, n: 2 } } });
+      return [f.body, nid];
+    }
+    const field = 'faces'; if (!Array.isArray(f.faces) || !f.faces.length) throw new KErr('faceop.no_faces');
+    const byBody = new Map();
+    f.faces.forEach((r, k) => { const { body, i } = this.resolveIdx(r, state, 'face', { ...ctx, field, index: k }); if (!byBody.has(r.body)) byBody.set(r.body, { body, sel: new Set() }); byBody.get(r.body).sel.add(i); });
+    const pl = f.type === 'splitface' ? this.toolPlane(f.tool, state, N, ctx) : null;
+    const mode = f.mode ?? 'offset';
+    const opt = f.type !== 'faceop' ? {} : mode === 'move' ? { t: [N(f.dx ?? 0, tk('ef.x')), N(f.dy ?? 0, tk('ef.y')), N(f.dz ?? 0, tk('ef.z'))].map((x) => this.coord(x, 'ef.x')) } : mode === 'offset' ? { d: this.dim(N(f.dist ?? 0, tk('ef.dist')), tk('ef.dist'), { allowNeg: true }) } : {};
+    for (const [bid, { body, sel }] of byBody) {
+      const res = f.type === 'splitface' ? DE.splitFaces(body, [...sel], pl, f.id) : DE.faceOp(body, [...sel], mode, opt, f.id);
+      state.bodies.set(bid, { ...body, shape: res.shape, fn: res.fn });
+    }
+    return [...byBody.keys()];
   }
 
   hole(f, state, N) {
