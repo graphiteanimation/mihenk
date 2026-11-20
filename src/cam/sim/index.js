@@ -12,7 +12,7 @@ export { toolGeom } from './tool.js';
 
 const err = (code, params = {}) => new KErr(code, params);
 // below_stock: islemin bildirdigi bilincli pay (toolpath.meta.belowStock, mm; boydan boya delik/kontur) icindeyse 'warn', disindaysa 'error' (V-12)
-const LEVEL = { comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
+const LEVEL = { holder_contact: 'error', comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
 const CODE = (k) => 'cam.sim.' + k;
 
 export function createSim(input, opts = {}) {
@@ -25,8 +25,12 @@ export function createSim(input, opts = {}) {
   const capPerCode = opts.maxIssuesPerCode ?? 20, rapidSplit = opts.rapidSplit !== false;
   const steps = []; sections.forEach((s, si) => s.toolpath.moves.forEach((m, k) => steps.push([si, k])));
 
-  let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts;
-  const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; };
+  const clrLow = opts.holderClearanceLow ?? 0.5; // T-08 ek: en kucuk tutucu boslugu bunun altindaysa uyari (mm)
+  // O-035: bosluk <= clrContact = tutucu stoga DEGIYOR -> engel. Varsayilan = dusey oyma toleransi (gougeTol, 0,01 mm): yukseklik
+  // haritasi dusey degerleri bu mertebede kayan nokta/ag hatasi tasir; 0,01 mm takim boyu olcme hassasiyetinin de altindadir.
+  const clrContact = opts.holderContactTol ?? (opts.gougeTol ?? 0.01);
+  let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts, secStats;
+  const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
   reset();
 
   function setupFor(id) {
@@ -44,11 +48,46 @@ export function createSim(input, opts = {}) {
   }
 
   function enterSection(si) {
+    if (cur) closeSection();
     const sec = sections[si], tp = sec.toolpath;
     const id = sec.setup?.id ?? 'default';
     const tool = { ...tp.tool, ...(opts.tools?.[tp.tool.number] || {}), ...(opts.tool || {}) };
     const allow = Number.isFinite(tp.meta?.belowStock) && tp.meta.belowStock > 0 ? tp.meta.belowStock : 0;
-    cur = { si, tp, allow, setup: setupFor(id), geom: toolGeom(tool), pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null };
+    const S = setupFor(id), geom = toolGeom(tool);
+    // T-08: islem basi stok (yerel stok yuksekligi icin) ve yol izi maskesi; tutucu boslugu
+    let preMax = -Infinity; for (let k = 0; k < S.hm.data.length; k++) if (S.hm.data[k] > preMax) preMax = S.hm.data[k];
+    cur = { si, tp, allow, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
+      pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
+  }
+  // T-08: islemin yol bandi (takim merkezinin stok yuksekliginin altindaki izi, en buyuk zarf yaricapi kadar kare genisletme:
+  // daire yerine kare = bant biraz genis, muhafazakar) icinde islem basindaki en yuksek stok hucresi.
+  function localTop() {
+    const c = cur, hm = c.setup.hm, nx = hm.nx, ny = hm.ny; if (!c.marked) return -Infinity;
+    const g = c.geom, w = Math.ceil(Math.max(g.R, g.shaftR, g.holderR) / hm.res) + 1;
+    const rowD = new Uint8Array(nx * ny);
+    for (let j = 0; j < ny; j++) { // satirda: en yakin isaretli hucre <= w
+      let last = -1e9; for (let i = 0; i < nx; i++) { if (c.mask[j * nx + i]) last = i; if (i - last <= w) rowD[j * nx + i] = 1; }
+      last = 1e9; for (let i = nx - 1; i >= 0; i--) { if (c.mask[j * nx + i]) last = i; if (last - i <= w) rowD[j * nx + i] = 1; }
+    }
+    let top = -Infinity;
+    for (let i = 0; i < nx; i++) {
+      let last = -1e9; const near = new Uint8Array(ny);
+      for (let j = 0; j < ny; j++) { if (rowD[j * nx + i]) last = j; if (j - last <= w) near[j] = 1; }
+      last = 1e9; for (let j = ny - 1; j >= 0; j--) { if (rowD[j * nx + i]) last = j; if (last - j <= w) near[j] = 1; }
+      for (let j = 0; j < ny; j++) if (near[j]) { const v = c.pre[j * nx + i]; if (v > top) top = v; }
+    }
+    return top;
+  }
+  function closeSection() {
+    const c = cur; if (!c || c.closed) return; c.closed = true;
+    const st = { localTop: localTop(), holderClearance: c.geom.holderR > 0 && Number.isFinite(c.clr) ? c.clr : null, envelope: c.geom.holderR > 0 ? 'holder' : 'tool' };
+    secStats[c.si] = st;
+    if (st.holderClearance != null && st.holderClearance < clrLow && !c.hadHolderHit) {
+      const key = st.holderClearance <= clrContact ? 'holder_contact' : 'holder_clearance_low'; counts[key] = (counts[key] || 0) + 1;
+      if (counts[key] > capPerCode) suppressed++;
+      else issues.push({ level: key === 'holder_contact' ? 'error' : 'warn', code: CODE(key), params: { x: c.clrAt.x, y: c.clrAt.y, z: c.clrAt.z, clearance: Math.max(0, st.holderClearance), min: key === 'holder_contact' ? clrContact : clrLow, op: c.tp.opId }, moveIndex: c.clrAt.k, section: c.si });
+    }
+    c.pre = null; c.mask = null;
   }
 
   function note(code, depth, px, py, pz) {
@@ -61,6 +100,7 @@ export function createSim(input, opts = {}) {
     samples++;
     const g = cur.geom, S = cur.setup, hm = S.hm, d = hm.data, nx = hm.nx, ny = hm.ny, R = g.R, shaftR = g.shaftR, holderR = g.holderR;
     if (pz < S.zFloor - belowTol) note('below_stock', S.zFloor - pz, px, py, pz);
+    if (pz < cur.preMax) { const mi = Math.floor((px - hm.x0) / hm.res), mj = Math.floor((py - hm.y0) / hm.res); if (mi >= 0 && mj >= 0 && mi < nx && mj < ny && !cur.mask[mj * nx + mi]) { cur.mask[mj * nx + mi] = 1; cur.marked++; } }
     if (pz + tol >= S.hmax) return;
     const Rmax = Math.max(R, shaftR, holderR), Rmax2 = Rmax * Rmax, rs = hm.res;
     const i0 = Math.max(0, Math.floor((px - Rmax - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((px + Rmax - hm.x0) / rs));
@@ -75,20 +115,61 @@ export function createSim(input, opts = {}) {
         const cx = hm.x0 + (i + 0.5) * rs, dx = cx - px, r2 = dx * dx + dy * dy;
         if (r2 > Rmax2) continue;
         const r = Math.sqrt(r2);
-        if (r <= holderR && h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); continue; }
+        if (r <= holderR) {
+          if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); cur.hadHolderHit = true; continue; }
+          const cl = pz + g.bodyLen - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
+        }
         if (r <= shaftR && h > zFlute) {
           if (r <= R) note('flute_exceeded', h - zFlute + tol, px, py, pz); else { note('shaft_collision', h - zFlute + tol, px, py, pz); continue; }
         }
-        if (r > R) continue;
+        if (r > R || (mode === 1 && r > g.cutR)) continue; // T-22: kilavuz kesmesi dis dibi capina kadar (dis bolgesi kasitli)
         const zb = pz + g.profile(r);
         if (mode === 0) { if (h > zb + tol) note('rapid_in_stock', h - zb, px, py, pz); continue; }
         if (h > zb) {
-          if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) note('gouge', m - zb, px, py, pz); }
+          if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) noteGouge(g, r, m, zb, pz, px, py, cx, cy); }
           const nz = zb < S.zFloor ? S.zFloor : zb;
           if (nz < h) { const dv = (h - nz) * rs * rs; S.removed += dv; removedTotal += dv; d[idx2] = nz; }
         }
       }
     }
+    if (gc) finishGouge();
+  }
+  // T-17: oyma miktari = model malzemesinin takim zarfina YUZEYE DIK girme derinligi (yan yuzeye R-r, uca normal uzaklik);
+  // dusey fark (m - zb) ayrica 'vertical' olarak tutulur. Engel olcutu degismez (dusey fark > tolerans = oyma).
+  function noteGouge(g, r, m, zb, pz, px, py, cx0, cy0) {
+    const v = m - zb, Rc = g.cutR;
+    let end = v;
+    if (g.kind === 'cone') end = v * Math.sin(Math.atan(g.tanHalf));
+    else if (g.kind === 'ball') { const c = pz + g.R; if (m < c) end = g.R - Math.hypot(r, c - m); else end = Infinity; }
+    else if (g.kind === 'bull') { const c = pz + g.cr, rc = g.R - g.cr; if (r > rc && m < c) end = g.cr - Math.hypot(r - rc, c - m); }
+    const a = cur.acc.gouge || (cur.acc.gouge = { n: 0, depth: -Infinity, x: 0, y: 0, z: 0, vertical: -Infinity });
+    a.n++; if (v > a.vertical) a.vertical = v;
+    // takim zarfi icindeki model derinligi (yan: Rc - r, uc: normal uzaklik); dusey farki asamaz
+    const d = Math.min(v, Math.max(0, Math.min(Rc - r, end)));
+    if (d > a.depth) { a.depth = d; a.x = px; a.y = py; a.z = pz; }
+    // ornek basina en derin (dusey) hucre: yatay model yuzeyi uzakligi touch sonunda bir kez aranir
+    if (!gc || v > gc.v) gc = { v, cx: cx0, cy: cy0, zb, px, py, pz, g };
+  }
+  let gc = null;
+  function finishGouge() {
+    const c = gc; gc = null; const a = cur.acc.gouge; if (!c || !a) return;
+    const lim = Math.min(c.v, 2 * c.g.R + cur.setup.mh.res);
+    if (!(lim > a.depth)) return;
+    const lat = Math.min(c.v, lateralFree(cur.setup.mh, c.cx, c.cy, c.zb, lim));
+    if (lat > a.depth) { a.depth = lat; a.x = c.px; a.y = c.py; a.z = c.pz; }
+  }
+  // (x,y) hucresinden, model ustu zb'nin altinda kalan (bos) en yakin hucreye uzaklik - res (alt sinir). Halka halka aranir, ilk
+  // bulunan halkadan sonra durur; arama yaricapi lim ile sinirli (bulunamazsa lim: yine alt sinir).
+  function lateralFree(mh, x, y, zb, lim) {
+    const rs = mh.res, n = Math.min(Math.ceil((lim + rs) / rs), 64);
+    const i0 = Math.floor((x - mh.x0) / rs), j0 = Math.floor((y - mh.y0) / rs);
+    let best = Infinity;
+    const at = (i, j) => { if (i < 0 || j < 0 || i >= mh.nx || j >= mh.ny) return; const m = mh.data[j * mh.nx + i]; if (m <= zb) { const dd = Math.hypot(i - i0, j - j0) * rs; if (dd < best) best = dd; } };
+    for (let k = 1; k <= n; k++) {
+      if (best <= (k - 1) * rs) break; // daha dis halkalar daha uzak
+      for (let t = -k; t <= k; t++) { at(i0 + t, j0 - k); at(i0 + t, j0 + k); if (t > -k && t < k) { at(i0 - k, j0 + t); at(i0 + k, j0 + t); } }
+    }
+    return best === Infinity ? Math.min(lim, n * rs) : Math.max(0, best - rs);
   }
   function mhAt(mh, x, y) {
     const i = Math.floor((x - mh.x0) / mh.res), j = Math.floor((y - mh.y0) / mh.res);
@@ -162,6 +243,8 @@ export function createSim(input, opts = {}) {
         if (cur.pos.x !== p[0] || cur.pos.y !== p[1]) rapidTo({ x: p[0], y: p[1], z: cur.pos.z });
         if (cur.pos.z !== m.retract) rapidTo({ x: p[0], y: p[1], z: m.retract });
         const b = { x: p[0], y: p[1], z: m.bottom }; sweep(cur.pos, b, 1); cur.pos = b;
+        // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
+        if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
         rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance ? m.clearance : m.retract });
       });
       const lp = m.points[m.points.length - 1]; cur.prog = { x: lp[0], y: lp[1], z: m.clearance };
@@ -176,6 +259,7 @@ export function createSim(input, opts = {}) {
       if (counts[key] > capPerCode) { suppressed++; continue; }
       const lvl = key === 'below_stock' && a.depth <= cur.allow + belowTol ? 'warn' : LEVEL[key];
       const it = { level: lvl, code, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
+      if (a.vertical != null) it.params.vertical = a.vertical;
       issues.push(it); fresh.push(it);
     }
     return fresh;
@@ -188,6 +272,7 @@ export function createSim(input, opts = {}) {
     doMove(sections[si].toolpath.moves[k]);
     const fresh = flush(si, k);
     idx++;
+    if (idx >= steps.length) { const n0 = issues.length; closeSection(); fresh.push(...issues.slice(n0)); }
     if (opts.frames > 0 && idx % opts.frames === 0) frames.push({ index: idx, section: si, moveIndex: k, removedVolume: removedTotal, heightmap: new Float32Array(cur.setup.hm.data) });
     return fresh;
   }
@@ -215,7 +300,7 @@ export function createSim(input, opts = {}) {
     },
     result() {
       const remainBySetup = {}; for (const [id, s] of setups) remainBySetup[id] = s.hm;
-      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples };
+      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples, sections: secStats.slice() };
       if (opts.frames > 0) out.frames = frames;
       return out;
     },

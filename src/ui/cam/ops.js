@@ -2,11 +2,11 @@
 // Hesap sonuçları (takım yolu, NC) belgeye yazılmaz; anahtar (işlem + setup + takım + tezgâh + model) değişince "Eski" olur.
 import { h, toast } from '../dom.js';
 import { icon } from '../icons.js';
-import { t, errText } from '../../shared/i18n.js';
+import { t, tLang, errText } from '../../shared/i18n.js';
 import { resolveSetup, buildProgram, generateProgram, gates as runGates } from '../../cam/index.js';
 import { blocked } from '../../cam/gates.js';
-import { postProgram } from '../../cam/post/index.js';
-import { openMachineManager, postMissing } from './machines.js';
+import { postProgram, postPropsMissing } from '../../cam/post/index.js';
+import { openMachineManager } from './machines.js';
 import { uid, hashStr } from './util.js';
 import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
 import { SimRun } from './simbar.js';
@@ -225,11 +225,13 @@ export class CamOps {
   async post() {
     const r = await this.prepare(); if (!r) return;
     this.stopSim(true);
-    const bl = r.gates.filter((g) => g.level === 'block');
-    const miss = postMissing(this.cam.machine()); // U-05: boş post özelliklerinin tümü tek listede
+    // M-03: yalnız BU programın kullandığı boş post özellikleri (U-05: hepsi tek listede); kapıdaki aynı engeller tekrar yazılmaz
+    const bl = r.gates.filter((g) => g.level === 'block' && g.code !== 'cam.gate.post_prop_missing');
+    let miss = []; try { miss = postPropsMissing(r.program, this.cam.machine()).missing; } catch (e) { miss = r.gates.filter((g) => g.code === 'cam.gate.post_prop_missing').map((g) => g.params.prop); }
+    const ppName = (k) => { const b = 'cam.pp.' + String(k).split('.')[0]; return tLang('tr', b) !== b ? t(b) : k; };
     if (bl.length || miss.length) {
       this.nc = null; this.app.C.renderAll();
-      const rows = [...this.gateRows(bl), ...miss.map((k) => ({ level: 'block', op: '', text: t('cam.post.prop_row', { name: t('cam.pp.' + k), key: k }), prop: k }))];
+      const rows = [...this.gateRows(bl), ...miss.map((k) => ({ level: 'block', op: '', text: t('cam.post.prop_row', { name: ppName(k), key: k }), prop: k }))];
       await showIssueList(this, { title: t('cam.post.blocked_title'), intro: bl.length ? t('cam.post.blocked_intro', { n: rows.length }) : t('cam.post.prop_missing_intro', { n: miss.length }), rows, warns: this.gateRows(r.gates.filter((g) => g.level !== 'block')), kind: 'err', onPick: (row) => { if (row.g?.opId) this.edit(row.g.opId); else if (row.prop || row.g?.code === 'cam.gate.missing') openMachineManager(this.cam); } });
       return;
     }

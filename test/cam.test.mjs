@@ -6,6 +6,7 @@ import * as CAM from '../src/cam/index.js';
 import * as P from '../src/cam/geom/path2d.js';
 import * as G from '../src/shared/geom2d.js';
 import { ringTree, pocketRegion, SegGrid } from '../src/cam/ops/pocket.js';
+import { loopFromKernel } from '../src/cam/ops/common.js';
 import { sketchFaces } from '../src/cam/geom/select.js';
 import { NEWAY_FIXTURE } from './fixtures/machine-neway.mjs';
 import { exportMachines, importMachines, MACHINE_FORMAT } from '../src/cam/machines/io.js';
@@ -286,10 +287,19 @@ section('2b. yerlesik genel sablonlar ve tezgah ice/disa aktarma');
 }
 
 // ================================================================== 6. kapilar
+{ // T-21b: A.wrap dogrulamasi
+  const g4 = builtinMachines().find((q) => q.axes.A);
+  const withWrap = (w) => ({ ...g4, axes: { ...g4.axes, A: { ...g4.axes.A, wrap: w } } });
+  ok(!checkMachine(withWrap(null)).errors.length && ['shortest', 'signed', '0-360'].every((w) => !checkMachine(withWrap(w)).errors.length), 'A.wrap gecerli degerler (null, shortest, signed, 0-360)');
+  const bw = checkMachine(withWrap('ters')).errors; ok(bw.length === 1 && JSON.stringify(bw[0]).includes('axes.A.wrap'), 'A.wrap gecersiz deger hata: ' + JSON.stringify(bw));
+  ok(checkMachine(withWrap('none')).errors.length === 1, "A.wrap 'none' profil degeri degil");
+}
 section('6. guvenlik kapilari');
 {
   const nw = structuredClone(NEWAY_FIXTURE);
-  const M = { ...nw, id: 'm', spindle: { maxRpm: 12000, minRpm: 50 }, feed: { maxCut: 10000, rapid: 30000 }, toolChange: { ...nw.toolChange, maxTools: 24 }, axes: { ...nw.axes, A: { ...nw.axes.A, limits: [-360, 360] } } };
+  // M-03: kapi artik programin kullandigi bos post ozelliklerini de engeller; safeRetract her programda kullanilir (fikstürde bos)
+  const M = { ...nw, id: 'm', spindle: { maxRpm: 12000, minRpm: 50 }, feed: { maxCut: 10000, rapid: 30000 }, toolChange: { ...nw.toolChange, maxTools: 24 }, axes: { ...nw.axes, A: { ...nw.axes.A, limits: [-360, 360] } }, post: { props: { ...nw.post.props, safeRetract: 'G28' } } };
+  ok(CAM.gates(CAM.buildProgram({ name: 'O1', machine: nw, sections: [{ setup: S0, toolpaths: [CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, stepdown: 1, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -1 } } }, { setup: S0, tool: flat(10, { number: 5, lengthOffset: 5, diaOffset: 5 }), machine: nw })] }] }), nw).some((g) => g.code === 'cam.gate.post_prop_missing' && g.params.prop === 'safeRetract'), 'M-03: kullanilan bos safeRetract kapida engel');
   const tool = flat(10, { number: 5, lengthOffset: 5, diaOffset: 5 });
   const fop = { id: 'f', type: 'face', ...base, stepover: 7, stepdown: 1, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -1 } } };
   const prog = (tp, S = S0) => CAM.buildProgram({ name: 'O1', machine: M, sections: [{ setup: S, toolpaths: [tp] }] });
@@ -507,6 +517,36 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
   await K.rebuild(doc);
   // eksik veri: genel makine sablonu -> block
   const r2b = await CAM.generateProgram(cam, { rebuild: rb, machine: builtinMachines()[0], query, name: 'O1' }); ok(r2b.blocked && r2b.gates.some((g) => g.code === 'cam.gate.missing'), 'sablon makine: eksik veri block');
+}
+
+section('9. T-24 kesit dongusu kapanisi (zincir acikligi)');
+{
+  const ln = (p0, p1, fwd = true) => ({ type: 'line', p0, p1, fwd, open: false, edge: null });
+  const gapOf = (loop) => { let w = 0; const e = (g) => (g.fwd === false ? g.p0 : g.p1), b = (g) => (g.fwd === false ? g.p1 : g.p0); for (let i = 0; i < loop.length; i++) { const a = e(loop[i]), c = b(loop[(i + 1) % loop.length]); w = Math.max(w, Math.hypot(a[0] - c[0], a[1] - c[1])); } return w; };
+  // P4 Y29,05'teki gibi 5,85e-4 mm acik (iki dogru; biri ters yonlu)
+  const sqGap = [ln([0, 0], [10, 0]), ln([10, 0], [10, 10]), ln([0, 10], [9.999415, 10], false), ln([0, 10], [0, 0])];
+  ok(gapOf(sqGap) > 5e-4, 'ham dongu acik (5,85e-4)');
+  const c1 = P.closeItemLoop(sqGap);
+  ok(gapOf(c1) === 0 && c1.length === 4, 'iki dogru: orta noktada birebir kapanir: ' + gapOf(c1));
+  ok(P.isClosedLoop(c1.flatMap((it) => P.fromGeom2d(it, it.fwd !== false)), 1e-9), 'path2d dongusu kapali (1e-9)');
+  ok(sqGap[2].p1[0] === 9.999415, 'girdi degistirilmez');
+  // dogru-yay: dogru ucu yay ucuna
+  const arc = { ...G.mkArc([10, 5], 5, -Math.PI / 2, Math.PI), fwd: true, open: false };
+  const da = [ln([0, 0], [10.0004, 0]), arc, ln([10, 10], [0, 10]), ln([0, 10], [0, 0])];
+  const c2 = P.closeItemLoop(da); ok(gapOf(c2) < 1e-12 && c2.length === 4, 'dogru-yay: dogru ucu yaya tasinir: ' + gapOf(c2));
+  // yay-yay: araya kisa dogru
+  const a1 = { ...G.mkArc([0, 0], 5, 0, Math.PI), fwd: true, open: false }, a2 = { ...G.mkArc([0, 0], 5, Math.PI + 1e-4, Math.PI - 1e-4), fwd: true, open: false };
+  const c3 = P.closeItemLoop([a1, a2]); ok(gapOf(c3) < 1e-12 && c3.length === 3 && c3.some((g) => g.type === 'line'), 'yay-yay: kisa dogru eklenir: ' + c3.length);
+  // ops/common.js loopFromKernel (camFaceLoops yolu): 5,85e-4 acik dongu artik loop_open degil, birebir kapali
+  { let lp = null, er = null; try { lp = loopFromKernel(sqGap); } catch (e) { er = e.code; } ok(lp && P.isClosedLoop(lp, 1e-12), 'loopFromKernel: zincir acikligi kapanir (loop_open yok): ' + er); }
+  { let er = null; try { loopFromKernel([ln([0, 0], [10, 0]), ln([10, 0.5], [10, 10]), ln([10, 10], [0, 10]), ln([0, 10], [0, 0])]); } catch (e) { er = e.code; } ok(er === 'cam.geom.loop_open', 'loopFromKernel: 0,5 mm gercek aciklik hala loop_open: ' + er); }
+  // buyuk aciklik (gercek acik uc) sessizce kapatilmaz
+  const big = [ln([0, 0], [10, 0]), ln([10, 0.5], [10, 10]), ln([10, 10], [0, 10]), ln([0, 10], [0, 0])];
+  ok(gapOf(P.closeItemLoop(big)) >= 0.5, 'maxGap ustu aciklik birakilir (kapilar yakalar)');
+  // eskiz NODE_TOL ile ada kaybi yok: kapatilmis dongu findRegions'da tek bolge
+  const toSketch = (loop) => { const pts = {}, ents = []; const key = (p) => p[0].toFixed(9) + ',' + p[1].toFixed(9); const id = (p) => { const k = key(p); if (!pts['p' + k]) pts['p' + k] = { x: p[0], y: p[1] }; return 'p' + k; }; loop.forEach((g, i) => ents.push({ id: 'e' + i, type: 'line', a: id(g.p0), b: id(g.p1) })); return { points: pts, ents }; };
+  ok(findRegions(toSketch(sqGap)).regions.length === 0, 'ham acik dongu eskizde bolge vermez (ada kaybi, T-24)');
+  ok(findRegions(toSketch(c1)).regions.length === 1, 'kapatilmis dongu eskizde bir bolge');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

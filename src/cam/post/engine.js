@@ -73,13 +73,19 @@ export function resolveProps(post, machine, overrides) {
   return out;
 }
 // Makine profilinden A ekseni (varsa) bilgisi
+export const A_WRAP = ['shortest', 'signed', '0-360', 'none']; // 'none' yalniz ic: wrap yok ve shortest:false
 export function resolveRotary(machine) {
   const A = machine?.axes?.A;
   if (!A) return null;
   const dir = Array.isArray(A.dir) ? A.dir : null;
+  // T-21b: A kelimesi bicimi profil alanidir: A.wrap 'shortest' (0-360, kontrol en kisa yolu secer; 180 bolme) /
+  // 'signed' (-180..180) / '0-360' (0-360 mutlak). Alan verilmisse o gecer; yoksa (null) bugunku davranis: shortest:true -> 'shortest',
+  // degilse aci oldugu gibi.
+  const wrap = A.wrap ?? (A.shortest ? 'shortest' : 'none');
+  if (!A_WRAP.includes(wrap) || (A.wrap != null && wrap === 'none')) throw perr('cam.post.bad_prop', { prop: 'machine.axes.A.wrap', value: String(A.wrap) });
   return {
     sign: dir ? (dir[0] < 0 ? -1 : 1) : null,
-    limits: A.limits ?? null, shortest: !!A.shortest,
+    limits: A.limits ?? null, shortest: wrap === 'shortest', wrap,
     clamp: { lock: A.clamp?.lock ?? null, unlock: A.clamp?.unlock ?? null, output: !!A.clamp?.output },
   };
 }
@@ -126,9 +132,15 @@ const need = (post, name) => { if (typeof post[name] !== 'function') throw perr(
 // ---------------------------------------------------------------- calistirma
 // post: {id, defaultProps, onOpen,...}; program: IR Program; machine: makine profili.
 // opts: {props, date, appVersion, gates, verified:{by,date,note}, lineNumbers}
+// Kosullu post ozellikleri: yalniz program kullaniyorsa gerekir (kullanilinca post need/prop_missing ile durur).
+// Bu listede OLMAYAN her ozellik ZORUNLU: bossa (null/undefined) post hic calismaz (M-03 / dogrulama: sessiz satir atlama yok).
+// lineNumberMax: null = N ust siniri yok (kod acikca null'i ele alir).
+export const CONDITIONAL_PROPS = Object.freeze(['dwellAddress', 'dwellUnit', 'cycleDwellAddress', 'cycleDwellUnit', 'g541Range', 'safeRetractZ', 'highSpeedOn', 'highSpeedOff', 'coolantCodes', 'rigidTapM', 'lineNumberMax']);
+export const requiredPropsMissing = (post, props) => Object.keys(post.defaultProps).filter((k) => !CONDITIONAL_PROPS.includes(k) && (props[k] === null || props[k] === undefined));
 export function runPost(post, program, machine, opts = {}) {
   validateProgram(program);
   const props = resolveProps(post, machine, opts.props);
+  { const miss = requiredPropsMissing(post, props); if (miss.length) throw perr('cam.post.prop_missing', { prop: miss[0], post: post.id, all: miss.join(', ') }); }
   const ctx = new PostContext(post, program, machine, props, opts);
   const call = (name, ...a) => need(post, name).apply(ctx, a);
   ctx.call = call;

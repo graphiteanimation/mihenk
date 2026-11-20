@@ -4,7 +4,7 @@ import os, re, socket, subprocess, sys, time, json
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PORT = 4197
+PORT = int(os.environ.get('MIHENK_UI_PORT', '4197'))  # paralel calisma agaclari icin ortamdan degistirilebilir
 passed = failed = 0
 def check(name, cond, detail=''):
     global passed, failed
@@ -368,7 +368,8 @@ try:
 
     # --- post, NC önizleme, doğrulama
     print('post, NC, doğrulama, engel')
-    ctx, pg = newpage(); pg.evaluate("(m) => localStorage.setItem('mihenk.machines', JSON.stringify([m]))", MACH)
+    MACH_NOEND = json.loads(json.dumps(MACH)); MACH_NOEND['id'] = 'u-gen-noend'; MACH_NOEND['name'] = 'Test Fanuc endCode yok'; MACH_NOEND['post'] = {'props': {'endCode': None}}
+    ctx, pg = newpage(); pg.evaluate("(ms) => localStorage.setItem('mihenk.machines', JSON.stringify(ms))", [MACH, MACH_NOEND])
     load(pg, PART); pg.click('[data-testid=tab-manufacture]')
     pg.evaluate("(m) => app.cam.setMachine(m)", MACH['id']); pg.evaluate("(t) => app.cam.setTools(t)", TOOLS)
     pg.click('[data-cmd=cam-setup]'); pg.click('[data-testid=panel-ok]')
@@ -449,6 +450,12 @@ try:
     pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=issue-list]', timeout=40000)
     check('şablon tezgâh: eksik değerler NC üretimini engeller', count(pg, '[data-testid=issue-row][data-level=block]') >= 1 and pg.evaluate('app.cam.ops.nc') is None, txt(pg, '#modal')[:300])
     pg.click('[data-testid=issues-close]')
+    # M-03 doğrulama engeli: zorunlu post alanı (endCode) boşsa program kullanmasa da NC üretilmez
+    pg.evaluate("() => app.cam.setMachine('u-gen-noend')")
+    pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=nc-text], [data-testid=issue-list]', timeout=40000)
+    check('M-03: endCode boş -> engel listesinde, NC yok', count(pg, '[data-testid=issue-list]') == 1 and '(endCode)' in txt(pg, '#modal') and pg.evaluate('app.cam.ops.nc') is None, txt(pg, '#modal')[:400])
+    if count(pg, '[data-testid=issues-close]'): pg.click('[data-testid=issues-close]')
+    else: pg.click('[data-testid=nc-close]')
     check('konsol hatası yok (işlem akışı)', not [e for e in pg.errs if 'Error' in e or 'Uncaught' in e], pg.errs[:3])
     ctx.close()
 
@@ -569,6 +576,7 @@ try:
     il = txt(pg, '#modal')
     check('U-06: ham alan yolu yok (machine.spindle.maxRpm → okunur ad)', 'machine.' not in il and 'en yüksek mil devri' in il, il[:400])
     check('U-05: boş post özellikleri tek listede (≥ 4 satır) ve ham ad yalnız parantezde', 'Güvenli Z çekilme yöntemi' in il and count(pg, '[data-testid=issue-row]') >= 6, il[:600])
+    check('M-03: programın kullanmadığı boş post alanları (G04 bekleme, G54.1 aralığı) engel listesinde yok', 'Bekleme (G04) adresi' not in il and 'G54.1 P aralığı' not in il, il.replace('\n', ' | '))
     wcs = [x for x in pg.evaluate("[...document.querySelectorAll('[data-testid=issue-row]')].map((e) => e.innerText)") if 'WCS' in x and 'dokunulmaz' in x]
     check('U-08: dokunulmaz WCS iletisi "WCS G56" (boşluklu) ve işlem başına tekrar yok', len(wcs) == 1 and 'WCS G56' in wcs[0], wcs)
     check('U-06: eksik i18n anahtarı konsol hatası yok', not [e for e in pg.errs[errs0:] if 'i18n' in e], pg.errs[errs0:])

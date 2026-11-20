@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateToolpath, validateProgram, mk, compareToolpaths, normalizeRapids, splitRapid, pathBBox } from '../src/cam/ir.js';
-import { postProgram, readNC, getPost, listPosts } from '../src/cam/post/index.js';
+import { postProgram, readNC, getPost, listPosts, postPropsMissing } from '../src/cam/post/index.js';
+import { gates } from '../src/cam/gates.js';
+import { builtinMachines } from '../src/cam/machines/builtin.js';
 import { sanitizeComment, createFormat } from '../src/cam/post/engine.js';
 import * as S from './cam-samples/samples.mjs';
 
@@ -251,6 +253,85 @@ console.log('8. CAM-VERIFY regresyonlari (docs/CAM-FIXES.md)');
     const txt = postProgram({ ...d, sections: [{ ...tap, toolpath: tp }] }, S.fanucMachine(), OPTS).text; const sw = Number(/^S(\d+) M3/m.exec(txt)[1]), fw = Number(/G84.*F([\d.]+)/.exec(txt)[1]); const pitch = tp.moves.find((m) => m.t === 'cycle').pitch; ok(sw === 333 && Math.abs(fw / sw - pitch) < 1e-9, `V-23: F/S = adim (S${sw} F${fw})`); }
   // V-23b: S0 yazilmaz
   throwsCode(() => postProgram(one(simple(), { rpm: 0.4 }), S.testMachine(), OPTS), 'cam.post.bad_rpm', 'V-23b: rpm 0.4 -> S0 yok');
+}
+
+console.log('6. M-03: yalniz programin kullandigi bos post ozellikleri engel');
+{
+  // P1 durumu: bekleme/G54.1 kullanmayan program; dwell ve G54.1 alanlari bos
+  const empty = { dwellAddress: null, dwellUnit: null, cycleDwellAddress: null, cycleDwellUnit: null, g541Range: null };
+  const mE = S.testMachine({ props: empty });
+  const surf = S.surfaceSample().program;
+  let pm = postPropsMissing(surf, mE);
+  ok(pm.complete && pm.missing.length === 0, 'yuzey programi: kullanilmayan bos alanlar eksik sayilmaz: ' + JSON.stringify(pm));
+  let gl = gates(surf, mE, { sim: false });
+  ok(!gl.some((g) => g.code === 'cam.gate.post_prop_missing'), 'M-03: kapida kullanilmayan alan engeli yok');
+  ok(postProgram(surf, mE, OPTS).text.includes('M30'), 'M-03: NC uretilir (kullanilmayan alanlar bos)');
+  // P1 S3 gibi 3+1 (A ekseni) program G54.1 kullanmiyorsa g541Range gerekmez
+  pm = postPropsMissing(S.indexedSample().program, mE);
+  ok(pm.complete && pm.missing.length === 0, 'M-03: 3+1 program (G58, A90/270) bos dwell/G54.1 alanlariyla eksiksiz: ' + JSON.stringify(pm));
+  // hala yakalanan: G04 ve G82 bekleme kullanan program -> tum eksikler tek listede
+  const dr = S.drillSample().program;
+  pm = postPropsMissing(dr, mE);
+  ok(['dwellAddress', 'dwellUnit', 'cycleDwellAddress', 'cycleDwellUnit'].every((k) => pm.missing.includes(k)) && !pm.missing.includes('g541Range'), 'bekleme kullanan program: 4 bekleme alani birlikte, G54.1 yok: ' + pm.missing);
+  gl = gates(dr, mE, { sim: false });
+  ok(gl.filter((g) => g.code === 'cam.gate.post_prop_missing' && g.level === 'block').length === pm.missing.length, 'kapi: her eksik alan bir engel');
+  throwsCode(() => postProgram(dr, mE, { date: 'x' }), 'cam.post.gates_blocked', 'kapilar verilmezse post statik kapilarla durur');
+  // G54.1 kullanan program
+  const wc = S.contourWearSample().program;
+  pm = postPropsMissing(wc, mE);
+  ok(pm.missing.includes('g541Range'), 'G54.1 kullanan program: g541Range eksik: ' + pm.missing);
+  // her programda kullanilan alan (guvenli geri cekilme)
+  pm = postPropsMissing(surf, S.testMachine({ props: { safeRetract: null } }));
+  ok(pm.missing.join() === 'safeRetract', 'safeRetract bos: eksik: ' + pm.missing);
+  // sogutma kodu: kullanilan sogutma turunun kodu bos
+  pm = postPropsMissing(dr, S.testMachine({ props: { coolantCodes: { flood: null, off: 'M9' } } }));
+  ok(pm.missing.includes('coolantCodes.flood'), 'kullanilan sogutma kodu bos: ' + pm.missing);
+}
+
+console.log('6b. M-03 dogrulama: zorunlu post alanlari bossa her zaman engel, post da durur');
+{
+  const surf = S.surfaceSample().program;
+  for (const k of ['endCode', 'toolChangeCode', 'tapMode', 'decimals', 'safeRetract', 'programNumberDigits', 'rotaryMode', 'tapR1', 'cannedCycles']) {
+    const m = S.testMachine({ props: { [k]: null } });
+    const pm = postPropsMissing(surf, m);
+    ok(pm.missing.includes(k), `${k}: null -> eksik (program kullanmasa da zorunlu): ` + JSON.stringify(pm));
+    ok(gates(surf, m, { sim: false }).some((g) => g.code === 'cam.gate.post_prop_missing' && g.level === 'block' && g.params.prop === k), `${k}: null -> kapi engeli`);
+    throwsCode(() => postProgram(surf, m, OPTS), 'cam.post.prop_missing', `${k}: null -> post sessizce satir atlamaz, durur`);
+  }
+  // birden cok zorunlu alan bossa hepsi tek listede, kosullu kullanilanlar da eklenir
+  const pm2 = postPropsMissing(S.drillSample().program, S.testMachine({ props: { endCode: null, toolChangeCode: null, dwellAddress: null } }));
+  ok(['endCode', 'toolChangeCode', 'dwellAddress'].every((k) => pm2.missing.includes(k)), 'zorunlu + kullanilan kosullu birlikte: ' + pm2.missing);
+  // kosullu alan bos + kullanilmiyor -> temiz; rigidTapM/highSpeed/lineNumberMax null -> temiz
+  const pm3 = postPropsMissing(surf, S.testMachine({ props: { rigidTapM: null, highSpeedOn: null, highSpeedOff: null, lineNumberMax: null, dwellAddress: null, g541Range: null } }));
+  ok(pm3.complete && pm3.missing.length === 0, 'kosullu alanlar bos + kullanilmiyor -> temiz: ' + JSON.stringify(pm3));
+  // kosullu alan bos + kullaniliyor -> engel (yalniz biri doluysa highSpeed cifti)
+  const pm4 = postPropsMissing(surf, S.testMachine({ props: { highSpeedOn: 'G05 P10000', highSpeedOff: null } }));
+  ok(pm4.missing.includes('highSpeedOff'), 'highSpeedOn dolu, Off bos -> engel: ' + pm4.missing);
+}
+
+console.log('7. T-21b: A kelimesi bicimi profilden (A.wrap)');
+{
+  const base = S.testMachine();
+  const mA = (A) => ({ ...base, axes: { ...base.axes, A: { ...base.axes.A, ...A } } });
+  const aWords = (prog, m) => postProgram(prog, m, OPTS).text.split('\n').filter((l) => /^G0 A/.test(l)).join(',');
+  const ix = S.indexedSample().program;
+  // -90 isteyen 3+1 program (S2 A+90 / S3 A-90 plani gibi)
+  const neg = structuredClone(ix); neg.sections[2].setup.aAngle = -90;
+  ok(aWords(ix, base) === 'G0 A0.,G0 A90.,G0 A180.,G0 A270.,G0 A0.', 'varsayilan (wrap yok, shortest) bugunku davranis: ' + aWords(ix, base));
+  ok(aWords(neg, base) === aWords(ix, base), 'varsayilan: A-90 -> A270 (bugunku)');
+  ok(aWords(ix, mA({ wrap: null })) === aWords(ix, base), 'wrap null = bugunku davranis');
+  ok(aWords(neg, mA({ wrap: 'signed' })) === 'G0 A0.,G0 A90.,G0 A-90.,G0 A0.', "wrap 'signed': A-90., 180 bolmesi yok: " + aWords(neg, mA({ wrap: 'signed' })));
+  ok(aWords(ix, mA({ wrap: 'signed' })) === 'G0 A0.,G0 A90.,G0 A-90.,G0 A0.', "wrap 'signed': 270 -> -90");
+  ok(aWords(neg, mA({ wrap: '0-360' })) === 'G0 A0.,G0 A90.,G0 A270.,G0 A0.', "wrap '0-360': A270., bolme yok: " + aWords(neg, mA({ wrap: '0-360' })));
+  ok(aWords(neg, mA({ wrap: 'shortest' })) === aWords(ix, base), "wrap 'shortest' = eski shortest:true");
+  ok(aWords(neg, mA({ wrap: 'signed', shortest: true })) === 'G0 A0.,G0 A90.,G0 A-90.,G0 A0.', 'acik wrap shortest bayragindan once gelir');
+  throwsCode(() => postProgram(ix, mA({ wrap: 'ters' }), OPTS), 'cam.post.bad_prop', 'gecersiz wrap');
+  throwsCode(() => postProgram(ix, mA({ wrap: 'none' }), OPTS), 'cam.post.bad_prop', "'none' profil degeri degil");
+  throwsCode(() => postProgram(neg, mA({ wrap: 'signed', limits: [0, 360] }), OPTS), 'cam.post.a_out_of_limits', 'signed cikti (-90) sinir disi -> dur');
+  const g4 = builtinMachines().find((q) => q.axes.A); ok(g4 && 'wrap' in g4.axes.A && g4.axes.A.wrap === null, 'genel 3+1 sablonunda A.wrap alani (null = bugunku davranis)');
+  // geri okuma: signed cikti ayni yolu verir
+  const m = mA({ wrap: 'signed' }); const back = readNC(postProgram(neg, m, OPTS).text, { machine: m }).program;
+  ok(back.sections.map((q) => q.setup.aAngle).join() === '0,90,-90,0', 'geri okunan A: ' + back.sections.map((q) => q.setup.aAngle).join());
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

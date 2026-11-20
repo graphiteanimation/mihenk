@@ -4,6 +4,7 @@
 import { checkMachine, axisTravel } from './machines/builtin.js';
 import { walk } from './ir.js';
 import { simulate } from './sim/index.js';
+import { postPropsMissing } from './post/needs.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const G = (level, c, params, extra) => ({ level, code: c, params: params || {}, ...(extra || {}) });
@@ -27,9 +28,15 @@ export function gates(program, machine, opts = {}) {
   const mc = checkMachine(machine);
   for (const e of mc.errors) out.push(G('block', 'cam.gate.machine_invalid', e.params));
   for (const f of mc.missing) out.push(G('block', 'cam.gate.missing', { field: 'machine.' + f }));
+  // M-03: yalniz BU programin gercekten kullandigi bos post ozellikleri engel (kullanilmayanin boslugu engel degil)
+  if (machine && !mc.errors.length && secs.length) {
+    let pm = null; try { pm = postPropsMissing(program, machine); } catch (e) { pm = null; /* bilinmeyen kontrol vb.: post kendisi bildirir */ }
+    for (const p of pm?.missing || []) out.push(G('block', 'cam.gate.post_prop_missing', { prop: p }));
+  }
   const prot = machine?.protected || { T: [], H: [], D: [], wcs: [] };
   const maxRpm = machine?.spindle?.maxRpm, minRpm = machine?.spindle?.minRpm, maxF = machine?.feed?.maxCut, maxTools = machine?.toolChange?.maxTools;
   const absWarned = new Set();
+  const bodyCand = [];
   secs.forEach((s, si) => {
     const tp = s.toolpath || {}; const opId = tp.opId; const T = tp.tool || {}; const X = { opId, section: si };
     // ---- 1: eksik veri
@@ -81,7 +88,8 @@ export function gates(program, machine, opts = {}) {
       }
     }
     const pd = tp.meta?.passDepth; if (isNum(pd) && isNum(T.fluteLen) && pd > T.fluteLen + 1e-9) out.push(G('block', 'cam.gate.flute_short', { depth: Math.round(pd * 1000) / 1000, fluteLen: T.fluteLen, op: tp.opName }, X));
-    const zMin = tp.stats?.zMin; if (isNum(zMin) && isNum(stockTop) && isNum(T.bodyLen) && stockTop - zMin > T.bodyLen + 1e-9) out.push(G('block', 'cam.gate.body_short', { depth: Math.round((stockTop - zMin) * 1000) / 1000, bodyLen: T.bodyLen, op: tp.opName }, X));
+    // T-08: govde boyu yerel stok yuksekligine gore (sim sonrasi, asagida); burada yalniz aday kaydedilir
+    const zMin = tp.stats?.zMin; if (isNum(zMin) && isNum(stockTop) && isNum(T.bodyLen)) bodyCand.push({ si, zMin, stockTop, bodyLen: T.bodyLen, op: tp.opName, X, at: out.length });
     // ---- 6: doner eksen
     const a = s.setup?.aAngle;
     if (a != null && a !== 0) {
@@ -95,6 +103,7 @@ export function gates(program, machine, opts = {}) {
   // ---- 6: A isareti makinede dogrulanmadi (V-01): profil A.dir'i yanlis girilmisse yol ters yuze gider
   if (machine?.axes?.A && secs.some((s) => s.setup?.aAngle != null)) out.push(G('warn', 'cam.gate.a_dir_unverified', { dir: JSON.stringify(machine.axes.A.dir ?? null) }));
   // ---- 5: simulasyon (yalniz once gelen kapilar engellemiyorsa anlamli; yine de calistirilir)
+  let simSec = null;
   if (opts.sim === false || !opts.sim) out.push(G('warn', 'cam.gate.sim_not_run', {}));
   else if (secs.length) {
     const stockBoxes = {}; for (const s of secs) if (s.setup?.stockBox) stockBoxes[s.setup.id] = s.setup.stockBox;
@@ -112,10 +121,26 @@ export function gates(program, machine, opts = {}) {
     }
     try {
       const res = simulate(program, { stockBoxes, ...opts.sim });
+      simSec = res.sections || null;
       for (const it of res.issues) out.push(G(it.level === 'error' ? 'block' : 'warn', it.code, it.params, { opId: secs[it.section]?.toolpath?.opId, section: it.section, moveIndex: it.moveIndex }));
       if (res.suppressed) out.push(G('warn', 'cam.gate.sim_suppressed', { n: res.suppressed }));
     } catch (e) { out.push(G('block', 'cam.gate.sim_failed', { code: e.code || 'internal', ...(e.params || {}) })); }
   }
+  // ---- 4 (T-08): govde boyu. Derinlik = islem basinda yol bandindaki en yuksek stok hucresi (sim haritasi) - zMin.
+  // Sim yoksa ya da tutucu geometrisi bilinmiyorsa (bant yalniz takim capi kadar olurdu) eski muhafazakar hesap: ilk stok ustu - zMin.
+  const bodyOut = [];
+  for (const c of bodyCand) {
+    const st = simSec?.[c.si];
+    const local = st && st.envelope === 'holder' && st.localTop != null;
+    const top = local ? st.localTop : c.stockTop;
+    const depth = top - c.zMin;
+    if (depth > c.bodyLen + 1e-9) {
+      bodyOut.push([c.at, G('block', 'cam.gate.body_short', { depth: Math.round(depth * 1000) / 1000, bodyLen: c.bodyLen, op: c.op }, c.X)]);
+      if (!local) bodyOut.push([c.at, G('warn', 'cam.gate.body_short_conservative', { op: c.op }, c.X)]);
+    }
+  }
+  // eski sirayla (islemin diger kapilarinin yanina) yerlestir
+  for (let k = bodyOut.length - 1; k >= 0; k--) out.splice(bodyOut[k][0], 0, bodyOut[k][1]);
   return out;
 }
 export const blocked = (list) => list.some((g) => g.level === 'block');

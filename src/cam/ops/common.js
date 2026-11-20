@@ -122,6 +122,7 @@ export function finishToolpath(op, tool, cut, h, b, extra = {}) {
 
 // geom2d dongusunu (cekirdek camFaceLoops ogeleri: {...seg, fwd, open}) path2d yonlu parcalara cevir
 export function loopFromKernel(items) {
+  items = P.closeItemLoop(items); // T-24: cekirdek zincir acikliklari (<= 0,02 mm) birebir kapatilir
   const out = [];
   for (const it of items) for (const s of P.fromGeom2d(it, it.fwd !== false, it.open ? { open: true } : null)) out.push(s);
   if (!P.isClosedLoop(out, 1e-5)) throw cerr('cam.geom.loop_open');
