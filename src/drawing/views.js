@@ -25,16 +25,17 @@ export function childBasis(P, side, angle) {
   if (s === 'above') return { d: P.y, x: P.x, y: neg(P.d) };
   return { d: neg(P.y), x: P.x, y: P.d }; // below: alttan gorulen
 }
-// Kesit: ana gorunusteki kesme cizgisi (p noktasi, ang derece) ve bakis oku yonu (flip). Bakis yonu ok yonudur; gorunus tabani
-// kesme cizgisi yataysa ana gorunusun x'ini, dikeyse y'sini korur.
+// Kesit: ana gorunusteki kesme cizgisi (p noktasi, ang derece) ve bakis oku yonu (flip). Bakis yonu ok yonudur (d = -ok).
+// Kesit gorunusu serbest yerlesir ve dik durur (O onerisi): yukari = modelin +Z'si (d Z'ye paralel degilse), aksi halde ana gorunusun x'i korunur.
 export function sectionBasis(P, cut) {
-  const a = ((cut.ang || 0) * Math.PI) / 180;
-  const L = V.norm(V.add(V.mul(P.x, Math.cos(a)), V.mul(P.y, Math.sin(a))));
-  let A = V.norm(V.add(V.mul(P.x, Math.sin(a)), V.mul(P.y, -Math.cos(a)))); // ok yonu (bakis): varsayilan cizginin saginda (yatay cizgide asagi)
-  if (cut.flip) A = V.mul(A, -1);
-  const d = V.mul(A, -1);
-  if (Math.abs(V.dot(L, P.y)) > Math.abs(V.dot(L, P.x))) { const y = V.mul(L, Math.sign(V.dot(L, P.y)) || 1); return { d, x: V.cross(y, d), y }; }
-  const x = V.mul(L, Math.sign(V.dot(L, P.x)) || 1); return { d, x, y: V.cross(d, x), arrow: A };
+  const A = arrow3(P, cut); const d = V.mul(A, -1);
+  const Z = [0, 0, 1]; const zp = V.sub(Z, V.mul(d, V.dot(Z, d)));
+  if (V.len(zp) > 1e-6) { const y = V.norm(zp); return { d, x: V.cross(y, d), y }; }
+  const x = V.norm(V.sub(P.x, V.mul(d, V.dot(P.x, d)))); return { d, x, y: V.cross(d, x) };
+}
+export function arrow3(P, cut) {
+  const a = ((cut.ang || 0) * Math.PI) / 180; let A = V.norm(V.add(V.mul(P.x, Math.sin(a)), V.mul(P.y, -Math.cos(a)))); // varsayilan: cizginin saginda (yatay cizgide asagi)
+  if (cut.flip) A = V.mul(A, -1); return A;
 }
 export const sectionPoint = (P, cut) => V.add(V.mul(P.x, cut.p[0]), V.mul(P.y, cut.p[1]));
 export function arrowDir2(cut) { const a = ((cut.ang || 0) * Math.PI) / 180; const s = cut.flip ? -1 : 1; return [Math.sin(a) * s, -Math.cos(a) * s]; }

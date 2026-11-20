@@ -203,8 +203,8 @@ export function initChrome(app) {
   C.renderTabs = () => {
     const tab = (id, ic, nm, on, soon, mode) => h('button', { class: 'tab', role: 'tab', 'data-testid': 'tab-' + id, 'aria-selected': on ? 'true' : 'false', 'aria-disabled': soon ? 'true' : null, tabindex: soon ? '0' : null, onclick: mode ? () => app.setMode(mode) : null },
       h('span', { html: icon(ic) }), h('span', { text: t(nm) }), soon ? h('span', { class: 'soon', text: t('ui.soon') }) : null);
-    const cam = app.mode === 'cam';
-    $('#tabs').replaceChildren(tab('design', 'workspace-design', 'ui.tab_design', !cam, false, 'design'), tab('manufacture', 'workspace-manufacture', 'ui.tab_manufacture', cam, false, 'cam'), tab('drawing', 'workspace-drawing', 'ui.tab_drawing', false, true),
+    const cam = app.mode === 'cam', drw = app.mode === 'drawing'; // WP-17: teknik resim sekmesi etkin
+    $('#tabs').replaceChildren(tab('design', 'workspace-design', 'ui.tab_design', !cam && !drw, false, 'design'), tab('manufacture', 'workspace-manufacture', 'ui.tab_manufacture', cam, false, 'cam'), tab('drawing', 'workspace-drawing', 'ui.tab_drawing', drw, false, 'drawing'),
       h('div', { class: 'right' }, h('span', { class: 'badge', 'data-testid': 'offline' }, h('span', { html: icon('lock', 'sm') }), h('span', { text: t('ui.offline') }))));
   };
 
@@ -281,6 +281,7 @@ export function initChrome(app) {
     const bar = $('#toolbar'); const sk = app.sketcher; bar.classList.toggle('sk', !!app.sketchSession);
     if (app.mode === 'cam') { C.ddOpen = null; C.renderDD(); bar.classList.remove('sk'); bar.classList.add('cam'); bar.replaceChildren(...app.cam.ribbon({ group, toolBtn })); bar.querySelector('.rgroup.end').dataset.pin = '1'; C.fitRibbon(); return; }
     bar.classList.remove('cam');
+    if (app.mode === 'drawing') { C.ddOpen = null; C.renderDD(); bar.classList.remove('sk'); bar.replaceChildren(...app.drawing.ribbon({ group, toolBtn })); bar.querySelector('.rgroup.end').dataset.pin = '1'; C.fitRibbon(); return; } // WP-17
     if (app.sketchSession) {
       const cur = sk?.tool;
       const tools = (list) => list.map((x) => toolBtn(cid(x[0]), { on: cur === x[0] }));
@@ -387,6 +388,7 @@ export function initChrome(app) {
   C.renderBrowser = () => {
     const br = $('#browser'); const doc = app.doc, res = app.result;
     if (app.mode === 'cam') { app.cam.renderBrowser(br); return; }
+    if (app.mode === 'drawing') { app.drawing.renderBrowser(br); return; } // WP-17
     const sec = (title, action) => h('div', { class: 'bsec' }, h('span', { text: title }), action || null);
     const note = (txt) => h('div', { class: 'trow empty', text: txt });
     const params = (doc.params || []).map((p) => {
@@ -784,6 +786,7 @@ export function initChrome(app) {
     const tl = $('#timeline'); const doc = app.doc;
     tl.classList.toggle('sim', app.mode === 'cam');
     if (app.mode === 'cam') { app.cam.renderBottom(tl); return; }
+    if (app.mode === 'drawing') { app.drawing.renderBottom(tl); return; } // WP-17
     const rb = doc.rollback; const H = C.hist();
     const kids = [h('div', { class: 'tl-label' }, h('span', { html: icon('clock', 'sm') }), h('span', { text: t('tl.label') }))];
     let first = true;
@@ -911,6 +914,7 @@ export function initChrome(app) {
   };
   C.reg = reg;
   app.cam.registerCommands(C);
+  app.drawing.registerCommands(C); // WP-17
   C.relang = () => { C.renderViewBtns(); C.renderAll(); app.cam.relang(); };
   void LANGS; void LANG_KEY; void modal;
   return C;

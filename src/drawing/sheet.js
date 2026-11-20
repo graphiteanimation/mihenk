@@ -21,6 +21,7 @@ export const LAYERS = {
   frm: { w: 0.7, dash: null, lt: 'CONTINUOUS', col: 7 },
   tb: { w: 0.35, dash: null, lt: 'CONTINUOUS', col: 7 },
   thin: { w: 0.18, dash: null, lt: 'CONTINUOUS', col: 7 },
+  sel: { w: 0.35, dash: [1, 1], lt: 'CONTINUOUS', col: 5, color: [0.1, 0.45, 0.95] }, // yalniz arayuz secim isareti
 };
 export function sheetSize(sh) { const s = SHEETS[sh?.size] || SHEETS.A3; return sh?.orient === 'port' ? [s[1], s[0]] : [s[0], s[1]]; }
 export const FRAME = { l: 20, r: 10, t: 10, b: 10 };

@@ -21,6 +21,7 @@ import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
 import { defaults, newId, autoName, featLabel, dependents, tn, planMove, fixGroups, groupRanges, groupOf, moveUnit, groupUnit } from './features.js';
 import { initChrome } from './chrome.js';
 import { initCam } from './cam/index.js';
+import { initDrawing } from './drawing/index.js'; // WP-17
 import { onPrefsChange, getStr, setStr } from './prefs.js';
 import { showSettings, renderWelcome } from './screens.js';
 import { FeaturePanel, SketchPanel, SectionPanel, paramsModal, showBox, hideBox, measureRows, showProps } from './panels.js';
@@ -60,7 +61,7 @@ class App {
   // ------------------------------------------------------------ başlatma
   async init() {
     document.documentElement.lang = getLang(); applyI18n();
-    this.cam = initCam(this);
+    this.cam = initCam(this); this.drawing = initDrawing(this);
     this.C = initChrome(this);
     onLangChange(() => this.relang());
     onPrefsChange(() => this.retheme());
@@ -218,10 +219,12 @@ class App {
   commitMeta(fn) { if (this.tool) this.endTool(true); this.pushUndo(); fn(this.doc); this.markDirty(); this.C.renderAll(); }
   // Çalışma alanı: 'design' | 'cam'. Belge, görünüm ve kamera korunur; şerit, tarayıcı, panel ve alt çubuk değişir.
   setMode(m) {
-    if (m === this.mode || !['design', 'cam'].includes(m)) return;
+    if (m === this.mode || !['design', 'cam', 'drawing'].includes(m)) return;
     if (this.welcome) return;
     if (this.guard()) return; this.endTool(true); if (this.sectionPanel) { this.sectionPanel.close(); }
+    if (this.mode === 'drawing') this.drawing.leave(); // WP-17
     if (m === 'cam') { this.mode = 'cam'; this.setHint(''); this.cam.enter(); }
+    else if (m === 'drawing') { if (this.mode === 'cam') this.cam.leave(); this.mode = 'drawing'; this.setHint(''); this.drawing.enter(); }
     else { this.cam.leave(); this.mode = 'design'; this.idleView(); this.refreshSketches(); }
     this.C.renderAll(); this.refreshLeft(); this.paintSel();
   }
@@ -246,7 +249,7 @@ class App {
     try { upgradeDocProfiles(doc); } catch (e) { console.error('profile upgrade failed', e); }
     if (this.welcome) this.showWelcome(false);
     this.doc = this.normalize(doc); this.undoStack = []; this.redoStack = []; this.fileName = name; this.filePath = path; this.selection = []; this.selFeature = null;
-    this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.marks.changed.clear(); this.histOpen.clear(); this.groupOpen.clear(); this.selAnchor = null; this.selGroup = null; this.sums = null; this.needFit = true; this.markDirty(false); this.cam.onDocLoaded(); this.C.renderAll();
+    this.hiddenBodies.clear(); this.hiddenSketches.clear(); this.marks.changed.clear(); this.histOpen.clear(); this.groupOpen.clear(); this.selAnchor = null; this.selGroup = null; this.sums = null; this.needFit = true; this.markDirty(false); this.cam.onDocLoaded(); this.drawing.onDocLoaded(); this.C.renderAll();
     await this.requestRebuild();
   }
 
@@ -397,7 +400,7 @@ class App {
     if (this.needFit && res.bodies.length) { this.viewport.fit(); this.needFit = false; }
     else if (!had && res.bodies.length && !this.sketchSession) this.viewport.fit();
     if (!this.edit && !this.tool && !this.sketchSession) this.viewport.setSelection(this.selection);
-    this.cam.onResult(); this.C.renderAll();
+    this.cam.onResult(); this.drawing.onResult(); this.C.renderAll();
     if (this.edit && !this.edit.closed) this.edit.afterResult();
     this.paintSel();
     if (!this.sketchSession) {

@@ -1,7 +1,7 @@
 // WP-17: belge icindeki teknik resim sayfalari (doc.drawings): varsayilanlar, standart gorunus yerlesimi, sema denetimi, hesap boru hatti.
 // doc.drawings yoksa (eski belgeler) bos liste sayilir; alan eklenmesi FILE_VERSION'i degistirmez (geriye uyumlu, isteğe bagli alan).
 import { KErr } from '../shared/errors.js';
-import { ORIENT_KEYS, SIDES, kernelSpecs, autoScale, viewBasis } from './views.js';
+import { ORIENT, ORIENT_KEYS, SIDES, STD_SCALES, kernelSpecs, autoScale, viewBasis, mkBasis } from './views.js';
 import { composeSheet, sheetSize, SHEETS, FRAME, TB, TB_FIELDS } from './sheet.js';
 import { DIM_TYPES } from './dims.js';
 
@@ -88,8 +88,17 @@ export function addStdViews(dr, bbox) {
   // ust gorunus (birinci acida asagida): v = y; yan gorunus (birinci acida sagda: soldan gorulen, u = -y)
   const vt = { id: newId('v', used), kind: 'proj', parent: vf.id, side: first ? 'below' : 'above', o: [0, first ? fy - gap - dw - lo[1] * s : fy + fh + gap - lo[1] * s], hidden: true };
   const vs = { id: newId('v', used), kind: 'proj', parent: vf.id, side: 'right', o: [fx + fw + gap + (first ? hi[1] * s : -lo[1] * s), 0], hidden: true };
-  const iso = { id: newId('v', used), kind: 'base', orient: 'iso', o: [x1 - (ex[0] + ex[1]) * 0.7 * s - lo[0] * 0.7 * s, y1 - ex[2] * s * 0.9], hidden: false, scale: s };
-  dr.views.push(vf, vt, vs, iso);
+  dr.views.push(vf, vt, vs);
+  // izometrik: on gorunus sutununun sagi, yan gorunusun bos tarafi (birinci aci: alt, ucuncu aci: ust); sigmazsa kucultulur, cok darsa eklenmez
+  const B = mkBasis(ORIENT.iso.d, ORIENT.iso.x); const cs = []; for (const x of [lo[0], hi[0]]) for (const y of [lo[1], hi[1]]) for (const z of [lo[2], hi[2]]) cs.push([x * B.x[0] + y * B.x[1] + z * B.x[2], x * B.y[0] + y * B.y[1] + z * B.y[2]]);
+  const ib = [Math.min(...cs.map((c) => c[0])), Math.min(...cs.map((c) => c[1])), Math.max(...cs.map((c) => c[0])), Math.max(...cs.map((c) => c[1]))];
+  const rx0 = fx + fw + gap, rx1 = x1; const ry0 = first ? y0 : fy + fh + gap, ry1 = first ? fy - gap : y1;
+  const k = Math.min((rx1 - rx0) / Math.max(ib[2] - ib[0], 1e-6), (ry1 - ry0) / Math.max(ib[3] - ib[1], 1e-6));
+  let si = 0; for (const c of STD_SCALES) if (c <= Math.min(s, k)) si = c;
+  if (si > 0 && rx1 - rx0 > 20 && ry1 - ry0 > 20) {
+    const cx = (rx0 + rx1) / 2, cy = (ry0 + ry1) / 2;
+    dr.views.push({ id: newId('v', used), kind: 'base', orient: 'iso', o: [cx - si * (ib[0] + ib[2]) / 2, cy - si * (ib[1] + ib[3]) / 2], hidden: false, scale: si });
+  }
   return dr;
 }
 // Hesap: cekirdek cagrisi (call: async (cmd, args) => sonuc) + yerlesim. Donus composeSheet sonucu + proj

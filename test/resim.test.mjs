@@ -67,6 +67,8 @@ sec('3. gorunus yonelimi / izdusum yontemi');
   ok(eq(childBasis(F, 'below', 'first').d, [0, 0, 1]) && eq(childBasis(F, 'above', 'third').d, [0, 0, 1]), 'ust gorunus yerlesimi');
   const R = childBasis(F, 'right', 'third'); ok(eq(R.x, [0, 1, 0]) && eq(R.y, [0, 0, 1]), 'sag gorunus ekseni');
   const S = sectionBasis(F, { p: [50, 10], ang: 0 }); ok(eq(S.d, [0, 0, 1]) && eq(S.x, [1, 0, 0]) && eq(S.y, [0, 1, 0]), 'yatay kesme cizgisi: ustten bakis');
+  const S2 = sectionBasis(F, { p: [50, 10], ang: 90 }); ok(eq(S2.d, [-1, 0, 0]) && eq(S2.y, [0, 0, 1]) && eq(S2.x, [0, -1, 0]), 'dusey kesme cizgisi: soldan bakis, dik');
+  const Tp = mkBasis(ORIENT.top.d, ORIENT.top.x); const S3 = sectionBasis(Tp, { p: [0, 30], ang: 0, flip: true }); ok(eq(S3.d, [0, -1, 0]) && eq(S3.y, [0, 0, 1]) && eq(S3.x, [1, 0, 0]), 'ust gorunusten kesit (ok yukari): on gorunus gibi, dik');
 }
 
 // ------------------------------------------------------------------ 4. cekirdek: kup-delikli parca
