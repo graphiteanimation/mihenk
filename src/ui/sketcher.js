@@ -100,7 +100,7 @@ export class Sketcher {
     this.vp.editGroup.add(this.root);
     this.ovl = document.createElement('div'); this.ovl.className = 'sk-ovl'; this.ovl.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
     this.overlayEl.appendChild(this.ovl);
-    this._prevPtr = this.vp.onPointer; this._prevCam = this.vp.onCamera;
+    this._prevPtr = this.vp.onPointer; this._prevCam = this.vp.onCamera; this.vp.leftLock++; // eskizde sol tuş çizime ayrılır (sol tuşla döndürme kapalı)
     this.vp.onPointer = (t, e) => this._pointer(t, e);
     this.vp.onCamera = () => { this._prevCam && this._prevCam(); this._onCamera(); };
     this.active = true; this.tool = 'select'; this._resetDraw();
@@ -126,7 +126,7 @@ export class Sketcher {
     this.active = false;
     for (const g of [this.gMain, this.gPrev]) this._clearGroup(g);
     this.vp.editGroup.remove(this.root); this.ovl.remove();
-    this.vp.onPointer = this._prevPtr || null; this.vp.onCamera = this._prevCam || null;
+    this.vp.onPointer = this._prevPtr || null; this.vp.onCamera = this._prevCam || null; this.vp.leftLock = Math.max(0, this.vp.leftLock - 1);
     this.vp.renderer.domElement.style.cursor = '';
     this.selection = []; this._resetDraw(); this.setHint(''); this.vp.dirty = true; this.onChange();
   }

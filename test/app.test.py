@@ -887,6 +887,88 @@ try:
     page.click('#p-cancel'); idle()
     shot('wp02_summary_error')
 
+    print('WP-04 dilim 3: görünüm küpü, sol tuş, panel açıkken görünüm, C-04')
+    def vdir(): return ev('(() => { const c = app.viewport.camera.position.clone().sub(app.viewport.controls.target).normalize(); return [c.x, c.y, c.z].map((v) => Math.round(v * 1000) / 1000); })()')
+    def cube_center(sel):
+        r = ev("(s) => { const e = document.querySelector('#viewcube ' + s); if (!e || e.style.display === 'none') return null; const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }", sel)
+        return r
+    def cube_click(sel):
+        c = cube_center(sel)
+        if c is None: return False
+        page.mouse.move(c[0], c[1]); page.mouse.click(c[0], c[1]); page.wait_for_timeout(250); return True
+    def close_to(a, b, tol=0.02): return all(abs(x - y) < tol for x, y in zip(a, b))
+    ev('app.viewport.view("iso")'); page.wait_for_timeout(200)
+    vis = ev("[...document.querySelectorAll('#viewcube .cube-face')].filter((g) => g.style.display !== 'none').map((g) => g.dataset.view).sort()")
+    check('C-05: izo görünümde küpte üç yüz görünür (Ön, Sağ, Üst), altısı da var', vis == ['front', 'right', 'top'] and ev("document.querySelectorAll('#viewcube .cube-face').length") == 6 and ev("document.querySelectorAll('#viewcube .cube-edge').length") == 12 and ev("document.querySelectorAll('#viewcube .cube-corner').length") == 8, vis)
+    check('C-05: küp yüzü tıklaması (Üst) üstten bakışa geçirir', cube_click('.cube-face[data-view=top]') and close_to(vdir(), [0, 0, 1]), vdir())
+    check('C-05: küp kenarı (Üst-Arka) tıklaması 45° bakış verir', cube_click('.cube-edge[data-edge=back-top], .cube-edge[data-edge=top-back]') and close_to(vdir(), [0, 0.707, 0.707]), vdir())
+    check('C-05: kenardan sonra küpte Arka yüz görünür ve tıklanır → arkadan bakış', cube_click('.cube-face[data-view=back]') and close_to(vdir(), [0, 1, 0]), vdir())
+    check('C-05: Arka-Alt kenarı → Alt yüz → alttan bakış', cube_click('.cube-edge[data-edge=bottom-back], .cube-edge[data-edge=back-bottom]') and cube_click('.cube-face[data-view=bottom]') and close_to(vdir(), [0, 0, -1]), vdir())
+    check('C-05: Alt-Sol kenarı → Sol yüz → soldan bakış', cube_click('.cube-edge[data-edge=bottom-left], .cube-edge[data-edge=left-bottom]') and cube_click('.cube-face[data-view=left]') and close_to(vdir(), [-1, 0, 0]), vdir())
+    check('C-05: Sol → Sağ yüze ulaşmak için Sol-Ön kenarı → Ön → Sağ-Ön kenarı → Sağ → sağdan bakış', cube_click('.cube-edge[data-edge=front-left], .cube-edge[data-edge=left-front]') and cube_click('.cube-face[data-view=front]') and cube_click('.cube-edge[data-edge=right-front], .cube-edge[data-edge=front-right]') and cube_click('.cube-face[data-view=right]') and close_to(vdir(), [1, 0, 0]), vdir())
+    ev('app.viewport.view("iso")'); page.wait_for_timeout(200)
+    check('C-05: köşe tıklaması (Ön-Sağ-Üst) köşeden bakış verir', cube_click('.cube-corner[data-dir="1,-1,1"]') and close_to(vdir(), [0.577, -0.577, 0.577]), vdir())
+    ev('app.viewport.view("top")'); page.wait_for_timeout(150)
+    check('C-05: üstten bakışta Y yukarı (kamera yukarı vektörü)', ev('(() => { const u = app.viewport.camera.up; return [u.x, u.y, u.z].map((v) => Math.round(v)); })()') == [0, 1, 0])
+    # sol tuşla döndürme: varsayılan kapalı; ayarda açılınca sol sürükleme döndürür, eskizde yine kapalı
+    check('C-05: sol tuşla döndürme varsayılan kapalı', ev('app.viewport.controls.mouseButtons.LEFT') is None and ev('app.viewport.leftRotate') is False)
+    vb = ev("(() => { const b = document.querySelector('#viewport canvas').getBoundingClientRect(); return [b.left + 40, b.top + 60, b.width, b.height]; })()")
+    ev('app.viewport.view("iso")'); page.wait_for_timeout(150); d0 = vdir()
+    page.mouse.move(vb[0], vb[1]); page.mouse.down(); page.mouse.move(vb[0] + 80, vb[1] + 20, steps=5); page.mouse.up(); page.wait_for_timeout(200)
+    check('C-05: varsayılanda sol sürükleme görünümü döndürmez', close_to(vdir(), d0, 1e-3), (d0, vdir()))
+    page.click('#menubar button[data-menu="file"]') if False else None
+    app_settings = ev("(() => { app.showSettings(); return true; })()"); page.wait_for_timeout(300)
+    page.locator('[data-testid=set-leftrotate]').evaluate('(e) => e.click()'); page.wait_for_timeout(150)
+    check('C-05: ayarda "sol tuşla döndür" açılınca sol tuş döndürme olur', ev('app.viewport.controls.mouseButtons.LEFT') == 0 and ev("localStorage.getItem('mihenk.leftRotate')") == 'on', ev('app.viewport.controls.mouseButtons.LEFT'))
+    def accept_modal():
+        page.wait_for_timeout(200)
+        if ev("!!document.querySelector('#modal:not(.hidden)')"): page.click('#modal button[data-v="true"]'); page.wait_for_timeout(250)
+    accept_modal()
+    ev('app.viewport.view("iso")'); page.wait_for_timeout(150); d0 = vdir()
+    page.mouse.move(vb[0], vb[1]); page.mouse.down(); page.mouse.move(vb[0] + 80, vb[1] + 20, steps=5); page.mouse.up(); page.wait_for_timeout(200)
+    check('C-05: açıkken sol sürükleme görünümü döndürür', not close_to(vdir(), d0, 1e-3), (d0, vdir()))
+    ev("app.viewport.setLeftRotate(false); localStorage.setItem('mihenk.leftRotate', 'off')")
+    # C-06: komut paneli açıkken Ön/İzo düğmeleri görünümü değiştirir
+    menu('Dosya', 'Yeni'); accept_modal(); idle()
+    tb('box'); page.wait_for_timeout(400)
+    check('C-06 önkoşul: kutu paneli açık', ev('!!app.edit'))
+    ev('app.viewport.view("top")'); page.wait_for_timeout(150)
+    page.click('#viewbtns [data-view=front]'); page.wait_for_timeout(250); a = vdir()
+    page.click('#viewbtns [data-view=iso]'); page.wait_for_timeout(250); b = vdir()
+    check('C-06: panel açıkken Ön düğmesi önden, İzo düğmesi izometrik bakış verir', close_to(a, [0, -1, 0]) and b[0] > 0.3 and b[1] < -0.3 and b[2] > 0.3, (a, b))
+    ok(); idle()
+    # C-04: Yuvarlat panelinde seçim × ile temizlenince alan etkin kalır, kenar tıklaması işler
+    tb('fillet'); page.wait_for_timeout(400)
+    ev("app.edit.setActive(null)"); ev("app.edit.setSelList('edges', [{ kind: 'edge', body: app.result.bodies[0].id, idx: 0 }]); app.edit.refreshSels()")
+    page.click('#panel [data-k=edges] .clear'); page.wait_for_timeout(200)
+    check('C-04: × seçimi temizler ve seçim alanı etkin kalır (pasif kalmaz)', ev("app.edit.activeSel") == 'edges' and ev("document.querySelector('#panel .selbox[data-k=edges]').classList.contains('active')") and ev("app.edit.getSel('edges').length") == 0, ev('app.edit.activeSel'))
+    ev("app.viewport.view('iso')"); page.wait_for_timeout(200)
+    bb = ev('app.result.bodies[0].bbox'); x, y = px([(bb[0][0] + bb[1][0]) / 2, bb[0][1], bb[1][2]]); page.mouse.move(x, y); page.wait_for_timeout(200); page.mouse.click(x, y); page.wait_for_timeout(500)
+    check('C-04: × sonrası kenar tıklaması seçime eklenir', ev("app.edit.getSel('edges').length") == 1, ev("app.edit.getSel('edges').length"))
+    page.click('#p-cancel'); idle()
+    # C-03: Kes Extrude önizlemesi Kapsam=Mesafe ile Tümü aynı hacmi verir (P1'deki fark yeniden üretilemedi; bu denetim korur)
+    def sk_json(sid, ents_fn):
+        pts = {'O': {'x': 0, 'y': 0, 'fixed': True}}; ents = []
+        def P_(x, y):
+            for k, p in pts.items():
+                if k != 'O' and abs(p['x'] - x) < 1e-9 and abs(p['y'] - y) < 1e-9: return k
+            k = f'p{len(pts)}'; pts[k] = {'x': x, 'y': y}; return k
+        def line(a, b): ents.append({'id': f'e{len(ents) + 1}', 'type': 'line', 'a': P_(*a), 'b': P_(*b)})
+        def rect(x0, y0, x1, y1): line((x0, y0), (x1, y0)); line((x1, y0), (x1, y1)); line((x1, y1), (x0, y1)); line((x0, y1), (x0, y0))
+        def circle(cx, cy, r): ents.append({'id': f'e{len(ents) + 1}', 'type': 'circle', 'c': P_(cx, cy), 'r': r})
+        ents_fn(rect, circle)
+        return {'id': sid, 'type': 'sketch', 'name': sid, 'plane': {'kind': 'base', 'name': 'XZ', 'offset': '0'}, 'points': pts, 'ents': ents, 'cons': []}
+    doc03 = {'params': [], 'rollback': None, 'features': [sk_json('s1', lambda rect, circle: rect(-21, 0, 21, 32.8)), {'id': 'e1', 'type': 'extrude', 'name': 'e1', 'sketch': 's1', 'profiles': 'all', 'dist': '14', 'extent': 'dist', 'dir': 'one', 'op': 'new'},
+        sk_json('s2', lambda rect, circle: (circle(0, 16, 4), rect(-1, 16, 1, 32.8)))]}
+    ev('(d) => app.loadDoc(d, { name: "c03" })', doc03); accept_modal(); page.wait_for_timeout(1500); idle()
+    tb('extrude'); page.wait_for_timeout(600); page.select_option('#panel select[data-k=op]', 'cut'); page.wait_for_timeout(300)
+    def pvol():
+        ev('app.flushPreview()'); page.wait_for_timeout(700); idle(); return [round(b['volume'] / 1000, 4) for b in ev('app.result.bodies')]
+    page.fill('#panel [data-k=dist]', '18'); page.keyboard.press('Tab'); v18 = pvol()
+    page.select_option('#panel select[data-k=extent]', 'all'); vall = pvol()
+    check('C-03: Kes Extrude önizleme Mesafe 18 ile Tümü aynı hacmi verir (dairenin yanında yarık da kesilir)', len(v18) == 1 and v18 == vall and v18[0] < 18.3, (v18, vall))
+    page.click('#p-cancel'); idle()
+
     check('CSP: dil değiştirme dahil son aşamada da ihlal yok', ev('window.__csp.length') == 0, str(ev('window.__csp')[:3]))
     print('\nkonsol hataları:', [e for e in errs if 'GL Driver' not in e][:5])
     check('konsolda sayfa hatası yok', not [e for e in errs if e.startswith('pageerror')], str([e for e in errs if e.startswith('pageerror')][:3]))

@@ -196,7 +196,8 @@ export class FeaturePanel {
     const f = this.fields().find((x) => x.k === k);
     if (k === 'source.bodies') this.draft.source.bodies = list; else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
   }
-  clearSel(k) { this.setSelList(k, []); this.refreshSels(); this.updateViewport(); this.changed(); }
+  // C-04: × seçimi temizler ve alanı etkinleştirir (× tıklaması kutunun kendi tıklamasını durdurduğu için alan pasif kalıp kenar tıklamaları boşa gidiyordu)
+  clearSel(k) { this.setSelList(k, []); this.setActive(k, true); this.refreshSels(); this.updateViewport(); this.changed(); }
   setActive(k, silent) {
     if (this.activeSel === k) return;
     const was = this.pickBase();

@@ -64,7 +64,7 @@ class App {
     try { this.viewport = new Viewport($('#viewport')); }
     catch (e) { this.loadFail(t('ld.webgl', { detail: e.message }), 420); this._readyRej(e); return; }
     this.viewport.onPick = (hit, ev) => this.onPick(hit, ev);
-    this.viewport.onCamera = () => {};
+    this.viewport.onCamera = () => {}; this.viewport.setLeftRotate(getStr('leftRotate') === 'on');
     this.C.renderViewBtns(); this.C.renderAll();
     this.bindKeys();
     this.showWelcome(getStr('welcome') !== 'off');

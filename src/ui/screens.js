@@ -24,7 +24,11 @@ export function showSettings(app, tab = 'general') {
     const dens = seg('set-density', [['normal', t('set.density_normal')], ['large', t('set.density_large')]], prefs.density, (v) => setPref('density', v));
     const wel = h('input', { type: 'checkbox', 'data-testid': 'set-welcome', checked: getStr('welcome') !== 'off' });
     wel.addEventListener('change', () => setStr('welcome', wel.checked ? 'on' : 'off'));
+    // C-05: sol tuşla döndürme (varsayılan kapalı; tercih ayar dosyası/localStorage'da 'leftRotate' = on|off)
+    const lr = h('input', { type: 'checkbox', 'data-testid': 'set-leftrotate', checked: getStr('leftRotate') === 'on' });
+    lr.addEventListener('change', () => { setStr('leftRotate', lr.checked ? 'on' : 'off'); app.viewport?.setLeftRotate(lr.checked); });
     return [h('div', { class: 'sec', text: t('set.sec_look') }), field(t('set.language'), lang), field(t('set.theme'), theme), field(t('set.density'), dens, t('set.density_help')),
+      field(t('set.left_rotate'), h('label', { class: 'check' }, lr, h('span', { text: t('set.left_rotate_on') })), t('set.left_rotate_help')),
       h('div', { class: 'sec', text: t('set.sec_start') }), field(t('set.show_welcome'), h('label', { class: 'check' }, wel, h('span', { text: t('set.show_welcome_on') }))),
       ];
   };
@@ -35,7 +39,7 @@ export function showSettings(app, tab = 'general') {
     pane.replaceChildren(...(cur === 'about' ? about() : general()));
   };
   draw();
-  return modal({ title: t('set.title'), content: h('div', { class: 'settings', 'data-testid': 'settings' }, nav, pane), buttons: [{ label: t('set.reset'), cls: 'ghost', testid: 'set-reset', onClick: () => { resetPrefs(); app.setLanguage('tr'); draw(); } }, { label: t('common.close'), cls: 'pri primary', value: true }], note: t('set.applied'), width: 720, icon: 'settings' });
+  return modal({ title: t('set.title'), content: h('div', { class: 'settings', 'data-testid': 'settings' }, nav, pane), buttons: [{ label: t('set.reset'), cls: 'ghost', testid: 'set-reset', onClick: () => { resetPrefs(); setStr('leftRotate', 'off'); app.viewport?.setLeftRotate(false); app.setLanguage('tr'); draw(); } }, { label: t('common.close'), cls: 'pri primary', value: true }], note: t('set.applied'), width: 720, icon: 'settings' });
 }
 
 export function renderWelcome(app) {
