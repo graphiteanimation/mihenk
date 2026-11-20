@@ -45,7 +45,7 @@ try:
     ctx, pg = newpage()
     load(pg, BLOCK)
     check('İmalat sekmesi etkin (devre dışı değil)', pg.evaluate("document.querySelector('[data-testid=tab-manufacture]').getAttribute('aria-disabled')") is None)
-    check('Çizim sekmesi hâlâ "yakında"', pg.evaluate("document.querySelector('[data-testid=tab-drawing]').getAttribute('aria-disabled')") == 'true')
+    check('Teknik resim sekmesi etkin (WP-17)', pg.evaluate("document.querySelector('[data-testid=tab-drawing]').getAttribute('aria-disabled')") is None)
     nb = pg.evaluate('app.result.bodies.length'); cam0 = pg.evaluate('JSON.stringify(app.viewport.camera.position.toArray())')
     ribbon_design = pg.evaluate("[...document.querySelectorAll('#toolbar [data-cmd]')].map(e => e.dataset.cmd).join(',')")
     pg.click('[data-testid=tab-manufacture]')

@@ -13,6 +13,7 @@ import { ORIENT, childBasis, mkBasis, sectionBasis, kernelSpecs, viewBasis } fro
 import { mkRef, evalDim, dimText, tolDev } from '../src/drawing/dims.js';
 import { newDrawing, addStdViews, computeDrawing, validateDrawings } from '../src/drawing/model.js';
 import { toPdf } from '../src/drawing/pdf.js';
+import { composeSheet } from '../src/drawing/sheet.js';
 import { toDxf } from '../src/drawing/dxfout.js';
 import { toSvg } from '../src/drawing/svg.js';
 import { faiRows, faiCsv, faiPages } from '../src/drawing/fai.js';
@@ -133,6 +134,21 @@ ok(Math.abs(D('d4').value - 40) < 1e-9 && D('d4').how.includes('sig'), 'siluete 
 ok(C.holeRows.length === 1 && C.holeRows[0].tag === 'A1' && Math.abs(C.holeRows[0].x - 50) < 1e-9 && Math.abs(C.holeRows[0].y - 30) < 1e-9 && /Ø20/.test(C.holeRows[0].desc), 'delik tablosu: ' + JSON.stringify(C.holeRows));
 const secV = C.views.vs; ok(secV.loops.length === 2 && C.list.filter((x) => x.ly === 'hat').length > 3, 'kesit taramasi cizildi');
 ok(C.views.vd.prims.length > 0 && C.views.vd.prims.every((p) => (p.t === 'l' ? [p.a, p.b] : p.t === 'p' ? p.pts : []).every((q) => Math.hypot(q[0] - 100, q[1] - 20) <= 8 + 1e-6)), 'ayrinti gorunusu daireye kirpildi');
+// aci, koordinat olcusu, eksen cizgisi
+{
+  const bottom = fp.find((p) => p.vis && p.t === 'l' && Math.abs(p.a[1]) < 1e-6 && Math.abs(p.b[1]) < 1e-6);
+  const silh2 = fp.find((p) => !p.vis && Math.abs(p.a[0] - 60) < 1e-6);
+  const tmp = JSON.parse(JSON.stringify(dr)); tmp.fai = false;
+  tmp.dims = [{ id: 'a1', type: 'ang', view: vF.id, refs: [mkRef(left), mkRef(bottom)], off: 12 }, { id: 'o1', type: 'ord', view: vF.id, axis: 'x', refs: [mkRef(left, 'a', [0, 0]), mkRef(silh2, 'a', [60, 0])], off: 8 }];
+  tmp.clines = [{ id: 'c1', view: vF.id, refs: [mkRef(silh), mkRef(silh2)] }];
+  const Ca = await computeDrawing(tmp, call, T, out.holes);
+  const A1 = Ca.dims.find((d) => d.id === 'a1'), O1 = Ca.dims.find((d) => d.id === 'o1');
+  ok(!A1.lost && Math.abs(A1.value - 90) < 1e-9 && A1.text.main === '90\u00b0', 'aci olcusu 90 derece: ' + A1.value);
+  ok(!O1.lost && Math.abs(O1.value - 60) < 1e-9, 'koordinat olcusu 60: ' + O1.value);
+  const pl = Ca.views[vF.id].pl; const xc = pl.o[0] + pl.s * 50;
+  ok(Ca.list.some((x) => x.k === 'l' && x.ly === 'ctr' && Math.abs(x.a[0] - xc) < 1e-6 && Math.abs(x.b[0] - xc) < 1e-6), 'eksen cizgisi iki siluetin ortasinda (x=50)');
+  ok(Ca.list.filter((x) => x.ly === 'ctr').length >= 3, 'ust gorunuste delik merkez isareti');
+}
 // model degisimi: L 100 -> 120 (delik sabit)
 out = await K.rebuild(partDoc(120));
 const C2 = await computeDrawing(dr, call, T, out.holes);
@@ -209,6 +225,7 @@ sec('8. belge semasi ve eski belge');
   let e = null; try { validateDoc(JSON.parse(JSON.stringify(doc))); } catch (x) { e = x; } ok(!e, 'resimli belge gecerli: ' + (e && e.code + ' ' + JSON.stringify(e.params)));
   e = null; try { validateDoc(partDoc()); } catch (x) { e = x; } ok(!e, 'eski belge (drawings yok) gecerli');
   for (const f of fs.readdirSync(path.join(here, '../ornekler')).filter((x) => x.endsWith('.mhnk'))) { const j = JSON.parse(fs.readFileSync(path.join(here, '../ornekler', f), 'utf8')); let er = null; try { validateDoc(j.doc || j); } catch (x) { er = x; } ok(!er, 'ornek belge acilir: ' + f); }
+  for (const [sz, w, hh] of [['A4', 297, 210], ['A3', 420, 297], ['A2', 594, 420], ['A1', 841, 594], ['A0', 1189, 841]]) { const x = JSON.parse(JSON.stringify(dr)); x.sheet.size = sz; const Cx = composeSheet(x, {}, T); ok(Cx.W === w && Cx.H === hh && validateDrawings([x]), 'sayfa ' + sz); }
   const bad = JSON.parse(JSON.stringify(dr)); bad.views[0].kind = 'zz'; e = null; try { validateDrawings([bad]); } catch (x) { e = x; } ok(e && e.code === 'schema.bad_field', 'gecersiz gorunus turu reddedilir');
   const bad2 = JSON.parse(JSON.stringify(dr)); bad2.views[1].parent = 'yok'; e = null; try { validateDrawings([bad2]); } catch (x) { e = x; } ok(e && e.code === 'schema.bad_field', 'olmayan ana gorunus reddedilir');
   const bad3 = JSON.parse(JSON.stringify(dr)); bad3.sheet.tb.evil = 'x'; e = null; try { validateDrawings([bad3]); } catch (x) { e = x; } ok(!!e, 'bilinmeyen antet alani reddedilir');
