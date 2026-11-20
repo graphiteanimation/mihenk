@@ -276,6 +276,8 @@ export default {
   "cam.field.tabs.n": "Köprü sayısı",
   "cam.field.tabs.width": "Köprü genişliği",
   "cam.field.tabs.height": "Köprü yüksekliği",
+  "cam.field.shaftDia": "Şaft çapı",
+  "cam.field.tipDia": "Uç düz çapı",
   "cam.tl.max_ramp": "En büyük rampa açısı",
   "cam.tl.max_ramp_hint": "Merkezden kesmeyen takımın malzemeye rampa/helisle inebileceği en büyük açı (üretici verisi). Boş bırakılırsa bu takımla rampa ve helis girişi engellenir; değer uydurulmaz.",
   "cam.post.prop_missing_intro": "Tezgâh profilinde {n} post özelliği boş; NC üretilmez. Satıra tıklayınca tezgâh yöneticisi açılır; şablonu kopyalayıp makine belgesinden doldurun.",

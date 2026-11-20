@@ -276,6 +276,8 @@ export default {
   "cam.field.tabs.n": "Tab count",
   "cam.field.tabs.width": "Tab width",
   "cam.field.tabs.height": "Tab height",
+  "cam.field.shaftDia": "Shank diameter",
+  "cam.field.tipDia": "Tip flat diameter",
   "cam.tl.max_ramp": "Maximum ramp angle",
   "cam.tl.max_ramp_hint": "Largest angle at which a non-center-cutting tool may ramp or helix into material (manufacturer data). If left empty, ramp and helical entry are blocked for this tool; no value is assumed.",
   "cam.post.prop_missing_intro": "{n} post properties are empty in the machine profile; no NC is generated. Click a row to open the machine manager; copy the template and fill the values from the machine documentation.",

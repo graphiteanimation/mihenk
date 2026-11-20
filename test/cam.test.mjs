@@ -761,6 +761,7 @@ section('11. WP-06 T-10 stockToLeave iki bicim; T-11 tipDia / shaftDia');
     const mkp = (t) => CAM.buildProgram({ name: 'O1', machine: M, sections: [{ setup: S0, toolpaths: [CAM.computeOp({ id: 'f', type: 'face', ...base, stepover: 7, heights: { clearance: 10, retract: 2, top: { from: 'abs', off: 0 }, bottom: { from: 'abs', off: -1 } } }, { setup: S0, tool: t })] }] });
     const ga = (t, sim) => CAM.gates(mkp(t), M, sim ? { sim } : {}).filter((g) => g.code === 'cam.gate.tool_geom_assumed');
     ok(ga(tool).length === 1 && ga(tool)[0].level === 'warn' && ga(tool)[0].params.field === 'shaftDia', 'T-11 kapi: sap capi yoksa tool_geom_assumed uyarisi (block degil)');
+    { const { describeIssue } = await import('../src/cam/post/describe.js'); const dt = describeIssue(ga(tool)[0]); ok(!/shaftDia/.test(dt) && /Shank diameter/.test(dt), 'T-11: NC basligi uyarisi ham alan adi (shaftDia) yazmaz, okunur ad kullanir'); }
     ok(ga({ ...tool, shaftDia: 10 }).length === 0, 'T-11 kapi: shaftDia varsa uyari yok'); ok(ga(tool, { res: 1, tools: { 5: { shaftDia: 10 } } }).length === 0, 'T-11 kapi: sim.tools ile gelen shaftDia da sayilir');
   }
 }

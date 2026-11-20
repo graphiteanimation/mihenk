@@ -197,5 +197,18 @@ const { evalExpr } = await import(pathToFileURL(path.join(ROOT, 'src/shared/expr
 try { evalExpr('2+*', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'expr.syntax' && typeof e.params === 'object', 'evalExpr hatası KErr: ' + e.code); }
 try { evalExpr('abc', {}); ok(false, 'hata beklenirdi'); } catch (e) { ok(e.code === 'expr.unknown_param' && e.params.name === 'abc', 'unknown_param'); }
 
+// ------------------------------------------------------------------ CAM kapıları: uyarı/hata metinlerindeki alan adları okunur ad taşır
+section('CAM kapı alanları');
+{
+  const src = fs.readFileSync(path.join(ROOT, 'src/cam/gates.js'), 'utf8');
+  const fields = new Set([...src.matchAll(/field: '([^']+)'/g)].map((m) => m[1]).filter((f) => !f.endsWith('.')));
+  for (const f of ['machine.axes.X.travel', 'machine.spindle.maxRpm', 'machine.feed.maxCut']) fields.add(f);
+  ok(fields.has('shaftDia') && fields.has('tipDia'), 'kapı kaynağında shaftDia/tipDia alanları bulundu');
+  for (const f of fields) { ok(!!tr['cam.field.' + f], 'cam.field.' + f + ' TR'); ok(!!en['cam.field.' + f], 'cam.field.' + f + ' EN'); }
+  const w = { code: 'cam.gate.tool_geom_assumed', params: { tool: 1, field: 'shaftDia' } };
+  i18n.setLang('tr', false); ok(i18n.errText(w).startsWith('T1: Şaft çapı girilmemiş'), 'uyarı metni ham alan adı yazmaz (tr)');
+  i18n.setLang('en', false); ok(i18n.errText(w).startsWith('T1: Shank diameter is not entered'), 'uyarı metni ham alan adı yazmaz (en)'); i18n.setLang('tr', false);
+}
+
 console.log(`\n${pass} geçti, ${fail} kaldı`);
 process.exit(fail ? 1 : 0);
