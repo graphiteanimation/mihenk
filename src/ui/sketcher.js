@@ -8,6 +8,7 @@ import { snapAt, SNAP_LABEL } from './sketch/snap.js';
 import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
+import { selOn, selClass, autoOn } from './sketch/opts.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
@@ -36,6 +37,7 @@ const HINT_KEY = {
   patrect: tk('hint.patrect'), patcirc: tk('hint.patcirc'), move: tk('hint.move'), copy: tk('hint.copy'), rotate: tk('hint.rotate'), scale: tk('hint.scale'), project: tk('hint.project'),
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
+const getEntS = (sk, id) => sk.ents.find((e) => e.id === id);
 const fmt = (v) => fmtNum(Number(v), 3);
 const norm = (a) => { a %= TAU; return a < 0 ? a + TAU : a; };
 const normId = (id) => String(id).replace(/_(b|c|rules)$/, '');
@@ -139,7 +141,7 @@ export class Sketcher {
     this._closeInput(); this._closeDialog(); this._resetDraw();
     const keepSel = DIM_TOOLS.includes(name) || EDIT_TOOLS.includes(name);
     const prevSel = this.selection.slice();
-    this.tool = name;
+    this.tool = name; if (name !== 'select') this._lastTool = name; // Enter/Boşluk son komutu yineler
     this.vp.renderer.domElement.style.cursor = name === 'select' ? 'default' : 'crosshair';
     this.setHint(HINT_KEY[name]);
     if (DIM_TOOLS.includes(name) && this.selection.length) this._dimEval(); else if (name !== 'select' && this.selection.length && !keepSel) this.selection = [];
@@ -261,6 +263,7 @@ export class Sketcher {
   }
   _alignEnd(st, s) {
     if (s.pid || s.ent) return s;
+    if (s.exact) { const ex = s.x - st.x, ey = s.y - st.y; return autoOn('hv') && Math.hypot(ex, ey) > 1e-9 ? (Math.abs(ey) < 1e-9 ? { ...s, align: 'h' } : Math.abs(ex) < 1e-9 ? { ...s, align: 'v' } : s) : s; } // yazılan koordinat: kaydırma yok, tam yatay/dikey ise kısıt
     const dx = s.x - st.x, dy = s.y - st.y; if (Math.hypot(dx, dy) < 1e-9) return s;
     const ang = Math.atan2(Math.abs(dy), Math.abs(dx)) / DEG;
     if (ang < ANG_TOL) return { ...s, y: st.y, align: 'h' };
@@ -270,10 +273,10 @@ export class Sketcher {
 
   // ---------- yakalama / seçme ----------
   _hit(loc) {
-    const tol = SNAP_PX * this.vp.worldPerPixel(); let best = null;
-    for (const [id, p] of Object.entries(this.sk.points)) { const d = Math.hypot(p.x - loc[0], p.y - loc[1]); if (d <= tol && (!best || d < best.d)) best = { kind: 'point', id, d }; }
+    const tol = SNAP_PX * this.vp.worldPerPixel(); let best = null; const flt = this.tool === 'select'; // seçim filtresi yalnız Seç aracında
+    if (!flt || selOn('point')) for (const [id, p] of Object.entries(this.sk.points)) { const d = Math.hypot(p.x - loc[0], p.y - loc[1]); if (d <= tol && (!best || d < best.d)) best = { kind: 'point', id, d }; }
     if (best) return best;
-    for (const e of this.sk.ents) { if (e.type === 'point') continue; const r = entDist(this.sk, e, loc); if (r && r.d <= tol && (!best || r.d < best.d)) best = { kind: 'ent', id: e.id, d: r.d, x: r.x, y: r.y }; }
+    for (const e of this.sk.ents) { if (e.type === 'point') continue; if (flt && !selOn(selClass('ent', e))) continue; const r = entDist(this.sk, e, loc); if (r && r.d <= tol && (!best || r.d < best.d)) best = { kind: 'ent', id: e.id, d: r.d, x: r.x, y: r.y }; }
     return best;
   }
   _snapAt(loc, ev, from) { return snapAt(this, loc, ev, from || this._snapFrom()); }
@@ -320,14 +323,19 @@ export class Sketcher {
     if (DIM_TOOLS.includes(t)) return this._dimDown(loc, ev);
     if (EDIT_TOOLS.includes(t)) return this._editDown(loc, ev);
     const s = this._snapAt(loc, ev);
-    if (t === 'line') this._lineClick(s);
-    else if (t === 'rect') this._rectClick(s);
-    else if (t === 'circle') this._circleClick(s);
-    else if (t === 'arc') this._arcClick(s);
-    else if (t === 'point') this._pointClick(s);
-    else if (t === 'spline') this._splineClick(s);
-    else if (DEFS[t]) this._dsClick(s);
+    this._clickWith(s);
     this._renderPreview();
+  }
+  // Çizim aracına hazır bir yakalama sonucunu "tıklama" olarak verir (fare ve koordinat girişi ortak kullanır)
+  _clickWith(s) {
+    const t = this.tool;
+    if (t === 'line') return this._lineClick(s);
+    if (t === 'rect') return this._rectClick(s);
+    if (t === 'circle') return this._circleClick(s);
+    if (t === 'arc') return this._arcClick(s);
+    if (t === 'point') return this._pointClick(s);
+    if (t === 'spline') return this._splineClick(s);
+    if (DEFS[t]) return this._dsClick(s);
   }
   _move(loc, ev) {
     const t = this.tool;
@@ -417,7 +425,7 @@ export class Sketcher {
     if (!b.active) { if (!b.shift && this.selection.length) this._setSel([]); return; }
     const box = [Math.min(b.a[0], loc[0]), Math.min(b.a[1], loc[1]), Math.max(b.a[0], loc[0]), Math.max(b.a[1], loc[1])];
     const r = boxSelect(this.sk, box, !b.touch);
-    const items = [...r.ents.map((id) => ({ kind: 'ent', id })), ...r.pts.map((id) => ({ kind: 'point', id }))];
+    const items = [...r.ents.filter((id) => selOn(selClass('ent', getEntS(this.sk, id)))).map((id) => ({ kind: 'ent', id })), ...(selOn('point') ? r.pts : []).map((id) => ({ kind: 'point', id }))];
     const merged = b.shift ? [...this.selection, ...items.filter((x) => !this._isSel(x))] : items;
     this._setSel(merged); this._status(() => t('sk.box_selected', { n: items.length, mode: t(b.touch ? 'sk.box_touch' : 'sk.box_contain') }));
   }
@@ -817,12 +825,14 @@ export class Sketcher {
       else return false;
       return done();
     }
-    if (k === 'Enter') { if (this._sp) { this._finishSpline(); return done(); } if (this._mir && this._mir.phase === 1) { this._mirNext(); return done(); } return false; }
+    if (k === 'Enter') { if (this._sp) { this._finishSpline(); return done(); } if (this._mir && this._mir.phase === 1) { this._mirNext(); return done(); } if (this._repeatLast(t0)) return done(); return false; }
+    if (k === ' ' && this._repeatLast(t0)) return done();
     if (k === 'Delete' || k === 'Backspace') { this.deleteSelection(); return done(); }
     // sayısal giriş: çizerken uzunluk/açı yazılır
     if (/^[0-9.,]$/.test(k) && this._numericStart(k)) return done();
     // C-07: harf kısayolları düzen bağımsız: Latin olmayan düzende (ör. 'з') fiziksel tuş koduna (KeyP) düşülür
     let lk = k.toLowerCase(); if (!/^[a-z]$/.test(lk) && /^Key[A-Z]$/.test(ev.code || '')) lk = ev.code.slice(3).toLowerCase();
+    if (lk === 'n' && this._coordStart()) return done(); // N: koordinat girişi (mutlak X,Y ya da bağıl ΔX,ΔY)
     if (this._ln && this.tool === 'line' && (lk === 'a' || lk === 'l')) { this.chainMode(lk === 'a' ? 'arc' : 'line'); return done(); }
     const map = { l: 'line', r: 'rect', c: 'circle', a: 'arc', d: 'dim', p: 'point', t: 'trim', x: 'extend', k: 'break', o: 'offset', q: 'fillet', w: 'chamfer', m: 'mirror', g: 'polygon', u: 'slot', y: 'ellipse', b: 'spline', j: 'project' };
     const shiftMap = { r: 'rectc', c: 'circle3', a: 'arc3' };

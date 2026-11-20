@@ -4,7 +4,11 @@ import { COL } from '../viewport.js';
 import { h } from '../dom.js';
 import { t } from '../../shared/i18n.js';
 import { SNAP_LABEL } from './snap.js';
-import { SKO, SNAP_KINDS, GRID_STEPS, snapOn, setSnapKind, setGridStep, onSkOptsChange } from './opts.js';
+import { DEFS } from './tools.js';
+import { findPointAt } from './core.js';
+import { evalExpr } from '../../shared/expr.js';
+import { fmtNum, errText } from '../../shared/i18n.js';
+import { SKO, SNAP_KINDS, GRID_STEPS, SEL_KINDS, snapOn, setSnapKind, setGridStep, selOn, setSelKind, onSkOptsChange } from './opts.js';
 
 // Ayar bölümleri: sonraki dilimler buraya ekler
 function sections(S) {
@@ -13,9 +17,14 @@ function sections(S) {
     { id: 'snap', title: 'cf.snap_title', items: SNAP_KINDS.map((k) => chk('snap-' + k, SNAP_LABEL[k], () => snapOn(k), (v) => setSnapKind(k, v))) },
     { id: 'grid', title: 'cf.grid_title', select: { id: 'grid-step', label: 'cf.grid_step', values: GRID_STEPS, get: () => SKO.grid, set: (v) => setGridStep(v) } },
   ];
+  out.push({ id: 'sel', title: 'cf.sel_title', items: SEL_KINDS.map((k) => chk('sel-' + k, SEL_LABEL[k], () => selOn(k), (v) => setSelKind(k, v))) });
   for (const f of S._cfSections || []) out.push(f(S));
   return out;
 }
+
+const SEL_LABEL = { point: 'cf.sel_point', line: 'cf.sel_line', circle: 'cf.sel_circle', arc: 'cf.sel_arc', other: 'cf.sel_other' };
+const PT_TOOLS = ['line', 'rect', 'circle', 'arc', 'point', 'spline'];
+const fmt = (v) => fmtNum(Number(v), 4);
 
 export const COMFORT_METHODS = {
   _cfInit() {
@@ -71,5 +80,67 @@ export const COMFORT_METHODS = {
       const ok = r.axis === 'v' ? Math.abs(s.x - r.p[0]) < 1e-9 : Math.abs(s.y - r.p[1]) < 1e-9;
       if (ok && (Math.abs(s.x - r.p[0]) > 1e-9 || Math.abs(s.y - r.p[1]) > 1e-9)) this._line([r.p, [s.x, s.y]], COL.hover, true);
     }
+  },
+  // ---------- giriş: koordinat girişi (N), komut tekrarı (Enter/Boşluk) ----------
+  _coordReady() { return this.active && !this._dlg && (PT_TOOLS.includes(this.tool) || !!DEFS[this.tool]); },
+  // çizilmekte olan komutun son noktası (bağıl giriş için); yoksa null
+  _refPoint() {
+    const t = this.tool, last = (a) => (a && a.length ? [a[a.length - 1].x, a[a.length - 1].y] : null);
+    if (t === 'line') return this._ln ? (this._ln.mode === 'line' || this._ln.mode === 'arc' ? [this._ln.start.x, this._ln.start.y] : null) : null;
+    if (t === 'rect') return this._rc ? [this._rc.c1.x, this._rc.c1.y] : null;
+    if (t === 'circle') return this._ci ? [this._ci.c.x, this._ci.c.y] : null;
+    if (t === 'arc') return this._ar ? (this._ar.a ? [this._ar.a.x, this._ar.a.y] : [this._ar.c.x, this._ar.c.y]) : null;
+    if (t === 'spline') return this._sp ? last(this._sp.pts) : null;
+    if (DEFS[t]) return this._ds ? last(this._ds.pts) : null;
+    return null;
+  },
+  _coordStart() {
+    if (!this._coordReady()) return false;
+    this._closeInput();
+    const ref = this._refPoint(); let rel = !!ref;
+    const cur = this.cursor && Number.isFinite(this.cursor.x) ? [this.cursor.x, this.cursor.y] : this.cursor && this.cursor.loc ? this.cursor.loc : [0, 0];
+    const fx = h('input', { type: 'text', 'data-k': 'x', 'aria-label': 'X' }), fy = h('input', { type: 'text', 'data-k': 'y', 'aria-label': 'Y' });
+    const lx = h('span', {}), ly = h('span', {});
+    const chk = h('input', { type: 'checkbox', 'data-k': 'rel', disabled: ref ? null : true }); chk.checked = rel;
+    const fill = () => {
+      lx.textContent = t(rel ? 'sk.coord.dx' : 'sk.coord.x'); ly.textContent = t(rel ? 'sk.coord.dy' : 'sk.coord.y');
+      fx.value = fmt(rel ? cur[0] - ref[0] : cur[0]); fy.value = fmt(rel ? cur[1] - ref[1] : cur[1]);
+    };
+    fill();
+    chk.addEventListener('change', () => { rel = chk.checked; fill(); fx.focus(); fx.select(); });
+    const box = h('div', { class: 'sk-num', role: 'group', 'aria-label': t('sk.coord.title') },
+      h('label', { class: 'row' }, lx, fx), h('label', { class: 'row' }, ly, fy), h('label', { class: 'row' }, h('span', {}, t('sk.coord.rel')), chk), h('div', { class: 'n' }, t('sk.coord.hint')));
+    box.style.cssText = 'position:absolute;transform:translate(14px,14px);pointer-events:auto;z-index:7;';
+    const items = [fx, fy, ...(ref ? [chk] : [])];
+    box.addEventListener('mousedown', (ev) => ev.stopPropagation());
+    box.addEventListener('keydown', async (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Escape') { ev.preventDefault(); this._closeInput(); }
+      else if (ev.key === 'Tab') { ev.preventDefault(); const i = items.indexOf(document.activeElement); const n = items[(i + (ev.shiftKey ? items.length - 1 : 1)) % items.length]; n.focus(); if (n.select) n.select(); }
+      else if (ev.key === 'Enter') {
+        ev.preventDefault(); const err = await this._coordCommit({ x: fx.value, y: fy.value }, rel, ref);
+        if (err) { box.classList.add('bad'); this._status(() => err); } else this._closeInput();
+      }
+    });
+    this.ovl.appendChild(box); this._input = box; this._inputAnchor = cur; this._posInput();
+    fx.focus(); fx.select(); return true;
+  },
+  // Yazılan koordinatla çizim aracına tıklama gönderir. Döner: hata metni ya da null
+  async _coordCommit(vals, rel, ref) {
+    const num = (s) => { if (String(s).trim() === '') throw new Error(t('sk.coord.empty')); const v = evalExpr(String(s), this.getVars()); if (!Number.isFinite(v)) throw new Error('NaN'); return v; };
+    let x, y;
+    try { x = num(vals.x); y = num(vals.y); } catch (e) { return t('sk.bad_expr', { msg: errText(e) }); }
+    if (rel && ref) { x += ref[0]; y += ref[1]; }
+    const pid = findPointAt(this.sk, [x, y], 1e-6);
+    const s = pid ? { x: this.sk.points[pid].x, y: this.sk.points[pid].y, pid, kind: 'end' } : { x, y, kind: 'free', exact: true };
+    const r = this._clickWith(s); this.cursor = { ...s, loc: [x, y] }; this._renderPreview();
+    if (r && typeof r.then === 'function') { const res = await r; if (res && res.ok === false && res.msg) return res.msg; }
+    return null;
+  },
+  // Seç aracındayken Enter/Boşluk: son kullanılan komutu yeniden başlatır
+  _repeatLast(t0) {
+    if (!this._lastTool || this.tool !== 'select' || this._hasStage() || this._input || this._dlg || this._ctxEl) return false;
+    if (t0 && (t0.tagName === 'BUTTON' || t0.tagName === 'A' || (t0.getAttribute && /^(button|menuitem|tab|checkbox|option)$/.test(t0.getAttribute('role') || '')))) return false;
+    this.setTool(this._lastTool); return true;
   },
 };

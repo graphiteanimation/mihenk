@@ -8,6 +8,7 @@ import { sketchPolylines } from '../viewport.js';
 import { evalExpr } from '../../shared/expr.js';
 import { t, tk, errText, fmtNum } from '../../shared/i18n.js';
 import { toLocal } from '../../shared/vec.js';
+import { selOn, selClass } from './opts.js';
 
 export const EDIT_TOOLS = ['trim', 'extend', 'break', 'offset', 'fillet', 'chamfer', 'mirror', 'patrect', 'patcirc', 'move', 'copy', 'rotate', 'scale', 'project'];
 const NEEDS_SEL = new Set(['offset', 'mirror', 'patrect', 'patcirc', 'move', 'copy', 'rotate', 'scale']);
@@ -50,7 +51,7 @@ export const EDIT_METHODS = {
   // ------------------------------------------------------------------ pano
   selectAll() {
     if (!this.active) return;
-    this._setSel(this.sk.ents.map((e) => ({ kind: 'ent', id: e.id })));
+    this._setSel(this.sk.ents.filter((e) => selOn(selClass('ent', e))).map((e) => ({ kind: 'ent', id: e.id })));
     this._status('sk.selected_n', { n: this.selection.length });
   },
   copyClip() {
