@@ -2,6 +2,7 @@
 // Hata durumunda 'schema' önekli yapılandırılmış hata (KErr) fırlatır; arayüz bunu errText ile gösterir. Belgeyi DEĞİŞTİRMEZ.
 import { KErr } from './errors.js';
 import { evalExpr, resolveParams } from './expr.js';
+import { validateDrawings } from '../drawing/model.js'; // WP-17
 
 export const FILE_VERSION = 1;
 export const LIMITS = {
@@ -186,6 +187,8 @@ export function validateDoc(doc, { byteLength } = {}) {
   }
   // WP-08 devir (c): belgeyle saklanan adlandırılmış görünüşler (en çok 12 yuva; kodlu metin, boş = boş yuva)
   if (doc.views !== undefined) arrOf(str(200), 12)(doc.views, 'views');
+  // WP-17: teknik resim sayfalari (isteğe bagli; eski belgelerde yok)
+  if (doc.drawings !== undefined && doc.drawings !== null) validateDrawings(doc.drawings);
   const feats = doc.features === undefined ? [] : doc.features;
   if (!Array.isArray(feats)) fail('schema.bad_field', { path: 'features', expect: 'list' });
   if (feats.length > LIMITS.features) fail('schema.too_many_features', { max: LIMITS.features });
