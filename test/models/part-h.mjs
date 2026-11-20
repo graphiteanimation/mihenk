@@ -69,5 +69,7 @@ if (isMain(import.meta.url) && stlArg) {
     if (!m.length) { t.ok(false, `h[${k}]: alt süreç sonuç üretmedi (${r.signal || 'kod ' + r.status}): ${(r.stderr || '').split('\n').slice(-4).join(' | ')}`); continue; }
     for (const x of m) { for (let i = 0; i < x.pass; i++) t.results.push({ pass: true, msg: '' }); for (const f of x.fails) { t.ok(false, f); } Object.assign(t.info, x.info); }
   }
+  const atl = Object.entries(t.info).filter(([k, v]) => /stl-içe-alma$/.test(k) && String(v).startsWith('atlandı')).length;
+  if (atl) console.log(`ATLANDI (${atl}): STL yeniden içe alma (üçgen > ${STL_ICE_ALMA_ESIK}; MODEL_STL_TAM=1 ile tam koşar)`);
   finish(t); process.exit(0);
 } else await runMain(import.meta.url, name, async (t) => { await checks(t, arg ? arg.slice(8) : undefined); });

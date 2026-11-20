@@ -23,11 +23,12 @@ const run = ([f, limit, flags = []]) => new Promise((resolve) => {
   p.stdout.on('data', (d) => (out += d)); p.stderr.on('data', (d) => (out += d));
   p.on('exit', (code, sig) => {
     clearTimeout(timer); const results = [...out.matchAll(/^@@RESULT (.*)$/gm)].map((m) => JSON.parse(m[1]));
-    resolve({ file: f, code, sig, timedOut, limit: limit * scale, secs: Math.round((Date.now() - t0) / 100) / 10, results, tail: results.length ? '' : out.split('\n').slice(-8).join('\n') });
+    resolve({ file: f, code, sig, timedOut, limit: limit * scale, secs: Math.round((Date.now() - t0) / 100) / 10, results, skips: out.split('\n').filter((l) => /^ATLANDI \(\d+\)/.test(l)), tail: results.length ? '' : out.split('\n').slice(-8).join('\n') });
   });
 });
 const all = [];
-for (const spec of files) { if (filter && !spec[0].includes(filter)) continue; const r = await run(spec); all.push(r); const pass = r.results.reduce((s, x) => s + x.pass, 0), fail = r.results.reduce((s, x) => s + x.fail, 0); console.log(`${r.file.padEnd(22)} ${String(pass).padStart(4)} geçti ${String(fail).padStart(4)} kaldı  ${r.secs}s${r.results.length ? '' : '  SONUÇ YOK (' + (r.timedOut ? 'ZAMAN AŞIMI, sınır ' + r.limit + ' sn' : (r.sig || 'kod ' + r.code)) + ')\n' + r.tail}`); }
+for (const spec of files) { if (filter && !spec[0].includes(filter)) continue; const r = await run(spec); all.push(r); for (const l of r.skips) console.log('  ' + l); const pass = r.results.reduce((s, x) => s + x.pass, 0), fail = r.results.reduce((s, x) => s + x.fail, 0); console.log(`${r.file.padEnd(22)} ${String(pass).padStart(4)} geçti ${String(fail).padStart(4)} kaldı  ${r.secs}s${r.results.length ? '' : '  SONUÇ YOK (' + (r.timedOut ? 'ZAMAN AŞIMI, sınır ' + r.limit + ' sn' : (r.sig || 'kod ' + r.code)) + ')\n' + r.tail}`); }
+let regress = 0;
 const baseF = path.join(here, 'results.json'); let prev = { files: [] }; try { prev = JSON.parse(fs.readFileSync(baseF, 'utf8')); } catch (e) { /* taban yok */ }
 const merged = [...prev.files.filter((p) => !all.some((a) => a.file === p.file)), ...all].sort((a, b) => files.findIndex((f) => f[0] === a.file) - files.findIndex((f) => f[0] === b.file));
 const snap = { src: process.env.MIHENK_SRC || 'src', at: new Date().toISOString(), files: merged };
@@ -37,8 +38,9 @@ else {
   // tabana göre kötüleşme: geçen sayısı azalan ya da kalan sayısı artan dosyalar (bilgi; çıkış kodunu yalnız kalan/sonuçsuz belirler)
   const sum = (r, k) => r.results.reduce((a, x) => a + x[k], 0);
   const worse = all.map((a) => { const b = prev.files.find((p) => p.file === a.file); return b && (sum(a, 'pass') < sum(b, 'pass') || sum(a, 'fail') > sum(b, 'fail')) ? `${a.file}: taban ${sum(b, 'pass')}/${sum(b, 'fail')} → ${sum(a, 'pass')}/${sum(a, 'fail')}` : null; }).filter(Boolean);
+  regress = worse.length;
   if (worse.length) console.log('TABANA GÖRE KÖTÜLEŞME:\n  ' + worse.join('\n  '));
 }
 const P = merged.reduce((s, r) => s + r.results.reduce((a, x) => a + x.pass, 0), 0), F = merged.reduce((s, r) => s + r.results.reduce((a, x) => a + x.fail, 0), 0), crashed = merged.filter((r) => !r.results.length).length;
 console.log(`\nTOPLAM: ${P + F} denetim, ${P} geçti, ${F} kaldı, ${crashed} dosya sonuç üretmedi`);
-process.exit(F || crashed ? 1 : 0);
+process.exit(F || crashed || regress ? 1 : 0);

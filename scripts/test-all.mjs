@@ -77,16 +77,20 @@ for (const [i, step] of steps.entries()) {
   if (!ok) { const fl = r.out.split(/\r?\n/).filter((l) => /FAIL|KALDI|Error/.test(l)).slice(0, 60); if (fl.length) console.log('-- kalan denetimler --\n' + fl.join('\n') + '\n-- çıktının son 40 satırı --'); console.log(r.out.split(/\r?\n/).slice(-40).join('\n')); if (r.err) console.log('başlatma hatası: ' + r.err); }
   if (CI) console.log('::endgroup::');
   console.log(`${tag} ... ${ok ? 'GEÇTİ' : 'KALDI'} (${fmt(r.ms)}${attempts > 1 ? `, ${attempts}. denemede${ok ? ' geçti' : ' de kaldı'} — ${step.retryLabel}` : ''}) | ${s.line}`);
-  results.push({ name: step.name, status: ok ? 'GEÇTİ' : 'KALDI', pass: s.pass, fail: s.fail, attempts, retried });
+  const known = (r.out.match(/BİLİNEN AÇIK/g) || []).length, skipped = [...r.out.matchAll(/^\s*ATLANDI \((\d+)\)/gm)].reduce((a, m) => a + +m[1], 0);
+  results.push({ name: step.name, status: ok ? 'GEÇTİ' : 'KALDI', pass: s.pass, fail: s.fail, attempts, retried, known, skipped });
   if (step.build && !ok) buildOk = false;
 }
 
 console.log('\n==== ÖZET ====');
 let tp = 0, tf = 0;
-for (const r of results) { if (r.pass != null) { tp += r.pass; tf += r.fail; } console.log(`${r.status.padEnd(7)} ${r.name}${r.pass != null ? `  (${r.pass} geçti, ${r.fail} kaldı)` : ''}${r.attempts > 1 ? '  [yeniden denendi]' : ''}`); }
+for (const r of results) { if (r.pass != null) { tp += r.pass; tf += r.fail; } console.log(`${r.status.padEnd(7)} ${r.name}${r.pass != null ? `  (${r.pass} geçti, ${r.fail} kaldı)` : ''}${r.attempts > 1 ? '  [yeniden denendi]' : ''}${r.known ? `  [${r.known} bilinen açık]` : ''}${r.skipped ? `  [ATLANDI (${r.skipped})]` : ''}`); }
+const knownN = results.reduce((a, r) => a + (r.known || 0), 0), skipN = results.reduce((a, r) => a + (r.skipped || 0), 0);
 const gitAfter = gitState();
 if (gitBefore && gitAfter) { const dirty = [...gitAfter].filter((l) => !gitBefore.has(l)); results.push({ name: 'izlenen dosya değişmedi (git status)', status: dirty.length ? 'KALDI' : 'GEÇTİ' }); if (dirty.length) console.log('test:all şu dosyaları değiştirdi/oluşturdu:\n  ' + dirty.join('\n  ')); }
 const bad = results.filter((r) => r.status !== 'GEÇTİ');
 console.log(`${results.length - bad.length}/${results.length} adım geçti; sayılan denetim: ${tp} geçti, ${tf} kaldı`);
+if (knownN) console.log(`${knownN} bilinen açık (yeşil sayılmaz; ayrıntı ilgili adımın çıktısında: BİLİNEN AÇIK)`);
+if (skipN) console.log(`ATLANDI (${skipN}): koşulmayan denetim adımı (ayrıntı: models/run-all çıktısı)`);
 if (bad.length) console.log('KALAN/ATLANAN: ' + bad.map((r) => r.name + ' (' + r.status + ')').join(', '));
 process.exit(bad.length ? 1 : 0);
