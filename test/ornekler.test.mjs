@@ -30,4 +30,12 @@ for (const f of files) {
   } catch (e) { ok(false, f + ': ' + (e.code || e.message)); }
 }
 ok(kapsam.cokSetup && kapsam.donel && kapsam.delik, 'örnekler çok setup + 3+1 (A) + delik kapsar: ' + JSON.stringify(kapsam));
+{ // kurulum paketi: genel örnekler extraResources ile girer, markalı/başka profil girmez
+  const pk = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')); const er = (pk.build.extraResources || []).find((x) => x.from === 'ornekler');
+  ok(!!er && er.to === 'ornekler' && er.filter.includes('*.mhnk'), 'package.json build.extraResources ornekler/*.mhnk içerir');
+  const gir = fs.readdirSync(tdir).filter((f) => er.filter.some((g) => g.startsWith('tezgahlar/') && new RegExp('^' + g.slice(10).replace(/[.]/g, '\\.').replace('*', '.*') + '$').test(f)));
+  ok(gir.length >= 2 && gir.every((f) => /^Ornek-Genel-/.test(f)), 'pakete yalnız genel örnek profiller girer: ' + gir);
+  ok(!fs.readdirSync(tdir).some((f) => /neway/i.test(f)), 'ornekler/tezgahlar altında markalı profil yok');
+  const nsi = fs.readFileSync(path.join(ROOT, 'build', 'installer.nsi'), 'utf8'); ok(/attrib\.exe" \+R .*ornekler/.test(nsi) && /attrib\.exe" -R .*ornekler/.test(nsi), 'kurulum salt okunur yapar, kaldırıcı özelliği geri alır');
+}
 console.log(`ornekler: ${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

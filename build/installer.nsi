@@ -68,6 +68,9 @@ Section "$(SEC_PROGRAM)"
   SetOutPath "$INSTDIR"
   File /r "..\release\win-unpacked\*.*"
   WriteRegStr HKCU "Software\${APP}" "InstallDir" "$INSTDIR"
+  ; Örnek belgeler ve genel örnek tezgâh profilleri ($INSTDIR\resources\ornekler) salt okunur kaynaktır: kullanıcı kendi klasörüne "Farklı kaydet" yapar
+  nsExec::Exec '"$SYSDIR\attrib.exe" +R "$INSTDIR\resources\ornekler\*" /S'
+  Pop $0
   File "/oname=doc-icon.ico" "doc-icon.ico"
   WriteUninstaller "$INSTDIR\Kaldir.exe"
   ; Kurulum dili uygulamanın ilk açılış diline aktarılır: kurulum dizininde "lang" dosyası (tr | en)
@@ -103,6 +106,9 @@ SectionEnd
 ; Kaldırıcı YALNIZ kurulumun yazdığı dosyaları siler (liste scripts/gen-uninstall-list.mjs ile üretilir).
 ; "RMDir /r" yok: kurulum klasörü boş değilse (kullanıcı dosyası varsa) klasör silinmez.
 Section "Uninstall"
+  ; örnekler salt okunur kurulur: silmeden önce özellik kaldırılır
+  nsExec::Exec '"$SYSDIR\attrib.exe" -R "$INSTDIR\resources\ornekler\*" /S'
+  Pop $0
   !include "..\release\uninstall-files.nsh"
   Delete "$INSTDIR\lang"
   Delete "$INSTDIR\doc-icon.ico"

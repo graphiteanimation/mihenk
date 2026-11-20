@@ -41,6 +41,16 @@
    "package.json",
    "!node_modules/**"
   ],
+  "extraResources": [
+   {
+    "from": "ornekler",
+    "to": "ornekler",
+    "filter": [
+     "*.mhnk",
+     "tezgahlar/Ornek-Genel-*.mhnk-tezgah.json"
+    ]
+   }
+  ],
   "directories": {
    "output": "release"
   },
