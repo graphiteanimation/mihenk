@@ -382,5 +382,27 @@ console.log('9. WP-06 T-07 ardisik islemlerde mil/sogutma tekrari yok; T-18 yoru
   { const x = run([sec(1, { opName: 'Ø8 kanal 5µm mm²' })]); ok(x.lines.some((l) => l.includes('D8 kanal 5um mm2')) && !x.lines.some((l) => /^\(OP.*\?/.test(l)), 'T-18: NC islem yorumunda ? yok'); }
 }
 
+
+console.log('10. WP-06 R altinda cok noktali G98 (returnTo clearance): IR + post + okuyucu');
+{
+  const M = S.testMachine(); const dr = S.drillSample().program; const B = dr.sections.find((x) => x.toolpath.opId === 'drl');
+  const mkTp = (over) => ({ ...B.toolpath, moves: [mk.rapid(-30, 0, 20), mk.cycle({ cycle: 'peck', points: [[-30, 0], [-10, 0], [10, 0]], top: 0, bottom: -20, retract: 5, clearance: 20, peck: 4, f: 200, ...over }), mk.rapid(10, 0, 20)] });
+  const nc = (over) => { const prog = { ...dr, sections: [{ setup: B.setup, toolpath: mkTp(over) }] }; return postProgram(prog, M, OPTS); };
+  const g99 = nc({}).lines.filter((l) => /^(G9[89]|X|Y|\(?)/.test(l) && /G9[89]|^X|^Y/.test(l));
+  const g98 = nc({ returnTo: 'clearance' }).lines.filter((l) => /G9[89]|^X-?\d|^G98|^G99/.test(l));
+  ok(nc({}).lines.some((l) => /G99/.test(l)) && nc({}).lines.filter((l) => /G98/.test(l)).length === 1, 'G99 gecisli cevrim (varsayilan): ilk nokta G99, son G98: ' + g99.join(' | '));
+  ok(!nc({ returnTo: 'clearance' }).lines.some((l) => /G99/.test(l)) && nc({ returnTo: 'clearance' }).lines.filter((l) => /G83|G73/.test(l)).length === 1, 'returnTo clearance: tek cevrim, hic G99 yok (her nokta G98): ' + g98.join(' | '));
+  const res = nc({ returnTo: 'clearance' }); const rb = readNC(res.text, { machine: M }).program; const cy = rb.sections[0].toolpath.moves.find((m) => m.t === 'cycle');
+  ok(cy.points.length === 3 && cy.returnTo === 'clearance', 'okuyucu: tum noktalar G98 -> returnTo clearance geri okunur: ' + cy.returnTo);
+  const cmp = compareToolpaths(mkTp({ returnTo: 'clearance' }), rb.sections[0].toolpath); ok(cmp.equal === true, 'IR <-> NC karsilastirma esit: ' + JSON.stringify(cmp));
+  const resG99 = readNC(nc({}).text, { machine: M }).program.sections[0].toolpath.moves.find((m) => m.t === 'cycle'); ok(resG99.returnTo === undefined && resG99.points.length === 3, 'G99 gecisli cevrim returnTo tasimaz');
+  ok(compareToolpaths(mkTp({ returnTo: 'clearance' }), mkTp({})).diffs.some((x) => /returnTo/.test(x)), 'karsilastirma returnTo farkini yakalar');
+  throwsCode(() => validateToolpath(mkTp({ returnTo: 'x' })), 'cam.ir.field', 'gecersiz returnTo reddedilir');
+  const cyc = mk.cycle({ cycle: 'drill', points: [[0, 0], [10, 0]], top: 0, bottom: -5, retract: 2, clearance: 20, f: 100, returnTo: 'clearance' }); ok(cyc.returnTo === 'clearance', 'IR cevrimi returnTo tasir');
+  // acik hareket (cannedCycles kapali): ara noktalarda baslangic duzlemine donus
+  const MM = S.testMachine({ props: { cannedCycles: false } }); const o2 = postProgram({ ...dr, sections: [{ setup: B.setup, toolpath: mkTp({ returnTo: 'clearance', cycle: 'drill', peck: undefined }) }] }, MM, OPTS);
+  ok(o2.lines.filter((l) => /^G0 Z20\./.test(l)).length >= 3, 'cannedCycles kapali: her nokta sonrasi Z20 (baslangic duzlemi): ' + o2.lines.filter((l) => /^G0 Z/.test(l)).join(' | '));
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);

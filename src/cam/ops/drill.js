@@ -35,12 +35,20 @@ const toSd = (F, d) => [d[0] * F.x[0] + d[1] * F.x[1] + d[2] * F.x[2], d[0] * F.
 // Delikleri setup uzayinda topla: [{x, y, top, dia, depth, through, thread, tipAngle, feature}], atlanan sayisi
 export function collectHoles(op, S, geom) {
   const sel = op.holes; if (!sel || typeof sel !== 'object') throw cerr('cam.op.missing', { field: 'holes', op: op.name || op.id });
-  const out = []; let skipped = 0;
+  const out = []; let skipped = 0, pocketLike = 0;
   if (sel.kind === 'feature') {
     const f = sel.filter || {};
+    // WP-06 (WP-05 devri): taninan delikler (recognized, feature 'rec:N'). `holes.rec` verilmisse yalniz listelenen taninan delikler
+    // alinir (pocketLike da listelenebilir); verilmemisse taninan delikler alinir, pocketLike (cep benzeri) olanlar ATLANIR
+    // (filter.feature ile acikca secilmedikce). `holes.acceptThread`: kullanicinin onayladigi taninan delikler icin threadHint -> thread.
+    const rec = Array.isArray(sel.rec) ? new Set(sel.rec) : null; const acc = new Set(Array.isArray(sel.acceptThread) ? sel.acceptThread : []);
     for (const h of geom?.holes || []) {
       if (f.feature != null && h.feature !== f.feature && h.patternOf !== f.feature && h.copyOf !== f.feature) continue;
       if (f.dia != null && Math.abs(h.dia - f.dia) > 1e-6) continue;
+      if (h.recognized) {
+        if (rec ? !rec.has(h.feature) : (h.pocketLike && f.feature !== h.feature)) { if (!rec && h.pocketLike) pocketLike += h.positions.length; continue; }
+      }
+      const thread = h.thread || (h.recognized && acc.has(h.feature) && h.threadHint ? { major: h.threadHint.major, pitch: h.threadHint.pitch } : null);
       h.positions.forEach((p, i) => {
         const dm = h.dirs[i] || h.dir; const d = toSd(S.frame, dm); let q = toS(S.frame, p);
         const exit = Number.isFinite(h.exits?.[i]) ? h.exits[i] : null;
@@ -49,7 +57,7 @@ export function collectHoles(op, S, geom) {
           if (h.through && exit != null && Math.abs(d[2] - 1) <= 1e-6) q = toS(S.frame, [p[0] + dm[0] * exit, p[1] + dm[1] * exit, p[2] + dm[2] * exit]);
           else { skipped++; return; }
         }
-        out.push({ x: q[0], y: q[1], top: q[2], dia: h.dia, depth: h.depth, through: !!h.through, thread: h.thread || null, tipAngle: h.tipAngle, feature: h.feature, exit });
+        out.push({ x: q[0], y: q[1], top: q[2], dia: h.dia, depth: h.depth, through: !!h.through, thread, tipAngle: h.tipAngle, feature: h.feature, exit });
       });
     }
   } else if (sel.kind === 'points') {
@@ -57,7 +65,7 @@ export function collectHoles(op, S, geom) {
   } else throw cerr('cam.op.bad_field', { field: 'holes.kind', expect: 'feature/points', op: op.name || op.id });
   // ayni konum (yinelenen) tek delik
   const uniq = []; for (const h of out) if (!uniq.some((u) => Math.hypot(u.x - h.x, u.y - h.y) < 1e-6 && Math.abs(u.top - h.top) < 1e-6)) uniq.push(h);
-  return { holes: uniq, skipped };
+  return { holes: uniq, skipped, pocketLike };
 }
 
 // en kisa yol: en yakin komsu + 2-opt
@@ -81,8 +89,9 @@ export function computeDrill(op, ctx) {
   const cycle = need(op, 'cycle', (v) => Object.hasOwn(CYCLE_TOOLS, v), Object.keys(CYCLE_TOOLS).join('/'));
   if (!CYCLE_TOOLS[cycle].includes(tool.type)) throw cerr('cam.drill.tool_cycle', { cycle, type: tool.type });
   const warnings = [];
-  const { holes, skipped } = collectHoles(op, S, geom);
+  const { holes, skipped, pocketLike } = collectHoles(op, S, geom);
   if (skipped) warnings.push(warn('cam.drill.skipped_axis', { n: skipped }));
+  if (pocketLike) warnings.push(warn('cam.drill.pocketlike_skipped', { n: pocketLike }));
   if (!holes.length) throw cerr('cam.drill.no_holes');
   const dep = op.depth; if (!dep || typeof dep !== 'object') throw cerr('cam.op.missing', { field: 'depth', op: op.name || op.id });
   const tipComp = dep.tipComp === true; const brk = opt(op, 'depth.breakThrough', nonNeg, 'number >= 0', 0);
@@ -130,8 +139,14 @@ export function computeDrill(op, ctx) {
   const clearAt = (a, b, z) => (z >= stockTop - 1e-9) || (stockMap && modelMap ? segClear(stockMap, a, b, z - TRANSIT_GAP, tool.dia / 2) && segClear(modelMap, a, b, z - TRANSIT_GAP, tool.dia / 2) : false);
   const byKey = new Map(); const keyed = [];
   for (const p of pts) { const key = `${Math.round(p.top * 1e6)}|${Math.round(p.bottom * 1e6)}|${Math.round(p.R * 1e6)}`; if (!byKey.has(key)) { const k = { top: p.top, bottom: p.bottom, R: p.R, pts: [] }; byKey.set(key, k); keyed.push(k); } byKey.get(key).pts.push(p); }
-  const groups = [];
-  const chains = (k, list) => { let g = null; for (const p of list) { if (g && clearAt(g.pts[g.pts.length - 1], p, k.R)) g.pts.push(p); else { g = { top: k.top, bottom: k.bottom, R: k.R, pts: [p] }; groups.push(g); } } };
+  const groups = []; const zCyc0 = Math.max(zSafe, ...pts.map((p) => p.R)); // cevrim baslangic duzlemi (asagidaki zCyc ile ayni)
+  // R altinda engel (kaburga vb.) gecisi G99'a izin vermiyorsa ayni anahtarli noktalar BIR cevrimde G98 ile (her nokta sonrasi baslangic
+  // duzlemine donus; XY hizli hareket baslangic duzleminde = stok ustu) toplanir: returnTo:'clearance'. Gecis guvenliyse eskisi gibi G99 zinciri.
+  const chains = (k, list) => {
+    const from = groups.length; let g = null;
+    for (const p of list) { if (g && clearAt(g.pts[g.pts.length - 1], p, k.R)) g.pts.push(p); else { g = { top: k.top, bottom: k.bottom, R: k.R, pts: [p] }; groups.push(g); } }
+    if (groups.length - from > 1 && k.R < zCyc0 - 1e-9) { const all = groups.splice(from).flatMap((x) => x.pts); groups.push({ top: k.top, bottom: k.bottom, R: k.R, pts: all, returnTo: 'clearance' }); }
+  };
   let cur = null;
   if (order === 'shortest') { // anahtar gruplari en yakin komsu sirasiyla, grup ici en kisa yol, sonra guvenli gecis zincirleri
     const rest = keyed.slice();
@@ -152,6 +167,7 @@ export function computeDrill(op, ctx) {
     if (Math.hypot(b.pos[0] - x, b.pos[1] - y) > 1e-9) b.rapid(x, y, zCyc);
     if (Math.abs(b.pos[2] - zCyc) > 1e-9) b.rapid(x, y, zCyc);
     const m = { t: 'cycle', cycle, points: g.points, top: g.top, bottom: g.bottom, retract: g.R, clearance: zCyc, f };
+    if (g.returnTo && g.points.length > 1) m.returnTo = g.returnTo;
     if (peck != null) m.peck = peck; if (dwell != null) m.dwell = dwell; if (pitch != null) m.pitch = pitch;
     b.moves.push(m); const lp = g.points[g.points.length - 1]; b.pos = [lp[0], lp[1], zCyc];
   }

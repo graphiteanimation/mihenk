@@ -149,4 +149,5 @@ export default {
   "err.cam.chamfer.tool_small": "A {width} mm chamfer needs a cone reaching at least Ø{need} mm; the tool is Ø{dia} mm. Pick a wider tool or a smaller chamfer.",
   "err.cam.chamfer.above_stock": "The chamfer edge (Z {z}) is above the stock top (Z {top}); the chamfer would be in the air.",
   "err.cam.chamfer.chain_side": "An open-chain chamfer needs the tool side (left or right).",
+  "err.cam.drill.pocketlike_skipped": "{n} pocket-like recognized hole(s) (diameter ≥ 2 × depth) were not drilled by default; pick them from the separate list in the drill panel.",
 };

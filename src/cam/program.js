@@ -144,6 +144,8 @@ export function chainStock(recs, idx, res) {
   try { rec.stk.hm = stockFromPrevious(src, { frame: rec.S.frame, box: rec.S.stockBox }, res); } catch (e) { rec.stk.hm = null; }
 }
 
+// WP-06: serbest parca bulgusu seviyesi setup'a gore: engel yalniz freePieceBlock'lu setup'ta, digerlerinde uyari.
+export const freePiecePolicy = (gates, blockSetups) => gates.map((x) => (String(x.code).endsWith('.free_piece') && x.level === 'block' && !blockSetups.has(x.params?.setup) ? { ...x, level: 'warn' } : x));
 // generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
 //   doc: sketch secimleri icin belge (sketch ozellikleri); query komutlari: camFaceLoops, camSection, camZLevels, facePlane
 //   query(cmd, args) -> Promise: cekirdek worker komutu ('camFaceLoops', 'facePlane')
@@ -185,6 +187,10 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
   let program = null;
   if (sections.length) { try { program = buildProgram({ name: name || 'PROG', number, machine, sections }); } catch (e) { pre.push({ level: 'block', code: e.code || 'internal', params: e.params || {} }); } }
   else pre.push(issue('cam.program.empty', {}, { level: 'block' }));
-  const g = [...pre, ...(program ? runGates(program, machine, { sim }) : [])];
+  // WP-06 (WP-05 devri): serbest parca (free_piece) varsayilan UYARI; setup.freePieceBlock:true olan setup'ta ENGEL. Sim secenegi tek (genel):
+  // en az bir setup istiyorsa engel olarak calistirilir, istemeyen setup'larin bulgulari asagida uyariya indirilir.
+  const fpb = new Set((cam?.setups || []).filter((x) => x.freePieceBlock === true).map((x) => x.id));
+  const simOpt = sim && fpb.size ? { ...sim, freePieceBlock: true } : sim;
+  const g = freePiecePolicy([...pre, ...(program ? runGates(program, machine, { sim: simOpt }) : [])], fpb);
   return { program, ops, gates: g, blocked: blocked(g) };
 }

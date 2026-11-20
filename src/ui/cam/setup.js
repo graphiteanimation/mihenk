@@ -30,7 +30,7 @@ export class SetupPanel {
   ok() {
     const bad = this.problems(); if (bad) { this.cam.app.toastInfo(bad); return; }
     const d = clone(this.draft); this.close();
-    this.cam.mut((c) => { const i = c.setups.findIndex((s) => s.id === d.id); if (i >= 0) c.setups[i] = { ...c.setups[i], ...d, ops: c.setups[i].ops }; });
+    this.cam.mut((c) => { const i = c.setups.findIndex((s) => s.id === d.id); if (i >= 0) { const nx = { ...c.setups[i], ...d, ops: c.setups[i].ops }; for (const k of ['stockFrom', 'freePieceBlock']) if (!(k in d)) delete nx[k]; c.setups[i] = nx; } });
   }
   problems() {
     if (!this.draft.bodies.length) return t('cam.su.no_bodies');
@@ -97,6 +97,10 @@ export class SetupPanel {
     else if (st.kind === 'box') for (const [k, nm] of [['min', 'cam.su.s_min'], ['max', 'cam.su.s_max']]) ['X', 'Y', 'Z'].forEach((ax, i) => rows.push(numField({ label: t(nm, { axis: ax }), value: st[k][i], unit: 'mm', nullable: false, min: -1e6, f: `su-st-${k}${ax}`, set: (v) => { st[k][i] = v; upd(); } })));
     else rows.push(sn(t('cam.su.s_dia'), 'dia', { min: 0.001 }), sn(t('cam.su.s_len'), 'len', { min: 0.001 }), h('div', { class: 'help', text: t('cam.su.s_cyl_hint') }));
     // döner eksen
+    // WP-06 (WP-05 devri): stok kaynağı ve serbest parça ayarı
+    rows.push(sec(t('cam.su.chain')),
+      selField({ label: t('cam.su.stock_from'), value: d.stockFrom === 'blank' ? 'blank' : 'previous', f: 'su-stock-from', hint: t('cam.su.stock_from_hint'), opts: [['previous', t('cam.su.sf_previous')], ['blank', t('cam.su.sf_blank')]], set: (v) => { if (v === 'blank') d.stockFrom = 'blank'; else delete d.stockFrom; upd(); } }),
+      checkField({ label: t('cam.su.free_block'), value: d.freePieceBlock === true, f: 'su-free-block', hint: t('cam.su.free_block_hint'), set: (v) => { if (v) d.freePieceBlock = true; else delete d.freePieceBlock; upd(); } }));
     const A = m?.axes?.A;
     rows.push(sec(t('cam.su.rotary')));
     if (!A) rows.push(h('div', { class: 'note', text: t('cam.su.no_a_axis') }));

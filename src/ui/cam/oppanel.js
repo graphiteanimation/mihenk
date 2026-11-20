@@ -231,15 +231,40 @@ export class OpPanel {
     const f = d.holes.filter || {};
     rows.push(this.sel(t('cam.op.cycle'), 'cycle', Object.keys(CYCLE_TOOLS).map((c) => [c, t('cam.op.cy.' + c)]), { f: 'cycle', def: 'drill', redraw: true, set: (v) => { d.cycle = v; if (v === 'peck' || v === 'chipbreak') d.peck = d.peck ?? null; this.invalidate(); } }));
     if (!hs.length) { rows.push(callout('warn', t('cam.op.no_holes'), t('cam.op.no_holes_body'))); return rows; }
+    const fh = hs.filter((x) => !x.recognized), rh = hs.filter((x) => x.recognized);
     const dias = [...new Set(hs.map((x) => x.dia).filter((x) => x != null))].sort((a, b) => a - b);
-    const feats = [...new Set(hs.map((x) => x.patternOf ?? x.copyOf ?? x.feature))];
+    const feats = [...new Set(fh.map((x) => x.patternOf ?? x.copyOf ?? x.feature))];
     rows.push(selField({ label: t('cam.op.h_dia'), value: f.dia ?? '', f: 'op-h-dia', opts: [['', t('common.all')], ...dias.map((x) => [String(x), 'Ø' + fmtNum(x, 3)])], set: (v) => { setP(d, 'holes.filter.dia', v === '' ? undefined : Number(v)); this.cleanFilter(); this.invalidate(); this.render(); this.showResult(); } }));
-    rows.push(selField({ label: t('cam.op.h_feat'), value: f.feature ?? '', f: 'op-h-feat', opts: [['', t('common.all')], ...feats.map((x) => [x, this.app.doc.features.find((q) => q.id === x)?.name || x])], set: (v) => { setP(d, 'holes.filter.feature', v === '' ? undefined : v); this.cleanFilter(); this.invalidate(); this.render(); this.showResult(); } }));
-    const pick = hs.filter((x) => (f.dia == null || Math.abs(x.dia - f.dia) < 1e-6) && (f.feature == null || x.feature === f.feature || x.patternOf === f.feature || x.copyOf === f.feature));
-    const n = pick.reduce((a, x) => a + (x.positions?.length || 0), 0);
+    if (feats.length) rows.push(selField({ label: t('cam.op.h_feat'), value: f.feature ?? '', f: 'op-h-feat', opts: [['', t('common.all')], ...feats.map((x) => [x, this.app.doc.features.find((q) => q.id === x)?.name || x])], set: (v) => { setP(d, 'holes.filter.feature', v === '' ? undefined : v); this.cleanFilter(); this.invalidate(); this.render(); this.showResult(); } }));
+    const diaOk = (x) => f.dia == null || Math.abs(x.dia - f.dia) < 1e-6;
+    // özellik delikleri (filtreyle); filtre bir tanınan delik kimliği ise tanınanlar ayrı listede
+    const pick = f.feature != null && String(f.feature).startsWith('rec:') ? [] : fh.filter((x) => diaOk(x) && (f.feature == null || x.feature === f.feature || x.patternOf === f.feature || x.copyOf === f.feature));
+    let n = pick.reduce((a, x) => a + (x.positions?.length || 0), 0);
     const list = h('div', { class: 'op-geom', 'data-testid': 'op-holes' });
     for (const x of pick) list.append(h('div', { class: 'op-grow' }, h('span', { class: 'nm', text: t('cam.op.h_row', { name: this.app.doc.features.find((q) => q.id === x.feature)?.name || x.feature, dia: fmtNum(x.dia, 3), n: x.positions?.length || 0, depth: x.through ? t('cam.op.h_through') : fmtNum(x.depth, 3) + ' mm' }) })));
+    // WP-06 (WP-05 devri): tanınan delikler (STEP/içe alınan gövde). Varsayılan: hepsi seçili, cep benzeri (pocketLike) hariç
+    const chosen = (x) => (Array.isArray(d.holes.rec) ? d.holes.rec.includes(x.feature) : !x.pocketLike);
+    const recAfter = (x, on) => { const set = new Set(rh.filter(chosen).map((y) => y.feature)); if (on) set.add(x.feature); else set.delete(x.feature); const arr = rh.map((y) => y.feature).filter((id) => set.has(id)); const def = rh.filter((y) => !y.pocketLike).map((y) => y.feature); if (arr.length === def.length && arr.every((id, i) => id === def[i])) delete d.holes.rec; else d.holes.rec = arr; this.invalidate(); this.render(); this.showResult(); };
+    const recRow = (x) => {
+      const on = chosen(x) && (f.feature == null || f.feature === x.feature);
+      const cb = h('input', { type: 'checkbox', checked: on, 'data-testid': 'op-rec-pick', 'data-f': 'op-rec-' + x.feature.replace(':', '-') });
+      cb.addEventListener('change', () => recAfter(x, cb.checked));
+      const box = h('div', { class: 'op-grow', 'data-testid': 'op-rec-row' }, h('label', { class: 'chk' }, cb, h('span', { class: 'nm', text: t('cam.op.h_rec_row', { id: x.feature.replace('rec:', '#'), dia: fmtNum(x.dia, 3), n: x.positions?.length || 0, depth: x.through ? t('cam.op.h_through') : fmtNum(x.depth, 3) + ' mm', kind: x.kind === 'cbore' ? t('cam.op.h_kind_cbore') : x.kind === 'csink' ? t('cam.op.h_kind_csink') : t('cam.op.h_kind_simple') }) })));
+      if (x.threadHint && d.cycle === 'tap') {
+        const th = x.threadHint; const acc = (d.holes.acceptThread || []).includes(x.feature);
+        const c2 = h('input', { type: 'checkbox', checked: acc, 'data-testid': 'op-rec-thread', 'data-f': 'op-rec-th-' + x.feature.replace(':', '-') });
+        c2.addEventListener('change', () => { const cur = new Set(d.holes.acceptThread || []); if (c2.checked) cur.add(x.feature); else cur.delete(x.feature); if (cur.size) d.holes.acceptThread = [...cur]; else delete d.holes.acceptThread; this.invalidate(); this.render(); this.showResult(); });
+        box.append(h('label', { class: 'chk sub', title: t('cam.op.h_thread_hint') }, c2, h('span', { class: 'nm', text: t('cam.op.h_thread_accept', { m: 'M' + fmtNum(th.major, 3) + '×' + fmtNum(th.pitch, 3) }) })));
+      }
+      if (on && x.positions) n += x.positions.length;
+      return box;
+    };
+    const normal = rh.filter((x) => diaOk(x) && !x.pocketLike), pl = rh.filter((x) => diaOk(x) && x.pocketLike);
+    const recBox = (arr, tid) => { const bx = h('div', { class: 'op-geom', 'data-testid': tid }); arr.forEach((x) => bx.append(recRow(x))); return bx; };
+    const nb = normal.length ? recBox(normal, 'op-rec-list') : null, pb = pl.length ? recBox(pl, 'op-rec-pocket') : null; // n bu çağrılarda tamamlanır
     rows.push(sec(t('cam.op.h_list', { n })), list);
+    if (nb) rows.push(sec(t('cam.op.h_rec')), h('div', { class: 'note', text: t('cam.op.h_rec_note') }), nb);
+    if (pb) rows.push(sec(t('cam.op.h_rec_pocket')), h('div', { class: 'note', text: t('cam.op.h_rec_pocket_note') }), pb);
     return rows;
   }
   cleanFilter() { const d = this.draft; if (d.holes.filter && d.holes.filter.dia === undefined && d.holes.filter.feature === undefined) delete d.holes.filter; }

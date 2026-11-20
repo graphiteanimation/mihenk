@@ -295,12 +295,12 @@ export function createFanucPost(over = {}) {
         if (rz) this.writeBlock(this.g.motion.format(0), rz);
         this.writeBlock(this.g.motion.format(1), this.v.z.format(c.bottom), this.v.f.format(c.f));
         if (c.dwell > 0) { this.writeBlock('G04', post._dwellWord.call(this, p.dwellAddress, p.dwellUnit, c.dwell)); this.g.motion.reset(); }
-        this.writeBlock(this.g.motion.format(0), this.v.z.format(last ? c.clearance : c.retract));
+        this.writeBlock(this.g.motion.format(0), this.v.z.format(last || c.returnTo === 'clearance' ? c.clearance : c.retract));
         st.cycle.n++;
         return;
       }
       const code = post._cycleCode.call(this, c);
-      const retr = (last || c.retract === c.clearance) ? 'G98' : 'G99';
+      const retr = (last || c.retract === c.clearance || c.returnTo === 'clearance') ? 'G98' : 'G99';
       const first = st.cycle.n === 0;
       const fmtd = (pre, v) => createFormat({ prefix: pre, decimals: d }).format(v);
       if (first) {

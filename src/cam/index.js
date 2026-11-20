@@ -7,7 +7,7 @@ import { computeContour } from './ops/contour.js';
 import { computePocket } from './ops/pocket.js';
 import { computeChamfer } from './ops/chamfer.js';
 export { gates } from './gates.js';
-export { buildProgram, generateProgram, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
+export { buildProgram, generateProgram, freePiecePolicy, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
 export { CamErr } from './geom/err.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);

@@ -150,4 +150,5 @@ export default {
   "err.cam.chamfer.tool_small": "{width} mm pah için takımın en az Ø{need} mm konik çapa ulaşması gerekir; takım Ø{dia} mm. Daha geniş takım ya da küçük pah seçin.",
   "err.cam.chamfer.above_stock": "Pah kenarı (Z {z}) stok üstünün (Z {top}) üzerinde; pah havada kalır.",
   "err.cam.chamfer.chain_side": "Açık zincir pahı için takım tarafı (sol ya da sağ) seçilmeli.",
+  "err.cam.drill.pocketlike_skipped": "{n} cep benzeri tanınan delik (çap ≥ 2 × derinlik) varsayılan olarak delinmedi; delme panelinde ayrı listeden seçilebilir.",
 };
