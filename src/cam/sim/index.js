@@ -25,8 +25,9 @@ export function createSim(input, opts = {}) {
   const capPerCode = opts.maxIssuesPerCode ?? 20, rapidSplit = opts.rapidSplit !== false;
   const steps = []; sections.forEach((s, si) => s.toolpath.moves.forEach((m, k) => steps.push([si, k])));
 
-  let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts;
-  const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; };
+  const clrLow = opts.holderClearanceLow ?? 0.5; // T-08 ek: en kucuk tutucu boslugu bunun altindaysa uyari (mm)
+  let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts, secStats;
+  const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
   reset();
 
   function setupFor(id) {
@@ -44,11 +45,46 @@ export function createSim(input, opts = {}) {
   }
 
   function enterSection(si) {
+    if (cur) closeSection();
     const sec = sections[si], tp = sec.toolpath;
     const id = sec.setup?.id ?? 'default';
     const tool = { ...tp.tool, ...(opts.tools?.[tp.tool.number] || {}), ...(opts.tool || {}) };
     const allow = Number.isFinite(tp.meta?.belowStock) && tp.meta.belowStock > 0 ? tp.meta.belowStock : 0;
-    cur = { si, tp, allow, setup: setupFor(id), geom: toolGeom(tool), pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null };
+    const S = setupFor(id), geom = toolGeom(tool);
+    // T-08: islem basi stok (yerel stok yuksekligi icin) ve yol izi maskesi; tutucu boslugu
+    let preMax = -Infinity; for (let k = 0; k < S.hm.data.length; k++) if (S.hm.data[k] > preMax) preMax = S.hm.data[k];
+    cur = { si, tp, allow, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
+      pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
+  }
+  // T-08: islemin yol bandi (takim merkezinin stok yuksekliginin altindaki izi, en buyuk zarf yaricapi kadar kare genisletme:
+  // daire yerine kare = bant biraz genis, muhafazakar) icinde islem basindaki en yuksek stok hucresi.
+  function localTop() {
+    const c = cur, hm = c.setup.hm, nx = hm.nx, ny = hm.ny; if (!c.marked) return -Infinity;
+    const g = c.geom, w = Math.ceil(Math.max(g.R, g.shaftR, g.holderR) / hm.res) + 1;
+    const rowD = new Uint8Array(nx * ny);
+    for (let j = 0; j < ny; j++) { // satirda: en yakin isaretli hucre <= w
+      let last = -1e9; for (let i = 0; i < nx; i++) { if (c.mask[j * nx + i]) last = i; if (i - last <= w) rowD[j * nx + i] = 1; }
+      last = 1e9; for (let i = nx - 1; i >= 0; i--) { if (c.mask[j * nx + i]) last = i; if (last - i <= w) rowD[j * nx + i] = 1; }
+    }
+    let top = -Infinity;
+    for (let i = 0; i < nx; i++) {
+      let last = -1e9; const near = new Uint8Array(ny);
+      for (let j = 0; j < ny; j++) { if (rowD[j * nx + i]) last = j; if (j - last <= w) near[j] = 1; }
+      last = 1e9; for (let j = ny - 1; j >= 0; j--) { if (rowD[j * nx + i]) last = j; if (last - j <= w) near[j] = 1; }
+      for (let j = 0; j < ny; j++) if (near[j]) { const v = c.pre[j * nx + i]; if (v > top) top = v; }
+    }
+    return top;
+  }
+  function closeSection() {
+    const c = cur; if (!c || c.closed) return; c.closed = true;
+    const st = { localTop: localTop(), holderClearance: c.geom.holderR > 0 && Number.isFinite(c.clr) ? c.clr : null, envelope: c.geom.holderR > 0 ? 'holder' : 'tool' };
+    secStats[c.si] = st;
+    if (st.holderClearance != null && st.holderClearance < clrLow) {
+      const key = 'holder_clearance_low'; counts[key] = (counts[key] || 0) + 1;
+      if (counts[key] > capPerCode) suppressed++;
+      else issues.push({ level: 'warn', code: CODE(key), params: { x: c.clrAt.x, y: c.clrAt.y, z: c.clrAt.z, clearance: Math.max(0, st.holderClearance), min: clrLow, op: c.tp.opId }, moveIndex: c.clrAt.k, section: c.si });
+    }
+    c.pre = null; c.mask = null;
   }
 
   function note(code, depth, px, py, pz) {
@@ -61,6 +97,7 @@ export function createSim(input, opts = {}) {
     samples++;
     const g = cur.geom, S = cur.setup, hm = S.hm, d = hm.data, nx = hm.nx, ny = hm.ny, R = g.R, shaftR = g.shaftR, holderR = g.holderR;
     if (pz < S.zFloor - belowTol) note('below_stock', S.zFloor - pz, px, py, pz);
+    if (pz < cur.preMax) { const mi = Math.floor((px - hm.x0) / hm.res), mj = Math.floor((py - hm.y0) / hm.res); if (mi >= 0 && mj >= 0 && mi < nx && mj < ny && !cur.mask[mj * nx + mi]) { cur.mask[mj * nx + mi] = 1; cur.marked++; } }
     if (pz + tol >= S.hmax) return;
     const Rmax = Math.max(R, shaftR, holderR), Rmax2 = Rmax * Rmax, rs = hm.res;
     const i0 = Math.max(0, Math.floor((px - Rmax - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((px + Rmax - hm.x0) / rs));
@@ -75,7 +112,10 @@ export function createSim(input, opts = {}) {
         const cx = hm.x0 + (i + 0.5) * rs, dx = cx - px, r2 = dx * dx + dy * dy;
         if (r2 > Rmax2) continue;
         const r = Math.sqrt(r2);
-        if (r <= holderR && h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); continue; }
+        if (r <= holderR) {
+          if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); continue; }
+          const cl = pz + g.bodyLen - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
+        }
         if (r <= shaftR && h > zFlute) {
           if (r <= R) note('flute_exceeded', h - zFlute + tol, px, py, pz); else { note('shaft_collision', h - zFlute + tol, px, py, pz); continue; }
         }
@@ -229,6 +269,7 @@ export function createSim(input, opts = {}) {
     doMove(sections[si].toolpath.moves[k]);
     const fresh = flush(si, k);
     idx++;
+    if (idx >= steps.length) { const n0 = issues.length; closeSection(); fresh.push(...issues.slice(n0)); }
     if (opts.frames > 0 && idx % opts.frames === 0) frames.push({ index: idx, section: si, moveIndex: k, removedVolume: removedTotal, heightmap: new Float32Array(cur.setup.hm.data) });
     return fresh;
   }
@@ -256,7 +297,7 @@ export function createSim(input, opts = {}) {
     },
     result() {
       const remainBySetup = {}; for (const [id, s] of setups) remainBySetup[id] = s.hm;
-      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples };
+      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples, sections: secStats.slice() };
       if (opts.frames > 0) out.frames = frames;
       return out;
     },

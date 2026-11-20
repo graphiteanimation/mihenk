@@ -64,6 +64,7 @@ export default {
   "err.cam.sim.shaft_collision": "Takım şaftı stoğa çarpıyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.holder_collision": "Tutucu stoğa çarpıyor (işlem {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.below_stock": "Takım ham parçanın tabanının altına iniyor (işlem {op}, Z {z}, {depth} mm). Tabla ya da bağlama aparatı modellenmez; yalnız bilinçli boydan boya kesim (taban model/stok tabanının altına ofsetli ya da boydan boya delik) uyarı olarak kabul edilir.",
+  "err.cam.sim.holder_clearance_low": "Tutucu stoğa çok yakın geçiyor (işlem {op}, X {x} Y {y} Z {z}): en küçük boşluk {clearance} mm, sınır {min} mm.",
   "err.cam.sim.comp_arc_collapse": "Telafili yayın yarıçapı takım yarıçapından küçük (işlem {op}, X {x} Y {y}).",
   "err.cam.post.program_number": "Program numarası {number} geçersiz: 1'den başlayan, en çok {digits} haneli bir tam sayı olmalı (O0 olmaz).",
   "err.cam.post.bad_rpm": "İş mili devri {rpm} NC'ye S0 olarak yazılırdı; NC üretilmedi.",

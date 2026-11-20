@@ -64,6 +64,7 @@ export default {
   "err.cam.sim.shaft_collision": "The tool shaft hits the stock (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.holder_collision": "The holder hits the stock (operation {op}, X {x} Y {y} Z {z}, {depth} mm).",
   "err.cam.sim.below_stock": "The tool goes below the stock bottom (operation {op}, Z {z}, {depth} mm). The table and workholding are not modeled; only an intentional through-cut (bottom offset below the model/stock bottom, or a through hole) is allowed as a warning.",
+  "err.cam.sim.holder_clearance_low": "The holder passes very close to the stock (operation {op}, X {x} Y {y} Z {z}): minimum clearance {clearance} mm, limit {min} mm.",
   "err.cam.sim.comp_arc_collapse": "The compensated arc radius is smaller than the tool radius (operation {op}, X {x} Y {y}).",
   "err.cam.post.program_number": "Program number {number} is invalid: it must be an integer from 1 with at most {digits} digits (O0 is not allowed).",
   "err.cam.post.bad_rpm": "Spindle speed {rpm} would be written as S0; no NC is generated.",

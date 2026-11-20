@@ -2,6 +2,7 @@
 import { mk, normalizeRapids } from '../src/cam/ir.js';
 import { simulate, createSim, heightmapFromFn, sampleHeightmap, createHeightmap, toolGeom } from '../src/cam/sim/index.js';
 import { tapMinorDia } from '../src/cam/sim/tool.js';
+import { gates } from '../src/cam/gates.js';
 import { postProgram, readNC } from '../src/cam/post/index.js';
 import * as S from './cam-samples/samples.mjs';
 
@@ -249,6 +250,56 @@ console.log('7. T-17 oyma olcusu (yuzeye dik) + T-16 koruma (gercek oymalar hala
   // e) T-16: flute asimi hala engel (yukseklik haritasi stok)
   r = simulate(TP({ ...S.TOOLS.flat6, fluteLen: 5, bodyLen: 40, holder: null }, [mk.rapid(30, 0, 10), mk.rapid(30, 0, -8), mk.feed(0, 0, -8, 200), mk.rapid(0, 0, 10)]), { stockBox: bx, res: 0.25 });
   ok(r.issues.some((i) => i.code === 'cam.sim.flute_exceeded' && i.level === 'error'), 'T-16: flute asimi engel: ' + codes(r));
+}
+
+console.log('8. T-08 yerel stok yuksekligi (govde boyu) + tutucu boslugu uyarisi');
+{
+  const M = S.testMachine();
+  const box = { min: [-30, -30, -40], max: [30, 30, 10] };
+  const su = { id: 's1', name: 's1', workOffset: { kind: 'G54' }, aAngle: null, stockBox: box };
+  const T = (o) => mk.toolpath({ tool: o.tool, rpm: 3000, spindleDir: 'cw', coolant: 'off', clearanceZ: 30, retractZ: 15, moves: o.moves, opId: o.id, opName: o.id, opType: 'x' });
+  const f10 = { ...S.TOOLS.flat10, fluteLen: 20, bodyLen: 45 };
+  // yuzeyleme: z=10 -> 0, xMax'a kadar (adim 8, D10)
+  const face = (xMax) => { const mv = [mk.rapid(-36, -30, 30), mk.rapid(-36, -30, 12), mk.feed(-36, -30, 0, 300, 'plunge')]; let d = 1;
+    for (let y = -30; y <= 30.001; y += 8) { mv.push(mk.feed(d > 0 ? -36 : xMax, y, 0, 800)); mv.push(mk.feed(d > 0 ? xMax : -36, y, 0, 800)); d = -d; }
+    mv.push(mk.rapid(mv[mv.length - 1].x, mv[mv.length - 1].y, 30)); return T({ id: 'face', tool: f10, moves: mv }); };
+  const t6 = (bodyLen, holder = { dia: 40, len: 50 }) => ({ ...S.TOOLS.flat6, number: 3, H: 3, D: 3, fluteLen: 25, bodyLen, holder });
+  const plunge = (x, z, tool) => T({ id: 'pl', tool, moves: [mk.rapid(x, 0, 30), mk.rapid(x, 0, 12), mk.feed(x, 0, z, 100, 'plunge'), mk.rapid(x, 0, 30)] });
+  const prog = (...tps) => mk.program({ name: 'T08', number: 1, machine: M.id, sections: tps.map((tp) => mk.section(su, tp)) });
+  const model = heightmapFromFn([-30, -30], [30, 30], 0.5, () => -40);
+  const simO = (o = {}) => ({ res: 0.5, modelHeightmaps: { s1: model }, ...o });
+  const gc = (gl) => gl.map((g) => g.level + ' ' + g.code);
+  const has = (gl, c) => gl.some((g) => g.code === c && g.level === 'block');
+  // a) yuzeylenmis bolgede -18: ilk stok ustune gore 28 > 25 (eski) ama yerel 18 <= 25
+  const pA = prog(face(36), plunge(0, -18, t6(25)));
+  let gl = gates(pA, M, { sim: false });
+  ok(has(gl, 'cam.gate.body_short') && gl.some((g) => g.code === 'cam.gate.body_short_conservative'), 'sim yok: muhafazakar body_short + uyari: ' + gc(gl).filter((x) => /body/.test(x)));
+  gl = gates(pA, M, { sim: simO() });
+  ok(!gl.some((g) => /body_short/.test(g.code)), 'T-08: yuzeylenmis yuzeyde yerel derinlik 18 <= 25, engel yok: ' + gc(gl).filter((x) => /block/.test(x)));
+  // b) hala yakalanan: yuzeyli bolgede -27 (yerel 27 > 25)
+  gl = gates(prog(face(36), plunge(0, -27, t6(25))), M, { sim: simO() });
+  ok(has(gl, 'cam.gate.body_short') && gl.find((g) => g.code === 'cam.gate.body_short').params.depth === 27, 'yerel 27 > 25 engel: ' + JSON.stringify(gl.find((g) => g.code === 'cam.gate.body_short')?.params));
+  // c) hala yakalanan: yuzeylenmemis bolgede (x>0 yuzeylenmedi) -18 -> yerel 28 > 25
+  gl = gates(prog(face(-12), plunge(15, -18, t6(25))), M, { sim: simO() });
+  ok(has(gl, 'cam.gate.body_short'), 'yuzeylenmemis yerde (stok 10) engel kalir: ' + gc(gl).filter((x) => /block/.test(x)));
+  // d) tutucu olcusu yok: muhafazakar hesap (bant takim capi kadar olurdu)
+  gl = gates(prog(face(36), plunge(0, -18, t6(25, null))), M, { sim: simO() });
+  ok(has(gl, 'cam.gate.body_short') && gl.some((g) => g.code === 'cam.gate.body_short_conservative'), 'tutucu yok: muhafazakar engel + uyari');
+  // e) tutucu boslugu: yuzeyli yuzeyde -24,8 (tutucu alti 0,2 mm) -> uyari; -20 -> uyari yok; -25,5 -> tutucu carpmasi engel
+  let r = simulate(prog(face(36), plunge(0, -24.8, t6(25))), { res: 0.5, stockBoxes: { s1: box } });
+  let w = r.issues.filter((i) => i.code === 'cam.sim.holder_clearance_low');
+  ok(w.length === 1 && w[0].level === 'warn' && Math.abs(w[0].params.clearance - 0.2) < 0.02 && w[0].params.min === 0.5, 'tutucu boslugu 0,2 < 0,5 uyari: ' + JSON.stringify(w[0]?.params));
+  ok(Math.abs(r.sections[1].localTop - 0) < 1e-6 && r.sections[0].localTop === 10, 'islem basi yerel stok: yuzeyleme 10, sonraki 0: ' + r.sections.map((q) => q.localTop));
+  r = simulate(prog(face(36), plunge(0, -20, t6(25))), { res: 0.5, stockBoxes: { s1: box } });
+  ok(!r.issues.some((i) => i.code === 'cam.sim.holder_clearance_low'), 'bosluk 5 mm: uyari yok');
+  r = simulate(prog(face(36), plunge(0, -24.8, t6(25))), { res: 0.5, stockBoxes: { s1: box }, holderClearanceLow: 0.1 });
+  ok(!r.issues.some((i) => i.code === 'cam.sim.holder_clearance_low'), 'esik secenekle (0,1) degisir');
+  gl = gates(prog(face(36), plunge(0, -25.5, t6(25))), M, { sim: simO() });
+  ok(has(gl, 'cam.sim.holder_collision') && has(gl, 'cam.gate.body_short'), 'tutucu carpmasi + govde boyu engel kalir: ' + gc(gl).filter((x) => /block/.test(x)));
+  // f) adim adim oynatici: uyari son adimda da gelir
+  const sim2 = createSim(prog(face(36), plunge(0, -24.8, t6(25))), { res: 0.5, stockBoxes: { s1: box } });
+  const seen = []; while (!sim2.done) seen.push(...sim2.step(50).newIssues);
+  ok(seen.some((i) => i.code === 'cam.sim.holder_clearance_low'), 'adim adim: tutucu boslugu uyarisi gorulur');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);
