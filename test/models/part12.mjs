@@ -14,9 +14,9 @@ export function part12(H3 = '30') {
     cyl('k2', 80, 40, 8, 'e1'),
     { id: 's2', type: 'sketch', name: 'Sketch 2', plane: { kind: 'base', name: 'XY', offset: '20' }, points: { O: { x: 0, y: 0, fixed: true }, c: { x: 50, y: 30 } }, ents: [{ id: 'c1', type: 'circle', c: 'c', r: 10 }], cons: [] },
     { id: 'e2', type: 'extrude', name: 'Extrude 2', sketch: 's2', profiles: 'all', dist: '10', extent: 'dist', dir: 'one', op: 'join', targets: ['e1'] },
-    { id: 'fb', type: 'fillet', name: 'Fillet 1', edges: [edge('bx', 'bx:x+', 'bx:z+')], r: '3' },
+    { id: 'fb', type: 'fillet', name: 'Yuvarlat 1', edges: [edge('bx', 'bx:x+', 'bx:z+')], r: '3' },
     cyl('k3', 20, 45, 6, 'e1'),
-    { id: 'ch', type: 'chamfer', name: 'Chamfer 1', edges: [edge('e1', 'e1:side:l1', 'e1:start')], d: '1' },
+    { id: 'ch', type: 'chamfer', name: 'Pah 1', edges: [edge('e1', 'e1:side:l1', 'e1:start')], d: '1' },
     cyl('cy', 140, 10, 6, 'bx'),
     cyl('cz', 150, 20, 6, 'bx'),
   ] };
