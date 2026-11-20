@@ -258,5 +258,13 @@ await madde(7, 'P1 S3 holder_collision ×2 sınıflaması', () => {
   ok(fs.existsSync(path.join(ROOT, 'test/altin/SINIFLAMA.md')) && /holder_collision/.test(src('test/altin/SINIFLAMA.md')), 'sınıflama raporu test/altin/SINIFLAMA.md');
 });
 
+await madde(8, 'iptal testi: IPTAL_KATI varsayılanı katı (bilinen açık kalktı)', () => {
+  const py = src('test/iptal.test.py'), app = src('src/ui/app.js'), all = src('scripts/test-all.mjs');
+  ok(/os\.environ\.get\('IPTAL_KATI', '1'\) != '0'/.test(py), 'varsayılan katı; yalnız IPTAL_KATI=0 tanı kipinde bilinen açık yazılır');
+  ok(!/IPTAL_KATI=1 ile kalır/.test(py), 'eski "IPTAL_KATI=1 ile kalır" kipi kalktı');
+  ok(/const res = await this\.rebuildDoc\(doc[^\n]*\n\s*if \(seq !== this\._seq\) \{ this\.staleDropped/.test(app), 'düzeltme yerinde: _rebuildTask eski sonucu uygulamadan atar (seq denetimi)');
+  ok(/py\('test\/iptal\.test\.py'/.test(all) && /wp21\.test\.mjs/.test(all), 'test:all iptal ve wp21 testlerini koşar');
+});
+
 console.log(`${pass} geçti, ${fail} kaldı`);
 process.exit(fail ? 1 : 0);

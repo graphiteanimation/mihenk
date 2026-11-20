@@ -1,7 +1,8 @@
 # Hesap iptali ve bayat sonuç (WP-10 dilim 6), uçtan uca (gerçek çekirdek işçisi, gerçek uzun hesap): önce `npm run build`; çalıştır: python3 test/iptal.test.py
 # Uzun hesap: 100 delikli plaka (işçide saniyeler sürer). 1) İptal: sonuç eski kalır, bayat işaretlenir, geç gelen sonuç yazılmaz, sonra çalışır.
-# 2) Uzun hesap sürerken yeni düzenleme: son durum yeni düzenlemedir (kalır); uzun hesabın sonucunun hiç yazılmaması (applyResult'a gelmemesi) şu an SAĞLANMIYOR:
-#    _rebuildTask sonucu seq denetimsiz yazıyor (src/ui, alan dışı). Varsayılan koşuda 'bilinen açık' olarak yazılır, IPTAL_KATI=1 ile kalır.
+# 2) Uzun hesap sürerken yeni düzenleme: son durum yeni düzenlemedir; uzun (eski) hesabın sonucu hiç yazılmaz (applyResult'a gelmez).
+#    WP-10 bulgusu (_rebuildTask seq denetimi) master'da düzeltildi; WP-21'den beri bu denetim varsayılanda katıdır (kalır).
+#    Yalnız tanı için IPTAL_KATI=0 ile 'bilinen açık' olarak yazdırılabilir.
 import json, os, sys, time
 from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -60,8 +61,8 @@ try:
     ap = pg.evaluate('window.__applied')
     check('son durum yeni düzenleme (24000)', pg.evaluate(vol) == 24000, str(pg.evaluate(vol)))
     temiz = len(ap) > 0 and all(v == 24000 for v in ap)
-    if temiz or os.environ.get('IPTAL_KATI') == '1': check('uzun (eski) hesabın sonucu yazılmadı: yazılan sonuçlar yalnız yeni belge', temiz, str(ap))
-    else: print('  BİLİNEN AÇIK (WP-10 Sapma/İhtiyaç, src/ui/app.js _rebuildTask): eski uzun hesabın sonucu geçici olarak yazıldı', ap, '— IPTAL_KATI=1 ile kalır')
+    if temiz or os.environ.get('IPTAL_KATI', '1') != '0': check('uzun (eski) hesabın sonucu yazılmadı: yazılan sonuçlar yalnız yeni belge', temiz, str(ap))
+    else: print('  BİLİNEN AÇIK (IPTAL_KATI=0 tanı kipi, src/ui/app.js _rebuildTask): eski uzun hesabın sonucu geçici olarak yazıldı', ap)
     br.close()
 finally:
   _srv.stop(server)
