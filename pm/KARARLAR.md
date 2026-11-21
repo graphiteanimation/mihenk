@@ -48,6 +48,7 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 - **K-043** (2026-11-21) — "Durmadan çalış: bir iş paketi bitince turu kapatma, aynı turda sıradakini al. Tur herhangi bir nedenle biterse, bitmeden önce send_later ile kendine 1 dakika sonrasına \"Mihenk: devam\" kur ve uyanınca beni beklemeden sürdür. 0.6 bilgisayarıma kurulup denenene kadar böyle devam et." Anlam: K-040 sona erdi (yerine geçer: K-040); K-035/K-039 yeniden yürürlükte. Sıra: WP-21 → 0.4 kapısı → 0.5 (WP-12‖13‖14) → 0.6 (WP-15…19) → yerel kurulum ve kabul. Durma koşulu yalnız §8 (a).
 
 - **K-044** (2026-11-21) — "Şu an devam eden işler bitince bir dur" Anlam: süren işler (dikdörtgen hatası düzeltmesi, kabul bulguları düzeltmesi, `test:all`) bitirilip birleştirilir; yeni kurulum dosyası, yeniden kurulum, kaldırma adımı ve yeni paket başlatılmaz; kendi kendini uyandırma kurulmaz. Kullanıcı `Mihenk: devam` yazınca sürer (K-043 askıda).
+- **K-045** (2026-11-21) — "Mihenk: devam" Anlam: K-044 durdurması kalkar; K-044 öncesi sıradaki işe (0.6.0 düzeltilmiş kurulum, kabul adımları 15/10/12/2, `v0.6.0`) devam edilir. Yerine geçer: K-044.
 
 ## Öneriler
 | No | Öneri | Durum |
@@ -85,6 +86,7 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 | O-048 | Sürüm kapısı yükü (K-043, kullanıcının "her sürüm fazladan iş" kaygısı): 0.4 ve 0.5 kapıları depoda etiket + tam `test:all` + altın set ile kapanır; tam Windows kurulum ve `pm/KABUL-WINDOWS.md` ekran kabulü yalnız 0.6'da. 0.5 etiketinde risk azaltmak için kısa Windows dumanı (kur, aç, örnek belge, NC kaydet) yapılır. Paketler bağımsız doğrulanınca dalı beklemeden `master`'a birleşir; etiket o anki `master` | Uygulanıyor |
 | O-049 | PDF altlık: vektör PDF için `pdfjs-dist` (Apache-2.0) eklenir; yalnız kullanılan modüller paketlenir (vite), işçi `self` kaynağından, `isEvalSupported:false`, ana belge CSP'si gevşetilmez; sayfa görüntüye çizilip altlık olur. WP-14'ün gömülü JPEG yolu yedek kalır | WP-22a |
 | O-050 | Tri-dexel + model ağıyla 3B oyma denetimi arayüzde isteğe bağlı "Ayrıntılı simülasyon" seçeneği; varsayılan kapalı (altın taban ve bellek korunur, ölçü: tri+ağ ≈ 2× bellek). 1.0'da varsayılanın açılması yeniden değerlendirilir. WP-15 3D kaba süresi (büyük parçada > 60 sn) 0.6'da açık kalır; işçide ve iptal edilebilir olduğu için engel sayılmaz, WP-22c'de iyileştirilir | Uygulanıyor |
+| O-051 | Başlat menüsü kaldırma kısayolu `Mihenk Kaldır` / `Uninstall Mihenk` (APP adı). Kısayol adı dosya adıdır; APPFULL içindeki "/" yüzünden 0.6.0 adayında Türkçe kısayol hiç oluşmuyordu (kabul adımı 2). Kurulum ve kaldırma eski sürümlerden kalan `Uninstall Mihenk CADCAM.lnk` ve `Mihenk CADCAM Kaldır.lnk` adlarını da siler | Uygulandı (fix-lnk) |
 
 ## Mihenk dışında kalan (bilgi; Mihenk'i bekletmez)
 Kullanıcının Neway profilindeki boş alanlar (maxRpm, ilerleme sınırı, safeRetract, G04 adresi/birimi, G54.1 aralığı), A+ dönüş yönü, O/N sınırları: kullanıcı kendi profil dosyasında doldurur. P1 STEP'indeki Ø4 çubuk sorusu yalnız karşılaştırma testinin yorumunu etkiler.
