@@ -9,7 +9,7 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - C-50: kök neden kabuk değil eğimli (taper) extrude: yan yüzler adsız kalıyor, kabuğun iç yüzleri aynı adı alıyordu. Adlar artık `ModifiedShape` ile aktarılır (O-062, `src/kernel/topo.js`). T09 çekirdek testinde 0,5 pahla 34 412,563 mm³ (referansla fark %0, 43 yüz); kayıtlı `T09.mhnk` aynı açılır (34 449,437, 35 yüz).
 - C-47: Fillet/Pah panelinde değer alanına yazmak, odaklanmak ve zincir kutusu artık kenar seçimini kapatmıyor (`src/ui/panels.js` `keepPick`); diğer paneller değişmedi.
 - Testler: `test/ie006-naming.test.mjs` 5/32 → 73/0, `test/ie006-fillet-secim.test.py` 13/16 → 29/0; ikisi de `test:all` zincirinde. Bağımsız doğrulama ONAY ×2.
-- Açık (Gündem G-16): koni kabuğun iç üst kenarında Pah `chamfer.too_big` (fillet geçer; adlandırmadan bağımsız). T09 İE-011'de arayüzden pahla yeniden çizilip `beklenen.json` güncellenir. GitHub'da `wp-ie006*` dalları duruyor.
+- Açık (Gündem G-17): koni kabuğun iç üst kenarında Pah `chamfer.too_big` (fillet geçer; adlandırmadan bağımsız). T09 İE-011'de arayüzden pahla yeniden çizilip `beklenen.json` güncellenir. GitHub'da `wp-ie006*` dalları duruyor.
 
 ## İE-003 sonucu (Bitti 2026-11-21f)
 - `test/cad-bench.test.mjs`: arayüzden çizilen 12 belge (T01–T09, T10a/b/c) çekirdekte yeniden hesaplanır (hacim ±%0,1, kutu ±0,05 mm); 152 geçti / 0 kaldı. Bilinen eksik (`beklenen.json`): T03, T04, T05, T09; parça yeniden çizilince mhnk + beklenen.json birlikte güncellenir.
