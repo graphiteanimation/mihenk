@@ -6,7 +6,7 @@ Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARAR
 Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, iş `Mihenk: devam` oturumunda `pm/IS-EMRI.md` sırasıyla. Gündem: `pm/YONETIM.md`. Sıra (K-051): İE-001 CAD testi T02–T10 → İE-004 P1–P4 ile Fusion'a karşı CAD + CAM kıyaslaması. İE-002 (C-14, C-21 düzeltmesi) ekransız, paralel açılabilir.
 
 ## İE-001 ilerleme (iş oturumu 2026-11-21, sürüyor)
-- T02 GEÇTİ · T03 KISMEN · T04 KISMEN · T05 KISMEN; bulgular C-22…C-45, ara rapor `pm/test/CAD-TEST.md`. Sıradaki parça: **T06**. Kayıtlar `Documents\Mihenk\Mihenk\cad-test\Tnn\`.
+- T02 GEÇTİ · T03 KISMEN · T04 KISMEN · T05 KISMEN · T06 GEÇTİ; bulgular C-22…C-46, ara rapor `pm/test/CAD-TEST.md`. Sıradaki parça: **T07**. Kayıtlar `Documents\Mihenk\Mihenk\cad-test\Tnn\`.
 - Bilgisayarda Mihenk ayarı "sol tuşla döndür" test için açıldı (C-34).
 
 ## Önceki oturumda biten
