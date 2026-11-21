@@ -190,7 +190,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mihenk-resim-'));
   const pt = spawnSync('pdftotext', ['-enc', 'UTF-8', f, '-'], { encoding: 'utf8' });
   // Yerlesim (layout) araca gore degisir: poppler "Ø20 H7"yi tek satirda, xpdf 4.06 (Git for Windows, CI) iki satirda verir.
   // Metin ayni; bu yuzden bosluk/satir sonu farki tolere edilir (CI-1, IE-002).
-  if (!pt.error) ok(/Ø20\s+H7/.test(pt.stdout) && pt.stdout.includes(t('drw.tb.title')), 'pdftotext metni okur (O20 H7, antet)');
+  if (pt.error) console.log('   (pdftotext yok: metin denetimi atlandi)'); else ok(/Ø20\s+H7/.test(pt.stdout) && pt.stdout.includes(t('drw.tb.title')), 'pdftotext metni okur (O20 H7, antet)');
 }
 {
   const dx = toDxf({ W: C.W, H: C.H, list: C.list });
