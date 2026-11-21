@@ -128,7 +128,7 @@ const camOp = obj({
   // WP-12: uyarlanir kaba, kalan malzeme, yatay temizleme, asagida kal, ilerleme iyilestirme, ince duvar
   optimalLoad: camNum(0), stayDown: bool(), flatTop: camNum(0),
   rest: obj({ source: oneOf(['stock', 'tool']), toolDia: camNum(0), cornerR: camNum(0), threshold: camNum(0) }),
-  feedOpt: obj({ corner: obj({ angle: camNum(0, 180), dist: camNum(0), factor: camNum(0, 1), maxR: camNum(0) }), exit: obj({ dist: camNum(0), factor: camNum(0, 1) }) }),
+  feedOpt: obj({ corner: obj({ angle: camNum(0, 180), dist: camNum(0), factor: camNum(0, 1), maxR: camNum(0) }), exit: obj({ dist: camNum(0), factor: camNum(0, 1), when: oneOf(['material', 'always']) }) }), // WP-22c: when
   thinWall: obj({ enabled: bool(), axialStep: camNum(0) }),
   // WP-15: 3D islemler
   tolerance: camNum(0, 1), slope: obj({ min: camNum(0, 90), max: camNum(0, 90) }), boundary: obj({ kind: oneOf(['model', 'stock']), offset: camNum() }),

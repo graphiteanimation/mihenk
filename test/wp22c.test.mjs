@@ -19,7 +19,7 @@ const el = () => `${((Date.now() - t0) / 1000).toFixed(0)} sn`;
 
 // --- WP-12 ortak (2. bolum)
 const circ = (c, r, fwd) => [{ ...G.mkArc(c, r, 0, 2 * Math.PI), fwd, open: false }];
-const sq = (x0, y0, x1, y1) => [G.mkLine([x0, y0], [x1, y0]), G.mkLine([x1, y0], [x1, y1]), G.mkLine([x1, y1], [x0, y1]), G.mkLine([x0, y1], [x0, y0])].map((s) => ({ ...s, fwd: true, open: false }));
+const sq = (x0, y0, x1, y1, open = []) => [G.mkLine([x0, y0], [x1, y0]), G.mkLine([x1, y0], [x1, y1]), G.mkLine([x1, y1], [x0, y1]), G.mkLine([x0, y1], [x0, y0])].map((s, i) => ({ ...s, fwd: true, open: open.includes(i) }));
 const flat = (dia) => ({ id: 't' + dia, number: 5, lengthOffset: 5, diaOffset: 5, type: 'flat', dia, fluteLen: 25, bodyLen: 50, flutes: 3, centerCutting: true });
 const setupOf = (min, max) => ({ id: 's1', name: 'S1', workOffset: { kind: 'G55' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min, max }, modelBBox: { min, max }, clearance: 5, aAngle: null, stockTop: max[2], machinePos: null });
 const adBase = { id: 'a', name: 'AD', type: 'adaptive', rpm: 8000, feedCut: 800, feedPlunge: 300, coolant: 'flood', heights: { clearance: 10, retract: 2 }, geom: [{ kind: 'face' }], optimalLoad: 1.5, stepdown: 6, stockToLeave: 0, entry: { kind: 'helix', angle: 3, helixDia: 8 } };
@@ -116,6 +116,32 @@ if (sec(4)) {
     const ms = Date.now() - t1; ok(c === 'cam.op.cancelled' && ms < 3000, `ctx.shouldStop sure siniri (300 ms) hesabi kesti: ${c}, ${ms} ms`); }
   // iptalsiz: sonuc ayni
   { const a = CAM.computeOp(op, ctx); const b = await computeOpAsync(op, ctx, { worker: false }); ok(a.moves.length === b.moves.length, 'iptalsiz sonuc satir ici ile ayni'); }
+  console.log(`   (${el()})`);
+}
+
+// ---------------------------------------------------------------- 2e. cikista ilerleme dusurme yalniz gercek cikista
+if (sec('2e')) {
+  console.log('2e. feedOpt.exit.when = material: yalniz malzemeden gercek cikis');
+  const S0 = setupOf([0, 0, -30], [100, 60, 0]);
+  const face = { z: -5, normalOk: true, outer: sq(20, 15, 80, 45), inners: [] };
+  const pop = { ...adBase, id: 'p5', type: 'pocket', stepover: 4, stepdown: 5, entry: { kind: 'helix', angle: 3, helixDia: 6 } };
+  const ctx = { setup: S0, tool: flat(10), geom: { faces: [face] } };
+  const al = CAM.computeOp({ ...pop, feedOpt: { exit: { dist: 3, factor: 0.4 } } }, ctx);
+  const mt = CAM.computeOp({ ...pop, feedOpt: { exit: { dist: 3, factor: 0.4, when: 'material' } } }, ctx);
+  ok(al.meta.feedOpt.exits > 0, `kapali cep, when yok (eski): cikis ${al.meta.feedOpt.exits}`);
+  ok(mt.meta.feedOpt.exits === 0 && mt.meta.feedOpt.insideEnds > 0, `kapali cep, material: cikis ${mt.meta.feedOpt.exits}, malzeme icinde biten ${mt.meta.feedOpt.insideEnds} (duvar dibinde kalkis yavaslatilmaz)`);
+  ok(!mt.moves.some((m) => m.f != null && m.kind === 'cut' && m.f < 800 - 1e-9), 'kapali cep material: dusurulmus F yok');
+  // stok kenarina kadar acik kenarli bolge: uyarlanir pasolar stoktan havaya cikar
+  const S1 = setupOf([0, 0, -30], [80, 60, 0]); // stok sag kenari = acik kenar (x = 80)
+  const fo = { z: -6, normalOk: true, outer: sq(20, 15, 80, 45, [1]), inners: [], above: [] };
+  const ad = CAM.computeOp({ ...adBase, stepdown: 6, optimalLoad: 2, feedOpt: { exit: { dist: 2, factor: 0.5, when: 'material' } } }, { setup: S1, tool: flat(10), geom: { faces: [fo] } });
+  const ad0 = CAM.computeOp({ ...adBase, stepdown: 6, optimalLoad: 2, feedOpt: { exit: { dist: 2, factor: 0.5 } } }, { setup: S1, tool: flat(10), geom: { faces: [fo] } });
+  ok(ad.meta.feedOpt.exits > 0 && ad.meta.feedOpt.exits < ad0.meta.feedOpt.exits, `acik kenar (stok kenari): gercek cikis ${ad.meta.feedOpt.exits} < tum dizi sonlari ${ad0.meta.feedOpt.exits}`);
+  // gercek cikislarin sonu stok disina yakin olmali (takim onu bos)
+  let far = 0; { let prevSlow = false; ad.moves.forEach((m, k) => { const slow = m.kind === 'cut' && m.f < 800 - 1e-9; const nx = ad.moves[k + 1]; if (slow && !(nx && nx.kind === 'cut' && nx.f < 800 - 1e-9)) { if (80 - m.x > 5 + 1.5) far++; } prevSlow = slow; }); void prevSlow; }
+  ok(far === 0, `yavas bolge sonlari stok kenarina yakin (uzak ${far})`);
+  console.log(`   kapali cep cikis: eski ${al.meta.feedOpt.exits} / material ${mt.meta.feedOpt.exits}; acik kenar: eski ${ad0.meta.feedOpt.exits} / material ${ad.meta.feedOpt.exits}`);
+  let e = null; try { CAM.computeOp({ ...pop, feedOpt: { exit: { dist: 3, factor: 0.4, when: 'yok' } } }, ctx); } catch (x) { e = x; } ok(e?.code === 'cam.op.bad_field', 'gecersiz exit.when reddedilir: ' + (e?.code || 'hata yok') + JSON.stringify(e?.params || {}));
   console.log(`   (${el()})`);
 }
 

@@ -54,9 +54,10 @@ export function feedOptRows(pn) {
   if (fo.corner) rows.push(pn.num(t('cam.op.fo_angle'), 'feedOpt.corner.angle', { unit: '°', min: 1, max: 179, nullable: true, f: 'fo-angle' }),
     pn.num(t('cam.op.fo_dist'), 'feedOpt.corner.dist', { min: 0.001, nullable: true, f: 'fo-dist' }),
     pn.num(t('cam.op.fo_factor'), 'feedOpt.corner.factor', { unit: '', min: 0.01, max: 1, f: 'fo-factor', hint: t('cam.op.fo_factor_hint') }));
-  rows.push(checkField({ label: t('cam.op.fo_exit'), value: !!fo.exit, f: 'op-fo-exit', hint: t('cam.op.fo_exit_hint'), set: toggle('exit', () => ({ dist: pn.tool ? pn.tool.dia / 2 : 2, factor: 0.5 })) }));
+  rows.push(checkField({ label: t('cam.op.fo_exit'), value: !!fo.exit, f: 'op-fo-exit', hint: t('cam.op.fo_exit_hint'), set: toggle('exit', () => ({ dist: pn.tool ? pn.tool.dia / 2 : 2, factor: 0.5, when: 'material' })) })); // WP-22c: yeni secimde yalniz gercek cikis
   if (fo.exit) rows.push(pn.num(t('cam.op.fo_exit_dist'), 'feedOpt.exit.dist', { min: 0.001, f: 'fo-exit-dist' }),
-    pn.num(t('cam.op.fo_factor'), 'feedOpt.exit.factor', { unit: '', min: 0.01, max: 1, f: 'fo-exit-factor', hint: t('cam.op.fo_factor_hint') }));
+    pn.num(t('cam.op.fo_factor'), 'feedOpt.exit.factor', { unit: '', min: 0.01, max: 1, f: 'fo-exit-factor', hint: t('cam.op.fo_factor_hint') }),
+    checkField({ label: t('cam.op.fo_exit_material'), value: (fo.exit.when ?? 'always') === 'material', f: 'op-fo-exit-mat', hint: t('cam.op.fo_exit_material_hint'), set: (v) => { d.feedOpt.exit.when = v ? 'material' : 'always'; pn.invalidate(); pn.render(); pn.showResult(); } }));
   return rows;
 }
 
