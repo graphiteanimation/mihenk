@@ -262,7 +262,7 @@ export function clearRegion(A) {
     cand.sort((u, v) => dd(u) - dd(v));
     let best = null, tried = 0;
     // WP-22c (ext): yakin adaylarin hepsi verimsizse (sikismis kose) aramaya devam (aday basina en cok bir kuru kosu: verimsiz = bad).
-    // Yalniz helis yeri cogunlukla havadaysa cagrilir (rest kipi: ince artik); kapali cepte yeni cephe acan helis tercih edilir.
+    // Yalniz rest kipinde, helis yeri cogunlukla havadaysa cagrilir (ince artik); tam stokta yeni cephe acan helis daha verimli (P2 3B kaba: uzatilmis arama 86 -> 137 sn).
     for (let k = 0; k < cand.length && (tried < 16 || (ext && !best && tried < 16 + MAXTRY)); k++) {
       const c = cand[k]; const p = [cx(c % nx), cy((c / nx) | 0)];
       if (best && dd(c) > (best.d2 + 1) * 16 && tried >= 8) break;
@@ -330,11 +330,11 @@ export function clearRegion(A) {
         if (bc < 0) { stats.noEntry = (stats.noEntry || 0) + leftNow * g * g; break; }
         const c0 = [cx(bc % nx), cy((bc / nx) | 0)];
         if (!allowedExact(c0[0], c0[1])) { allowC[bc] = 0; continue; }
-        // WP-22c: helis halkasi (helixR + r) cogunlukla bu seviyede zaten bos (hava) ise helis gereksiz: artiga havadan, malzemeye
+        // WP-22c (yalniz rest kipi): helis halkasi (helixR + r) cogunlukla bu seviyede zaten bos (hava) ise helis gereksiz: artiga havadan, malzemeye
         // yakin yandan girilebilir mi (uzatilmis paso baslangic aramasi)? Bulunursa helis acilmaz.
         { let nAir = 0, nAll = 0; const RA = helixR + r;
-          for (let j = Math.max(0, Math.floor((c0[1] - RA - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RA - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RA - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RA - G.x0) / g)); i++) { const c = j * nx + i; if (!inRv[c] || Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) > RA) continue; nAll++; if (!mat[c]) nAir++; }
-          if (nAll && nAir >= 0.25 * nAll) { const sx = findStart(pos, z, true); if (sx) { forced = sx; stats.sideEntries = (stats.sideEntries || 0) + 1; continue; } } }
+          for (let j = Math.max(0, Math.floor((c0[1] - RA - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RA - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RA - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RA - G.x0) / g)); i++) { const c = j * nx + i; if (!inRv[c] || Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) > RA) continue; nAll++; if (hg[c] <= z + EPSZ) nAir++; } // hava = bu seviyeye kadar bosaltilmis (3D: parca hucresi hava degil)
+          if (rest && nAll && nAir >= 0.25 * nAll) { const sx = findStart(pos, z, true); if (sx) { forced = sx; stats.sideEntries = (stats.sideEntries || 0) + 1; continue; } } }
         // kucuk artik (ince serit): helis acilmaz, artik sayilir
         let near = 0; const RR = helixR + r;
         for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (rch[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) near++; }
