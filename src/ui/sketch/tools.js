@@ -53,7 +53,8 @@ function tangentArcFrom(S, p) {
   const g = tangentArcGeom(S, p); if (!g || !p[1]) return g ? { ...g, bad: true } : null;
   const n = [-g.T[1], g.T[0]], Q = xy(p[1]); const dq = [Q[0] - g.S[0], Q[1] - g.S[1]]; const den = 2 * (n[0] * dq[0] + n[1] * dq[1]);
   if (Math.abs(den) < 1e-9) return { ...g, bad: true };
-  const k = (dq[0] ** 2 + dq[1] ** 2) / den; const c = [g.S[0] + n[0] * k, g.S[1] + n[1] * k]; return { ...g, c, r: Math.abs(k), ccw: k > 0, E: Q };
+  // C-43: S._arctRev açıksa yay aynı çemberin tümleyen parçasıdır: uçtan doğrunun devamının TERSİ yönünde çıkar (sivri uç; teğetlik korunur)
+  const k = (dq[0] ** 2 + dq[1] ** 2) / den; const c = [g.S[0] + n[0] * k, g.S[1] + n[1] * k]; const rev = !!S._arctRev; return { ...g, c, r: Math.abs(k), ccw: rev ? !(k > 0) : k > 0, E: Q, rev };
 }
 
 export const DEFS = {
@@ -133,7 +134,7 @@ export const DEFS = {
     },
     valid(S, pts) { const g = tangentArcFrom(S, pts); return g && !g.bad ? null : 'sk.arct_bad'; },
     commit(S, pts) {
-      const g = tangentArcFrom(S, pts); const pa = pts[0].pid, pb = S._ptFor(pts[1]); S._lastPid = pb; const cp = S._newPt(g.c[0], g.c[1]);
+      const g = tangentArcFrom(S, pts); S._arctRev = false; const pa = pts[0].pid, pb = S._ptFor(pts[1]); S._lastPid = pb; const cp = S._newPt(g.c[0], g.c[1]);
       const arc = S._addEnt({ type: 'arc', c: cp, a: g.ccw ? pa : pb, b: g.ccw ? pb : pa }); S._addCon('tangent', g.ent.id, arc);
     },
   },

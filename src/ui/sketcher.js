@@ -159,7 +159,7 @@ export class Sketcher {
     this._renderGL(); this._buildOverlay(); this._renderPreview(); this.onChange();
     if (EDIT_TOOLS.includes(name)) this._editEnter(name, prevSel);
   }
-  _resetDraw() { this._ul = null; this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._box = null; this._press = null; this._drag = null; this._dragTarget = null; this._rdown = null; this._trimming = false; this._trimHot = null; this._hideSnap(); if (this.gPrev) { this._clearGroup(this.gPrev); this._hideTip(); } }
+  _resetDraw() { this._arctRev = false; this._ul = null; this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._box = null; this._press = null; this._drag = null; this._dragTarget = null; this._rdown = null; this._trimming = false; this._trimHot = null; this._hideSnap(); if (this.gPrev) { this._clearGroup(this.gPrev); this._hideTip(); } }
 
   // ---------- kimlik / durum ----------
   _id(prefix) { // kalıcı sayaç: silinen kimlik yeniden verilmez
@@ -351,7 +351,7 @@ export class Sketcher {
     if (this._hasStage()) return this._cancelStage();
     this._contextMenu(ev);
   }
-  _cancelStage() { this._ul = null; this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._closeDialog(); this.setHint(HINT_KEY[this.tool]); this._renderPreview(); }
+  _cancelStage() { this._arctRev = false; this._ul = null; this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._closeDialog(); this.setHint(HINT_KEY[this.tool]); this._renderPreview(); }
 
   _down(loc, ev) {
     const t = this.tool;
@@ -537,6 +537,12 @@ export class Sketcher {
     const st = this._ln; if (!st || this.tool !== 'line') return false;
     if (mode === 'arc' && !(st.n > 0 && st.start.pid)) { this._status('sk.arct_start'); return true; }
     st.mode = mode; this.setHint(mode === 'arc' ? 'hint.chain_arc' : 'hint.line_next'); this._renderPreview(); return true;
+  }
+  // C-43: teğet yay çizilirken (zincirde yay kipi ya da Teğet yay aracında ilk nokta seçilmişken) çıkış yönünü ters çevirir
+  flipTangentArc() {
+    const on = (this.tool === 'line' && this._ln && this._ln.mode === 'arc') || (this.tool === 'arct' && this._ds);
+    if (!on) return false;
+    this._arctRev = !this._arctRev; this._status(this._arctRev ? 'sk.arct_rev_on' : 'sk.arct_rev_off'); this._renderPreview(); return true;
   }
   _endChain() { if (this._ln) { this._ln = null; this.setHint(HINT_KEY.line); this._renderPreview(); } }
 
@@ -887,6 +893,7 @@ export class Sketcher {
     let lk = k.toLowerCase(); if (!/^[a-z]$/.test(lk) && /^Key[A-Z]$/.test(ev.code || '')) lk = ev.code.slice(3).toLowerCase();
     if (lk === 'n' && this._coordStart()) return done(); // N: koordinat girişi (mutlak X,Y ya da bağıl ΔX,ΔY)
     if (this._ln && this.tool === 'line' && (lk === 'a' || lk === 'l')) { this.chainMode(lk === 'a' ? 'arc' : 'line'); return done(); }
+    if (lk === 'f' && this.flipTangentArc()) return done(); // C-43: teğet yay yönü (doğrunun devamı / tersi)
     const map = { l: 'line', r: 'rect', c: 'circle', a: 'arc', d: 'dim', p: 'point', t: 'trim', x: 'extend', k: 'break', o: 'offset', q: 'fillet', w: 'chamfer', m: 'mirror', g: 'polygon', u: 'slot', y: 'ellipse', b: 'spline', j: 'project' };
     const shiftMap = { r: 'rectc', c: 'circle3', a: 'arc3' };
     const tool = ev.shiftKey && shiftMap[lk] ? shiftMap[lk] : map[lk];

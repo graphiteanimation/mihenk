@@ -80,4 +80,20 @@ for (const [end, name] of [[[10, 12], 'tam yarım daire (yukarı)'], [[10, -12],
   const L = getEnt(sk, l), A = sk.points[L.a], B = sk.points[L.b], C = sk.points[c]; const dd = Math.abs((B.x - A.x) * (A.y - C.y) - (A.x - C.x) * (B.y - A.y)) / Math.hypot(B.x - A.x, B.y - A.y); near(dd, getEnt(sk, ci).r, 'doğru daireye teğet', 1e-6);
 }
 
+// ---------------------------------------------------------------- C-43 teğet yay ters yönde
+{
+  const leave = (sk, arc, pid) => { const c = sk.points[arc.c], p = sk.points[pid]; const r = [p.x - c.x, p.y - c.y], t = [-r[1], r[0]]; const L = Math.hypot(...t); return arc.a === pid ? [t[0] / L, t[1] / L] : [-t[0] / L, -t[1] / L]; };
+  for (const rev of [false, true]) for (const Q of [[16, 6], [4, 6], [10, -8]]) {
+    const S = mkS(); const sk = S.sk; const a = addPoint(sk, 0, 0), b = addPoint(sk, 10, 0); addEnt(sk, { type: 'line', a, b });
+    S._arctRev = rev; ok(DEFS.arct.valid(S, [{ x: 10, y: 0, pid: b }, { x: Q[0], y: Q[1] }]) === null, `C-43: geçerli (ters=${rev}, Q=${Q})`);
+    DEFS.arct.commit(S, [{ x: 10, y: 0, pid: b }, { x: Q[0], y: Q[1] }]);
+    ok(!S._arctRev, 'C-43: ters yön seçimi işlemden sonra sıfırlanır');
+    const arc = sk.ents.find((e) => e.type === 'arc'); const d = leave(sk, arc, b);
+    near(d[0], rev ? -1 : 1, `C-43: yay ${rev ? 'doğrunun tersine' : 'doğrunun devamına'} çıkar (Q=${Q})`, 1e-9); near(d[1], 0, 'C-43: çıkış yatay', 1e-9);
+    const g0 = clone(sk); const r = await solve(sk);
+    ok(r.ok && !r.redundant.length && !r.conflicting.length && moved(g0, sk) < 1e-6, `C-43: ters=${rev} Q=${Q} çözülür, yerinde kalır, uyarı yok: ` + JSON.stringify([r.redundant, moved(g0, sk)]));
+    const other = arc.a === b ? arc.b : arc.a; near(sk.points[other].x, Q[0], 'C-43: bitiş x', 1e-6); near(sk.points[other].y, Q[1], 'C-43: bitiş y', 1e-6);
+  }
+}
+
 console.log(`${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);
