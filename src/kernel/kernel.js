@@ -6,7 +6,7 @@ import { evalExpr, resolveParams } from '../shared/expr.js';
 import { KErr, tk, toErr } from '../shared/errors.js';
 import * as V from '../shared/vec.js';
 import * as TP from './topo.js';
-import { faceName, edgeName, resolveName, aliasSet, faceKey, vertKey } from './naming.js';
+import { faceName, edgeName, edgeNameText, resolveName, aliasSet, faceKey, vertKey } from './naming.js';
 import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
@@ -332,7 +332,7 @@ export class Kernel {
         if (cm === 'angle') { v2 = N(f.angle ?? 45, tk('ef.angle')); if (!(v2 > 0 && v2 < 90)) throw new KErr('chamfer.angle_range', { value: v2 }); }
         if (!Array.isArray(f.edges) || !f.edges.length) throw new KErr('fc.no_edges');
         const byBody = new Map();
-        f.edges.forEach((r, k) => { const { body, i } = this.resolveIdx(r, state, 'edge', { ...ctx, field: 'edges', index: k }); const bid = r.body; if (!byBody.has(bid)) byBody.set(bid, { body, sel: new Map() }); const nm = edgeName(body, i); byBody.get(bid).sel.set(i, nm.error ? `#${k}` : `<${nm.a}&${nm.b}${nm.nb ? '|' + nm.nb.join('|') : ''}>`); });
+        f.edges.forEach((r, k) => { const { body, i } = this.resolveIdx(r, state, 'edge', { ...ctx, field: 'edges', index: k }); const bid = r.body; if (!byBody.has(bid)) byBody.set(bid, { body, sel: new Map() }); const nm = edgeName(body, i); byBody.get(bid).sel.set(i, nm.error ? `#${k}` : edgeNameText(nm)); });
         for (const [bid, { body, sel }] of byBody) {
           let res = null;
           const T0 = TP.topoOf(body.shape);

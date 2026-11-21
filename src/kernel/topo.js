@@ -83,6 +83,11 @@ export function propagate(b, inputs, res, opt = {}) {
   return out.map((s) => [...s].sort());
 }
 
+// IE-005 C-39/C-42: boolean bulanık toleransı (mm). Elle yuvarlanmış eskiz koordinatları (ör. 8.48528 ≈ 6√2) ve döndürmeler eş
+// düzlemli yüzleri ~1e-6 mm kaydırıyor: tolerans 0 iken BOP iki yüz arasında sıfır alanlı şerit yüz bırakıyor, SimplifyResult
+// (UnifySameDomain, geçmişi BOP geçmişine katılır) bu yüzden birleştiremiyor (T04). 1e-5 mm, Parasolid'in doğrusal çözünürlüğü (1e-8 m) ile aynı ve
+// en küçük ölçünün (LIMITS.minDim = 1e-3) %1'i.
+export const FUZZ = 1e-5;
 // Boolean: args/tools = [{shape, fn, map?}]. Tek BOP çağrısı (çok takım = O(n), F-11).
 export function boolean(op, args, tools, simplify = true) {
   const O = oc(); const r = scope();
@@ -90,7 +95,7 @@ export function boolean(op, args, tools, simplify = true) {
     const b = r(op === 'fuse' ? new O.BRepAlgoAPI_Fuse() : op === 'cut' ? new O.BRepAlgoAPI_Cut() : new O.BRepAlgoAPI_Common());
     const la = r(new O.NCollection_List_TopoDS_Shape()), lt = r(new O.NCollection_List_TopoDS_Shape());
     for (const a of args) app(la, a.shape.wrapped); for (const t of tools) app(lt, t.shape.wrapped);
-    b.SetArguments(la); b.SetTools(lt); b.Build(progress(r));
+    b.SetArguments(la); b.SetTools(lt); b.SetFuzzyValue(FUZZ); b.Build(progress(r));
     if (!b.IsDone() || b.HasErrors()) return null;
     if (simplify) b.SimplifyResult(true, true, 1e-3);
     const raw = b.Shape(); if (raw.IsNull()) { raw.delete(); return null; }
@@ -105,7 +110,94 @@ export function boolean(op, args, tools, simplify = true) {
 
 // Kenar işlemleri: kind 'fillet'|'chamfer'; edges = ham kenar dizini; nameOfEdge(j), nameOfVert(k) → üretilen yüz adı
 // WP-08: spec(j) → {d1, d2, face} (iki mesafe; face: d1'in ölçüldüğü komşu yüz dizini) ya da {d, angle, face} (mesafe + açı, derece)
+// IE-005 C-33: seçili kenar zincirinin uç köşesi bir silindirik yüzün dikiş (seam) kenarına denk gelince ChFi3d geçersiz katı
+// (BRepCheck) üretiyor; build123d'de de aynı (dikiş +Y'de ya da iki yarım yüz). Sonuç geçersiz/başarısızsa dikiş, seçili kenarın
+// ortasına taşınıp (yeniden dikiş) bir kez daha denenir. Geçerli ilk sonuç değişmez (kapı yalnız başarısızlıkta açılır).
 export function edgeBlend(kind, body, edgeIdx, val, nameOfEdge, nameOfVert, spec = null) {
+  const res = edgeBlend0(kind, body, edgeIdx, val, nameOfEdge, nameOfVert, spec);
+  if (res && !validity(res.shape)) return res;
+  if (spec) return res; // iki mesafe / açı pahında referans yüz dizini taşınmıyor: yeniden dikiş denenmez
+  const rs = reseamFor(body, edgeIdx); if (!rs) return res;
+  const alt = edgeBlend0(kind, rs.body, rs.edges, val, (j) => nameOfEdge(rs.edgeFrom.get(j)), (k) => (rs.vertFrom.has(k) ? nameOfVert(rs.vertFrom.get(k)) : `${nameOfEdge(rs.edgeOfVert.get(k))}~v`), null);
+  if (!alt || validity(alt.shape)) return res;
+  return alt;
+}
+
+// Yeniden dikiş: seçili kenarlara komşu silindirik yüzlerden dikişi bir seçili kenar ucuna değenler için, aynı eksen/yarıçapta,
+// dikişi seçili kenarın orta noktasına bakan silindir C kurulur; gövde = Fuse(Common(C, gövde), Cut(gövde, C)). Common'da C ilk
+// bağımsız değişken olduğundan çakışan yüzün temsilcisi C'nin yüzeyidir (dikiş yeni yerde); hacim değişmez. Adlar boolean
+// geçmişiyle taşınır. Döner {body, edges, edgeFrom: yeni→eski kenar, vertFrom: yeni→eski köşe, edgeOfVert} ya da null.
+function reseamFor(body, edgeIdx) {
+  const O = oc(); const T = topoOf(body.shape); const sel = new Set(edgeIdx);
+  const V = new Set(); for (const j of edgeIdx) for (const k of T.edgeVerts[j]) V.add(k);
+  const plans = [];
+  const seen = new Set();
+  for (const j of edgeIdx) for (const fi of T.edgeFaces[j]) {
+    if (seen.has(fi)) continue; seen.add(fi);
+    const F = faceWrap(T.faces.list[fi]); if (F.geomType !== 'CYLINDRE') continue;
+    const seams = T.faceEdges[fi].filter((e) => T.edgeFaces[e].length === 1);
+    if (!seams.some((e) => T.edgeVerts[e].some((k) => V.has(k)))) continue;
+    const r = scope();
+    try {
+      const ad = r(new O.BRepAdaptor_Surface(r(O.TopoDS.Face(T.faces.list[fi])), true)); const cy = r(ad.Cylinder());
+      const ax = r(cy.Axis()); const l = r(ax.Location()), d = r(ax.Direction());
+      const o = [l.X(), l.Y(), l.Z()], n = [d.X(), d.Y(), d.Z()], R0 = cy.Radius();
+      const m = edgeMid(T.edges.list[j]); const w = [m[0] - o[0], m[1] - o[1], m[2] - o[2]]; const t = dot3(w, n);
+      const xd = norm3([w[0] - t * n[0], w[1] - t * n[1], w[2] - t * n[2]]);
+      const B = F.UVBounds; // silindirde v eksen boyunca, konum o'dan
+      plans.push({ o, n, xd, R: R0, v0: B.vMin, v1: B.vMax });
+    } catch (e) { /* bu yüz atlanır */ } finally { r.done(); }
+  }
+  if (!plans.length) return null;
+  let cur = { shape: body.shape, fn: body.fn };
+  for (const p of plans) {
+    const r = scope();
+    let C;
+    try {
+      const pad = 1e-3 * Math.max(1, p.v1 - p.v0);
+      const base = [p.o[0] + p.n[0] * (p.v0 - pad), p.o[1] + p.n[1] * (p.v0 - pad), p.o[2] + p.n[2] * (p.v0 - pad)];
+      const mk = r(new O.BRepPrimAPI_MakeCylinder(r(new O.gp_Ax2(P(r, base), Dv(r, p.n), Dv(r, p.xd))), p.R, p.v1 - p.v0 + 2 * pad));
+      C = wrap(mk.Shape());
+    } catch (e) { return null; } finally { r.done(); }
+    const inC = boolean('common', [{ shape: C, fn: [] }], [cur]); const outC = boolean('cut', [cur], [{ shape: C, fn: [] }]);
+    if (!inC || !outC) return null;
+    const parts = [inC, outC].filter((x) => volume(x.shape) > 0);
+    const res = parts.length === 2 ? boolean('fuse', [parts[0]], [parts[1]]) : parts[0];
+    if (!res || validity(res.shape)) return null;
+    const v0 = volume(cur.shape), v1 = volume(res.shape);
+    if (!(Math.abs(v1 - v0) <= 1e-7 * Math.max(1, v0))) return null;
+    cur = res;
+  }
+  // her eski ad korunmalı (birleşen yüzler ad kümelerinin birleşimini alır, ad kaybolmaz)
+  const after = new Set(cur.fn.flat()); for (const names of body.fn) for (const nm of names || []) if (!after.has(nm)) return null;
+  // seçili kenarların yeni karşılıkları: orta noktası eski kenar üzerinde olan iki yüzlü kenarlar
+  const T2 = topoOf(cur.shape); const edgeFrom = new Map(), vertFrom = new Map(), edgeOfVert = new Map();
+  const tol = 1e-6 * Math.max(1, ...body.shape.boundingBox.bounds.flat().map(Math.abs));
+  T2.edges.list.forEach((e, j2) => {
+    if (T2.edgeFaces[j2].length !== 2) return;
+    const m = edgeMid(e);
+    for (const j of sel) if (pointShapeDist(T.edges.list[j], m) < tol) { edgeFrom.set(j2, j); break; }
+  });
+  if (!edgeFrom.size) return null;
+  for (const j of sel) if (![...edgeFrom.values()].includes(j)) return null;
+  for (const [j2, j] of edgeFrom) for (const k2 of T2.edgeVerts[j2]) {
+    if (vertFrom.has(k2) || edgeOfVert.has(k2)) continue;
+    const pk = vertPnt(T2.verts.list[k2]); let hit = -1;
+    for (const k of V) if (dist3(vertPnt(T.verts.list[k]), pk) < tol) { hit = k; break; }
+    if (hit >= 0) vertFrom.set(k2, hit); else edgeOfVert.set(k2, j);
+  }
+  return { body: { ...body, shape: cur.shape, fn: cur.fn }, edges: [...edgeFrom.keys()], edgeFrom, vertFrom, edgeOfVert };
+}
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+function vertPnt(raw) { const O = oc(); const r = scope(); try { const p = r(O.BRep_Tool.Pnt(r(O.TopoDS.Vertex(raw)))); return [p.X(), p.Y(), p.Z()]; } finally { r.done(); } }
+function pointShapeDist(raw, p) {
+  const O = oc(); const r = scope();
+  try { const v = r(new O.BRepBuilderAPI_MakeVertex(P(r, p))); const vs = r(v.Vertex()); const d = r(new O.BRepExtrema_DistShapeShape(vs, raw)); return d.IsDone() ? d.Value() : Infinity; }
+  catch (e) { return Infinity; } finally { r.done(); }
+}
+
+function edgeBlend0(kind, body, edgeIdx, val, nameOfEdge, nameOfVert, spec) {
   const O = oc(); const r = scope(); const T = topoOf(body.shape);
   try {
     const b = r(kind === 'fillet' ? new O.BRepFilletAPI_MakeFillet(body.shape.wrapped, O.ChFi3d_FilletShape.ChFi3d_Rational) : new O.BRepFilletAPI_MakeChamfer(body.shape.wrapped));

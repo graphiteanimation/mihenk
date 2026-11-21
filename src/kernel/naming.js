@@ -4,6 +4,10 @@
 // KENAR adı = iki komşu yüzün adı (sırasız çift); KÖŞE adı = çevresindeki yüz adları.
 // Ad birden çok elemanı veriyorsa (bölünmüş yüz, aynı yüz çiftini paylaşan kenarlar) kararlı ayırt edici = komşu
 // yüz adlarından seçilmiş en küçük küme (nb). Çözüm YALNIZ ada göredir; tek eleman çıkmazsa hata.
+// C-31: ham komşu adları kenarları ayıramıyorsa (ör. dikişte ikiye bölünmüş kesişim yayı; aynı adı taşıyan iki yüz
+// parçası) ikinci kademe ayırt edici nk = kenarın kendi yüzlerinin ve uç köşelerindeki üçüncü yüzlerin AYIRT EDİLMİŞ
+// yüz anahtarları (faceKey, ör. "e2:side:l3|e2:end"). Yalnız adlardan türetilir (dizin/sıra yok); nk isteğe bağlıdır,
+// yalnız nb yetmediğinde üretilir — eski {a,b,nb?} adları aynen üretilir ve çözülür.
 import { KErr } from '../shared/errors.js';
 import { topoOf } from './topo.js';
 
@@ -26,22 +30,33 @@ function index(body) {
     for (const k of T.edgeVerts[j]) for (const f of T.vertFaces[k]) if (!own.includes(f)) for (const n of body.fn[f] || []) s.add(n);
     vnbrCache.set(j, s); return s;
   };
-  X = { shape: body.shape, fn: body.fn, T, alias, faceNbr, edgeNbr };
+  // kenarın kendi yüzlerinin ve uç köşe üçüncü yüzlerinin ayırt edilmiş anahtarları (C-31)
+  const keyCache = new Map(), kCache = new Map();
+  const fkey = (f) => { if (!keyCache.has(f)) keyCache.set(f, faceKey(body, f)); return keyCache.get(f); };
+  const edgeNbrK = (j) => {
+    let s = kCache.get(j); if (s) return s; s = new Set(); const own = T.edgeFaces[j];
+    const add = (f) => { const k = fkey(f); if (k) s.add(k); };
+    for (const f of own) add(f);
+    for (const k of T.edgeVerts[j]) for (const f of T.vertFaces[k]) if (!own.includes(f)) add(f);
+    kCache.set(j, s); return s;
+  };
+  X = { shape: body.shape, fn: body.fn, T, alias, faceNbr, edgeNbr, edgeNbrK };
   idxCache.set(body.fn, X); return X;
 }
 
 export const aliasSet = (body) => index(body).alias;
 
-// en küçük ayırt edici küme (açgözlü). ok=false → ayırt edilemiyor
-function discriminate(target, cands, nbrOf) {
+// en küçük ayırt edici küme (açgözlü). null → ayırt edilemiyor. partial: kalan adaylarla birlikte {nb, rest} döner
+function discriminate(target, cands, nbrOf, partial = false) {
   const mine = nbrOf(target); let rest = cands.filter((c) => c !== target); const nb = [];
   while (rest.length) {
     let best = null, bestKill = 0;
     for (const n of [...mine].sort()) { if (nb.includes(n)) continue; const kill = rest.filter((c) => !nbrOf(c).has(n)).length; if (kill > bestKill) { best = n; bestKill = kill; } }
-    if (!best) return null;
+    if (!best) break;
     nb.push(best); rest = rest.filter((c) => nbrOf(c).has(best));
   }
-  return nb.sort();
+  if (partial) return { nb: nb.sort(), rest };
+  return rest.length ? null : nb.sort();
 }
 
 // Yüz adı: {k, nb?} ya da {error}
@@ -74,10 +89,17 @@ export function edgeName(body, j) {
     if (c.length === 1 && c[0] === j) return { a, b };
   }
   const nb = discriminate(j, first.c, X.edgeNbr);
-  return nb ? { a: first.a, b: first.b, nb } : { error: 'ref.ambiguous_here' };
+  if (nb) return { a: first.a, b: first.b, nb };
+  // C-31 ikinci kademe: ham adlarla ayrılamayan adaylar ayırt edilmiş yüz anahtarlarıyla
+  const p = discriminate(j, first.c, X.edgeNbr, true);
+  const nk = discriminate(j, [j, ...p.rest], X.edgeNbrK);
+  if (!nk) return { error: 'ref.ambiguous_here' };
+  const out = { a: first.a, b: first.b }; if (p.nb.length) out.nb = p.nb; out.nk = nk; return out;
 }
+// kenar adının dize biçimi (üretilen yüz adlarında, seçim etiketlerinde). nk yoksa eski biçimle birebir aynı.
+export const edgeNameText = (n) => `<${n.a}&${n.b}${n.nb ? '|' + n.nb.join('|') : ''}${n.nk ? '#' + n.nk.join('#') : ''}>`;
 // Üretilen yüz adlarında kullanılan dize biçimleri
-export const edgeKey = (body, j) => { const n = edgeName(body, j); return n.error ? null : `<${n.a}&${n.b}${n.nb ? '|' + n.nb.join('|') : ''}>`; };
+export const edgeKey = (body, j) => { const n = edgeName(body, j); return n.error ? null : edgeNameText(n); };
 export const vertKey = (body, k) => {
   const T = topoOf(body.shape); const ps = [];
   for (const f of T.vertFaces[k]) { const al = body.fn[f]; if (!al || !al.length) return null; ps.push(al[0]); }
@@ -98,6 +120,7 @@ export function resolveName(body, kind, name, hint) {
     if (typeof name.a !== 'string' || typeof name.b !== 'string') throw new KErr('ref.unnamed', p);
     c = edgeCands(X, name.a, name.b);
     if (name.nb) c = c.filter((j) => name.nb.every((n) => X.edgeNbr(j).has(n)));
+    if (Array.isArray(name.nk)) c = c.filter((j) => name.nk.every((n) => X.edgeNbrK(j).has(n)));
   }
   if (c.length === 1) return c[0];
   throw new KErr(c.length ? (kind === 'face' ? 'ref.ambiguous_face' : 'ref.ambiguous_edge') : (kind === 'face' ? 'ref.lost_face' : 'ref.lost_edge'), { ...p, n: c.length });
