@@ -118,6 +118,17 @@ Mihenk: devam
 Mihenk: devam
 ```
 
+## İE-013 — Güncel envanter ve NX/Fusion eksik analizi (0.6.1 tabanı) · **Hazır** (ekransız; kod değiştirmez)
+- Ön koşul: İE-009 ve İE-012 Bitti (0.6.1 özellikleri ana dalda). Yalnız `pm/` yazar.
+- Amaç: "NX ve Fusion'a göre neler eksik" sorusunun doğrulanmış cevabı (kullanıcı sorusu 2026-11-21: 3B eskiz ve genel eksikler); 1.0 planının (G-3) girdisi.
+- Kapsam: `pm/kaynak/envanter-0.3.0.md` yerine `pm/kaynak/envanter-0.6.1.md` (koddan ve testlerden çıkarılır; her satır dosya/test kanıtıyla). `pm/kaynak/referans-nx-fusion.md` kataloğunun her satırı için durum: Var / Kısmen / Yok / Kapsam dışı (O-027) + kullanıcının işi için önem (alüminyum/çelik parça, 3 ve 3+1 eksen, K-019). Ayrıca katalogda olmayan ama kullanıcının andığı NX alışkanlıkları: 3B eskiz, datum düzlem/eksen/nokta yöntemleri, senkron modelleme.
+- Çıktı: `pm/kaynak/eksik-analizi-0.6.1.md`: CAD, teknik resim, CAM, veri alışverişi, denetim başlıklarında tablo; sonunda 1.0 için öneri listesi (en çok 15 madde, önem ve tahmini büyüklükle) ve "bilerek yapılmayacaklar".
+- Kabul: bağımsız bir alt ajan 20 rastgele satırı koda karşı doğrular; "bilinmiyor" kalan satır açıkça işaretli.
+- Açılış metni:
+```
+Mihenk: devam
+```
+
 ## İE-011 — Sürüm 0.6.1 · **Beklemede** (ön koşullar bitince yönetim Hazır yapar)
 - Ön koşul: İE-005, İE-006, İE-007, İE-008, İE-009, İE-010, İE-012 Bitti; ana dal `ci` yeşil. Ekran kullanır (kurulum ve yeniden çizim).
 - Kapsam: sürüm numarası 0.6.1, değişiklik notu, `test:all` + altın set, Windows kurulum dosyası, bilgisayara kurulum (`Mihenk\surumler\0.6.1\`, eski sürüm `arsiv`'e), kısa kabul (aç, örnek, kaydet, NC). KISMEN parçalar T03, T04, T05, T09 kurulu 0.6.1'de arayüzden yeniden çizilir; hedef dördü de GEÇTİ. `cad-bench` regresyon hedefleri referans hacme çekilir. Kullanıcı için 10 dakikalık deneme listesi (`pm/test/DENEME-0.6.1.md`): C-13, C-14, C-20, C-21 ve açılı düzlem dahil.

@@ -52,7 +52,7 @@
 |---|---|---|---|
 | G-1 | CAD testi T02–T10 (İE-001) | Bitti 2026-11-21; sonuç raporu `pm/test/CAD-TEST.md` | Kapandı |
 | G-2 | İE-002 Bitti: CI-1 ve C-21 düzeltildi; C-14 yeniden üretilemedi, olası neden kapatıldı (soru `SORULAR`'da). C-21 yan bulguları WP-CAD1'de | 0.6.1 kullanıcı denemesinde C-14'e özellikle bakılsın | İzleniyor |
-| G-3 | 1.0 yapım sırası (BACKLOG "1.0 ve sonrası") | 0.6.1 ve Fusion kıyaslaması bitince planlansın | Karar bekliyor |
+| G-3 | 1.0 yapım sırası ve 1.0 kapısının ölçütü (Fusion kıyaslaması kapanmış, kullanıcının gerçek parçaları, tezgâhta kesim?) | Girdi: İE-013 eksik analizi + İE-004 kıyaslama sonucu; 0.6.1'den sonra konuşulsun. 3B eskiz 1.0 adayı | Karar bekliyor |
 | G-4 | Fusion: K-054 ile kıyaslama (İE-004) 0.6.1'den sonra. Lisansa bağlı referans toplama İE-004A ayrı, **Beklemede** (ekran kullanıcıda); lisans 23 Kasım 2026 | Kullanıcı "bilgisayar boş" deyince hemen Hazır; en geç 22 Kasım | Açık |
 | G-5 | Ana dal testi | İlk yeşil koşu 2026-11-21 14:29 UTC (`9dc2867`, 43/43 adım; İE-002 CI-1: Windows'taki xpdf metni farklı satıra koyuyordu, ürün hatası değil) | Kapandı (Y-02) |
 | G-6 | Bazı iş oturumları GitHub'a gönderemedi (O-047), iş yedek depoda kaldı | İş oturumu kapanışta GitHub'a gönderimi doğrular; gönderemezse `DURUM`'un ilk satırına yazar; yönetim oturumu eşitler | İzleniyor |
