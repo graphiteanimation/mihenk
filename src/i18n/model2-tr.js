@@ -76,5 +76,13 @@ export default {
   "err.import.iges_face": "IGES yüzü kurulamadı",
   "err.import.iges_open": "IGES yüzeyleri kapalı bir gövde oluşturmuyor",
   "err.import.iges_unbounded": "IGES dosyasında sınırsız düzlem var (kırpma eğrisi yok)",
+  "err.import.why_no_data": "dosya verisi yok",
+  "err.import.why_invalid": "geometri geçerlilik denetiminden geçmedi ({reason})",
+  "err.import.why_format": "desteklenmeyen dosya biçimi",
+  "err.import.why_base64": "dosya verisi bozuk (kodlama)",
+  "err.import.why_empty": "dosya boş",
+  "err.import.why_no_solid": "dosyada katı gövde yok",
+  "err.import.why_parse": "dosya okunamadı (bozuk ya da desteklenmeyen içerik)",
+  "err.import.iges_export": "IGES dışa aktarılamadı: {n}. yüz yazılamadı ({type})",
   "menu.import_iges": "IGES İçe Aktar…", "menu.export_iges": "IGES Dışa Aktar…",
 };

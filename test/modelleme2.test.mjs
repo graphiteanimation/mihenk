@@ -308,6 +308,43 @@ section('iges');
   ok(bytes.length > 1000 && new TextDecoder().decode(bytes.subarray(72, 73)) === 'S', 'IGES dışa aktarıldı (80 sütun)');
   out = await K.rebuild(imp(new TextDecoder().decode(bytes))); ok(out.status.ig.ok, 'dışa aktarılan IGES geri okunur: ' + errOf(out, 'ig'));
   rel(vol(out), v0, 1e-4, 'IGES gidiş-dönüş hacmi (delikli blok)');
+  // satır sonu olmayan (tek parça 80 sütunluk) dosya
+  const flat = handIges(10, 20, 30, 2).split('\n').filter(Boolean).map((l) => (l + ' '.repeat(80)).slice(0, 80)).join('');
+  out = await K.rebuild(imp(flat)); ok(out.status.ig.ok, 'satır sonsuz IGES okunur: ' + errOf(out, 'ig')); rel(vol(out), 6000, 1e-9, 'satır sonsuz IGES hacmi');
+  // hata nedeni kullanıcı metnine ulaşır (TR)
+  out = await K.rebuild(imp('bu bir IGES dosyasi degil\n'));
+  ok(out.status.ig.error.params.why?.code === 'import.iges_parse', 'neden kodu iletilir: ' + JSON.stringify(out.status.ig.error.params));
+  ok(/yüklenemedi: IGES dosyası okunamadı/.test(errText(out.status.ig.error)), 'TR neden metni: ' + errText(out.status.ig.error));
+  setLang('en', false); ok(/could not be loaded: The IGES file could not be read/.test(errText(out.status.ig.error)), 'EN neden metni: ' + errText(out.status.ig.error)); setLang('tr', false);
+  const unsup = handIges(10, 20, 30, 2).replace(/^     144/gm, '     186').replace(/^144,/gm, '186,'); // 144 → 186 (B-rep katı, desteklenmez)
+  out = await K.rebuild(imp(unsup)); ok(!out.status.ig.ok && /desteklenmiyor/.test(errText(out.status.ig.error)), 'desteklenmeyen tür metni: ' + errText(out.status.ig.error));
+  // döngüsel 102 (kendine başvuran bileşik eğri) → okuma hatası, yığın taşmaz
+  const cyc = (() => { const L = handIges(10, 20, 30, 2).split('\n'); const i = L.findIndex((l) => l.startsWith('102,4,')); if (i < 0) return null; const de = +L[i].slice(64, 72); L[i] = (`102,1,${de};` + ' '.repeat(64)).slice(0, 64) + L[i].slice(64); return L.join('\n'); })();
+  ok(!!cyc, 'döngüsel 102 kuruldu');
+  out = await K.rebuild(imp(cyc)); ok(!out.status.ig.ok && out.status.ig.error.params.why?.code === 'import.iges_parse', 'döngüsel 102 açık hata: ' + JSON.stringify(out.status.ig.error.params.why));
+  // STL / STEP nedenleri de iletilir (genel zincir)
+  out = await K.rebuild({ features: [{ id: 'st', type: 'import', format: 'stl', name: 'x', data: b64('solid x\nendsolid x\n') }] });
+  ok(!out.status.st.ok && errText(out.status.st.error).includes(': '), 'STL neden metni: ' + errText(out.status.st.error));
+  // dışa → içe: küre, silindir+küre, koni, simit, yuvarlatılmış kutu
+  const sk = (id, plane, points, ents) => ({ id, type: 'sketch', plane: base(plane), points, ents });
+  const shapes = {
+    'küre': [{ id: 's', type: 'primitive', kind: 'sphere', x: '0', y: '0', z: '0', dia: '20', op: 'new' }],
+    'silindir+küre': [{ id: 'c', type: 'primitive', kind: 'cylinder', x: '0', y: '0', z: '0', dia: '10', h: '20', axis: 'Z', op: 'new' }, { id: 's', type: 'primitive', kind: 'sphere', x: '0', y: '0', z: '0', dia: '10', op: 'join' }],
+    'koni': [sk('k', 'XZ', { a: { x: 0, y: 0 }, b: { x: 8, y: 0 }, c: { x: 3, y: 15 }, d: { x: 0, y: 15 } }, [['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'a']].map(([a, b], i) => ({ id: 'l' + i, type: 'line', a, b }))), { id: 'r', type: 'revolve', sketch: 'k', profiles: 'all', axis: { kind: 'sketchY' }, angle: '360', op: 'new' }],
+    'simit': [sk('t', 'XZ', { c: { x: 12, y: 0 } }, [{ id: 'c1', type: 'circle', c: 'c', r: 3 }]), { id: 'r', type: 'revolve', sketch: 't', profiles: 'all', axis: { kind: 'sketchY' }, angle: '360', op: 'new' }],
+  };
+  for (const [nm, feats] of Object.entries(shapes)) {
+    out = await K.rebuild({ features: feats }); const va = vol(out);
+    let txt = null; try { txt = new TextDecoder().decode(await K.exportFile('iges', null, null)); } catch (e) { txt = null; ok(false, nm + ' dışa aktarma: ' + (e.code || e.message)); continue; }
+    out = await K.rebuild(imp(txt)); ok(out.status.ig.ok, nm + ' IGES geri okunur: ' + errText(out.status.ig.error));
+    rel(vol(out), va, 5e-4, nm + ' IGES gidiş-dönüş hacmi');
+  }
+  {
+    const fd = { features: [box('fb', 30, 20, 10)] }; await K.rebuild(fd);
+    fd.features.push({ id: 'fl', type: 'fillet', edges: edgeBy('fb', () => true), r: '2' }); out = await K.rebuild(fd); ok(out.status.fl.ok, 'yuvarlatılmış kutu'); const va = vol(out);
+    const txt = new TextDecoder().decode(await K.exportFile('iges', null, null));
+    out = await K.rebuild(imp(txt)); ok(out.status.ig.ok, 'yuvarlatılmış kutu IGES geri okunur: ' + errText(out.status.ig.error)); rel(vol(out), va, 5e-4, 'yuvarlatılmış kutu IGES gidiş-dönüş hacmi');
+  }
 }
 
 console.log(`modelleme2: ${pass} geçti, ${fail} kaldı`);

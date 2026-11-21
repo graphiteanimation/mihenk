@@ -556,7 +556,7 @@ const base = {
   "err.pattern.total_min": "Toplam adet en az 2 olmalı",
   "err.pattern.source_unsupported": "Kaynak özellik desenlenemez (extrude, revolve, delik ya da ilkel seçin)",
   "err.pattern.no_source": "Kaynak seçilmedi",
-  "err.import.load_failed": "İçe aktarılan geometri yüklenemedi",
+  "err.import.load_failed": "İçe aktarılan geometri yüklenemedi: {why}",
   "err.feature.unknown": "Bilinmeyen özellik: {type}",
   "err.combine.self": "Hedef gövde takım listesinde olamaz",
   "err.doc.invalid": "Belge bozuk: okunamadı",

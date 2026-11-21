@@ -76,5 +76,13 @@ export default {
   "err.import.iges_face": "An IGES face could not be built",
   "err.import.iges_open": "The IGES surfaces do not form a closed body",
   "err.import.iges_unbounded": "The IGES file contains an unbounded plane (no trimming curve)",
+  "err.import.why_no_data": "no file data",
+  "err.import.why_invalid": "the geometry failed the validity check ({reason})",
+  "err.import.why_format": "unsupported file format",
+  "err.import.why_base64": "the file data is corrupt (encoding)",
+  "err.import.why_empty": "the file is empty",
+  "err.import.why_no_solid": "the file contains no solid body",
+  "err.import.why_parse": "the file could not be read (corrupt or unsupported content)",
+  "err.import.iges_export": "IGES export failed: face {n} could not be written ({type})",
   "menu.import_iges": "Import IGES…", "menu.export_iges": "Export IGES…",
 };

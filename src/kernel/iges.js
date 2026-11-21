@@ -14,7 +14,9 @@ const UNIT_MM = { 1: 25.4, 2: 1, 3: 25.4, 4: 304.8, 5: 1609344, 6: 1000, 7: 1e6,
 
 // ------------------------------------------------------------------ okuma
 export function parseIges(text) {
-  const lines = text.split(/\r?\n/).filter((l) => l.length >= 73);
+  let lines = text.split(/\r?\n/).filter((l) => l.length >= 73);
+  // satır sonu olmadan art arda 80 sütunluk kayıtlar (bazı yazıcılar): 80'lik parçalara böl
+  if (lines.length < 2 && text.length >= 160) { const flat = text.replace(/[\r\n]/g, ''); if (flat.length % 80 === 0) lines = flat.match(/.{80}/g); }
   const sec = { S: [], G: [], D: [], P: [] };
   for (const l of lines) { const c = l[72]; if (sec[c]) sec[c].push(l); }
   if (!sec.D.length || !sec.P.length) throw new KErr('import.iges_parse');
@@ -67,7 +69,8 @@ const apply = (T, p) => [0, 1, 2].map((i) => T[i][0] * p[0] + T[i][1] * p[1] + T
 const applyV = (T, v) => [0, 1, 2].map((i) => T[i][0] * v[0] + T[i][1] * v[1] + T[i][2] * v[2]);
 
 // Eğri → OCCT kenar listesi (dünya, mm)
-function curveEdges(ctx, de, T0) {
+function curveEdges(ctx, de, T0, depth = 0) {
+  if (depth > 16) throw new KErr('import.iges_parse'); // döngüsel ya da çok derin 102 bileşik eğri
   const e = ctx.D.get(de); if (!e || !e.p) throw new KErr('import.iges_parse');
   const T = mul34(T0, xformOf(ctx, e.xform)); const s = ctx.scale; const P = e.p.map(num);
   const W = (p) => apply(T, p).map((x) => x * s);
@@ -83,7 +86,7 @@ function curveEdges(ctx, de, T0) {
         const am = (a0 + a1) / 2;
         return [TP.makeArc3(W([sx, sy, zt]), W([cx + rr * Math.cos(am), cy + rr * Math.sin(am), zt]), W([ex, ey, zt]))];
       }
-      case 102: { const n = P[0]; const out = []; for (let k = 0; k < n; k++) out.push(...curveEdges(ctx, P[1 + k], T0Combined(T0, ctx, e))); return out; }
+      case 102: { const n = P[0]; const out = []; for (let k = 0; k < n; k++) out.push(...curveEdges(ctx, P[1 + k], T0Combined(T0, ctx, e), depth + 1)); return out; }
       case 106: {
         const ip = P[0], n = P[1]; const out = []; let pts = [];
         if (ip === 1) { const zt = P[2]; for (let k = 0; k < n; k++) pts.push(W([P[3 + 2 * k], P[4 + 2 * k], zt])); }
@@ -182,7 +185,10 @@ function makeFace(S, outer, inner) {
   try {
     let mf;
     if (S.plane) mf = r(new O.BRepBuilderAPI_MakeFace(r(new O.gp_Pln(r(new O.gp_Pnt(...S.plane.o)), r(new O.gp_Dir(...S.plane.n)))), outer.wrapped, true));
-    else mf = r(new O.BRepBuilderAPI_MakeFace(S.surf, outer.wrapped, true));
+    else {
+      for (const [cl, pe, set] of [['IsUClosed', 'IsUPeriodic', 'SetUPeriodic'], ['IsVClosed', 'IsVPeriodic', 'SetVPeriodic']]) { try { if (typeof S.surf[cl] === 'function' && S.surf[cl]() && !S.surf[pe]()) S.surf[set](); } catch (e) { /* */ } }
+      mf = r(new O.BRepBuilderAPI_MakeFace(S.surf, outer.wrapped, true));
+    }
     if (!mf.IsDone()) throw new KErr('import.iges_face');
     for (const w of inner) mf.Add(w.wrapped);
     let face = mf.Face();
@@ -217,7 +223,14 @@ export function igesToShape(text) {
     for (const f of faces) sew.Add(f);
     sew.Perform(r(new O.Message_ProgressRange()));
     const sewn = TP.wrap(sew.SewedShape());
-    const shells = new TP.SubIndex(sewn.wrapped, 'shell'); if (!shells.size) throw new KErr('import.iges_open');
+    let shells = new TP.SubIndex(sewn.wrapped, 'shell');
+    if (!shells.size) {
+      // tek kapalı yüz (küre, simit): dikiş tek yüz döndürür; yüzeyin kendi sınırlarıyla kabuk kurulur
+      const fs = new TP.SubIndex(sewn.wrapped, 'face'); if (fs.size !== 1) { fs.list.forEach((x) => x.delete()); throw new KErr('import.iges_open'); }
+      const srf = O.BRep_Tool.Surface(r(O.TopoDS.Face(fs.list[0]))); fs.list.forEach((x) => x.delete());
+      const mk = r(new O.BRepBuilderAPI_MakeShell(srf, false)); if (!mk.IsDone()) throw new KErr('import.iges_open');
+      shells = { list: [mk.Shell()], size: 1 };
+    }
     const solids = [];
     for (const sh of shells.list) {
       const ms = r(new O.BRepBuilderAPI_MakeSolid(r(O.TopoDS.Shell(sh)))); let solid = TP.wrap(ms.Solid());
@@ -231,7 +244,11 @@ export function igesToShape(text) {
 }
 function naturalFace(S) {
   const O = oc(); const r = TP.scope();
-  try { if (S.plane) throw new KErr('import.iges_unbounded'); const mf = r(new O.BRepBuilderAPI_MakeFace(S.surf, 1e-7)); if (!mf.IsDone()) throw new KErr('import.iges_face'); return mf.Face(); }
+  try {
+    if (S.plane) throw new KErr('import.iges_unbounded');
+    // kapalı (ama periyodik yazılmış) B-spline: periyodik yapılır, böylece tek yüz dikişli kapalı kabuk olur (küre, simit)
+    for (const [cl, pe, set] of [['IsUClosed', 'IsUPeriodic', 'SetUPeriodic'], ['IsVClosed', 'IsVPeriodic', 'SetVPeriodic']]) { try { if (typeof S.surf[cl] === 'function' && S.surf[cl]() && !S.surf[pe]()) S.surf[set](); } catch (e) { /* periyodik yapılamazsa olduğu gibi */ } }
+    const mf = r(new O.BRepBuilderAPI_MakeFace(S.surf, 1e-7)); if (!mf.IsDone()) throw new KErr('import.iges_face'); return mf.Face(); }
   finally { r.done(); }
 }
 
@@ -243,8 +260,8 @@ export function shapesToIges(shapes, { tol = 1e-3 } = {}) {
   const O = oc();
   for (const { shape } of shapes) {
     const T = TP.topoOf(shape);
-    T.faces.list.forEach((raw) => {
-      const r = TP.scope();
+    T.faces.list.forEach((raw, fi) => {
+      const r = TP.scope(); const mark = ents.length;
       try {
         const F = TP.faceWrap(raw); const face = r(O.TopoDS.Face(raw));
         // sınır telleri (dış tel önce)
@@ -252,13 +269,22 @@ export function shapesToIges(shapes, { tol = 1e-3 } = {}) {
         const ws = { list: [] }; { const ex = new O.TopExp_Explorer(raw, O.TopAbs_ShapeEnum.TopAbs_WIRE, O.TopAbs_ShapeEnum.TopAbs_SHAPE); for (; ex.More(); ex.Next()) ws.list.push(ex.Current()); ex.delete(); }
         const ordered = [outer, ...ws.list.filter((w) => !w.IsSame(outer))];
         let sptr;
+        // doğal sınırlı yüz (küre, simit, tam silindir yanı…): yüzey tam UV aralığında yaklaşılır, 144 N1=0 (sınır = yüzeyin kendi sınırı)
+        let natural = false;
+        try {
+          natural = F.geomType !== 'PLANE' && (O.BRep_Tool.NaturalRestriction(face) || (() => { const ee = new TP.SubIndex(raw, 'edge'); const all = ee.list.every((x) => { const ed = r(O.TopoDS.Edge(x)); return O.BRep_Tool.Degenerated(ed) || O.BRep_Tool.IsClosed(ed, face); }); ee.list.forEach((x) => x.delete()); return all; })());
+        } catch (x) { natural = false; }
         if (F.geomType === 'PLANE') {
           const n = F.normalAt(F.center).toTuple(), c = F.center.toTuple(); const d = n[0] * c[0] + n[1] * c[1] + n[2] * c[2];
           sptr = add(108, [n[0], n[1], n[2], d, 0, 0, 0, 0], 0, '00010000');
-        } else sptr = add(128, approxSurface(F, raw, tol), 0, '00010000');
+        } else sptr = add(128, approxSurface(F, raw, tol, natural), 0, '00010000');
+        if (natural) { add(144, [sptr, 0, 0, 0]); ws.list.forEach((x) => x.delete()); return; }
         const loops = ordered.map((w) => { const cs = wireCurves(w, add); const cc = add(102, [cs.length, ...cs], 0, '00010000'); return add(142, [0, sptr, 0, cc, 2], 0, '00010000'); });
         add(144, [sptr, 1, loops.length - 1, loops[0], ...loops.slice(1)]);
         ws.list.forEach((x) => x.delete());
+      } catch (e) {
+        ents.length = mark; let g = '?'; try { g = TP.faceWrap(raw).geomType; } catch (x) { /* */ }
+        throw new KErr('import.iges_export', { n: fi + 1, type: g });
       } finally { r.done(); }
     });
   }
@@ -268,6 +294,9 @@ function wireCurves(w, add) {
   const O = oc(); const out = [];
   // tel kenarları yinelemeli (dikiş kenarı iki kez, ters yönlerde) okunur
   const es = { list: [] }; { const ex = new O.TopExp_Explorer(w, O.TopAbs_ShapeEnum.TopAbs_EDGE, O.TopAbs_ShapeEnum.TopAbs_SHAPE); for (; ex.More(); ex.Next()) es.list.push(ex.Current()); ex.delete(); }
+  // dejenere kenarlar (küre kutbu vb.: 3B eğrisi yok) yazılmaz; tel uçları aynı noktada buluştuğu için döngü kapalı kalır
+  const isDeg = (e) => { const r = TP.scope(); try { return O.BRep_Tool.Degenerated(r(O.TopoDS.Edge(e))); } catch (x) { return false; } finally { r.done(); } };
+  es.list = es.list.filter((e) => !isDeg(e));
   const items = es.list.map((e) => { const E = TP.edgeWrap(e); const fw = e.Orientation() === O.TopAbs_Orientation.TopAbs_FORWARD; const a = E.startPoint.toTuple(), b = E.endPoint.toTuple(); return { e, E, a: fw ? a : b, b: fw ? b : a, fw }; });
   // kenarları uç uca sırala (102 bileşik eğri bağlı olmalı); gerekirse ters çevir
   const ordered = []; const left = items.slice();
@@ -288,7 +317,8 @@ function wireCurves(w, add) {
 function bsplineCurveParams(edgeRaw, fw) {
   const O = oc(); const r = TP.scope();
   try {
-    const e = r(O.TopoDS.Edge(edgeRaw)); const res = O.BRep_Tool.Curve(e, 0, 0); const c = res.returnValue ?? res; const f = res.First, l = res.Last;
+    const e = r(O.TopoDS.Edge(edgeRaw)); const res = O.BRep_Tool.Curve(e, 0, 0); const c = res && res.returnValue !== undefined ? res.returnValue : res; const f = res.First, l = res.Last;
+    if (!c || (typeof c.IsNull === 'function' && c.IsNull()) || !Number.isFinite(f) || !Number.isFinite(l)) throw new KErr('import.iges_export', { n: 0, type: 'curve' });
     const tc = new O.Geom_TrimmedCurve(c, f, l, true, true); const bs = O.GeomConvert.CurveToBSplineCurve(tc, O.Convert_ParameterisationType.Convert_TgtThetaOver2);
     if (!fw) bs.Reverse();
     const np = bs.NbPoles(), deg = bs.Degree(); const knots = []; for (let i = 1; i <= bs.NbKnots(); i++) for (let m = 0; m < bs.Multiplicity(i); m++) knots.push(bs.Knot(i));
@@ -298,12 +328,13 @@ function bsplineCurveParams(edgeRaw, fw) {
   } finally { r.done(); }
 }
 // Düzlemsel olmayan yüz: UV sınırları içinde 13×13 ızgaradan B-spline yaklaşımı (GeomAPI_PointsToBSplineSurface), kenar sınırlarının biraz dışına uzatılır
-function approxSurface(F, raw, tol) {
+function approxSurface(F, raw, tol, natural = false) {
   const O = oc(); const r = TP.scope();
   try {
     const face = r(O.TopoDS.Face(raw)); const surf = O.BRep_Tool.Surface(face);
     const ad = r(new O.BRepAdaptor_Surface(face, true)); let u0 = ad.FirstUParameter(), u1 = ad.LastUParameter(), v0 = ad.FirstVParameter(), v1 = ad.LastVParameter();
-    const du = (u1 - u0) * 0.02, dv = (v1 - v0) * 0.02; if (!ad.IsUPeriodic()) { u0 -= du; u1 += du; } if (!ad.IsVPeriodic()) { v0 -= dv; v1 += dv; }
+    const du = (u1 - u0) * 0.02, dv = (v1 - v0) * 0.02; const hasDeg = (() => { const ee = new TP.SubIndex(raw, 'edge'); const d = ee.list.some((x) => O.BRep_Tool.Degenerated(r(O.TopoDS.Edge(x)))); ee.list.forEach((x) => x.delete()); return d; })();
+    if (!natural && !hasDeg) { if (!ad.IsUPeriodic()) { u0 -= du; u1 += du; } if (!ad.IsVPeriodic()) { v0 -= dv; v1 += dv; } }
     const n = 17; const arr = r(new O.NCollection_Array2_gp_Pnt(1, n, 1, n));
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const p = r(surf.Value(u0 + ((u1 - u0) * i) / (n - 1), v0 + ((v1 - v0) * j) / (n - 1))); arr.SetValue(i + 1, j + 1, p); }
     const ap = r(new O.GeomAPI_PointsToBSplineSurface(arr, 3, 8, O.GeomAbs_Shape.GeomAbs_C2, tol * 0.1));

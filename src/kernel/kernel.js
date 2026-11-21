@@ -11,8 +11,8 @@ import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
 import * as DE from './direct.js';
-import { runModel2 } from './model2.js';
-import { igesToShape, shapesToIges } from './iges.js'; // WP-19: IGES // WP-19: sweep, loft, draft, rib, değişken yuvarlatma, diş, helis
+import { runModel2 } from './model2.js'; // WP-19: sweep, loft, draft, rib, değişken yuvarlatma, diş, helis
+import { igesToShape, shapesToIges } from './iges.js'; // WP-19: IGES içe/dışa aktarma
 import { reprojectLinked, matchEdge, edgeSig } from '../ui/sketch/ops.js'; // saf eskiz işlevleri (DOM yok)
 
 export { KErr };
@@ -358,7 +358,8 @@ export class Kernel {
       case 'sweep': case 'loft': case 'draft': case 'rib': case 'vfillet': case 'thread': case 'coil': return runModel2(this, f, state, N, ctx);
       case 'import': {
         const ent = this.imports.get(importKey(f, this.hashes));
-        if (!ent || ent.error) throw new KErr('import.load_failed', { reason: ent?.error || 'no_data' });
+        // WP-19: neden kullanıcıya iletilir (why: {code, params} → errText iç içe çevirir); reason eski biçimde (dize) kalır
+        if (!ent || ent.error) throw new KErr('import.load_failed', { reason: ent?.error || 'no_data', why: importWhy(ent) });
         const ids = [];
         ent.solids.forEach((s, si) => {
           const fn = TP.topoOf(s).faces.list.map((raw, k) => { let g = '?'; try { g = TP.faceWrap(raw).geomType; } catch (e) { /* */ } return [`${f.id}:i${si}.${k}:${g}`]; });
@@ -932,7 +933,16 @@ async function loadImport(f) {
     if (!solids.length) return { error: 'no_solid' };
     for (const s of solids) { const why = TP.validity(s); if (why) return { error: 'invalid:' + why }; } // F-18
     return { solids };
-  } catch (e) { return { error: e instanceof KErr ? e.code : 'parse' }; }
+  } catch (e) { return e instanceof KErr ? { error: e.code, params: e.params } : { error: 'parse' }; }
+}
+// WP-19: içe aktarma hata nedeni → yerelleştirilebilir alt hata
+function importWhy(ent) {
+  if (!ent) return { code: 'import.why_no_data', params: {} };
+  const r = String(ent.error);
+  if (r.startsWith('import.')) return { code: r, params: ent.params || {} };
+  if (r.startsWith('invalid:')) return { code: 'import.why_invalid', params: { reason: r.slice(8) } };
+  const known = { format: 'import.why_format', base64: 'import.why_base64', empty: 'import.why_empty', no_solid: 'import.why_no_solid', parse: 'import.why_parse', no_data: 'import.why_no_data' };
+  return { code: known[r] || 'import.why_parse', params: {} };
 }
 // STL → katı (F-17): üçgen yüzler dikilir (sewing), kapalı kabuk katıya çevrilir
 function stlToSolid(bin) {

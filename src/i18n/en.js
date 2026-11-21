@@ -556,7 +556,7 @@ const base = {
   "err.pattern.total_min": "The total count must be at least 2",
   "err.pattern.source_unsupported": "The source feature cannot be patterned (choose an extrude, revolve, hole or primitive)",
   "err.pattern.no_source": "No source selected",
-  "err.import.load_failed": "The imported geometry could not be loaded",
+  "err.import.load_failed": "The imported geometry could not be loaded: {why}",
   "err.feature.unknown": "Unknown feature: {type}",
   "err.combine.self": "The target body cannot also be a tool",
   "err.doc.invalid": "The document is damaged and cannot be read",
