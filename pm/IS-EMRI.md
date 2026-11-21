@@ -114,7 +114,8 @@ Mihenk: devam
 ## İE-009 — 0.6.1 modelleme panelleri paketi · **Hazır** (O-058; ekransız)
 - Ön koşul: İE-006 Bitti ve İE-007 Bitti (aynı `features.js` / `panels.js`). Alan: `src/ui/features.js`, `panels.js`, gerekirse `src/kernel/model2.js`.
 - Kapsam: C-45 Sweep paneli profil/yol önerisi ve ham JS hatası · C-32 fillet önizlemesi yarıçap–kenar sırasından bağımsız · C-30 delik ve yüz eskizinden kesme yönü malzemeye doğru · C-27 Ayna: fillet kaynak olabilsin, gövde aynasında Birleştir seçeneği · C-36 Revolve simetrik açı · C-18 delik konumu: yüz + yay merkezi · C-28, C-44 gövde ağaçtan seçilebilsin · C-14 Extrude mesafe alanı: yeni panelde hep 18 açılması (T05–T08 notları) incelenir, son kullanılan değer ya da tutarlı varsayılan.
-- Kabul: Hata sınıfındakiler (C-45, C-32) yeniden üretme testiyle; kalanlar testli ya da notlu; GitHub `ci` yeşil.
+- İE-006'dan devir (G-17): **C-57** koni kabuğunda (dairesel profil + eğimli extrude + kabuk) iç üst kenara Pah `chamfer.too_big` veriyor, Fillet geçiyor; önce çekirdek yeniden üretme testi, aynı model build123d ile denenir; geometri sınırıysa ileti açıklayıcı olur, Mihenk hatasıysa düzeltilir. Ayrıca Fillet/Pah düzenleme kipi ve "hangi kenar seçildi" arayüz testi eklenir.
+- Kabul: Hata sınıfındakiler (C-45, C-32, C-57) yeniden üretme testiyle; kalanlar testli ya da notlu; GitHub `ci` yeşil.
 - Açılış metni:
 ```
 Mihenk: devam
