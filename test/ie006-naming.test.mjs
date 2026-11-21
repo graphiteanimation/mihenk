@@ -2,10 +2,11 @@
 // kenarlar kalıcı adlandırılabilmeli (ref.ambiguous_here / ref.unnamed olmamalı); T09 referans modeli (test/cad-bench/ref/t09-kutu.py)
 // 0,5 pahla üretilir, hacim 34 412,563 mm³ (±%0,1).
 // Çalıştır: node test/ie006-naming.test.mjs
-import path from 'node:path'; import { fileURLToPath } from 'node:url';
+import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 import opencascade from 'replicad-opencascadejs';
 import { initKernel } from '../src/kernel/kernel.js';
 import { resolveName } from '../src/kernel/naming.js';
+import { validateDoc, checkEnvelope } from '../src/shared/schema.js';
 import { setLang } from '../src/shared/i18n.js';
 import * as TP from '../src/kernel/topo.js';
 setLang('tr', false);
@@ -76,10 +77,10 @@ for (const d of L.all) ok(d.name && !d.nameError, `üst kenar #${d.idx} kalıcı
 }
 
 // kenar işlemleri kabuk sonrası
-// üst dış kenarda malzeme açısı 90° − 3° = 87° (duvar yukarı daralır). Kesit alanı × z=30 çevresi (ağırlık merkezi kayması < %1)
-const A87 = (87 * Math.PI) / 180;
-const tri = (s) => 0.5 * s * s * Math.sin(A87); // eşit pah kesiti
-const fil = (r) => r * r * (1 / Math.tan(A87 / 2) - (Math.PI - A87) / 2); // yuvarlatma kesiti
+// üst dış kenarda malzeme açısı 90° + 3° = 93° (duvar yukarı daralır, dışa doğru aşağı iner). Kesit alanı × z=30 çevresi (ağırlık merkezi kayması < %1)
+const A93 = (93 * Math.PI) / 180;
+const tri = (s) => 0.5 * s * s * Math.sin(A93); // eşit pah kesiti
+const fil = (r) => r * r * (1 / Math.tan(A93 / 2) - (Math.PI - A93) / 2); // yuvarlatma kesiti
 const cases = [
   ['pah 0,5 dış halka, düz kenar', (l) => l.outer.filter((d) => d.geom === 'LINE').slice(0, 1), 'chamfer', '0.5'],
   ['pah 0,5 dış halka (tümü)', (l) => l.outer, 'chamfer', '0.5', tri(0.5) * P30],
@@ -113,6 +114,27 @@ console.log('T09 referans modeli (0,5 pah)');
     ok(out.bodies.length === 1, 'T09 tek gövde: ' + out.bodies.length);
     rel(out.bodies[0]?.volume, 34412.563, 0.001, 'T09 hacmi');
     if (out.bodies[0]) console.log(`   T09 hacim ${out.bodies[0].volume.toFixed(3)} mm³ (ref 34412.563, fark ${((out.bodies[0].volume / 34412.563 - 1) * 100).toFixed(4)}%), yüz ${nF('ext1')}`);
+  }
+}
+
+// geriye uyum: kullanıcının T09 belgesi (pahsız, arayüzden çizilmiş) aynı sonucu verir; üst dış halka artık adlanır ve pah eklenebilir
+console.log('T09.mhnk (geriye uyum)');
+{
+  const txt = fs.readFileSync(path.join(here, 'cad-bench/mhnk/T09.mhnk'), 'utf8'); const j = JSON.parse(txt);
+  checkEnvelope(j); validateDoc(j.doc, { byteLength: txt.length });
+  out = await K.rebuild(j.doc);
+  const bad = Object.entries(out.status).filter(([, s]) => !s.ok).map(([id, s]) => id + ':' + s.error?.code);
+  ok(!bad.length, 'T09.mhnk tüm özellikler hesaplandı: ' + bad.join(','));
+  rel(out.bodies[0]?.volume, 34449.437126, 1e-7, 'T09.mhnk hacmi değişmedi (beklenen.json bugun)');
+  ok(nF('ext1') === 35, 'T09.mhnk yüz sayısı 35: ' + nF('ext1'));
+  L = topLoops('ext1'); ok(L.outer.length === 8 && L.outer.every((d) => d.name), 'T09.mhnk üst dış halka adlı');
+  if (L.outer.every((d) => d.name)) {
+    const doc = JSON.parse(JSON.stringify(j.doc)); doc.features.push({ id: 'ch', type: 'chamfer', edges: L.outer.map(clean), d: '0.5' });
+    const t2 = JSON.stringify({ ...j, doc }); let schemaOk = true; try { const j2 = JSON.parse(t2); checkEnvelope(j2); validateDoc(j2.doc, { byteLength: t2.length }); } catch (e) { schemaOk = false; }
+    ok(schemaOk, 'pahlı T09 belgesi şemadan geçer');
+    out = await K.rebuild(doc); ok(out.status.ch.ok, 'T09.mhnk + pah 0,5: ' + errOf(out, 'ch'));
+    rel(out.bodies[0]?.volume, 34412.563, 0.001, 'T09.mhnk + pah hacmi');
+    if (out.bodies[0]) console.log(`   T09.mhnk + pah hacim ${out.bodies[0].volume.toFixed(3)} mm³, yüz ${nF('ext1')}`);
   }
 }
 

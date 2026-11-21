@@ -75,7 +75,12 @@ export function propagate(b, inputs, res, opt = {}) {
       let del = false; try { del = b.IsDeleted(f); } catch (e) { del = false; }
       if (del) return;
       const mods = listArr(b.Modified(f));
-      if (!mods.length) { const k = T.faces.find(f); if (k >= 0) names.forEach((n) => out[k].add(n)); }
+      if (!mods.length) {
+        let k = T.faces.find(f);
+        // IE-006 C-50: BRepOffsetAPI_DraftAngle eğimlenen yüzler için Modified() boş döndürür; yeni yüz yalnız ModifiedShape()'te
+        if (k < 0 && opt.modifiedShape) { let m = null; try { m = b.ModifiedShape(f); } catch (e) { m = null; } if (m) { if (!m.IsNull()) k = T.faces.find(m); m.delete(); } }
+        if (k >= 0) names.forEach((n) => out[k].add(n));
+      }
       else for (const m of mods) { const k = T.faces.find(m); if (k >= 0) names.forEach((n) => out[k].add(n)); m.delete(); }
     });
     if (opt.generated) opt.generated(Ti, (src, nameOf) => { const gs = listArr(b.Generated(src)); for (const g of gs) { const k = T.faces.find(g); if (k >= 0) out[k].add(nameOf); g.delete(); } });
@@ -378,7 +383,7 @@ export function halfSpace(c, n, toward, B, L, capName) {
   if (p.first >= 0) fn[p.first] = [capName];
   return { shape: p.shape, fn };
 }
-// Konik (taper) yüzler: BRepOffsetAPI_DraftAngle; adlar Modified geçmişiyle aktarılır. Başarısızsa null.
+// Konik (taper) yüzler: BRepOffsetAPI_DraftAngle; adlar Modified geçmişiyle, eğimlenen yüzlerde ModifiedShape ile aktarılır (C-50). Başarısızsa null.
 export function draft(item, faceIdx, dir, deg, plane) {
   const O = oc(); const r = scope(); const T = topoOf(item.shape);
   try {
@@ -392,7 +397,7 @@ export function draft(item, faceIdx, dir, deg, plane) {
     b.Build(progress(r)); if (!b.IsDone()) return null;
     const raw = b.Shape(); if (raw.IsNull()) { raw.delete(); return null; }
     const shape = wrap(raw);
-    return { shape, fn: propagate(b, [{ shape: item.shape, fn: item.fn }], shape) };
+    return { shape, fn: propagate(b, [{ shape: item.shape, fn: item.fn }], shape, { modifiedShape: true }) };
   } catch (e) { return null; } finally { r.done(); }
 }
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
