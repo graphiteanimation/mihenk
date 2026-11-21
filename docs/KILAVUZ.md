@@ -23,6 +23,7 @@ Bu kılavuz, CNC fason işleme yapan ve alüminyum/çelik parça işleyen atöly
 7. GÜVENLİK
 8. Sorun giderme
 9. Kısayollar
+10. 0.6'da yeni
 
 ---
 
@@ -975,3 +976,65 @@ Araç ipucunda (fareyi tutunca) kısayol da yazar.
 ### İmalat
 
 İmalat komutlarının tuş kısayolu yoktur. Ctrl+K ile adını yazarak çalıştırabilirsiniz (örnek: "Post işle"). NC listesinde Yukarı/Aşağı ok tuşları satır gezdirir.
+
+---
+
+## 10. 0.6'da yeni
+
+Bu bölüm 0.6'da eklenen özelliklerin temel kullanımını anlatır. Her özelliğin sınırları için 7.6'ya bakın. Tezgâhta doğrulanmamış çıktılar için 7. bölümü okuyun.
+
+### 10.1 2B uyarlanır kaba ve yatay temizleme
+- İmalat, **2D** grubu: **Uyarlanır** (kaba) ve **Yatay**. Yatay komutu taşma menüsünde ve Ctrl+K paletindedir.
+- **Uyarlanır**: geometri (cep ya da eskiz), takım, derinlik ve paso. Kalan malzeme (rest) kaynağı **Stok** (önceki işlemler hesaba girer) ya da **Takım** olarak seçilir.
+- **Yatay**: seçili yatay yüzleri kendi yüksekliklerinde tek derinlikte temizler. Giriş yüksekliği 1 mm'dir (varsayılan).
+- Dar bir geçide takımın girmediği durumda uyarı çıkar ve alan bildirilir. O bölgeyi simülasyonda kontrol edin.
+
+### 10.2 3B kaba ve bitirme
+- İmalat, **3D** grubu: **3B kaba** ve **Z-seviye** görünür. **Paralel**, **Sabit tepe** ve **Kalem** taşma menüsündedir.
+- Model yükseklik haritası olarak okunur. Sınır, model ya da stok kutusu artı ofsettir. Eğim aralığında yalnız o aralıktaki yüzeyler işlenir (yatay 0°, dik duvar 90°).
+- Takım: düz, köşe radüslü ya da küre.
+- **Kalem**: iç köşelerdeki artık malzemeyi temizler. Keskin iç köşe yoksa işlem üretilmez ve uyarı çıkar.
+- Büyük parçada 3B kaba hesabı bir dakikayı aşabilir (ölçümde 87 sn); hesap iptal edilebilir.
+
+### 10.3 4. eksen sarma
+- Setup panelinde **Sarma kipi (4. eksen, eşzamanlı X/A)** açılır. Stok silindir olur, A indeksleme kapanır. **Sarma çapı** elle girilir ya da silindirik yüzden alınır ("Çapı ve ekseni yüzden al"). Eksen X'e paralel değilse uyarı çıkar.
+- **Sarma (4. eksen)** grubunda **Sarılmış kontur**, **Sarılmış cep** ve radyal delme bulunur. Eskiz açılmış düzlemde çizilir: X eksen boyunca, Y çevre üzerindeki yay uzunluğudur.
+- Post profilinde **Sarma ilerleme biçimi** (varsayılan G93) ve **Sarmada A kelimesi** (varsayılan otomatik) seçilir. Çıktı tezgâhta önce havada denenmelidir.
+
+### 10.4 3+2 eğik düzlem
+- Tezgâh düzenleyicide **Kinematik** sekmesi: döner eksenlerin (B, C) tabla mı kafa mı olduğu, dönme yönü, sınırları, merkezi (XYZ) ve zincir sırası.
+- Setup panelinde **3+2 eğim** bölümünde **Eğik setup (3+2)** açılır. Kaynak olarak yüz (gerekirse ters çevrilir), vektör ya da açılar seçilir. Açılmış çıkış için iş sıfırının makine konumu girilir.
+- Özette 3+2 açıları, geçerli çözüm sayısı ve çıkış biçimi görünür. Sınır dışı açı ya da eksik konum programı engeller.
+
+### 10.5 Teknik resim
+- Çalışma alanı sekmelerinden **Teknik resim**. Ana görünüş (ön, arka, üst, alt, sağ, sol, izometrik) seçilir; izdüşüm görünüşleri birinci ya da üçüncü açıyla eklenir. Ölçek, gizli çizgi ve merkez işareti ayarlanır.
+- **Kesit** (kesme çizgisi, tarama) ve **detay** görünüşü eklenir. Ölçü türleri: doğrusal, çap ve yarıçap, açı, koordinat, tolerans (± ya da ISO 286 geçme) ve pürüzlülük.
+- Çıktılar: PDF (tüm sayfalar), DXF (geçerli sayfa) ve ilk parça kontrol formu (PDF ya da CSV). Sayfa boyutu A4 ile A0 arasındadır.
+- Model değişince ölçüler yeniden eşlenir. Eşlenemeyen ölçü kırmızı "kopuk" olarak işaretlenir; **Yeni kenara bağla** ile elle yeniden bağlanır.
+
+### 10.6 Form: tarama, loft, kaburga, helis, koniklik, diş, IGES
+- Oluştur grubunda **Form** menüsü: tarama (sweep), loft, kaburga, helis, koniklik (draft), değişken yuvarlatma ve diş.
+- **Tarama**: profil ve yol eskizi seçilir. Yol kopuk ya da dallanmışsa hata verilir. Yönlendirme: yol, sabit ya da Frenet.
+- **Loft**: en az iki kapalı ve deliksiz kesit eskizi seçilir. Düz (ruled) ya da kılavuz eğrili kesim yapılabilir.
+- **Diş**: silindirik yüz seçilir. Dış ya da iç olduğu yüzden anlaşılır. ISO kaba ya da ince tablosundan seçilir. Diş hesabı yavaştır.
+- **IGES**: **Dosya** menüsünde **IGES İçe Aktar…** ve **IGES Dışa Aktar…** bulunur.
+
+### 10.7 Bağlama gövdeleri ve tutucu
+- Setup panelinde fikstür eklenir: kutu, silindir ya da içe aktarılmış STEP gövdesi (mengene). Koordinatlar setup'ın taban çerçevesinde iş sıfırına göre girilir. A açılı setup'ta fikstür parçayla birlikte döner.
+- Takım, sap ya da tutucu fikstüre girerse simülasyon çarpışma engeli verir.
+- Takım panelinde **Tutucu profili** ile tutucunun kademeli silindir ya da koni biçimi girilir.
+
+### 10.8 Şablonlar ve delik sırası
+- **Şablonlar** penceresinde seçili işlem kaydedilir ve **Şablondan ekle** ile başka kurulumda kullanılır. Şablon takım, geometri ve kimlik taşımaz; takım çapı ve türüne göre eşleşir. Dosyaya aktarılıp içe alınabilir.
+- **Delik sırası** penceresi delikleri çap, kör ya da boydan ve diş durumuna göre sınıflandırır. Kurallar (punta, matkap, pah, kılavuz, raybalama) düzenlenir ve önizleme tablosundan işlem eklenir. Varsayılan kurallar genel ölçülerdir; tezgâh ya da malzeme verisi içermez.
+- Delme işleminde çevrim **fineBore** (G76) ya da **backBore** (G87) seçilir. Kaydırma miktarı zorunludur; G87'de arka derinlik de girilir.
+
+### 10.9 Teklif ve inç birimi
+- **Teklif** komutu süre, takım değişimi, kurulum, ham malzeme hacmi ve girdiğiniz birim fiyatlardan teklif hesaplar. **Teklifi kaydet (HTML)** ile kaydedilir. Girdi eksikse kalem "eksik" işaretlenir; değer uydurulmaz.
+- **Birim (mm/inç)** komutu CAM panellerini ve NC çıktısını inç (G20) yapar. Eskiz ölçüleri, kurulum föyü ve teklif mm olarak kalır. Sarma işlemi inç çıktısında desteklenmez.
+
+### 10.10 PDF altlık
+- Eskiz şeridinde **Altlık** menüsü: **Ekle** (PNG, JPEG ya da PDF; çok sayfalı PDF'te sayfa sorulur), **Ölçekle** (altlıkta iki nokta tıklanır ve gerçek mesafe yazılır), **Oturt** (altlıkta ve eskizde ikişer nokta seçilir), **Özellikler** (saydamlık, görünür, kilit, kaldır).
+- Kilitli altlık değiştirilemez. Her değişiklik geri alınabilir.
+- Şifreli PDF açılmaz; parola sorulmaz.
+

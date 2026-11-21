@@ -23,6 +23,7 @@ This manual is for CNC job shops that machine aluminium and steel parts. Mihenk 
 7. SAFETY
 8. Troubleshooting
 9. Shortcuts
+10. New in 0.6
 
 ---
 
@@ -956,3 +957,64 @@ A tool's tooltip (hold the mouse over it) also shows its shortcut.
 ### Manufacture
 
 Manufacture commands have no key shortcuts. Run them from Ctrl+K by typing their name (example: "Post process"). In the NC list the Up/Down arrow keys move through the lines.
+
+---
+
+## 10. New in 0.6
+
+This section covers the basic use of the features added in 0.6. The limits of each feature are in 7.6. Read section 7 before you run any output on a machine.
+
+### 10.1 2D adaptive clearing and flat clearing
+- Manufacture, **2D** group: **Adaptive** (clearing) and **Flat**. Flat is in the overflow menu and in the Ctrl+K palette.
+- **Adaptive**: geometry (pocket or sketch), tool, depth and stepdown. The remaining-material (rest) source is **Stock** (earlier operations count) or **Tool**.
+- **Flat**: clears the selected flat faces at their own heights, in one depth. The entry height is 1 mm by default.
+- If the tool cannot enter a narrow gap, a warning is shown and the area is reported. Check that area in the simulation.
+
+### 10.2 3D roughing and finishing
+- Manufacture, **3D** group: **3D rough** and **Z-level** are visible. **Parallel**, **Scallop** and **Pencil** are in the overflow menu.
+- The model is read as a height map. The boundary is the model or stock box plus an offset. In a slope range only the surfaces in that range are cut (flat 0°, vertical wall 90°).
+- Tools: flat, corner radius or ball.
+- **Pencil**: clears the leftover material in internal corners. If there is no sharp internal corner, no operation is produced and a warning is shown.
+- On a large part, 3D roughing can take more than a minute (87 s in a test); the calculation can be cancelled.
+
+### 10.3 4th-axis wrap
+- In the setup panel, turn on **Wrap mode (4th axis, simultaneous X/A)**. The stock becomes a cylinder and A indexing is off. Enter **Wrap diameter** by hand, or take it from a cylindrical face ("Take diameter and axis from face"). If the axis is not parallel to X, a warning is shown.
+- The **Wrap (4th axis)** group holds **Wrapped contour**, **Wrapped pocket** and **Radial drill**. Sketch in an unrolled plane: X runs along the axis, Y is the arc length around the circumference.
+- In the post profile choose **Wrap feed mode** (default G93) and **A word in wrap** (default automatic). Test the output in the air before the first cut.
+
+### 10.4 3+2 tilted setups
+- In the machine editor, the **Kinematics** tab: whether each rotary axis (B, C) sits on the table or the head, its rotation direction, limits, centre (XYZ) and chain order.
+- In the setup panel, open the **3+2 tilt** section and turn on **Tilted setup (3+2)**. The source is a face (optionally flipped), a vector, or angles. For unwound output, enter the machine position of the work zero.
+- The summary shows the 3+2 angles, the number of valid solutions and the output format. An angle outside the limits or a missing position blocks the program.
+
+### 10.5 Drawing
+- From the workspace tabs, open **Drawing**. Choose the main view (front, back, top, bottom, right, left, isometric); add projected views in first or third angle. Set the scale, hidden lines and centre marks.
+- Add a **section** (cutting line, hatch) or a **detail** view. Dimension types: linear, diameter and radius, angle, coordinate, tolerance (± or ISO 286 fit), and roughness.
+- Outputs: PDF (all sheets), DXF (current sheet) and the first-article inspection form (PDF or CSV). Sheet sizes are A4 to A0.
+- When the model changes, dimensions are matched again. A dimension that cannot be matched is marked red as "lost". Use **Attach to new edge** to attach it again by hand.
+
+### 10.6 Form: sweep, loft, rib, helix, draft, thread, IGES
+- In the **Create** group, the **Form** menu holds sweep, loft, rib, helix, draft, variable fillet and thread.
+- **Sweep**: choose a profile sketch and a path sketch. A broken or branching path is an error. Orientation: path, fixed or Frenet.
+- **Loft**: at least two closed sketches with no holes. Straight (ruled) or guided by a centre curve.
+- **Thread**: choose a cylindrical face. External or internal is detected from the face. Pick an ISO coarse or fine table. Thread calculation is slow.
+- **IGES**: the **File** menu has the IGES import and IGES export items.
+
+### 10.7 Clamping bodies and holder
+- In the setup panel add a fixture: a box, a cylinder, or an imported STEP body (vise). Coordinates are in the setup's base frame, relative to the work zero. In a tilted setup the fixture turns with the part.
+- If the tool, shank or holder hits a fixture, the simulation shows a collision block.
+- In the tool panel, **Holder profile** sets the holder as stepped cylinders or a cone.
+
+### 10.8 Templates and hole sequence
+- In the **Templates** window, save the selected operation and use **Add from template** in another setup. A template holds no tool, geometry or identity; it matches by tool diameter and type. It can be exported and imported.
+- The **Hole sequence** window sorts holes by diameter, blind or through, and thread. Rules (spot, drill, chamfer, tap, ream) can be edited. The preview table adds operations. The default rules are general values; they contain no machine or material data.
+- For drilling, choose the cycle **fineBore** (G76) or **backBore** (G87). The shift is required. G87 also needs the back depth.
+
+### 10.9 Quote and inch units
+- The **Quote** command calculates a quote from the cutting time, tool changes, setup, raw stock volume and the unit prices you enter. Save it with **Save quote (HTML)**. A missing input leaves the line marked "missing"; no value is invented.
+- The **Units (mm/inch)** command sets the CAM panels and the NC output to inch (G20). Sketch dimensions, the setup sheet and the quote stay in mm. Wrap operations are not supported in inch output.
+
+### 10.10 PDF underlay
+- In the sketch ribbon, the **Underlay** menu: **Add underlay** (PNG, JPEG or PDF; a multi-page PDF asks for the page), **Scale** (click two points on the underlay and type the real distance), **Fit to 2 points** (two underlay points and two sketch points), and the underlay properties (opacity, visible, lock, remove).
+- A locked underlay cannot be changed. Each change can be undone.
+- An encrypted PDF cannot be opened; no password is asked for.
