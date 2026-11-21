@@ -46,7 +46,7 @@ Mihenk: devam
 Mihenk: devam
 ```
 
-## İE-005 — Çekirdek: fillet ve birleştirme hataları (C-31, C-33, C-39, C-42) · **Sürüyor** (oturum 2026-11-21d) (O-055; ekransız, paralel açılabilir)
+## İE-005 — Çekirdek: fillet ve birleştirme hataları (C-31, C-33, C-39, C-42) · **Bitti** (oturum 2026-11-21d; C-31, C-33, C-39 düzeltildi, C-42 kayıtlı belgeyle yeniden üretilemedi, C-39 düzeltmesiyle tek yüz/tek gövde testte; `wp-ie005` CI 44914975635 yeşil) (O-055; ekransız, paralel açılabilir)
 - Ön koşul: yok. Ekran kullanmaz. Alan: `src/kernel` (`naming.js` kalıcı adlandırma, `topo.js` fillet ve brepcheck); İE-002'nin alanına (eskiz budama, Extrude paneli, resim testi) dokunmaz.
 - Kaynak: `pm/test/sonuc/T03.md`. Yeniden üretme girdisi: bilgisayarda `cad-test\T03\T03.mhnk`, depoda `test/cad-bench/ref` içindeki ppp0104 referansı (R4 fillet).
 - C-31: tam daireden extrude edilen silindirin dikişi kesişim yayını ikiye böldüğünde iki yay aynı kalıcı adı alıyor; seçim `ref.ambiguous_here` ile reddediliyor (`src/kernel/naming.js:53,77`). Aynı iki yüz arasındaki birden çok kenar ayırt edilecek biçimde adlandırılır ya da teğet zincir tek başvuru sayılır; eski belgeler açılmaya devam eder.
