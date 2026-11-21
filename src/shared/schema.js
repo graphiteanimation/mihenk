@@ -4,7 +4,8 @@ import { KErr } from './errors.js';
 import { evalExpr, resolveParams } from './expr.js';
 import { validateDrawings } from '../drawing/model.js'; // WP-17
 
-export const FILE_VERSION = 1;
+// İE-007: sürüm 2 = yapı düzlemi (plane özelliği ve {kind:'plane'} başvuruları). Düzlemsiz belgeler sürüm 1 yazılır (docFileVersion).
+export const FILE_VERSION = 2;
 export const LIMITS = {
   fileBytes: 200 * 1024 * 1024, // dosya boyutu
   features: 5000, params: 2000, patternCount: 2000, depth: 64, str: 10000, shortStr: 200,
@@ -43,11 +44,30 @@ const projChk = obj({ b: str(LIMITS.shortStr), g: num(), c: arrOf(num(), 3), e: 
   fp: arrOf((v, p) => { if (v !== null && typeof v !== 'string') num()(v, p); else if (typeof v === 'string') str(40)(v, p); }, 64),
   sig: nullable(obj({ k: oneOf(['l', 'a', 'o', 's']), a: sigPt, b: sigPt, c: sigPt, r: num() })) });
 const AX = ['X', 'Y', 'Z'];
+// İE-007: düzlem başvurusu (eskiz düzlemi, yapı düzlemi tabanı, bölme/yüz bölme/draft takım düzlemi)
+// {kind:'base', name, offset} · {kind:'face', ref} · {kind:'plane', id} (id zorunlu, boş olmayan metin)
+const planeRefChk = (v, p) => {
+  obj({ kind: oneOf(['base', 'face', 'plane']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj(), id: str(LIMITS.shortStr) })(v, p);
+  if (v.kind === 'plane' && (typeof v.id !== 'string' || !v.id)) fail('schema.bad_field', { path: p + '.id', expect: 'text' });
+};
+// İE-007: yapı düzlemi noktası: köşe (kenar başvurusu + hint), eskiz noktası, xyz ifadeleri
+const planePointChk = (v, p) => {
+  obj({ kind: oneOf(['vertex', 'sketch', 'xyz']), edge: obj(), hint: arrOf(num(), 3), sketch: str(LIMITS.shortStr), point: str(LIMITS.shortStr), x: expr(), y: expr(), z: expr() })(v, p);
+  if (v.kind === 'vertex' && !isObj(v.edge)) fail('schema.bad_field', { path: p + '.edge', expect: 'object' });
+  if (v.hint !== undefined && v.hint.length !== 3) fail('schema.bad_field', { path: p + '.hint', expect: '3' });
+  if (v.kind === 'sketch') for (const k of ['sketch', 'point']) if (typeof v[k] !== 'string' || !v[k]) fail('schema.bad_field', { path: p + '.' + k, expect: 'text' });
+};
+const planeAxisChk = (v, p) => {
+  obj({ kind: oneOf(['edge', 'axis']), ref: obj(), name: oneOf(AX) })(v, p);
+  if (v.kind === 'edge' && !isObj(v.ref)) fail('schema.bad_field', { path: p + '.ref', expect: 'object' });
+  if (v.kind === 'axis' && !AX.includes(v.name)) fail('schema.bad_field', { path: p + '.name', expect: AX.join('/') });
+};
+const planePointsChk = (v, p) => { arrOf(planePointChk, 3)(v, p); if (v.length !== 3) fail('schema.bad_field', { path: p, expect: '3' }); };
 const sourceChk = obj({ kind: oneOf(['feature', 'body']), id: str(LIMITS.shortStr), bodies: strArr() });
 const sketchChk = {
   seq: num(),
   underlay: nullable(obj({ name: str(200), mime: oneOf(['image/png', 'image/jpeg']), data: str(12 * 1024 * 1024), wPx: num(), hPx: num(), mmPerPx: num(), origin: arrOf(num(), 2), angle: num(), opacity: num(), visible: bool(), locked: bool() })), // WP-14; WP-22a: locked (kilit): eskiz altligi
-  plane: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }),
+  plane: planeRefChk,
   points: (v, p) => {
     if (!isObj(v)) fail('schema.bad_field', { path: p, expect: 'object' });
     const ks = Object.keys(v); if (ks.length > LIMITS.sketchItems) fail('schema.too_many', { what: p, max: LIMITS.sketchItems });
@@ -71,15 +91,17 @@ const TYPES = {
   combine: { target: str(LIMITS.shortStr), tools: strArr(), op: oneOf(['join', 'cut', 'intersect']), keepTools: bool() },
   move: { bodies: strArr(), dx: expr(), dy: expr(), dz: expr(), angle: expr(), axis: oneOf(AX), cx: expr(), cy: expr(), cz: expr(), copy: bool() },
   pattern: { kind: oneOf(['rect', 'circ']), source: sourceChk, count1: expr(), step1: expr(), dir1: oneOf(AX), count2: expr(), step2: expr(), dir2: oneOf(AX), count: expr(), total: expr(), axis: oneOf([...AX, 'edge']), axisRef: obj(), cx: expr(), cy: expr(), cz: expr(), join: bool() },
-  mirror: { source: sourceChk, plane: oneOf(['XY', 'XZ', 'YZ', 'face']), planeRef: obj(), offset: expr() },
-  split: { body: str(LIMITS.shortStr), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
-  splitface: { faces: arrOf(obj(), LIMITS.refs), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
+  mirror: { source: sourceChk, plane: oneOf(['XY', 'XZ', 'YZ', 'face', 'plane']), planeRef: obj(), planeId: str(LIMITS.shortStr), offset: expr() },
+  // İE-007: yapı düzlemi (construction plane)
+  plane: { mode: oneOf(['angle', 'three', 'offset']), base: planeRefChk, axis: planeAxisChk, angle: expr(), offset: expr(), points: planePointsChk, flip: bool() },
+  split: { body: str(LIMITS.shortStr), tool: planeRefChk },
+  splitface: { faces: arrOf(obj(), LIMITS.refs), tool: planeRefChk },
   faceop: { faces: arrOf(obj(), LIMITS.refs), mode: oneOf(['offset', 'move', 'delete']), dist: expr(), dx: expr(), dy: expr(), dz: expr() },
   import: { format: oneOf(['step', 'stl', 'iges']), name: str(LIMITS.str), data: str(LIMITS.fileBytes), hash: str(LIMITS.shortStr) },
   // WP-19: modelleme ikinci tur
   sweep: { sketch: str(LIMITS.shortStr), profiles: profilesChk, path: str(LIMITS.shortStr), orient: oneOf(['path', 'fixed', 'frenet']), op: oneOf(OPS), targets: strArr() },
   loft: { sections: strArr(), ruled: bool(), rail: str(LIMITS.shortStr), op: oneOf(OPS), targets: strArr() },
-  draft: { faces: arrOf(obj(), LIMITS.refs), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }), angle: expr(), flip: bool() },
+  draft: { faces: arrOf(obj(), LIMITS.refs), tool: planeRefChk, angle: expr(), flip: bool() },
   rib: { sketch: str(LIMITS.shortStr), t: expr(), flip: bool(), targets: strArr() },
   vfillet: { edges: arrOf(obj(), LIMITS.refs), r1: expr(), r2: expr(), rm: expr(), tm: expr(), pts: arrOf(obj({ t: expr(), r: expr() }), 64), chain: bool() },
   thread: { face: obj(), thread: nullable(obj({ designation: str(40), pitch: num(), major: num(), family: oneOf(['iso', 'iso_fine']), drill: num() })), length: expr(), hand: oneOf(['right', 'left']), flip: bool() },
@@ -188,6 +210,29 @@ function walk(root) {
 export const APP_NAME = 'Mihenk';
 export const APP_NAMES = ['Mihenk'];
 
+// İE-007: belgenin yazılacağı dosya sürümü. Yapı düzlemi özelliği ya da {kind:'plane'} / ayna 'plane' başvurusu varsa 2,
+// yoksa 1 (0.6.x sürümleri düzlemsiz belgeleri açmaya devam eder). Belgeyi değiştirmez.
+export function docFileVersion(doc) {
+  const feats = isObj(doc) && Array.isArray(doc.features) ? doc.features : [];
+  const has = (v) => {
+    const stack = [v];
+    while (stack.length) {
+      const x = stack.pop();
+      if (Array.isArray(x)) { for (const y of x) stack.push(y); continue; }
+      if (!isObj(x)) continue;
+      if (x.kind === 'plane') return true;
+      for (const k of Object.keys(x)) if (k !== 'data' && k !== 'points' && k !== 'ents' && k !== 'cons' && x[k] && typeof x[k] === 'object') stack.push(x[k]);
+    }
+    return false;
+  };
+  for (const f of feats) {
+    if (!isObj(f)) continue;
+    if (f.type === 'plane' || (f.type === 'mirror' && f.plane === 'plane')) return 2;
+    if (has([f.plane, f.tool, f.base])) return 2;
+  }
+  return 1;
+}
+
 // Dosya zarfı: {app, version, doc}. Daha yeni sürümü `newer: true` ile bildirir (reddetmez; çağıran uyarır).
 export function checkEnvelope(j) {
   if (!isObj(j) || !APP_NAMES.includes(j.app)) fail('schema.not_doc');
@@ -234,6 +279,8 @@ export function validateDoc(doc, { byteLength } = {}) {
     if (f.bodyName !== undefined) str(LIMITS.str)(f.bodyName, p + '.bodyName');
     if (f.suppressed !== undefined) bool()(f.suppressed, p + '.suppressed');
     for (const [k, chk] of Object.entries(TYPES[f.type])) if (f[k] !== undefined) chk(f[k], p + '.' + k);
+    if (f.type === 'plane' && f.mode === undefined) fail('schema.bad_field', { path: p + '.mode', expect: 'angle/three/offset' });
+    if (f.type === 'mirror' && f.plane === 'plane' && (typeof f.planeId !== 'string' || !f.planeId)) fail('schema.bad_field', { path: p + '.planeId', expect: 'text' });
   });
   // desen adedi üst sınırı (ifade çözülebiliyorsa; çözülemeyen ifadeyi çekirdek özellik hatası olarak bildirir)
   let vars = null; try { vars = resolveParams(doc.params || []).vars; } catch (e) { vars = null; }

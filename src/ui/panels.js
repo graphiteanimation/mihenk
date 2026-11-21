@@ -3,7 +3,7 @@ import { h, $, toast, modal, fmt, esc } from './dom.js';
 import { icon, featureIcon } from './icons.js';
 import { t, tk, errText } from '../shared/i18n.js';
 import { toErr } from '../shared/errors.js';
-import { fieldsFor, featLabel, THREADS, THREAD_TABLES, THREAD_FAMILIES, threadFamily, patternSources } from './features.js';
+import { fieldsFor, featLabel, THREADS, THREAD_TABLES, THREAD_FAMILIES, threadFamily, patternSources, planeFeatures, planeSetMode } from './features.js';
 import { evalExpr, resolveParams } from '../shared/expr.js';
 import { LIMITS } from '../shared/schema.js';
 import { basePlane } from '../shared/vec.js';
@@ -22,7 +22,9 @@ function shell(title, bodyKids, footKids, onClose, titleAttrs = {}, ic = '') {
   return p;
 }
 // Seçim alanı metinleri: [sayaç, boşken ipucu]
-const SEL_KEYS = { edge: [tk('sel.n_edge'), tk('sel.pick_edge')], face: [tk('sel.n_face'), tk('sel.pick_face')], body: [tk('sel.n_body'), tk('sel.pick_body')], item: [tk('sel.n_item'), tk('sel.pick_item')] };
+const SEL_KEYS = { edge: [tk('sel.n_edge'), tk('sel.pick_edge')], face: [tk('sel.n_face'), tk('sel.pick_face')], body: [tk('sel.n_body'), tk('sel.pick_body')], item: [tk('sel.n_item'), tk('sel.pick_item')], point: [tk('sel.n_point'), tk('sel.pick_point')] };
+// İE-007: yapı düzlemi seçim anahtarları → seçim türü (point: kenar tıklaması, en yakın uç nokta)
+const PL_SEL = { 'base.ref': 'face', 'axis.ref': 'edge', pt0: 'point', pt1: 'point', pt2: 'point' };
 
 // ------------------------------------------------------------------ Özellik paneli
 export class FeaturePanel {
@@ -55,6 +57,11 @@ export class FeaturePanel {
       if (!d.sketch || !this.ctx().sketches.some((s) => s.id === d.sketch)) return { code: 'val.no_sketch', params: {} };
       if (d.type !== 'hole' && d.type !== 'rib' && Array.isArray(d.profiles) && !d.profiles.length) return { code: 'val.no_profile', params: {} };
     }
+    if (d.type === 'plane') {
+      if (d.mode === 'three' && (d.points || []).length < 3) return { code: 'val.pl_points', params: {} };
+      if ((d.mode === 'angle' || d.mode === 'offset') && d.base?.kind === 'face' && !d.base.ref) return { code: 'val.pl_ref', params: {} };
+      if (d.mode === 'angle' && d.axis?.kind === 'edge' && !d.axis.ref) return { code: 'val.pl_ref', params: {} };
+    }
     if (d.type === 'pattern') {
       // desen adedi üst sınırı (kilitlenmeyi önler); çözülemeyen ifadeyi çekirdek bildirir
       const vars = this.app.vars(); const num = (x) => { try { return Number(evalExpr(x, vars)); } catch (e) { return NaN; } };
@@ -72,7 +79,8 @@ export class FeaturePanel {
     if (this.repair) this.dropLost();
     this.render();
     // ilk seçim alanı boşsa etkin yap
-    const first = this.repair ? this.fields().find((f) => f.t === 'sel' && f.k === this.repair.lost[0].field) || this.fields().find((f) => f.t === 'sel') : this.fields().find((f) => f.t === 'sel');
+    let first = this.repair ? this.fields().find((f) => f.t === 'sel' && f.k === this.repair.lost[0].field) || this.fields().find((f) => f.t === 'sel') : this.fields().find((f) => f.t === 'sel');
+    if (this.repair && this.draft.type === 'plane') { const rk = this.planeRepairKey(this.repair.lost[0]); if (rk) first = { k: rk }; }
     if (first) this.setActive(first.k, true);
     this.updateViewport();
     app.previewSoon(0);
@@ -80,7 +88,24 @@ export class FeaturePanel {
 
   dropLost() {
     const by = new Map(); for (const L of this.repair.lost) { if (!by.has(L.field)) by.set(L.field, new Set()); by.get(L.field).add(L.index); }
+    if (this.draft.type === 'plane') { // İE-007: base.ref / axis.ref / points[i].edge
+      for (const L of this.repair.lost) {
+        const f = String(L.field);
+        if (/^base/.test(f) && this.draft.base) delete this.draft.base.ref;
+        else if (/^axis/.test(f) && this.draft.axis) delete this.draft.axis.ref;
+        else if (/^points?/.test(f) && Array.isArray(this.draft.points)) this.draft.points = this.draft.points.filter((_, j) => j !== (L.index ?? Number((f.match(/\d+/) || [0])[0])));
+      }
+      return;
+    }
     for (const [k, set] of by) { if (k.startsWith('plane')) { if (this.draft.plane) delete this.draft.plane.ref; continue; } const v = this.draft[k]; if (Array.isArray(v)) this.draft[k] = v.filter((_, j) => !set.has(j)); else if (v && set.has(null)) this.draft[k] = Array.isArray(v) ? [] : ''; }
+  }
+  planeRepairKey(L) { const f = String(L.field); if (/^base/.test(f)) return 'base.ref'; if (/^axis/.test(f)) return 'axis.ref'; if (/^points?/.test(f)) return 'pt' + Math.min(2, (this.draft.points || []).length); return null; }
+  // İE-007: seçim kutusu (kenar/yüz/nokta seçimi için ortak görünüm)
+  selBox(k, style = {}) {
+    const el = h('div', { class: 'selbox input pick', 'data-k': k, 'data-testid': 'sel-' + k.replace('.', '-'), style, tabindex: '0', role: 'button', onclick: () => this.setActive(k) });
+    el.addEventListener('keydown', (e) => { if (e.key === ' ' || (e.key === 'Enter' && e.target === el)) { e.preventDefault(); e.stopPropagation(); this.setActive(k); } });
+    el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', title: t('fld.clear_sel'), 'aria-label': t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel(k); }, html: icon('close', 'sm') }));
+    return el;
   }
   repairBox() {
     const R = this.repair; if (!R) return null; const app = this.app;
@@ -140,7 +165,7 @@ export class FeaturePanel {
       }
       case 'select': {
         const s = h('select', { 'data-k': fd.k }, fd.opts.map(([v, l]) => h('option', { value: v, selected: String(d[fd.k]) === String(v) }, l == null ? v : t(l))));
-        s.addEventListener('change', () => { d[fd.k] = s.value; this.setActive(null); this.fieldChanged(fd.k); });
+        s.addEventListener('change', () => { d[fd.k] = s.value; if (d.type === 'plane' && fd.k === 'mode') planeSetMode(d, s.value); this.setActive(null); this.fieldChanged(fd.k); });
         return this.row(fd.label, unitBox(s));
       }
       case 'check': {
@@ -228,13 +253,14 @@ export class FeaturePanel {
         return this.row(fd.label, el);
       }
       case 'tool': {
-        // WP-08: bölme düzlemi: ana düzlem (+ ofset) ya da düzlemsel yüz
+        // WP-08: bölme düzlemi: ana düzlem (+ ofset) ya da düzlemsel yüz; İE-007: ya da yapı düzlemi
         const T = d.tool || (d.tool = { kind: 'base', name: 'YZ', offset: '0' });
-        const cur = T.kind === 'face' ? 'face' : T.name || 'YZ';
-        const s = h('select', { 'data-k': 'tool' }, [['XY', 'plane.xy'], ['XZ', 'plane.xz'], ['YZ', 'plane.yz'], ['face', 'fld.plane_face']].map(([v, l]) => h('option', { value: v, selected: v === cur }, t(l))));
-        s.addEventListener('change', () => { d.tool = s.value === 'face' ? { kind: 'face' } : { kind: 'base', name: s.value, offset: T.offset ?? '0' }; this.fieldChanged('tool'); if (s.value === 'face') this.setActive('tool.ref', true); });
+        const cps = planeFeatures(this.ctx().doc);
+        const cur = T.kind === 'face' ? 'face' : T.kind === 'plane' ? 'cp:' + T.id : T.name || 'YZ';
+        const s = h('select', { 'data-k': 'tool' }, [...[['XY', 'plane.xy'], ['XZ', 'plane.xz'], ['YZ', 'plane.yz'], ['face', 'fld.plane_face']].map(([v, l]) => h('option', { value: v, selected: v === cur }, t(l))), ...cps.map((p) => h('option', { value: 'cp:' + p.id, selected: 'cp:' + p.id === cur }, p.name || p.id))]);
+        s.addEventListener('change', () => { d.tool = s.value === 'face' ? { kind: 'face' } : s.value.startsWith('cp:') ? { kind: 'plane', id: s.value.slice(3) } : { kind: 'base', name: s.value, offset: T.offset ?? '0' }; this.fieldChanged('tool'); if (s.value === 'face') this.setActive('tool.ref', true); });
         const wrap = h('div', {}, unitBox(s));
-        if (T.kind === 'face') {
+        if (T.kind === 'plane') { /* yapı düzlemi: ofset ve yüz seçimi yok */ } else if (T.kind === 'face') {
           const el = h('div', { class: 'selbox input pick', 'data-k': 'tool.ref', 'data-testid': 'sel-tool-ref', style: { marginTop: '4px' }, tabindex: '0', role: 'button', onclick: () => this.setActive('tool.ref') });
           el.addEventListener('keydown', (e) => { if (e.key === ' ' || (e.key === 'Enter' && e.target === el)) { e.preventDefault(); e.stopPropagation(); this.setActive('tool.ref'); } });
           el.append(h('span', { class: 'cnt' }), h('button', { class: 'clr clear', type: 'button', 'aria-label': t('fld.clear_sel'), title: t('fld.clear_sel'), onclick: (e) => { e.stopPropagation(); this.clearSel('tool.ref'); }, html: icon('close', 'sm') }));
@@ -246,6 +272,38 @@ export class FeaturePanel {
           wrap.append(h('div', { style: { marginTop: '4px' } }, unitBox(inp, 'mm')));
         }
         return this.row(fd.label, wrap);
+      }
+      case 'planeref': {
+        // İE-007: taban düzlemi: orijin düzlemi / düzlemsel yüz / başka yapı düzlemi
+        const B = d[fd.k] && d[fd.k].kind ? d[fd.k] : (d[fd.k] = { kind: 'base', name: 'XY', offset: '0' });
+        const cps = planeFeatures(this.ctx().doc).filter((p) => p.id !== d.id);
+        const cur = B.kind === 'face' ? 'face' : B.kind === 'plane' ? 'cp:' + B.id : B.name || 'XY';
+        const opts = [...[['XY', 'plane.xy'], ['XZ', 'plane.xz'], ['YZ', 'plane.yz'], ['face', 'fld.plane_face']].map(([v, l]) => h('option', { value: v, selected: v === cur }, t(l))), ...cps.map((p) => h('option', { value: 'cp:' + p.id, selected: 'cp:' + p.id === cur }, p.name || p.id))];
+        if (B.kind === 'plane' && !cps.some((p) => p.id === B.id)) opts.push(h('option', { value: cur, selected: true }, B.id));
+        const s = h('select', { 'data-k': fd.k }, opts);
+        s.addEventListener('change', () => { const v = s.value; d[fd.k] = v === 'face' ? { kind: 'face' } : v.startsWith('cp:') ? { kind: 'plane', id: v.slice(3) } : { kind: 'base', name: v, offset: '0' }; this.fieldChanged(fd.k); if (v === 'face') this.setActive(fd.k + '.ref', true); });
+        const wrap = h('div', {}, unitBox(s));
+        if (B.kind === 'face') wrap.append(this.selBox(fd.k + '.ref', { marginTop: '4px' }));
+        return this.row(fd.label, wrap);
+      }
+      case 'planeaxis': {
+        // İE-007: dönme ekseni: orijin ekseni X/Y/Z ya da doğrusal kenar
+        const A = d[fd.k] && d[fd.k].kind ? d[fd.k] : (d[fd.k] = { kind: 'axis', name: 'X' });
+        const cur = A.kind === 'edge' ? 'edge' : A.name || 'X';
+        const s = h('select', { 'data-k': fd.k }, [['X', 'pl.axis_x'], ['Y', 'pl.axis_y'], ['Z', 'pl.axis_z'], ['edge', 'fld.pl_axis_edge']].map(([v, l]) => h('option', { value: v, selected: v === cur }, t(l))));
+        s.addEventListener('change', () => { const v = s.value; d[fd.k] = v === 'edge' ? { kind: 'edge' } : { kind: 'axis', name: v }; this.fieldChanged(fd.k); if (v === 'edge') this.setActive(fd.k + '.ref', true); });
+        const wrap = h('div', {}, unitBox(s));
+        if (A.kind === 'edge') wrap.append(this.selBox(fd.k + '.ref', { marginTop: '4px' }));
+        return this.row(fd.label, wrap);
+      }
+      case 'cplane': {
+        // İE-007: yapı düzlemi listesi (ayna düzlemi)
+        const list = planeFeatures(this.ctx().doc).filter((p) => p.id !== d.id);
+        if (!list.length) return this.row(fd.label, h('span', { class: 'note', text: t('fld.pl_none') }));
+        if (!list.some((x) => x.id === d[fd.k])) d[fd.k] = list[list.length - 1].id;
+        const s = h('select', { 'data-k': fd.k }, list.map((x) => h('option', { value: x.id, selected: x.id === d[fd.k] }, x.name || x.id)));
+        s.addEventListener('change', () => { d[fd.k] = s.value; this.fieldChanged(fd.k); });
+        return this.row(fd.label, unitBox(s));
       }
       case 'source': {
         const srcs = patternSources(this.ctx().doc);
@@ -273,11 +331,18 @@ export class FeaturePanel {
   changed() { this.app.previewSoon(); }
 
   // --- seçim alanları
-  selKind(k) { if (k === 'source.bodies') return 'body'; if (k === 'tool.ref' || k === 'sketchFace') return 'face'; return this.fields().find((f) => f.k === k)?.kind; }
-  getSel(k) { if (k === 'source.bodies') return this.draft.source?.bodies || []; if (k === 'tool.ref') return this.draft.tool?.ref ? [this.draft.tool.ref] : []; if (k === 'sketchFace') return this.draft.plane?.ref ? [this.draft.plane.ref] : []; const v = this.draft[k]; return Array.isArray(v) ? v : v ? [v] : []; }
+  selKind(k) { if (PL_SEL[k]) return PL_SEL[k]; if (k === 'source.bodies') return 'body'; if (k === 'tool.ref' || k === 'sketchFace') return 'face'; return this.fields().find((f) => f.k === k)?.kind; }
+  getSel(k) {
+    if (k === 'base.ref') return this.draft.base?.ref ? [this.draft.base.ref] : [];
+    if (k === 'axis.ref') return this.draft.axis?.ref ? [this.draft.axis.ref] : [];
+    if (/^pt[0-2]$/.test(k)) { const p = this.draft.points?.[+k[2]]; return p ? [p] : []; }
+    if (k === 'source.bodies') return this.draft.source?.bodies || []; if (k === 'tool.ref') return this.draft.tool?.ref ? [this.draft.tool.ref] : []; if (k === 'sketchFace') return this.draft.plane?.ref ? [this.draft.plane.ref] : []; const v = this.draft[k]; return Array.isArray(v) ? v : v ? [v] : []; }
   setSelList(k, list) {
     const f = this.fields().find((x) => x.k === k);
-    if (k === 'source.bodies') this.draft.source.bodies = list; else if (k === 'sketchFace') { if (list.length) this.draft.plane = { ...this.draft.plane, kind: 'face', ref: list[list.length - 1] }; else if (this.draft.plane) delete this.draft.plane.ref; } else if (k === 'tool.ref') { if (list.length) this.draft.tool.ref = list[list.length - 1]; else delete this.draft.tool.ref; } else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
+    if (k === 'base.ref') this.draft.base = list.length ? { kind: 'face', ref: list[list.length - 1] } : { kind: 'face' };
+    else if (k === 'axis.ref') this.draft.axis = list.length ? { kind: 'edge', ref: list[list.length - 1] } : { kind: 'edge' };
+    else if (/^pt[0-2]$/.test(k)) { const i = +k[2]; const pts = (this.draft.points || []).slice(); if (list.length) pts[Math.min(i, pts.length)] = list[list.length - 1]; else if (i < pts.length) pts.splice(i, 1); this.draft.points = pts; }
+    else if (k === 'source.bodies') this.draft.source.bodies = list; else if (k === 'sketchFace') { if (list.length) this.draft.plane = { ...this.draft.plane, kind: 'face', ref: list[list.length - 1] }; else if (this.draft.plane) delete this.draft.plane.ref; } else if (k === 'tool.ref') { if (list.length) this.draft.tool.ref = list[list.length - 1]; else delete this.draft.tool.ref; } else if (f?.single) this.draft[k] = list[0] || ''; else this.draft[k] = list;
   }
   // C-04: × seçimi temizler ve alanı etkinleştirir (× tıklaması kutunun kendi tıklamasını durdurduğu için alan pasif kalıp kenar tıklamaları boşa gidiyordu)
   clearSel(k) { this.setSelList(k, []); this.setActive(k, true); this.refreshSels(); this.updateViewport(); this.changed(); }
@@ -314,9 +379,10 @@ export class FeaturePanel {
   updateViewport() {
     const vp = this.app.viewport; if (!vp || this.closed) return;
     const k = this.activeSel;
-    const kind = k ? this.selKind(k) : null;
+    const kind0 = k ? this.selKind(k) : null; const kind = kind0 === 'point' ? 'edge' : kind0; // İE-007: nokta seçimi kenar tıklaması ister
     vp.setFilter(kind ? { [kind]: true } : {});
-    if (kind && kind !== 'body') {
+    if (kind0 === 'point') vp.setSelection([]);
+    else if (kind && kind !== 'body') {
       // base görünümde tutulan seçim vurgusu
       vp.setSelection(this.getSel(k).map((r) => ({ kind: r.kind || kind, body: r.body, idx: r.idx })));
     } else if (kind === 'body') vp.setSelection(this.getSel(k).map((id) => ({ kind: 'body', body: id })));
@@ -329,10 +395,13 @@ export class FeaturePanel {
       this.app.regionCount = sk && pl ? vp.setRegions(pl, sk, selIdx, true) : (vp.setRegions(null, null), null);
       this.refreshProfiles();
     } else vp.setRegions(null, null);
+    // İE-007: üç nokta işaretleri; ayna / bölme / koniklik / taban düzleminde yapı düzlemi tıklanabilir
+    vp.setMarks(d.type === 'plane' && d.mode === 'three' ? (d.points || []).map((p) => p && (p.hint || (p.kind === 'xyz' ? [Number(p.x), Number(p.y), Number(p.z)] : null))) : []);
+    vp.pickPlanes = d.type === 'mirror' || d.tool != null || d.type === 'plane';
     this.app.setHint(this.hint());
   }
   hint() {
-    const k = this.activeSel; if (k) { const hk = { edge: tk('hint.pick_edge'), face: tk('hint.pick_face'), body: tk('hint.pick_body') }[this.selKind(k)]; return hk ? t(hk) : ''; }
+    const k = this.activeSel; if (k) { const hk = { edge: tk('hint.pick_edge'), face: tk('hint.pick_face'), body: tk('hint.pick_body'), point: tk('hint.pick_point') }[this.selKind(k)]; return hk ? t(hk) : ''; }
     if (['extrude', 'revolve', 'sweep'].includes(this.draft.type)) return t('hint.profiles');
     return '';
   }
@@ -358,8 +427,27 @@ export class FeaturePanel {
       d.profiles = sel.length === total ? 'all' : sel.map((i) => selectionFor(rg[i]));
       this.updateViewport(); this.changed(); return;
     }
+    // İE-007: görünümde yapı düzlemine tıklama (ayna / bölme / koniklik nötr düzlemi / taban düzlemi)
+    if (hit.kind === 'cplane') {
+      if (d.type === 'mirror') { d.plane = 'plane'; d.planeId = hit.id; }
+      else if (d.tool != null) d.tool = { kind: 'plane', id: hit.id };
+      else if (d.type === 'plane' && d.mode !== 'three' && hit.id !== d.id && planeFeatures(this.ctx().doc).some((p) => p.id === hit.id)) d.base = { kind: 'plane', id: hit.id };
+      else return;
+      this.fieldChanged('plane'); return;
+    }
     const k = this.activeSel; if (!k) return;
     const kind = this.selKind(k);
+    if (kind === 'point') {
+      // İE-007: kenara tıklanınca tıklama noktasına en yakın uç (dairesel kenarda merkez dahil) nokta olarak kaydedilir
+      if (hit.kind !== 'edge') return;
+      let ed; try { ed = await this.app.describe(hit, 'edge'); } catch (e) { toast(t('msg.selection_unreadable', { msg: errText(e) }), true); return; }
+      const cands = [ed.start, ed.end, ed.center].filter((p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite));
+      if (!cands.length) { toast(t('msg.selection_unreadable', { msg: t('sel.pick_point') }), true); return; }
+      const from = hit.point || cands[0]; const dist = (p) => Math.hypot(p[0] - from[0], p[1] - from[1], p[2] - from[2]);
+      const best = cands.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+      this.setSelList(k, [{ kind: 'vertex', edge: ed, hint: best.map((x) => Math.round(x * 1e4) / 1e4) }]);
+      const i = +k[2]; this.refreshSels(); if (i < 2) this.setActive('pt' + (i + 1)); this.updateViewport(); this.changed(); return;
+    }
     if (hit.kind !== kind) { if (kind === 'body' && hit.body) hit = { kind: 'body', body: hit.body }; else return; }
     let list = this.getSel(k).slice();
     const f = this.fields().find((x) => x.k === k);
@@ -407,7 +495,7 @@ export class FeaturePanel {
   close() {
     this.closed = true; this.app.edit = null; this.app.setFinal(null);
     $('#panel').classList.add('hidden'); $('#panel').replaceChildren();
-    const vp = this.app.viewport; vp.setRegions(null, null); vp.setSelection([]); this.app.setHint('');
+    const vp = this.app.viewport; vp.setRegions(null, null); vp.setSelection([]); vp.setMarks([]); vp.pickPlanes = false; this.app.setHint('');
     if (this.repair) { showRepair(vp, []); this.app.repairDrawn = null; }
   }
 }
@@ -419,7 +507,7 @@ export class SketchPanel {
     const app = this.app, s = this.s;
     const body = h('div', { class: 'sk-body' });
     const isBase = s.draft.plane?.kind === 'base';
-    body.append(h('div', { class: 'note', text: isBase ? t('skp.plane', { name: s.draft.plane.name }) : t('skp.plane_face') }));
+    body.append(h('div', { class: 'note', text: isBase ? t('skp.plane', { name: s.draft.plane.name }) : s.draft.plane?.kind === 'plane' ? t('skp.plane', { name: app.cplaneName(s.draft.plane.id) }) : t('skp.plane_face') }));
     if (isBase) {
       const inp = h('input', { type: 'text', 'data-k': 'offset', value: s.draft.plane.offset ?? '0' });
       inp.addEventListener('change', () => app.setSketchOffset(inp.value));

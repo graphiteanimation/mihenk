@@ -50,7 +50,74 @@ export class Kernel {
       if (face.geomType !== 'PLANE') throw new KErr('sketch.plane_not_planar');
       return V.planeFromNormal(face.normalAt(face.center).toTuple(), face.center.toTuple());
     }
+    // İE-007: yapı düzlemi özelliği (yok / bastırılmış / sonra geliyor / hesaplanamadı → plane.not_found)
+    if (spec.kind === 'plane') { const p = typeof spec.id === 'string' ? state.planes?.get(spec.id) : null; if (!p) throw new KErr('plane.not_found'); return p; }
     throw new KErr('sketch.plane_unknown');
+  }
+  // düzlem başvurusu (taban ofseti ifadedir) → {o,x,y,n}
+  refPlane(spec, state, N, ctx) {
+    const s = spec?.kind === 'base' ? { ...spec, offsetVal: this.coord(N(spec.offset ?? 0, tk('ef.offset')), tk('ef.offset')) } : spec;
+    return this.resolvePlane(s, state, ctx);
+  }
+
+  // ---- İE-007: yapı düzlemi (sözleşme: pm/tasarim/IE-007-yapi-duzlemi.md) ----
+  planePoint(q, state, N, ctx) {
+    if (!q || typeof q !== 'object') throw new KErr('sketch.plane_unknown');
+    if (q.kind === 'xyz') return ['x', 'y', 'z'].map((k) => this.coord(N(q[k] ?? 0, tk('ef.' + k)), tk('ef.' + k)));
+    if (q.kind === 'sketch') {
+      const S = state.sketches.get(q.sketch); const p = S && Object.hasOwn(S.sk.points || {}, q.point) ? S.sk.points[q.point] : null;
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) throw new KErr('sketch.not_found');
+      return V.toWorld(S.plane, p.x, p.y);
+    }
+    if (q.kind === 'vertex') {
+      // kenarın uç noktaları; dairesel kenarda ayrıca merkez. hint'e en yakını (hint yoksa ilk uç)
+      const E = this.resolveRef(q.edge, state, 'edge', ctx);
+      const c = [E.startPoint.toTuple(), E.endPoint.toTuple()];
+      if (E.geomType === 'CIRCLE') { const C = E._geomAdaptor().Circle(); const l = C.Location(); c.push([l.X(), l.Y(), l.Z()]); }
+      const h = Array.isArray(q.hint) && q.hint.length === 3 && q.hint.every(Number.isFinite) ? q.hint : null;
+      if (!h) return c[0];
+      let best = c[0]; for (const p of c) if (V.dist(p, h) < V.dist(best, h) - 1e-12) best = p;
+      return best;
+    }
+    throw new KErr('sketch.plane_unknown');
+  }
+  constructPlane(f, state, N, ctx) {
+    let pl;
+    if (f.mode === 'angle' || f.mode === 'offset') {
+      const B = this.refPlane(f.base, state, N, { ...ctx, field: 'base.ref' });
+      if (f.mode === 'offset') {
+        const off = this.coord(N(f.offset ?? 0, tk('ef.offset')), tk('ef.offset'));
+        pl = { o: V.add(B.o, V.mul(B.n, off)), x: B.x, y: B.y, n: B.n };
+      } else {
+        let a, d;
+        const ax = f.axis;
+        if (ax?.kind === 'axis') { d = AX[ax.name]; if (!d) throw new KErr('prim.axis_unknown'); a = [0, 0, 0]; }
+        else if (ax?.kind === 'edge') {
+          const E = this.resolveRef(ax.ref, state, 'edge', { ...ctx, field: 'axis.ref' });
+          if (E.geomType !== 'LINE') throw new KErr('plane.axis_not_linear');
+          a = E.startPoint.toTuple(); const b = E.endPoint.toTuple(); if (!(V.dist(a, b) > 1e-9)) throw new KErr('plane.axis_not_linear');
+          d = V.norm(V.sub(b, a));
+        } else throw new KErr('pattern.no_axis');
+        d = V.canonDir(d);
+        if (Math.abs(V.dot(d, B.n)) > 1e-6) throw new KErr('plane.axis_not_parallel');
+        const ang = N(f.angle ?? 0, tk('ef.angle')); if (!Number.isFinite(ang)) throw new KErr('value.out_of_range', { field: tk('ef.angle'), value: ang, min: -360, max: 360 });
+        let n = V.rotate(B.n, d, ang); n = V.norm(V.sub(n, V.mul(d, V.dot(n, d)))); // x ⟂ n (taban toleransı içindeki sapma temizlenir)
+        pl = { o: V.add(a, V.mul(d, V.dot(V.sub(B.o, a), d))), x: d, y: V.cross(n, d), n };
+      }
+    } else if (f.mode === 'three') {
+      if (!Array.isArray(f.points) || f.points.length !== 3) throw new KErr('plane.points_collinear');
+      const [p1, p2, p3] = f.points.map((q, k) => this.planePoint(q, state, N, { ...ctx, field: 'points', index: k }));
+      const sc = Math.max(1, V.dist(p1, p2), V.dist(p1, p3), ...p1.map(Math.abs));
+      const u = V.sub(p2, p1); if (!(V.len(u) > 1e-9 * sc)) throw new KErr('plane.points_collinear');
+      const x = V.norm(u); const c = V.cross(x, V.sub(p3, p1));
+      if (!(V.len(c) >= 1e-9 * sc)) throw new KErr('plane.points_collinear');
+      const n = V.norm(c); pl = { o: p1, x, y: V.cross(n, x), n };
+    } else throw new KErr('sketch.plane_unknown');
+    if (f.flip === true) pl = { o: pl.o, x: pl.x, y: V.mul(pl.y, -1), n: V.mul(pl.n, -1) };
+    if (![pl.o, pl.x, pl.y, pl.n].every((v) => v.every(Number.isFinite))) throw new KErr('sketch.plane_unknown');
+    pl.o.forEach((v) => this.coord(v, tk('ef.offset')));
+    state.planes.set(f.id, pl);
+    return [];
   }
 
   // ---- seçim (Ref) çözümü: yalnız ADA göre (F-01) ----
@@ -151,6 +218,7 @@ export class Kernel {
   runFeature(f, state, vars, ctx) {
     const N = (e, l) => this.num(e, vars, l);
     switch (f.type) {
+      case 'plane': return this.constructPlane(f, state, N, ctx);
       case 'sketch': {
         let spec = f.plane;
         if (spec?.kind === 'base') spec = { ...spec, offsetVal: this.coord(N(spec.offset ?? 0, tk('ef.offset')), tk('ef.offset')) };
@@ -437,8 +505,7 @@ export class Kernel {
   // WP-08: bölme ve doğrudan düzenleme (src/kernel/direct.js)
   toolPlane(spec, state, N, ctx) {
     if (!spec || typeof spec !== 'object') throw new KErr('split.no_tool');
-    const s = spec.kind === 'base' ? { ...spec, offsetVal: this.coord(N(spec.offset ?? 0, tk('ef.offset')), tk('ef.offset')) } : spec;
-    return this.resolvePlane(s, state, { ...ctx, field: 'tool' });
+    return this.refPlane(spec, state, N, { ...ctx, field: 'tool' }); // İE-007: {kind:'plane', id} de kabul
   }
   direct(f, state, N, ctx) {
     if (f.type === 'split') {
@@ -537,6 +604,7 @@ export class Kernel {
       const pl = f.plane ?? 'XY';
       // WP-08: aynalama düzlemi düzlemsel bir yüzden (planeRef)
       const P = pl === 'face' ? this.resolvePlane({ kind: 'face', ref: f.planeRef }, state, { feature: f.id, field: 'planeRef' })
+        : pl === 'plane' ? this.resolvePlane({ kind: 'plane', id: f.planeId }, state, { feature: f.id, field: 'planeId' }) // İE-007
         : (() => { if (!V.BASE_PLANES[pl]) throw new KErr('sketch.plane_unknown'); return V.basePlane(pl, this.coord(N(f.offset ?? 0, tk('ef.offset')), 'ef.offset')); })(); // F-12
       xs.push({ inst: 'm', steps: [{ mirror: { o: P.o, n: P.n } }] });
     } else if (f.kind === 'circ') {
@@ -611,16 +679,16 @@ export class Kernel {
   // ---- yeniden hesap ----
   // opts.onFeature({id, i, n, ok, cached, ms, sum, error?}): her işlem bitince (arayüzdeki güncelleme süpürmesi için)
   async rebuild(doc, opts = {}) {
-    const empty = (code) => ({ bodies: [], status: {}, sketches: {}, vars: {}, paramErrors: { '#doc': { code, params: {} } }, holes: [], refUpgrades: [], docErrors: [{ code, params: {} }] });
-    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) { this.last = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.invalid'); }
-    if (!Array.isArray(doc.features)) { this.last = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.no_features'); }
+    const empty = (code) => ({ bodies: [], status: {}, sketches: {}, planes: {}, vars: {}, paramErrors: { '#doc': { code, params: {} } }, holes: [], refUpgrades: [], docErrors: [{ code, params: {} }] });
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) { this.last = { bodies: new Map(), sketches: new Map(), planes: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.invalid'); }
+    if (!Array.isArray(doc.features)) { this.last = { bodies: new Map(), sketches: new Map(), planes: new Map(), tools: new Map(), holes: [] }; this.cache = []; return empty('doc.no_features'); }
     const feats = doc.features; const docErrors = [];
     await yieldTask(); // olay döngüsüne dön: bekleyen OCCT nesne sonlandırıcıları (FinalizationRegistry) çalışsın (F-20)
     await this.loadImports(feats);
     const { vars, errors: perr } = resolveParams(Array.isArray(doc.params) ? doc.params.filter((p) => p && typeof p === 'object') : []);
     const status = {}; const pkey = JSON.stringify(vars); const upgrades = [];
     const rb = doc.rollback; const end = rb == null || !Number.isFinite(rb) ? feats.length : Math.max(0, Math.min(Math.floor(rb), feats.length));
-    let state = { bodies: new Map(), sketches: new Map(), tools: new Map(), holes: [], touch: new Map() };
+    let state = { bodies: new Map(), sketches: new Map(), planes: new Map(), tools: new Map(), holes: [], touch: new Map() };
     const newCache = []; let valid = true;
     // WP-02: işlem başına iz (status'tan ayrı; status biçimi ve önbellek eşitliği değişmez)
     // featInfo[id] = {ms, cached, changed, warn:[{code,params}], sum, lastOk:{rev}|null}
@@ -685,6 +753,8 @@ export class Kernel {
     }
     const sketches = {};
     for (const [id, s] of state.sketches) sketches[id] = { plane: s.plane };
+    const planes = {}; // İE-007: yapı düzlemleri (arayüz çizimi için)
+    for (const [id, p] of state.planes) planes[id] = { plane: p };
     const holes = holesOut(state);
     // T-05b: ice aktarilan (STEP) govdelerde delik ozelligi yok -> B-rep delik tanima (ozellik delikleriyle es eksenli olanlar atlanir)
     if (feats.some((f) => f && f.type === 'import' && !f.suppressed)) {
@@ -693,7 +763,7 @@ export class Kernel {
       const onAxis = (p, d) => known.some(([q, e]) => { const l = Math.hypot(...e); const u = e.map((x) => x / l); if (Math.abs(Math.abs(V.dot(u, d)) - 1) > 1e-6) return false; const w = V.sub(p, q); const t = V.dot(w, u); return Math.hypot(w[0] - u[0] * t, w[1] - u[1] * t, w[2] - u[2] * t) < 1e-3; });
       holes.push(...recognizedHoles(list, onAxis));
     }
-    return { bodies, status, sketches, vars, paramErrors: perr, holes, refUpgrades: upgrades, docErrors, featInfo, rev };
+    return { bodies, status, sketches, planes, vars, paramErrors: perr, holes, refUpgrades: upgrades, docErrors, featInfo, rev };
   }
   // işlem izi: changed = sonuç özeti bir önceki hesaplamadakinden farklı (ilk hesapta false)
   info(id, ce, cached) {
@@ -715,7 +785,13 @@ export class Kernel {
       if (Array.isArray(v)) v.forEach((x, j) => { if (isRef(x)) refs.push({ field: k, index: j, ref: x }); });
       else if (isRef(v)) refs.push({ field: k, index: null, ref: v });
     }
-    if (f.type === 'sketch' && f.plane?.kind === 'face' && f.plane.ref) refs.push({ field: 'plane.ref', index: null, ref: { kind: 'face', ...f.plane.ref } });
+    if (f.type === 'sketch' && f.plane?.kind === 'face' && f.plane.ref) refs.push({ field: ['plane', 'ref'].join('.'), index: null, ref: { kind: 'face', ...f.plane.ref } }); // birleştirme: i18n taraması 'plane.' önekini hata kodu sanmasın
+    // İE-007: yapı düzleminin iç içe başvuruları (taban yüzü, eksen kenarı, köşe noktalarının kenarları)
+    if (f.type === 'plane') {
+      if (f.base?.kind === 'face' && f.base.ref && typeof f.base.ref === 'object') refs.push({ field: 'base.ref', index: null, ref: { kind: 'face', ...f.base.ref } });
+      if (f.axis?.kind === 'edge' && f.axis.ref && typeof f.axis.ref === 'object') refs.push({ field: 'axis.ref', index: null, ref: { kind: 'edge', ...f.axis.ref } });
+      if (Array.isArray(f.points)) f.points.forEach((q, j) => { if (q?.kind === 'vertex' && q.edge && typeof q.edge === 'object') refs.push({ field: 'points', index: j, ref: { kind: 'edge', ...q.edge } }); });
+    }
     const old = this.lastGoodState(id); const lost = [];
     const linesOf = (body, kind, k) => {
       const m = this.mesh(body); if (m.error) return null; const out = [];
@@ -870,7 +946,7 @@ function elemCenter(el, kind) {
   try { return el.pointAt(0.5).toTuple(); } catch (e) { const b = el.boundingBox.center; return [b[0], b[1], b[2]]; }
 }
 function uniqueId(state, base) { if (!state.bodies.has(base)) return base; let i = 2; while (state.bodies.has(base + '#' + i)) i++; return base + '#' + i; }
-function cloneState(s) { return { bodies: new Map(s.bodies), sketches: new Map(s.sketches), tools: new Map(s.tools), holes: s.holes.slice(), touch: new Map(s.touch) }; }
+function cloneState(s) { return { bodies: new Map(s.bodies), sketches: new Map(s.sketches), planes: new Map(s.planes || []), tools: new Map(s.tools), holes: s.holes.slice(), touch: new Map(s.touch) }; }
 function meshOk(m) { const v = m.vertices; if (!v || !v.length || !m.triangles?.length) return false; for (let i = 0; i < v.length; i++) if (!Number.isFinite(v[i])) return false; return true; }
 function isEmpty(shape) { try { return !shape || shape.isNull || TP.topoOf(shape).faces.size === 0; } catch (e) { return true; } }
 function bodyNum(base, n) { return n ? { code: 'num', params: { base, n } } : base; }
@@ -909,6 +985,8 @@ function bodySig(b) {
   sigCache.set(b.shape, s); return s;
 }
 function resultSum(f, before, after) {
+  // İE-007: yapı düzlemi özeti düzlemin kendisi (açı/ofset değişince "değişti"; bağlı eskizlerin özeti zaten düzlemi içerir)
+  if (f.type === 'plane') { const P = after.planes?.get(f.id); return P ? 'pl:' + fnv(JSON.stringify(P, (k, v) => (typeof v === 'number' ? r6(v) : v))) : 'none'; }
   if (f.type === 'sketch') { const S = after.sketches.get(f.id); return S ? 'sk:' + fnv(JSON.stringify([S.plane, S.sk.points, S.sk.ents], (k, v) => (typeof v === 'number' ? r6(v) : v))) : 'none'; }
   const out = [];
   for (const [id, b] of after.bodies) { const p = before.bodies.get(id); if (!p || p.shape !== b.shape) out.push(id + '=' + bodySig(b)); }
@@ -922,7 +1000,8 @@ const fastYield = () => (typeof MessageChannel === 'function' && typeof setImmed
   : new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0))));
 const yieldTask = () => new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0)));
 // özellik önbellek anahtarı: içe aktarma verisi tam içerik özetiyle (F-02)
-function featKey(f, hashes) { return JSON.stringify(f, (k, v) => (k === 'name' ? undefined : k === 'data' && typeof v === 'string' ? 'sha:' + (hashes.get(v) || '?') : v)); }
+// İE-007: yalnız özelliğin kendi adı anahtardan atılır; iç içe `name` (base.name, axis.name, plane.name) geometriyi belirler
+function featKey(f, hashes) { return JSON.stringify(f, function (k, v) { return (k === 'name' && this === f ? undefined : k === 'data' && typeof v === 'string' ? 'sha:' + (hashes.get(v) || '?') : v); }); }
 function importKey(f, hashes) { return typeof f.data === 'string' && f.data.length ? `${f.format}:${hashes.get(f.data)}` : null; }
 async function sha256(s) {
   const bytes = new TextEncoder().encode(s);

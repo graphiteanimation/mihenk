@@ -121,7 +121,7 @@ Sketch, bir düzlem üzerindeki 2B çizimdir. Katı model bundan üretilir.
 ### 3.1 Sketch başlatma ve bitirme
 
 1. **Sketch** komutuna basın.
-2. İpucu: "Bir düzlem ya da düzlemsel yüz seçin". Orijin düzlemlerinden birini (XY Üst, XZ Ön, YZ Sağ) ya da gövdenin düz bir yüzünü tıklayın.
+2. İpucu: "Bir düzlem ya da düzlemsel yüz seçin". Orijin düzlemlerinden birini (XY Üst, XZ Ön, YZ Sağ) ya da gövdenin düz bir yüzünü tıklayın. Kendi oluşturduğunuz yapı düzlemi de seçilebilir (bkz. 4.1).
 3. Çizin, ölçülendirin, kısıtlayın.
 4. **Sketch'i Bitir** (yeşil düğme) ile kaydedin. **İptal** değişiklikleri atar.
 5. Bitirirken eksik varsa "Sketch kaydedildi, ama:" uyarısı çıkar: açık profil, kapalı profil yok, üst üste binen nesne, tam tanımlı değil.
@@ -269,6 +269,22 @@ Modelleme komutları **Tasarım** sekmesinin şeridindedir: **Oluştur**, **Düz
 > İmalat sekmesindeki **Delik delme** ve **Diş** işlemleri delikleri bu **Delik** özelliğinden okur. Delikleri Extrude ile **Kes** yaparak açarsanız CAM bunları delik olarak görmez.
 
 **Kutu**, **Silindir**, **Küre**: Konum ve ölçü girerek temel şekil ekler.
+
+#### Yapı düzlemi
+
+**Yapı düzlemi** şeritte **Form ▾** menüsündedir (Oluştur grubu). Üç kipi vardır:
+
+| Kip | Alanlar |
+|---|---|
+| Açıyla düzlem | **Taban düzlemi**: orijin düzlemi, düzlemsel yüz ya da başka bir yapı düzlemi. **Dönme ekseni**: X, Y ya da Z ekseni, ya da **Doğrusal kenar…**. Eksen tabana paralel olmalıdır; düzlem eksenden geçer. **Açı**: derece (ifade yazılabilir). |
+| Üç noktadan düzlem | **1., 2., 3. nokta**: her biri için bir kenara tıklayın. Tıkladığınız yere en yakın uç nokta alınır; daire kenarında merkez de seçilebilir. Üç nokta aynı doğru üzerinde ya da çakışık olamaz. |
+| Ofset düzlem | **Taban düzlemi** ve **Ofset** (mm). Ofset, taban normalinin yönünde uygulanır. |
+
+- **Ters çevir** düzlemin normalini çevirir.
+- Yapı düzlemi geçmişte bir özelliktir. Açısı ya da ofseti değişince üzerindeki eskizler ve onlara bağlı özellikler yeniden hesaplanır.
+- Kullanıldığı yerler: eskiz düzlemi (görünümde düzleme tıklayın), **Ayna düzlemi**, **Gövde böl**, **Yüz böl** ve **Koniklik** için **Nötr düzlem**.
+- Görünümde yarı saydam dörtgen olarak çizilir; orijin düzlemlerinden ayrı renktedir. **Orijin** bölümündeki göz düğmesi (*Orijin düzlemlerini göster / gizle*) yapı düzlemlerini de gizler.
+- Yapı düzlemi içeren belge dosya sürümü 2 ile kaydedilir. Mihenk 0.6.0 yapı düzlemi özelliğini tanımadığı için bu belgeyi açamaz; 0.6.1 ya da sonrası gerekir. Düzlemsiz belgeler etkilenmez.
 
 ### 4.2 Düzenle
 

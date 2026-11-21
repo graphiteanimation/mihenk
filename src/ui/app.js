@@ -14,7 +14,7 @@ import { basePlane } from '../shared/vec.js';
 import { h, $, toast, modal, modalOpen, promptText, confirmBox, esc, fmt } from './dom.js';
 import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared/i18n.js';
 import { KErr, toErr } from '../shared/errors.js';
-import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../shared/schema.js';
+import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME, docFileVersion } from '../shared/schema.js';
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
@@ -404,6 +404,7 @@ class App {
     if (!preview) this.updateMarks(res);
     this.result = res; this.stale = false;
     this.viewport.setBodies(res.bodies, this.hiddenBodies);
+    this.viewport.setCPlanes(this.cplaneList(res)); // İE-007: yapı düzlemleri
     this.selection = this.selection.filter((s) => s.kind === 'body' && res.bodies.some((b) => b.id === s.body));
     this.refreshSketches();
     if (this.needFit && res.bodies.length) { this.viewport.fit(); this.needFit = false; }
@@ -417,6 +418,12 @@ class App {
       this.setLeft(this.edit ? () => t('st.preview') : bad ? () => t('st.error', { name: bad.name || bad.id, msg: errText(this.result?.status[bad.id]?.error) }) : () => t('st.ready'));
     }
   }
+  // İE-007: sonuçtaki yapı düzlemleri → görünüm listesi (ad: özellik adı)
+  cplaneList(res = this.result) {
+    const out = []; for (const [id, v] of Object.entries(res?.planes || {})) { if (!v?.plane) continue; const f = this.doc.features.find((x) => x.id === id); out.push({ id, name: f?.name || id, plane: v.plane }); }
+    return out;
+  }
+  cplaneName(id) { const f = this.doc.features.find((x) => x.id === id); return f?.name || id; }
   refreshSketches() {
     const res = this.result; if (!res) return;
     const list = this.doc.features.filter((f) => f.type === 'sketch').map((f) => ({ id: f.id, sk: f, plane: res.sketches?.[f.id]?.plane, visible: !this.hiddenSketches.has(f.id) && !(this.sketchSession && this.sketchSession.draft.id === f.id) }));
@@ -641,6 +648,7 @@ class App {
   async editSketch(i) {
     const f = this.doc.features[i]; this.selFeature = f.id;
     let plane = this.result?.sketches?.[f.id]?.plane;
+    if (!plane && f.plane?.kind === 'plane') plane = this.result?.planes?.[f.plane.id]?.plane; // İE-007
     if (!plane && f.plane?.kind === 'base') { try { plane = this.planeOf(f.plane); } catch (e) { toast(t('msg.offset_failed', { msg: errText(e) }), true); return; } }
     if (!plane) { toast(t('msg.sketch_not_computed'), true); return; }
     await this.beginSketch(clone(f), plane, i);
@@ -745,6 +753,10 @@ class App {
       if (!hit) return;
       try {
         if (hit.kind === 'plane') { await this.beginSketch({ id: newId(this.doc, 'sketch'), type: 'sketch', name: autoName(this.doc, 'sketch'), plane: { kind: 'base', name: hit.name, offset: '0' }, points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [] }, basePlane(hit.name, 0), null); }
+        else if (hit.kind === 'cplane') { // İE-007: yapı düzlemi
+          const plane = this.result?.planes?.[hit.id]?.plane; if (!plane) { toast(t('msg.sketch_not_computed'), true); return; }
+          await this.beginSketch({ id: newId(this.doc, 'sketch'), type: 'sketch', name: autoName(this.doc, 'sketch'), plane: { kind: 'plane', id: hit.id }, points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [] }, plane, null);
+        }
         else if (hit.kind === 'face') {
           const ref = await this.describe(hit, 'face'); const plane = await this.query('facePlane', { ref });
           await this.beginSketch({ id: newId(this.doc, 'sketch'), type: 'sketch', name: autoName(this.doc, 'sketch'), plane: { kind: 'face', ref }, points: { O: { x: 0, y: 0, fixed: true } }, ents: [], cons: [] }, plane, null);
@@ -798,7 +810,7 @@ class App {
     await this.loadDoc(emptyDoc(), { reset: true }); this.viewport.view('iso', true);
     window.native?.docState('new'); this.clearRecovery();
   }
-  fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: this.doc })); }
+  fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: docFileVersion(this.doc), doc: this.doc })); }
   // kind: 'doc' | 'step' | 'stl'. Electron'da yol HİÇ gönderilmez; ana süreç diyalog açar ya da bu oturumdaki geçerli belge yoluna yazar.
   async writeOut(bytes, defaultName, kind, saveAs) {
     if (window.native) return window.native.saveFile({ saveAs: !!saveAs, data: bytes, defaultName, kind });
@@ -918,7 +930,7 @@ class App {
     if (!this.dirty || this._rev === this._recRev) return false;
     const rev = this._rev;
     try {
-      const bytes = new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: this.doc, fileName: this.fileName }));
+      const bytes = new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: docFileVersion(this.doc), doc: this.doc, fileName: this.fileName }));
       await recovery.save(bytes); this._recRev = rev; this.lastAutosave = new Date(); this.C.renderStatus(); return true;
     } catch (e) { console.error('recovery save failed', e); return false; }
   }

@@ -528,6 +528,10 @@ const base = {
   "err.elem_none": "No such element",
   "err.sketch.plane_not_planar": "A planar face is required for the sketch plane",
   "err.sketch.plane_unknown": "Unknown plane type",
+  "err.plane.not_found": "Construction plane not found (missing, suppressed or defined later)",
+  "err.plane.axis_not_parallel": "The rotation axis must be parallel to the base plane",
+  "err.plane.axis_not_linear": "The rotation axis must be a linear edge",
+  "err.plane.points_collinear": "The three points are collinear or coincident; no plane can be defined",
   "err.sketch.no_profile": "There is no closed profile in the sketch",
   "err.sketch.profile_gone": "The selected profile no longer exists; edit the feature",
   "err.profile.lost": "The selected profile no longer exists (the sketch changed); edit the feature and pick the profile again",
@@ -1045,7 +1049,8 @@ const base = {
 import sketchCf from './sketch-en.js';
 import model from './model-en.js';
 import model2 from './model2-en.js'; // WP-19
-Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); // WP-09: çizim konforu metinleri
+import plane from './plane-en.js'; // IE-007
+Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); Object.assign(base, plane); // WP-09: çizim konforu metinleri
 
 Object.assign(base, camWp12); // WP-12
 Object.assign(base, camWp15); // WP-15
