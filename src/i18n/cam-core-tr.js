@@ -232,6 +232,8 @@ export default {
   "err.cam.flat.nothing": "Seçili yüzlerin üstünde alınacak malzeme yok (yüz stok üstünde).",
   "err.cam.flat.face_at_top": "{n} yüz stok üstüyle aynı yükseklikte; atlandı.",
   // WP-16 sarma
+  "err.cam.wrap.tilt_conflict": "Sarma kipi ve 3+2 eğim aynı setup'ta kullanılamaz.",
+  "err.cam.post.wrap_tilt_mix": "Sarma bölümleri ile 3+2 eğik setup'lar aynı NC programında birleştirilemez; ayrı programlarda çıkarın.",
   "err.cam.wrap.needs_cyl": "Sarma kipi silindir stok ister (eksen X).",
   "err.cam.wrap.rotary_conflict": "Sarma kipi ile A indeksleme (3+1) aynı setup'ta kullanılamaz; sarma işlemleri A eksenini kendileri döndürür.",
   "err.cam.wrap.origin_off_axis": "Sarma kipinde iş koordinatı orijini A ekseni üzerinde olmalı (eksenden uzaklık Y {y}, Z {z} mm).",

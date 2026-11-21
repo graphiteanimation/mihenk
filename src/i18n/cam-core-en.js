@@ -231,6 +231,8 @@ export default {
   "err.cam.flat.nothing": "There is no material above the selected faces (face is at the stock top).",
   "err.cam.flat.face_at_top": "{n} face(s) at the same height as the stock top; skipped.",
   // WP-16 sarma
+  "err.cam.wrap.tilt_conflict": "Wrap mode and 3+2 tilt cannot be used in the same setup.",
+  "err.cam.post.wrap_tilt_mix": "Wrap sections and 3+2 tilted setups cannot be combined in one NC program; post them separately.",
   "err.cam.wrap.needs_cyl": "Wrap mode needs a cylinder stock (axis X).",
   "err.cam.wrap.rotary_conflict": "Wrap mode and A indexing (3+1) cannot be used in the same setup; wrap operations drive the A axis themselves.",
   "err.cam.wrap.origin_off_axis": "In wrap mode the work offset origin must be on the A axis (offset from axis Y {y}, Z {z} mm).",
