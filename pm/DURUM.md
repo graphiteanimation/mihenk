@@ -3,7 +3,7 @@
 Sürüm: `v0.6.0` (master), bilgisayarda kurulu (son kurulum SHA-256 `427caa1d…3a85`, `Mihenk\surumler\0.6.0\`). Önceki adaylar `Mihenk\arsiv\0.6.0-aday1`, `-aday2`.
 Depo: GitHub `graphiteanimation/mihenk` (ana): yalnız `master` dalı, `v0.6.0` etiketi ve `Mihenk 0.6.0` sürüm sayfası (kurulum + SHA-256). v0.4.0/v0.5.0 etiketleri yalnız yedekte. Yedek `Documents\Mihenk\Mihenk\mihenk.git`.
 Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARARLAR.md` (K-045, O-051) · kabul: `pm/KABUL-WINDOWS.md`.
-Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, iş `Mihenk: devam` oturumunda `pm/IS-EMRI.md` sırasıyla. Gündem: `pm/YONETIM.md`. Sıra (K-054, Y-02 15:15 UTC): önce bütün CAD bulguları → 0.6.1, sonra Fusion kıyaslaması. Sürüyor: İE-003, İE-005, İE-007 · Hazır (ekransız): İE-008 eskiz, İE-010 kabuk/görünüm, İE-006 (İE-005'ten sonra), İE-009 (İE-006 + İE-007'den sonra) · Beklemede: İE-004A Fusion referansı (ekran; lisans 23 Kasım), İE-011 sürüm 0.6.1, İE-004 kıyaslama.
+Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, iş `Mihenk: devam` oturumunda `pm/IS-EMRI.md` sırasıyla. Gündem: `pm/YONETIM.md`. Sıra (K-054, Y-02 15:15 UTC): önce bütün CAD bulguları → 0.6.1, sonra Fusion kıyaslaması. Bitti: İE-003 · Sürüyor: İE-005, İE-007 · Hazır (ekransız): İE-008 eskiz, İE-010 kabuk/görünüm, İE-006 (İE-005'ten sonra), İE-009 (İE-006 + İE-007'den sonra) · Beklemede: İE-004A Fusion referansı (ekran; lisans 23 Kasım), İE-011 sürüm 0.6.1, İE-004 kıyaslama.
 
 ## İE-003 sonucu (Bitti 2026-11-21f)
 - `test/cad-bench/mhnk/` altında arayüzden çizilen 12 belge (T01–T09, T10a/b/c); `test/cad-bench.test.mjs` her birini çekirdekte yeniden hesaplar: şema, geçmişte hata yok, hacim referansa ±%0,1, kutu ±0,05 mm, bugünkü hacim/gövde/yüz sayısı sabit; `ref/*.step` de çekirdekle ölçülüp tabloyla sağlanır. 152 geçti / 0 kaldı; `test:all` zincirinde (43 adım); master `ci` 44914597501 yeşil. Bağımsız doğrulama ONAY.
@@ -23,7 +23,7 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - GitHub'da geçici `tani-ie002` dalı silinemedi (G-12); `wp-ie002*` dalları da duruyor.
 
 ## Test durumu
-- `npm run test:all` master CI 44911498632 (İE-002 sonrası): 43/43 adım, 7088 denetim geçti, 0 kaldı (altın set P1–P4 dahil).
+- `npm run test:all` master CI 44914597501 (İE-003 sonrası): yeşil; cad-bench adımı 152 denetim. Önceki koşu 44911498632: 43/43 adım, 7088 denetim (altın set P1–P4 dahil).
 - Bu çalışma alanında ilk koşuda Electron ikilisi indirilememişti (ortam); yeniden kurulunca geçti.
 
 ## Açık (1.0 öncesi değerlendirilecek)
