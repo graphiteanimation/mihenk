@@ -52,8 +52,8 @@
 |---|---|---|---|
 | G-1 | CAD testi T02–T10 (İE-001) | Bitti 2026-11-21; sonuç raporu `pm/test/CAD-TEST.md` | Kapandı |
 | G-2 | İE-002 Bitti: CI-1 ve C-21 düzeltildi; C-14 yeniden üretilemedi, olası neden kapatıldı (soru `SORULAR`'da). C-21 yan bulguları WP-CAD1'de | 0.6.1 kullanıcı denemesinde C-14'e özellikle bakılsın | İzleniyor |
-| G-3 | 1.0 yapım sırası (BACKLOG "1.0 ve sonrası") | CAD testi ve WP-CAD1 bitince planlansın | Karar bekliyor |
-| G-4 | Fusion karşılaştırması İE-004: **Beklemede** (K-053, ekran kullanıcıda). Fusion lisansı 23 Kasım 2026'da bitiyor; Adım A (sarma, 3+2 referansı) lisansa bağlı | Kullanıcı bilgisayarı bırakınca hemen Hazır yapılsın; en geç 22 Kasım | Açık (kullanıcı "bilgisayar boş" diyecek) |
+| G-3 | 1.0 yapım sırası (BACKLOG "1.0 ve sonrası") | 0.6.1 ve Fusion kıyaslaması bitince planlansın | Karar bekliyor |
+| G-4 | Fusion: K-054 ile kıyaslama (İE-004) 0.6.1'den sonra. Lisansa bağlı referans toplama İE-004A ayrı, **Beklemede** (ekran kullanıcıda); lisans 23 Kasım 2026 | Kullanıcı "bilgisayar boş" deyince hemen Hazır; en geç 22 Kasım | Açık |
 | G-5 | Ana dal testi | İlk yeşil koşu 2026-11-21 14:29 UTC (`9dc2867`, 43/43 adım; İE-002 CI-1: Windows'taki xpdf metni farklı satıra koyuyordu, ürün hatası değil) | Kapandı (Y-02) |
 | G-6 | Bazı iş oturumları GitHub'a gönderemedi (O-047), iş yedek depoda kaldı | İş oturumu kapanışta GitHub'a gönderimi doğrular; gönderemezse `DURUM`'un ilk satırına yazar; yönetim oturumu eşitler | İzleniyor |
 | G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kapandı (Y-02: kullanıcı onayladı) |
@@ -61,5 +61,5 @@
 | G-10 | Yüksek çekirdek hataları: C-31, C-33, C-39, C-42 → İE-005 (Sürüyor); C-50, C-47 → İE-006; C-37 açılı düzlem → İE-007 (K-052: 0.6.1'e girer) | — | Kapandı (Y-02) |
 | G-11 | İE-001 ilk oturumu T06'dan sonra kapandı (bağlam, kural 7); emir Hazır, T07'den devam | Yeni sohbette `Mihenk: devam` | Kapandı (İE-001 Bitti, 2026-11-21) |
 | G-13 | İE-001 bitti: GEÇTİ 6 · KISMEN 4 · KALDI 0. C-50 → İE-006 (İE-005'ten sonra), İE-003 Hazır, İE-004 sırada ilk (O-056) | — | Kapandı (Y-02) |
-| G-9 | 0.6.1 düzeltme sürümü (WP-CAD1 bulguları) ve kullanıcı deneme listesi | İE-002 bitince | Karar bekliyor |
+| G-9 | 0.6.1 (K-054, O-058): İE-005, 006, 007, 008, 009, 010 → İE-011 sürüm + kullanıcı deneme listesi | İE-008 ve İE-010 şimdi açılsın (ekransız) | Açık |
 | G-12 | GitHub'da geçici tanı dalı `tani-ie002` kaldı (oturum proxy'si dal silmeye izin vermedi) | Kullanıcı GitHub'da silsin (Branches → tani-ie002 → sil) | Açık |

@@ -3,7 +3,7 @@
 Sürüm: `v0.6.0` (master), bilgisayarda kurulu (son kurulum SHA-256 `427caa1d…3a85`, `Mihenk\surumler\0.6.0\`). Önceki adaylar `Mihenk\arsiv\0.6.0-aday1`, `-aday2`.
 Depo: GitHub `graphiteanimation/mihenk` (ana): yalnız `master` dalı, `v0.6.0` etiketi ve `Mihenk 0.6.0` sürüm sayfası (kurulum + SHA-256). v0.4.0/v0.5.0 etiketleri yalnız yedekte. Yedek `Documents\Mihenk\Mihenk\mihenk.git`.
 Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARARLAR.md` (K-045, O-051) · kabul: `pm/KABUL-WINDOWS.md`.
-Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, iş `Mihenk: devam` oturumunda `pm/IS-EMRI.md` sırasıyla. Gündem: `pm/YONETIM.md`. Sıra (Y-02, 14:30 UTC): İE-002 Bitti · İE-005 Sürüyor · Hazır (ekransız): İE-003 otomatik regresyon, İE-007 açılı düzlem (K-052) · İE-006 (C-50, C-47) İE-005'ten sonra · İE-004 Fusion kıyaslaması Beklemede (K-053: ekran kullanıcıda; lisans 23 Kasım).
+Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, iş `Mihenk: devam` oturumunda `pm/IS-EMRI.md` sırasıyla. Gündem: `pm/YONETIM.md`. Sıra (K-054, Y-02 15:15 UTC): önce bütün CAD bulguları → 0.6.1, sonra Fusion kıyaslaması. Sürüyor: İE-003, İE-005, İE-007 · Hazır (ekransız): İE-008 eskiz, İE-010 kabuk/görünüm, İE-006 (İE-005'ten sonra), İE-009 (İE-006 + İE-007'den sonra) · Beklemede: İE-004A Fusion referansı (ekran; lisans 23 Kasım), İE-011 sürüm 0.6.1, İE-004 kıyaslama.
 
 ## İE-001 sonucu (Bitti 2026-11-21, iki iş oturumu)
 - Puan T01–T10: **GEÇTİ 6** (T01, T02, T06, T07, T08, T10) · **KISMEN 4** (T03, T04, T05, T09) · KALDI 0. Yapılabilen geometri her parçada referansla birebir. Rapor: `pm/test/CAD-TEST.md` (Sonuç raporu), parça notları `pm/test/sonuc/Tnn.md`, kayıtlar `Documents\Mihenk\Mihenk\cad-test\Tnn\`.

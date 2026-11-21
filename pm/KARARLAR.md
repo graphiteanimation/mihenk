@@ -66,6 +66,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-053** (2026-11-21) — "şu an bilgisayarı kullanmam gerekiyor. arka planda çalışacak işleri başlatmak istiyorum." Kullanıcı bilgisayarı kullanırken ekran kontrolü isteyen emir yürütülmez: İE-004 Beklemede; kullanıcı "bilgisayar boş" deyince yönetim oturumu Hazır yapar. Ekransız emirler (İE-003, İE-007, sonra İE-006) sürer.
 
+- **K-054** (2026-11-21) — "fusion ile denemeyi yapmadan önce şimdiye kadarki bütün bulguları düzeltip yeni versiyon çıksak sonra fusion denemelerini yapsak?" Sıra değişir (K-051'in sırasının yerine geçer): önce CAD testinin bütün bulguları (C-13…C-52) düzeltilir ve 0.6.1 çıkar, Fusion kıyaslaması (İE-004) 0.6.1 üzerinde yapılır. Tek istisna (yönetim önerisi, O-058): Fusion lisansı 23 Kasım 2026'da bittiği için yalnız Fusion tarafında referans toplayan kısa adım (İE-004A) lisans bitmeden yapılır; Mihenk sürümünden bağımsızdır.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
@@ -107,6 +109,7 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 | O-055 | CAD testinde "yüksek" sınıflı çekirdek hataları test bitmeden ayrı, ekransız iş emrine alınır (ilk örnek İE-005: C-31, C-33 fillet); orta/düşük ve konfor bulguları test bitince WP-CAD1'de toplanır. Gerekçe: yüksek hatalar kalan test parçalarını da KISMEN'e düşürür ve 0.6.1'i geciktirir | Uygulanıyor (Y-02) |
 | O-056 | CAD testi sonucu (İE-001 Bitti: 6 GEÇTİ, 4 KISMEN, 0 KALDI) üzerine sıra: İE-004 (ekran, K-051) → paralelde İE-003 (otomatik regresyon, yalnız `test/`) → İE-005 bitince İE-006 (C-50, C-47; aynı `naming.js` alanı olduğundan süren İE-005'e eklenmedi, ardına kondu). Kalan orta/konfor bulguları ve C-37 (açılı düzlem) WP-CAD1'de; 0.6.1 kapsamı İE-005/006 bitince yönetimde belirlenir | Uygulanıyor (Y-02) |
 | O-057 | İE-007 yapı düzlemi tasarımı: yeni özellik türü `plane` (kip: açıyla / üç noktadan / ofset), düzlem başvurusu `{kind:'plane', id}` eskiz, ayna ve böl/draft düzleminde; nokta = kenar ucu + ipucu, eskiz noktası ya da koordinat (`naming.js`'e yeni başvuru türü eklenmez); açı yönü geometrik olarak sabitlenir; `FILE_VERSION` 2, düzlemsiz belge sürüm 1 yazılır (0.6.0 açmaya devam eder). Sözleşme: `pm/tasarim/IE-007-yapi-duzlemi.md`. |
+| O-058 | 0.6.1 planı (K-054): kalan bulgular dosya alanına göre üç ekransız pakete bölünür ki paralel yürüsün: İE-008 eskiz (`src/ui/sketch`, `sketcher.js`), İE-009 modelleme panelleri (`features.js`, `panels.js`; İE-006 ve İE-007 bitince), İE-010 uygulama kabuğu ve görünüm (`chrome.js`, `screens.js`, `viewport*.js`, `electron`). İE-011 sürüm 0.6.1 (birleştirme, tam test, kurulum, KISMEN parçaların yeniden çizimi, kullanıcı deneme listesi). İE-004 ikiye bölünür: İE-004A yalnız Fusion referansı (lisansa bağlı, sürümden bağımsız), İE-004 kıyaslama 0.6.1 üzerinde | Uygulanıyor (Y-02) |
 
 ## Mihenk dışında kalan (bilgi; Mihenk'i bekletmez)
 Kullanıcının Neway profilindeki boş alanlar (maxRpm, ilerleme sınırı, safeRetract, G04 adresi/birimi, G54.1 aralığı), A+ dönüş yönü, O/N sınırları: kullanıcı kendi profil dosyasında doldurur. P1 STEP'indeki Ø4 çubuk sorusu yalnız karşılaştırma testinin yorumunu etkiler.
