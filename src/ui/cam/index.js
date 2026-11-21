@@ -189,7 +189,6 @@ export class CamCtl {
       const on = m.id === this.effectiveMachineId; const miss = checkMachine(m).missing.length;
       kids.push(row({ id: m.id, testid: 'cam-machine-row', sel: on, click: () => this.setMachine(m.id), kids: [h('span', { class: 'radio' + (on ? ' on' : ''), style: { minHeight: 0 } }, h('span', { class: 'dot' })), h('span', { html: icon(m.axes?.A ? 'axes-4' : 'axes-3', 'sm') }), nm(machineName(m)), miss ? h('span', { class: 'badge warn', title: t('cam.mc.n_missing', { n: miss }), html: icon('warning', 'sm') }) : h('span', { class: 'val', text: m.control === 'mitsubishi-m80v' ? 'M80V' : '' })] }));
     }
-    for (const k of ['4', '5']) kids.push(row({ dim: true, kids: [h('span', { class: 'radio', style: { minHeight: 0 } }, h('span', { class: 'dot' })), h('span', { html: icon('axes-' + k, 'sm') }), nm(t('cam.br.axes_n', { n: k })), h('span', { class: 'val', text: t('ui.soon') })] }));
     // setup ve işlemler
     kids.push(sec(t('cam.br.setups'), h('button', { class: 'btn sm', type: 'button', 'data-testid': 'cam-add-setup', onclick: () => this.addSetup() }, h('span', { html: icon('plus', 'sm') }), t('cam.br.setup'))));
     if (!data.setups.length) kids.push(h('div', { class: 'trow empty', text: this.hasModel() ? t('cam.br.no_setups') : t('cam.su.need_model') }));

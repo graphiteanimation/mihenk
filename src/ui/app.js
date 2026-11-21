@@ -808,7 +808,7 @@ class App {
   async save(as = false) {
     if (this.sketchSession || this.edit) { toast(t('msg.finish_before_save')); return; }
     try {
-      const name = (this.fileName || 'Belge').replace(/\.mhnk$/i, '') + '.mhnk'; // i18n-ignore: yedek dosya adı
+      const name = (this.fileName || t('file.default_name')).replace(/\.mhnk$/i, '') + '.mhnk';
       const p = await this.writeOut(this.fileBytes(), name, 'doc', as || !this.filePath);
       if (!p) return;
       this.filePath = window.native ? p : null;  this.fileName = String(p).split(/[\\/]/).pop(); this.markDirty(false); toast(t('msg.saved', { name: this.fileName }));
@@ -942,7 +942,7 @@ class App {
     try {
       const names = Object.fromEntries(ids.map((id) => [id, this.bodyName(id)]));
       const data = await this.query('export', { format, ids, names, opts });
-      const name = (this.fileName || 'Belge').replace(/\.mhnk$/i, '') + '.' + format;
+      const name = (this.fileName || t('file.default_name')).replace(/\.mhnk$/i, '') + '.' + format;
       const p = await this.writeOut(data, name, format, true);
       if (p) toast(t('msg.exported', { fmt: format.toUpperCase(), kb: Math.round(data.length / 1024) }));
     } catch (e) { toast(t('msg.export_failed', { msg: errText(e) }), true); }
@@ -957,7 +957,7 @@ class App {
   showAbout() {
     const dep = (n) => String(pkg.dependencies[n] || '').replace('^', '');
     const el = (window.native?.versions?.electron) || (/Electron\/([\d.]+)/.exec(navigator.userAgent) || [])[1];
-    const rows = [['Mihenk CAD/CAM', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`], [t('about.fonts'), 'Inter, JetBrains Mono — SIL OFL 1.1']];
+    const rows = [['Mihenk CAD/CAM', pkg.version], [t('about.kernel'), `${dep('replicad-opencascadejs')} — LGPL-2.1 / MIT`], [t('about.solver'), `${dep('@salusoft89/planegcs')} — LGPL-2.0+`], [t('about.view3d'), `r${THREE.REVISION} — MIT`], [t('about.shell'), `${el || '—'} — MIT`], [t('about.fonts'), 'Inter, JetBrains Mono — SIL OFL 1.1'], [t('about.pdf'), 'pdf.js (pdfjs-dist) — Apache-2.0']];
     return modal({ title: t('about.title'), content: h('div', {}, h('div', { class: 'note', text: t('about.tagline') }), h('table', {}, rows.map(([k, v]) => h('tr', {}, h('td', { text: k }), h('td', { style: { fontWeight: 600 }, text: v })))),
       h('div', { class: 'note', style: { marginTop: '8px' }, text: t('about.license') }), h('div', { class: 'note', 'data-testid': 'about-3p', text: t('about.third_party') })), buttons: [{ label: t('common.close'), cls: 'pri', value: true }] });
   }

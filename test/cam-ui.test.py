@@ -223,6 +223,8 @@ try:
     # dil
     pg.evaluate("app.setLanguage('en')")
     check('EN: sekme, şerit, tarayıcı, durum çubuğu çevrildi', txt(pg, '[data-testid=tab-manufacture]').strip().startswith('Manufacture') and 'New setup' in txt(pg, '#toolbar') and 'Machines' in txt(pg, '#browser') and 'UNVERIFIED' in txt(pg, '[data-testid=st-post]') and 'Manufacture' in txt(pg, '[data-testid=st-mode]'))
+    check('EN: tarayıcıda "Coming soon" yer tutucusu yok', 'Coming soon' not in txt(pg, '#browser'))
+    pg.click('[data-testid=cam-machines-manage]'); check('EN: tezgâh yöneticisi açılır ve düz "null" metni yok', count(pg, '[data-testid=machine-manager]') == 1 and 'null' not in txt(pg, '[data-testid=machine-manager]')); pg.click('#modal .btn.pri')
     pg.click('[data-cmd=cam-tools]'); check('EN: takım yöneticisi', 'Tools' in txt(pg, '#modal') and 'No tools' in txt(pg, '#modal')); pg.click('#modal .btn.pri')
     pg.click('[data-testid=cam-setup-row]'); check('EN: setup paneli', 'Coordinate system' in txt(pg, '#panel') and 'Work offset' in txt(pg, '#panel'))
     pg.evaluate("app.setLanguage('tr')"); check('TR\'ye dönünce panel de TR', 'Koordinat sistemi' in txt(pg, '#panel'))

@@ -23,6 +23,7 @@ fs.mkdirSync(GOLD, { recursive: true });
 console.log('1. bicim / yardimcilar');
 const F = createFormat({ prefix: 'X', decimals: 3 });
 ok(F.format(10) === 'X10.' && F.format(-0.0004) === 'X0.' && F.format(1.2346) === 'X1.235' && F.format(-2.5) === 'X-2.5', 'createFormat: ' + [F.format(10), F.format(-0.0004), F.format(1.2346), F.format(-2.5)]);
+ok(sanitizeComment('Örnek · Genel 3 eksen – a — b … “c” ‘d’') === 'Ornek - Genel 3 eksen - a - b ... "c" \'d\'', 'orta nokta ve noktalama ASCII karşılığına katlanır: ' + sanitizeComment('Örnek · Genel 3 eksen – a — b … “c” ‘d’'));
 ok(sanitizeComment('Çelik (Ğ) ışık; %') === 'Celik [G] isik? ?', 'ASCII yorum: ' + sanitizeComment('Çelik (Ğ) ışık; %'));
 ok(listPosts().includes('mitsubishi-m80v') && listPosts().includes('fanuc-generic'), 'kayit defteri');
 throwsCode(() => getPost('yok'), 'cam.post.unknown_control', 'bilinmeyen kontrol');
