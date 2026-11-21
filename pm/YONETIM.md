@@ -58,4 +58,5 @@
 | G-6 | Bazı iş oturumları GitHub'a gönderemedi (O-047), iş yedek depoda kaldı | İş oturumu kapanışta GitHub'a gönderimi doğrular; gönderemezse `DURUM`'un ilk satırına yazar; yönetim oturumu eşitler | İzleniyor |
 | G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kapandı (Y-02: kullanıcı onayladı) |
 | G-8 | Test parçalarının otomatik regresyona alınması (İE-003 taslak) | T04 ara raporundan sonra Hazır yapılsın | Karar bekliyor |
+| G-10 | T03 KISMEN: fillet silindir–düzlem kesişim kenarında çalışmıyor (C-31, C-33, yüksek) | İE-005 Hazır (O-055); üçüncü bir oturumda açılabilir | Açık (oturumu kullanıcı açar) |
 | G-9 | 0.6.1 düzeltme sürümü (WP-CAD1 bulguları) ve kullanıcı deneme listesi | İE-002 bitince | Karar bekliyor |

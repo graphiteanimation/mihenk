@@ -37,6 +37,17 @@ Mihenk: devam
 Mihenk: devam
 ```
 
+## İE-005 — Fillet'in silindir–düzlem kesişim kenarında çalışmaması (C-31, C-33) · **Hazır** (O-055; ekransız, paralel açılabilir)
+- Ön koşul: yok. Ekran kullanmaz. Alan: `src/kernel` (`naming.js` kalıcı adlandırma, `topo.js` fillet ve brepcheck); İE-002'nin alanına (eskiz budama, Extrude paneli, resim testi) dokunmaz.
+- Kaynak: `pm/test/sonuc/T03.md`. Yeniden üretme girdisi: bilgisayarda `cad-test\T03\T03.mhnk`, depoda `test/cad-bench/ref` içindeki ppp0104 referansı (R4 fillet).
+- C-31: tam daireden extrude edilen silindirin dikişi kesişim yayını ikiye böldüğünde iki yay aynı kalıcı adı alıyor; seçim `ref.ambiguous_here` ile reddediliyor (`src/kernel/naming.js:53,77`). Aynı iki yüz arasındaki birden çok kenar ayırt edilecek biçimde adlandırılır ya da teğet zincir tek başvuru sayılır; eski belgeler açılmaya devam eder.
+- C-33: silindir iki yarım yaydan çizildiğinde aynı kenarda Fillet "result is not a valid solid (brepcheck)" veriyor (`src/kernel/topo.js:252` denetimi); build123d aynı OCCT ile yapabiliyor. Neden bilinmiyor: önce çekirdek düzeyinde yeniden üretme testi, sonra Mihenk'in fillet çağrısı build123d'ninkiyle karşılaştırılır (kenar kümesi, zincir, tolerans, sonuç denetimi).
+- Kabul: iki yeniden üretme testi önce kalır sonra geçer; T03 modeli R4 fillet ile referans hacme ±%0,1 ulaşır (çekirdek testi); `test:all` ve GitHub `ci` yeşil. Düzeltme 0.6.1'e girer (G-9); T03'ün arayüzden yeniden çizimi 0.6.1 sonrası regresyon turunda.
+- Açılış metni:
+```
+Mihenk: devam
+```
+
 ## İE-003 — CAD test parçalarının otomatik regresyonu · **Taslak** (G-8)
 - Biten her `cad-test/Tnn.mhnk` depoya `test/cad-bench/mhnk/` altına alınır; yeni test adımı her belgeyi çekirdekte yeniden hesaplar, hacim ve kutuyu `ref/` ile karşılaştırır (±%0,1).
 - Kabul: T01 ve o ana dek biten parçalar testte; `npm run test:all` zincirine eklendi; CI yeşil.
