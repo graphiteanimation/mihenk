@@ -98,6 +98,17 @@ Mihenk: devam
 Mihenk: devam
 ```
 
+## İE-012 — Yapı düzlemi: ek oluşturma yöntemleri (K-055) · **Hazır** (ekransız)
+- Ön koşul: İE-007 Bitti (aynı `plane` özelliği ve sözleşme `pm/tasarim/IE-007-yapi-duzlemi.md`; önce sözleşme belgesi genişletilir). Alan: `plane` özelliğinin çekirdeği ve paneli; İE-009 ile aynı anda yürürse `panels.js` çakışması ana dala yeniden temellenerek çözülür.
+- Amaç: NX "Datum Plane" / Fusion "Construct" yöntemlerinin atölye işinde en çok kullanılanları. Mevcut üç kipe (açıyla, üç noktadan, ofset) eklenir: (1) **orta düzlem**: iki paralel düzlem/yüz arasında ortada; paralel değilse açıortay; (2) **silindirik/konik yüze teğet**: açı ya da bir noktadan geçerek; (3) **eğriye/kenara dik**: seçilen noktada (uç, orta, oran) kenarın teğetine dik; (4) **noktadan geçen paralel**: bir düzleme/yüze paralel, seçilen noktadan; (5) **iki doğrusal kenar/eksenden** (kesişen ya da paralel); (6) **eksen + nokta**: doğrusal kenar/eksen ve bir noktadan. Ek olarak panelde NX'teki "Inferred" benzeri **otomatik kip**: seçilen nesnelere göre uygun yöntem önerilir (yüz → ofset; yüz + kenar → açıyla; iki yüz → orta düzlem; üç nokta → üç noktadan; silindir yüz → teğet).
+- Hepsi parametrik ve ilişkisel (kaynak geometri değişince güncellenir), geçmişte özellik, kaydedilir, TR + EN; hata durumları (paralel olmayan, doğrudaş, teğet yok) açık iletiyle.
+- Kabul: her yöntem için çekirdek testi (oluştur, kaynak değişince güncelle, kaydet/aç) + arayüz testi (en az orta düzlem ve teğet: düzlem → eskiz → extrude); otomatik kip beş seçim senaryosunda doğru yöntemi önerir; KILAVUZ/MANUAL bölümü; `test:all` ve GitHub `ci` yeşil.
+- Kapsam dışı (BACKLOG'a not): yapı ekseni ve yapı noktası özellikleri, eğri üzerinde düzlem dizisi.
+- Açılış metni:
+```
+Mihenk: devam
+```
+
 ## İE-009 — 0.6.1 modelleme panelleri paketi · **Hazır** (O-058; ekransız)
 - Ön koşul: İE-006 Bitti ve İE-007 Bitti (aynı `features.js` / `panels.js`). Alan: `src/ui/features.js`, `panels.js`, gerekirse `src/kernel/model2.js`.
 - Kapsam: C-45 Sweep paneli profil/yol önerisi ve ham JS hatası · C-32 fillet önizlemesi yarıçap–kenar sırasından bağımsız · C-30 delik ve yüz eskizinden kesme yönü malzemeye doğru · C-27 Ayna: fillet kaynak olabilsin, gövde aynasında Birleştir seçeneği · C-36 Revolve simetrik açı · C-18 delik konumu: yüz + yay merkezi · C-28, C-44 gövde ağaçtan seçilebilsin · C-14 Extrude mesafe alanı: yeni panelde hep 18 açılması (T05–T08 notları) incelenir, son kullanılan değer ya da tutarlı varsayılan.
@@ -108,7 +119,7 @@ Mihenk: devam
 ```
 
 ## İE-011 — Sürüm 0.6.1 · **Beklemede** (ön koşullar bitince yönetim Hazır yapar)
-- Ön koşul: İE-005, İE-006, İE-007, İE-008, İE-009, İE-010 Bitti; ana dal `ci` yeşil. Ekran kullanır (kurulum ve yeniden çizim).
+- Ön koşul: İE-005, İE-006, İE-007, İE-008, İE-009, İE-010, İE-012 Bitti; ana dal `ci` yeşil. Ekran kullanır (kurulum ve yeniden çizim).
 - Kapsam: sürüm numarası 0.6.1, değişiklik notu, `test:all` + altın set, Windows kurulum dosyası, bilgisayara kurulum (`Mihenk\surumler\0.6.1\`, eski sürüm `arsiv`'e), kısa kabul (aç, örnek, kaydet, NC). KISMEN parçalar T03, T04, T05, T09 kurulu 0.6.1'de arayüzden yeniden çizilir; hedef dördü de GEÇTİ. `cad-bench` regresyon hedefleri referans hacme çekilir. Kullanıcı için 10 dakikalık deneme listesi (`pm/test/DENEME-0.6.1.md`): C-13, C-14, C-20, C-21 ve açılı düzlem dahil.
 - Kabul: GitHub'da `v0.6.1` etiketi ve sürüm sayfası (SHA-256); kurulu; CAD testi puan tablosu güncel; deneme listesi kullanıcıya verildi.
 

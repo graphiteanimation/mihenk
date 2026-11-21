@@ -62,5 +62,6 @@
 | G-11 | İE-001 ilk oturumu T06'dan sonra kapandı (bağlam, kural 7); emir Hazır, T07'den devam | Yeni sohbette `Mihenk: devam` | Kapandı (İE-001 Bitti, 2026-11-21) |
 | G-13 | İE-001 bitti: GEÇTİ 6 · KISMEN 4 · KALDI 0. C-50 → İE-006 (İE-005'ten sonra), İE-003 Hazır, İE-004 sırada ilk (O-056) | — | Kapandı (Y-02) |
 | G-14 | İE-003 bitti (otomatik regresyon, 152 denetim). Öneriler: `.gitattributes` (`*.mhnk`, `*.step` `-text`); eskiz "tam tanımlı" ölçütü için ayrı test; düzeltmelerden sonra T03, T04, T05, T09 yeniden çizimi | Yönetim oturumunda karar | Açık |
-| G-9 | 0.6.1 (K-054, O-058): İE-005, 006, 007, 008, 009, 010 → İE-011 sürüm + kullanıcı deneme listesi | İE-008 ve İE-010 şimdi açılsın (ekransız) | Açık |
+| G-9 | 0.6.1 (K-054, O-058): Bitti İE-002, 003, 005 · Sürüyor İE-006, 007 · Hazır İE-008, 010 (kimse almadı), 009, 012 (K-055 ek düzlem yöntemleri) → İE-011 sürüm + kullanıcı deneme listesi | İE-008 ve İE-010 açılsın | Açık |
+| G-14 | C-42 (teğet temaslı Join) İE-005'te kayıtlı belgeyle yeniden üretilemedi; C-39 düzeltmesiyle T04 tek gövde | İE-011'de T04 arayüzden yeniden çizilirken doğrulanır | İzleniyor |
 | G-12 | GitHub'da geçici tanı dalı `tani-ie002` kaldı (oturum proxy'si dal silmeye izin vermedi) | Kullanıcı GitHub'da silsin (Branches → tani-ie002 → sil) | Açık |

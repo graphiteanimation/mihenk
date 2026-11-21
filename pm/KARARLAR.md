@@ -68,6 +68,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-054** (2026-11-21) — "fusion ile denemeyi yapmadan önce şimdiye kadarki bütün bulguları düzeltip yeni versiyon çıksak sonra fusion denemelerini yapsak?" Sıra değişir (K-051'in sırasının yerine geçer): önce CAD testinin bütün bulguları (C-13…C-52) düzeltilir ve 0.6.1 çıkar, Fusion kıyaslaması (İE-004) 0.6.1 üzerinde yapılır. Tek istisna (yönetim önerisi, O-058): Fusion lisansı 23 Kasım 2026'da bittiği için yalnız Fusion tarafında referans toplayan kısa adım (İE-004A) lisans bitmeden yapılır; Mihenk sürümünden bağımsızdır.
 
+- **K-055** (2026-11-21) — "sketch oluşturma sadece mevzut x y z planelerinde ve eğer bir parça çizilirse parçanın yüzeyinden mümkün oluyor. programda ayrıca plane oluşturma var mı? nx'te özellikle çeşitli yöntemlerle plane oluşturmak çok işe yarıyor." Anlam: yapı düzlemi NX'teki gibi birden çok yöntemle oluşturulabilmeli. İE-007 (açıyla, üç noktadan, ofset) üzerine İE-012 ek yöntemleri getirir; 0.6.1 kapsamında (kullanıcı itiraz ederse 1.0'a alınır).
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
