@@ -229,6 +229,7 @@ export default {
   "err.cam.adaptive.no_progress": "Uyarlanır kaba yolu ilerlemiyor (iç sınır aşıldı). Optimum yükü ya da bölgeyi değiştirin.",
   "err.cam.adaptive.nothing": "Bu bölgede işlenecek malzeme yok.",
   "err.cam.adaptive.no_entry_left": "Yaklaşık {area} mm² malzemeye giriş bulunamadı (helis sığmıyor ve havadan ulaşılamıyor). Helis çapını küçültün ya da bölgeyi önce başka işlemle açın.",
+  "err.cam.arcfit.skipped_rotary": "{op}: sarma/döner eksenli yolda yay uydurma uygulanmadı (A ekseni hareketleri birleştirilmez); yol değiştirilmeden kullanıldı.",
   "err.cam.flat.nothing": "Seçili yüzlerin üstünde alınacak malzeme yok (yüz stok üstünde).",
   "err.cam.flat.face_at_top": "{n} yüz stok üstüyle aynı yükseklikte; atlandı.",
   // WP-15: 3D işlemler

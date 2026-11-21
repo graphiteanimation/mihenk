@@ -3,12 +3,15 @@
 //  - yay: XY'de uc noktadan cember; dizinin butun ara noktalari ve ara kirislerin sehimi cembere <= tol, z acıyla dogrusal (helis
 //    dahil) <= tol, tarama <= 180 derece, yaricap [0,05, 2000] mm. En az 4 nokta (3 parca) bir yaya donusur.
 //  - dogru: noktalar kirise (3B) <= tol kaldikca uzatilir.
+// WP-22c: sarma/doner eksenli yolda (tp.wrap ya da hareketlerde a) atlanir: uyari cam.arcfit.skipped_rotary.
 // Sapma tanimi: eski yolun her kosesinin yeni yola uzakligi <= tol (ve yeni yayin eski kirislerden sehimi <= tol).
 import { mk, computeStats, validateToolpath, ARC_MIN_CHORD } from '../ir.js';
 import { cerr } from '../geom/err.js';
+import { warn } from './common.js';
 
 const RMIN = 0.05, RMAX = 2000;
-const sameRun = (a, b) => a.t === 'feed' && b.t === 'feed' && a.kind === b.kind && Math.abs(a.f - b.f) < 1e-9 && Object.keys(a).length === Object.keys(b).length;
+// WP-22c: doner eksen alanli (a: sarma A'si) hareketler hic birlestirilmez (tmpl yayilimi A'yi ezerdi; G2/G3 sarmada yok)
+const sameRun = (a, b) => a.t === 'feed' && b.t === 'feed' && a.a == null && b.a == null && a.kind === b.kind && Math.abs(a.f - b.f) < 1e-9 && Object.keys(a).length === Object.keys(b).length;
 function circle3(a, b, c) {
   const ax = a[0], ay = a[1], bx = b[0], by = b[1], cx = c[0], cy = c[1];
   const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by)); if (Math.abs(d) < 1e-12) return null;
@@ -66,6 +69,10 @@ export function fitPoints(pts, tol, tmpl, arcs = true) {
 export function applyArcFit(tp, op, machine = null) {
   const o = op.arcFit === true ? {} : op.arcFit; if (!o || typeof o !== 'object') return tp;
   const tol = o.tol ?? 0.005; if (!(tol > 0 && tol <= 1)) throw cerr('cam.op.bad_field', { field: 'arcFit.tol', expect: '0 < tol <= 1', op: op.name || op.id });
+  // WP-22c: sarma (tp.wrap) ya da doner eksen (A) alanli yol: yay uydurma atlanir (yol aynen doner, uyari + meta)
+  if (tp.wrap || tp.moves.some((m) => m.a != null)) {
+    return { ...tp, warnings: [...(tp.warnings || []), warn('cam.arcfit.skipped_rotary', { op: op.name || op.id || '' })], meta: { ...tp.meta, arcFit: { tol, skipped: 'rotary', before: tp.moves.length, after: tp.moves.length } } };
+  }
   const arcs = o.arcs !== false; const mv = tp.moves; const out = []; let pos = null; let k = 0;
   const posOf = (m) => (m.t === 'rapid' || m.t === 'feed' || m.t === 'arc' ? [m.x, m.y, m.z] : null);
   while (k < mv.length) {
