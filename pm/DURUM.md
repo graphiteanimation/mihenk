@@ -5,7 +5,11 @@ Depo: GitHub `graphiteanimation/mihenk` (ana): yalnız `master` dalı, `v0.6.0` 
 Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARARLAR.md` (K-045, O-051) · kabul: `pm/KABUL-WINDOWS.md`.
 Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, iş `Mihenk: devam` oturumunda `pm/IS-EMRI.md` sırasıyla. Gündem: `pm/YONETIM.md`. Sıra (K-051): İE-001 CAD testi T02–T10 → İE-004 P1–P4 ile Fusion'a karşı CAD + CAM kıyaslaması. İE-002 (C-14, C-21 düzeltmesi) ekransız, paralel açılabilir.
 
-## Bu oturumda biten
+## İE-001 ilerleme (iş oturumu 2026-11-21, sürüyor)
+- T02 GEÇTİ · T03 KISMEN · T04 KISMEN; bulgular C-22…C-44, ara rapor `pm/test/CAD-TEST.md`. Sıradaki parça: **T05**. Kayıtlar `Documents\Mihenk\Mihenk\cad-test\Tnn\`.
+- Bilgisayarda Mihenk ayarı "sol tuşla döndür" test için açıldı (C-34).
+
+## Önceki oturumda biten
 - K-045: K-044 durdurması kalktı.
 - `fix-lnk` (O-051): Türkçe kaldırma kısayolu "/" yüzünden oluşmuyordu; artık "Mihenk Kaldır" / "Uninstall Mihenk", eski kısayollar temizlenir. Bağımsız doğrulandı (Sonnet, ONAY) ve ekranda görüldü.
 - Windows kabulü (ekran kontrolüyle): 0, 1, 2, 3, 3a, 10, 11, 12, 13, 15 geçti; ayrıntı `pm/KABUL-WINDOWS.md`.
