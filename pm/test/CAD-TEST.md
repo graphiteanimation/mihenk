@@ -39,3 +39,4 @@ Kaynak: Too Tall Toby "Party Pack" ve yarışma çizimleri; build123d belgelerin
 |---|---|---|---|---|
 | T01 | GEÇTİ | 0 | C-13…C-19 | `pm/test/sonuc/T01.md` |
 | T02 | GEÇTİ | +0,00007 % | C-22…C-30 | `pm/test/sonuc/T02.md` |
+| T03 | KISMEN | 0 | C-31…C-36 | R4 fillet aracı yapamadı (C-31, C-33), revolve ile dolanıldı; `pm/test/sonuc/T03.md` |
