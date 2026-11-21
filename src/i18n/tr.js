@@ -889,6 +889,7 @@ const base = {
   "sk.op.offset_ellipse": "Elips ofseti desteklenmiyor.",
   "sk.op.corner_none": "Köşe bulunamadı.",
   "sk.op.corner_two": "Köşe, uçları aynı noktada birleşen iki çizgi/yaydan oluşmalı.",
+  "sk.op.corner_many": "Köşede ikiden fazla çizgi/yay birleşiyor; yuvarlatılacak iki kenarı ayrı ayrı seçin.",
   "sk.op.corner_second": "Köşe için ikinci nesneyi tıklayın.",
   "sk.op.fillet_big": "Bu yarıçap köşeye sığmıyor; daha küçük bir değer deneyin.",
   "sk.op.chamfer_big": "Pah uzunluğu kenardan uzun; daha küçük bir değer deneyin.",

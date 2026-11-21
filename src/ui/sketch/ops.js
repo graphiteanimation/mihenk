@@ -102,13 +102,14 @@ export function offsetEnts(sk, ids, dist, exprText, sidePt, join = 'sharp') {
 // ---------------------------------------------------------------- KÖŞE YUVARLAT / PAH
 // V noktasında buluşan iki varlık. kind: 'fillet' | 'chamfer'; val: sayı; exprText: ifade (yarıçap ölçüsü için)
 function cornerEnts(sk, vid, a, b) {
-  const cand = usersOf(sk, vid).filter((e) => e.type === 'line' || e.type === 'arc');
+  let cand = usersOf(sk, vid).filter((e) => e.type === 'line' || e.type === 'arc');
   if (a && b) return [getEnt(sk, a), getEnt(sk, b)];
-  return cand.length === 2 ? cand : null;
+  if (cand.length > 2) { const real = cand.filter((e) => !e.cons); if (real.length === 2) cand = real; } // C-25: köşede biten yardımcı (construction) çizgiler yok sayılır
+  return cand.length === 2 ? cand : cand.length > 2 ? 'many' : null;
 }
 export function cornerAt(sk, vid, kind, val, exprText, entA, entB) {
   if (!sk.points[vid]) return fail('sk.op.corner_none');
-  const pair = cornerEnts(sk, vid, entA, entB); if (!pair || !pair[0] || !pair[1]) return fail('sk.op.corner_two');
+  const pair = cornerEnts(sk, vid, entA, entB); if (pair === 'many') return fail('sk.op.corner_many'); if (!pair || !pair[0] || !pair[1]) return fail('sk.op.corner_two');
   const [A, B] = pair; if (A.id === B.id) return fail('sk.op.corner_two');
   const endOf = (e) => (e.a === vid ? 'a' : e.b === vid ? 'b' : null);
   const ea = endOf(A), eb = endOf(B); if (!ea || !eb) return fail('sk.op.corner_two');

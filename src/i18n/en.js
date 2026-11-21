@@ -889,6 +889,7 @@ const base = {
   "sk.op.offset_ellipse": "Offsetting an ellipse is not supported.",
   "sk.op.corner_none": "No corner found.",
   "sk.op.corner_two": "A corner needs two lines/arcs meeting at one point.",
+  "sk.op.corner_many": "More than two lines/arcs meet at this corner; pick the two edges one after the other.",
   "sk.op.corner_second": "Click the second object of the corner.",
   "sk.op.fillet_big": "This radius does not fit the corner; try a smaller value.",
   "sk.op.chamfer_big": "The chamfer is longer than the edge; try a smaller value.",
