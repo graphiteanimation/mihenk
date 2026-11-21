@@ -12,6 +12,8 @@ import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
 import { drawProject } from './drawing.js'; // WP-17
 import * as DE from './direct.js';
+import { runModel2 } from './model2.js'; // WP-19: sweep, loft, draft, rib, değişken yuvarlatma, diş, helis
+import { igesToShape, shapesToIges } from './iges.js'; // WP-19: IGES içe/dışa aktarma
 import { reprojectLinked, matchEdge, edgeSig } from '../ui/sketch/ops.js'; // saf eskiz işlevleri (DOM yok)
 
 export { KErr };
@@ -356,9 +358,11 @@ export class Kernel {
       }
       case 'pattern': case 'mirror': return this.pattern(f, state, N);
       case 'split': case 'splitface': case 'faceop': return this.direct(f, state, N, ctx);
+      case 'sweep': case 'loft': case 'draft': case 'rib': case 'vfillet': case 'thread': case 'coil': return runModel2(this, f, state, N, ctx);
       case 'import': {
         const ent = this.imports.get(importKey(f, this.hashes));
-        if (!ent || ent.error) throw new KErr('import.load_failed', { reason: ent?.error || 'no_data' });
+        // WP-19: neden kullanıcıya iletilir (why: {code, params} → errText iç içe çevirir); reason eski biçimde (dize) kalır
+        if (!ent || ent.error) throw new KErr('import.load_failed', { reason: ent?.error || 'no_data', why: importWhy(ent) });
         const ids = [];
         ent.solids.forEach((s, si) => {
           const fn = TP.topoOf(s).faces.list.map((raw, k) => { let g = '?'; try { g = TP.faceWrap(raw).geomType; } catch (e) { /* */ } return [`${f.id}:i${si}.${k}:${g}`]; });
@@ -852,6 +856,7 @@ export class Kernel {
       const tol = fine ? Math.min(0.01, Math.max(0.001, Math.hypot(bb.width, bb.height, bb.depth) * 2e-5)) : 0.01;
       blob = comp.blobSTL({ tolerance: tol, angularTolerance: fine ? 0.04 : 0.1, binary: true });
     }
+    else if (format === 'iges') return new TextEncoder().encode(shapesToIges(shapes.map(([, b]) => ({ shape: b.shape }))));
     else throw new KErr('export.format_unknown');
     return new Uint8Array(await blob.arrayBuffer());
   }
@@ -931,16 +936,25 @@ async function importKeyAsync(f, hashes) {
 }
 async function loadImport(f) {
   try {
-    if (f.format !== 'step' && f.format !== 'stl') return { error: 'format' };
+    if (f.format !== 'step' && f.format !== 'stl' && f.format !== 'iges') return { error: 'format' };
     let bin;
     try { bin = Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0)); } catch (e) { return { error: 'base64' }; }
     if (!bin.length) return { error: 'empty' };
-    const shape = f.format === 'stl' ? stlToSolid(bin) : await R.importSTEP(new Blob([bin]));
+    const shape = f.format === 'stl' ? stlToSolid(bin) : f.format === 'iges' ? igesToShape(new TextDecoder('latin1').decode(bin)) : await R.importSTEP(new Blob([bin]));
     const solids = TP.solidsOf(shape);
     if (!solids.length) return { error: 'no_solid' };
     for (const s of solids) { const why = TP.validity(s); if (why) return { error: 'invalid:' + why }; } // F-18
     return { solids };
-  } catch (e) { return { error: e instanceof KErr ? e.code : 'parse' }; }
+  } catch (e) { return e instanceof KErr ? { error: e.code, params: e.params } : { error: 'parse' }; }
+}
+// WP-19: içe aktarma hata nedeni → yerelleştirilebilir alt hata
+function importWhy(ent) {
+  if (!ent) return { code: 'import.why_no_data', params: {} };
+  const r = String(ent.error);
+  if (r.startsWith('import.')) return { code: r, params: ent.params || {} };
+  if (r.startsWith('invalid:')) return { code: 'import.why_invalid', params: { reason: r.slice(8) } };
+  const known = { format: 'import.why_format', base64: 'import.why_base64', empty: 'import.why_empty', no_solid: 'import.why_no_solid', parse: 'import.why_parse', no_data: 'import.why_no_data' };
+  return { code: known[r] || 'import.why_parse', params: {} };
 }
 // STL → katı (F-17): üçgen yüzler dikilir (sewing), kapalı kabuk katıya çevrilir
 function stlToSolid(bin) {

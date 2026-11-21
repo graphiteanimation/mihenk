@@ -561,7 +561,7 @@ const base = {
   "err.pattern.total_min": "The total count must be at least 2",
   "err.pattern.source_unsupported": "The source feature cannot be patterned (choose an extrude, revolve, hole or primitive)",
   "err.pattern.no_source": "No source selected",
-  "err.import.load_failed": "The imported geometry could not be loaded",
+  "err.import.load_failed": "The imported geometry could not be loaded: {why}",
   "err.feature.unknown": "Unknown feature: {type}",
   "err.combine.self": "The target body cannot also be a tool",
   "err.doc.invalid": "The document is damaged and cannot be read",
@@ -1039,7 +1039,8 @@ const base = {
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
 import sketchCf from './sketch-en.js';
 import model from './model-en.js';
-Object.assign(base, sketchCf); Object.assign(base, model); // WP-09: çizim konforu metinleri
+import model2 from './model2-en.js'; // WP-19
+Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); // WP-09: çizim konforu metinleri
 
 Object.assign(base, camWp12); // WP-12
 export default { ...base, ...camCore, ...camPost, ...camUi, ...camUi2, ...hist, ...drawing };

@@ -482,7 +482,8 @@ class App {
     const ctx = this.ctx();
     if (['extrude', 'revolve'].includes(type) && !ctx.sketches.length) { toast(t('msg.need_sketch'), true); return; }
     if (type === 'hole' && !ctx.sketches.length) { toast(t('msg.need_sketch_hole'), true); return; }
-    if (['fillet', 'chamfer', 'shell', 'combine', 'move', 'split', 'splitface', 'faceop'].includes(type) && !ctx.bodies.length) { toast(t('msg.need_body'), true); return; }
+    if (['sweep', 'loft'].includes(type) && !ctx.sketches.length) { toast(t('msg.need_sketch'), true); return; }
+    if (['fillet', 'chamfer', 'shell', 'combine', 'move', 'split', 'splitface', 'faceop', 'draft', 'vfillet', 'thread', 'rib'].includes(type) && !ctx.bodies.length) { toast(t('msg.need_body'), true); return; }
     if (type === 'combine' && ctx.bodies.length < 2) { toast(t('msg.need_two_bodies'), true); return; }
     const draft = { id: newId(this.doc, type, kind), type, name: autoName(this.doc, type, kind), ...defaults(type, kind, ctx) };
     new FeaturePanel(this, draft, null).open();
@@ -855,7 +856,7 @@ class App {
   }
   async importFile(format) {
     if (this.guard()) return;
-    const f = await this.pickFile(format === 'step' ? '.step,.stp' : '.stl', format); if (!f) return;
+    const f = await this.pickFile(format === 'step' ? '.step,.stp' : format === 'iges' ? '.igs,.iges' : '.stl', format); if (!f) return;
     // benzersiz kimlik + içerik özeti: önbellek, belge değişse de başka verinin geometrisini göstermez (S-02)
     const id = importId(this.doc); const nm = f.name.replace(/\.[^.]+$/, ''); const hash = await sha256Hex(f.data);
     const at = this.doc.rollback ?? this.doc.features.length;

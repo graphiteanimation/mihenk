@@ -561,7 +561,7 @@ const base = {
   "err.pattern.total_min": "Toplam adet en az 2 olmalı",
   "err.pattern.source_unsupported": "Kaynak özellik desenlenemez (extrude, revolve, delik ya da ilkel seçin)",
   "err.pattern.no_source": "Kaynak seçilmedi",
-  "err.import.load_failed": "İçe aktarılan geometri yüklenemedi",
+  "err.import.load_failed": "İçe aktarılan geometri yüklenemedi: {why}",
   "err.feature.unknown": "Bilinmeyen özellik: {type}",
   "err.combine.self": "Hedef gövde takım listesinde olamaz",
   "err.doc.invalid": "Belge bozuk: okunamadı",
@@ -1038,7 +1038,8 @@ const base = {
 
 import sketchCf from './sketch-tr.js';
 import model from './model-tr.js';
-Object.assign(base, sketchCf); Object.assign(base, model); // WP-09: çizim konforu metinleri
+import model2 from './model2-tr.js'; // WP-19
+Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); // WP-09: çizim konforu metinleri
 
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
 Object.assign(base, camWp12); // WP-12

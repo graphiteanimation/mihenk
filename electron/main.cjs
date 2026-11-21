@@ -22,7 +22,7 @@ const MIME = {
 };
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
 // 'doc' = Mihenk belgesi: okuma ve yazma .mhnk.
-const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'], html: ['.html'], pdf: ['.pdf'], csv: ['.csv'] }; // WP-17: teknik resim PDF, ilk parça formu CSV
+const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], iges: ['.igs', '.iges'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'], html: ['.html'], pdf: ['.pdf'], csv: ['.csv'] }; // WP-17: teknik resim PDF, ilk parça formu CSV
 const SAVE_ONLY = new Set(['nc', 'html', 'pdf', 'csv']);   // NC çıktısı ve kurulum föyü (WP-07) yalnız yazılır; arayüz bu türde dosya açtıramaz
 const DOC_EXT = '.mhnk';
 
