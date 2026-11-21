@@ -56,6 +56,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-048** (2026-11-21) — "mevcut mihenk sürümünün sadece cad kısmını test etmek istiyorum… kaç adet ve hangi parçalar ile cad çizme denemesi yapabiliriz. cad lere karar verip çizdikten sonra kaydetmeni de istiyorum… cad test i için ayrı ve çok uzun olmayan ama yeterli bir yol haritası çıkar." + "mihenk'i kapatmak istediğimde gelen uyarı ekranı arayüzle çok uyumlu değil." Uygulama: `pm/test/CAD-TEST.md` (10 parça), C-13.
 
+- **K-049** (2026-11-21) — "bundan sonra da bir proje yönetimi oturumu açıp proje gidişatıyla ilgili konuları orada konuşup süreci yürütmeyi istiyorum. yapılacak işleri ise yeni bir oturum açıp mihenk devam sistemiyle devam etmek istiyorum." Uygulama: `pm/YONETIM.md`, `pm/IS-EMRI.md`, `pm/OTURUMLAR.md`; CALISMA-DUZENI §4 ve §8. Ek teknik karar O-052: CI, yalnız `pm/**`, `*.md`, `docs/**` değişen gönderimde koşmaz (belge gönderimleri süren testi iptal ediyordu).
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|

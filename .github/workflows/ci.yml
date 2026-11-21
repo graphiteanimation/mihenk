@@ -6,6 +6,8 @@ name: ci
 on:
   push:
     branches: [master, 'wp-**']
+    # yalniz yonetim belgeleri degisen gonderim testi baslatmaz (calisan testi iptal etmesin)
+    paths-ignore: ['pm/**', '*.md', 'docs/**']
   workflow_dispatch:
   workflow_call:
 concurrency:

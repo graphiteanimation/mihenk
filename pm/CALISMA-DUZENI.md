@@ -29,6 +29,8 @@ Kural: bir bilgi tek yerde durur. Zip kopyası, tarihli devam günlüğü, sohbe
 - Program tek uygulama ve tek depo olarak kalır; bölünme modül ve dal düzeyindedir, ayrı programlar yoktur.
 
 ## 4. Oturum protokolü
+İki oturum türü vardır (K-049, ayrıntı `pm/YONETIM.md`): **yönetim** (`Mihenk: yönetim`) karar verir ve iş emri yazar; **iş** (`Mihenk: devam`) `pm/IS-EMRI.md`'deki sıradaki **Hazır** emri yürütür. Aşağıdaki adımlar iş oturumu içindir; iş oturumu WP'yi BACKLOG'dan değil iş emrinden alır.
+
 Başlangıç (kullanıcı mesajı: `Mihenk: devam` ya da `Mihenk: WP-NN`):
 0. **İzinler önce, hepsi birden (K-042).** Hiçbir okuma ya da iş başlamadan, ilk yanıtta tek satır ("Başlamadan izinleri istiyorum; hepsini onaylarsan sonra bir daha sormam.") ve ardından aynı turda şu istemler:
    a. GitHub: `add_repo` (graphiteanimation/mihenk, push).
@@ -64,7 +66,7 @@ Tezgâh başı doğrulama bir kalite kapısı değildir (K-026); bir tezgâh pro
 - Onaysız kapsam genişletmek; BACKLOG dışında iş yapmak (acil hata dışında; o da WP olarak kaydedilir).
 - Doğrulanmamış sonucu doğrulanmış gibi yazmak.
 
-## 8. Kesintisiz yürütme (K-035: 0.6 dahil bitene kadar durmadan)
+## 8. Kesintisiz yürütme (K-035 tamamlandı; K-049 ile iş emri kuyruğuna bağlandı: kuyruk boşalınca durulur)
 Oturumlar saatte bir zamanlanmış görevle açılır (platformun en kısa aralığı); kullanıcı beklenmez. Görev kullanıcının bilgisayarına bağlıdır (K-037): bilgisayar açık ve Claude masaüstü uygulaması çalışır olmalıdır. Kod işleri bulutta yapılır; bilgisayar yalnız sürüm sonrası yerel kurulum ve ekran denemesi için kullanılır.
 **Kendi kendini uyandırma (zamanlanmış görev GitHub'a erişemezse yedek yol).** Depoya erişimi olan etkileşimli bir Mihenk oturumu, bir WP bitince turu kapatmaz, aynı turda sıradakini alır; tur herhangi bir nedenle biterse bitmeden önce `send_later` ile kendine 1 dakika sonrasına `Mihenk: devam` mesajı kurar (DURUM `TAMAMLANDI` değilse; K-039). Böylece erişimi olan oturum kullanıcı yazmadan sürer. Bağlam iki kez özetlendiyse zincir kurulmaz; kullanıcıya yeni sohbette `Mihenk: devam` yazması söylenir.
 **Kilit (çakışma önleme).** `pm/KILIT.md` tek satır/iş: `WP-NN | dal | başlangıç (UTC) | alan`. Oturum başında:
