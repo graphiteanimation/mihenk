@@ -12,9 +12,10 @@ export const PP = {
   g541Range: { kind: 'range' }, highSpeedOn: { kind: 'text' }, highSpeedOff: { kind: 'text' },
   toolChangeCode: { kind: 'text' }, endCode: { kind: 'text' }, optionalStop: { kind: 'bool' }, rapidSplit: { kind: 'bool' }, cannedCycles: { kind: 'bool' },
   lineNumbers: { kind: 'bool' }, lineNumberStart: { kind: 'num', int: true }, lineNumberStep: { kind: 'num', int: true }, programNumberDigits: { kind: 'num', int: true }, percentLeader: { kind: 'bool' }, decimals: { kind: 'num', int: true },
+  cycleG76: { kind: 'bool' }, cycleG87: { kind: 'bool' }, decimalsInch: { kind: 'num', int: true }, // WP-14
   modelSummary: { kind: 'bool' }, // WP-21: NC başlığında model özeti (MODEL/PART/SETUP/GENERATED); varsayılan açık
 };
-export const PP_ORDER = ['safeRetract', 'safeRetractZ', 'dwellAddress', 'dwellUnit', 'cycleDwellAddress', 'cycleDwellUnit', 'coolantCodes', 'tapMode', 'rigidTapM', 'tapR1', 'rotaryMode', 'aReturnZero', 'aSplit180', 'g541Range', 'highSpeedOn', 'highSpeedOff', 'toolChangeCode', 'endCode', 'optionalStop', 'rapidSplit', 'cannedCycles', 'lineNumbers', 'lineNumberStart', 'lineNumberStep', 'programNumberDigits', 'percentLeader', 'modelSummary', 'decimals'];
+export const PP_ORDER = ['safeRetract', 'safeRetractZ', 'dwellAddress', 'dwellUnit', 'cycleDwellAddress', 'cycleDwellUnit', 'coolantCodes', 'tapMode', 'rigidTapM', 'tapR1', 'rotaryMode', 'aReturnZero', 'aSplit180', 'g541Range', 'highSpeedOn', 'highSpeedOff', 'toolChangeCode', 'endCode', 'optionalStop', 'rapidSplit', 'cannedCycles', 'cycleG76', 'cycleG87', 'lineNumbers', 'lineNumberStart', 'lineNumberStep', 'programNumberDigits', 'percentLeader', 'modelSummary', 'decimals', 'decimalsInch'];
 
 // Gövdelerin görüntü ağı köşelerinden model uzayında (dünya eksenleri) kutu; gövde yoksa null.
 export function modelBBoxOf(bodies) {

@@ -49,7 +49,7 @@ await madde(1, 'src/ui/cam devirleri: belge adı + model kutusu post seçenekler
   ok(!postProgram(prog, M, v).text.includes('(MODEL '), 'adsız belgede MODEL satırı yok');
   // ops.js gerçekten bu seçenekleri kullanıyor (vite json içe aktarımı yüzünden node'da yüklenemez; kaynak denetimi)
   const ops = src('src/ui/cam/ops.js');
-  ok(/postProgram\(program, this\.cam\.machine\(\), postRunOpts\(\{ program, fileName: this\.app\.fileName, result: this\.app\.result/.test(ops), 'ops.js runPost postRunOpts ile belge adı ve sonucu verir');
+  ok(/postProgram\(program, this\.cam\.machine\(\), (\{ \.\.\.)?postRunOpts\(\{ program, fileName: this\.app\.fileName, result: this\.app\.result/.test(ops), 'ops.js runPost postRunOpts ile belge adı ve sonucu verir');
   // post özellik düzenleyicisi: her post'un her varsayılan özelliği düzenleyicide (modelSummary dahil), etiketli
   ok(PP.modelSummary?.kind === 'bool' && PP_ORDER.includes('modelSummary'), 'modelSummary düzenleyici tanımında');
   for (const p of listPosts()) {
