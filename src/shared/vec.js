@@ -26,5 +26,15 @@ export function planeFromNormal(n, pointOnPlane) {
   const o = mul(n, dot(pointOnPlane, n)); // dünya orijininin düzleme izdüşümü
   return { o, x, y, n };
 }
-export const toWorld = (pl, u, v) => [pl.o[0] + pl.x[0] * u + pl.y[0] * v, pl.o[1] + pl.x[1] * u + pl.y[1] * v, pl.o[2] + pl.x[2] * u + pl.y[2] * v];
+// İE-007: v'yi birim eksen k etrafında sağ el kuralıyla deg derece döndürür (Rodrigues)
+export function rotate(v, k, deg) {
+  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+  return add(add(mul(v, c), mul(cross(k, v), s)), mul(k, dot(k, v) * (1 - c)));
+}
+// İE-007: yönün işaretini geometrik olarak sabitler: mutlak değeri en büyük bileşen pozitif (eşitlikte ilk bileşen)
+export function canonDir(d) {
+  let k = 0; for (let i = 1; i < 3; i++) if (Math.abs(d[i]) > Math.abs(d[k]) + 1e-12) k = i;
+  return d[k] < 0 ? mul(d, -1) : d;
+}
+export const toWorld =(pl, u, v) => [pl.o[0] + pl.x[0] * u + pl.y[0] * v, pl.o[1] + pl.x[1] * u + pl.y[1] * v, pl.o[2] + pl.x[2] * u + pl.y[2] * v];
 export const toLocal = (pl, p) => { const d = sub(p, pl.o); return [dot(d, pl.x), dot(d, pl.y)]; };

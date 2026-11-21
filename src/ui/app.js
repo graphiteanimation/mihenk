@@ -14,7 +14,7 @@ import { basePlane } from '../shared/vec.js';
 import { h, $, toast, modal, modalOpen, promptText, confirmBox, esc, fmt } from './dom.js';
 import { t, errText, setLang, getLang, onLangChange, applyI18n } from '../shared/i18n.js';
 import { KErr, toErr } from '../shared/errors.js';
-import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME } from '../shared/schema.js';
+import { checkEnvelope, validateDoc, FILE_VERSION, LIMITS, APP_NAME, docFileVersion } from '../shared/schema.js';
 import { upgradeDocProfiles } from '../shared/profiles.js';
 import { recovery } from './recovery.js';
 import { parseDxf, UNIT_TABLE } from '../shared/dxf.js';
@@ -810,7 +810,7 @@ class App {
     await this.loadDoc(emptyDoc(), { reset: true }); this.viewport.view('iso', true);
     window.native?.docState('new'); this.clearRecovery();
   }
-  fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: this.doc })); }
+  fileBytes() { return new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: docFileVersion(this.doc), doc: this.doc })); }
   // kind: 'doc' | 'step' | 'stl'. Electron'da yol HİÇ gönderilmez; ana süreç diyalog açar ya da bu oturumdaki geçerli belge yoluna yazar.
   async writeOut(bytes, defaultName, kind, saveAs) {
     if (window.native) return window.native.saveFile({ saveAs: !!saveAs, data: bytes, defaultName, kind });
@@ -930,7 +930,7 @@ class App {
     if (!this.dirty || this._rev === this._recRev) return false;
     const rev = this._rev;
     try {
-      const bytes = new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: FILE_VERSION, doc: this.doc, fileName: this.fileName }));
+      const bytes = new TextEncoder().encode(JSON.stringify({ app: APP_NAME, version: docFileVersion(this.doc), doc: this.doc, fileName: this.fileName }));
       await recovery.save(bytes); this._recRev = rev; this.lastAutosave = new Date(); this.C.renderStatus(); return true;
     } catch (e) { console.error('recovery save failed', e); return false; }
   }
