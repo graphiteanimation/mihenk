@@ -70,6 +70,10 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-055** (2026-11-21) — "sketch oluşturma sadece mevzut x y z planelerinde ve eğer bir parça çizilirse parçanın yüzeyinden mümkün oluyor. programda ayrıca plane oluşturma var mı? nx'te özellikle çeşitli yöntemlerle plane oluşturmak çok işe yarıyor." Anlam: yapı düzlemi NX'teki gibi birden çok yöntemle oluşturulabilmeli. İE-007 (açıyla, üç noktadan, ofset) üzerine İE-012 ek yöntemleri getirir; 0.6.1 kapsamında (kullanıcı itiraz ederse 1.0'a alınır).
 
+- **K-056** (2026-11-21) — "montaj, eklem, yüzey modelleme, sac metal, konfigürasyon tablosu, bulut, ortak çalışma, veri yönetimi bu aşamaları v3 hedefi olarak belirleyelim. eş zamanlı 4 ve 5 eksen v2 hedefi olsun. diğer saydıklarını ve varsa başka eksikleri belirleyerek onları da v1 de tamamlayalım." Yol haritası: **v1** = NX/Fusion'a göre kalan bütün eksikler (v2 ve v3'e ayrılanlar dışında); **v2** = eşzamanlı 4 ve 5 eksen; **v3** = montaj, eklemler, yüzey modelleme, sac metal, konfigürasyon tablosu, bulut, ortak çalışma, veri yönetimi. O-027'deki "kapsam dışı" kalemler artık v3 hedefidir (yerine geçer: O-027'nin kapsam dışı listesi). Eksik listesi İE-013 ile doğrulanır.
+
+- **K-057** (2026-11-21) — Kullanıcının kurulu 0.6.0'da gördükleri: "programı ilk açtığımızdaki arayüz ile ilgili bir geliştirme yapabilir miyiz? daha iyi daha anlamlı bir karşılama olabilir mi?" (C-53) · "hakkında kısmında bir ara açık kaynak lisanslarını gördüğümü hatırlıyorum ama şu an gözükmüyor" (C-54) · "export ve import seçenekleri bir satır olarak verip üzerine gelince alt ağaçlar açılabilir" (C-55) · "daha önceden sketch esnasında ölçüm yapma ve bir çizginin dikdörtgenin ya da dairenin ölçüsünü değiştirme gibi işlemler yapabiliyordum. bunlar kayıp mı oldu anlayamadım" (C-56). C-53…C-55 İE-010'a, C-56 İE-008'e eklendi.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|

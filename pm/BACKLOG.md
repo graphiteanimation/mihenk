@@ -65,9 +65,11 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | WP-22c | 0.6 son devirler: arcFit sarma/döner eksenli hareketlerde atlanır (WP-15 bulgusu), WP-12 verim maddeleri (22b satırındaki liste), 3D kaba süresi, node aynı iş parçacığında iptal | WP-12/15 doğrulamaları | O · ☑ (bağımsız doğrulandı; 2d temas açısı tepe aşımı açık) |
 | — | **Sürüm 0.6** ☑ `v0.6.0` (2026-11-21: test:all 42/42, 6991 denetim; altın set geçti; Windows kabulü geçti, SHA-256 427caa1d…3a85) | | |
 
-## 1.0 ve sonrası
-- 1.0: kinematik tezgâh simülasyonu, kod imzası + güncelleme, performans, tam kılavuz, kabul.
-- 1.0 sonrası: eşzamanlı 4/5 eksen, prob çevrimleri, montaj, DNC aktarımı. Kapsam dışı: sac metal, yüzey modelleme, konfigürasyon, bulut (O-027).
+## 1.0 ve sonrası (K-056 yol haritası)
+- **0.6.1**: CAD testi bulguları (C-13…C-56), yapı düzlemleri (İE-005…İE-012).
+- **v1 (1.0)**: NX/Fusion'a göre kalan bütün eksikler. Bilinenler: 3B eskiz · yapı ekseni ve yapı noktası · kinematik tezgâh simülasyonu · prob çevrimleri · DNC aktarımı · tornalama (kullanıcı teyidi bekliyor, G-15) · kod imzası + güncelleme · performans · tam kılavuz · kabul. Doğrulanacaklar (İE-013): değişken yarıçaplı fillet, modellenmiş diş, helis, teknik resimde delik tablosu ve GD&T, DWG, erişilebilirlik ve en küçük yarıçap analizi, kalan CAM kalemleri. Kesin liste: `pm/kaynak/eksik-analizi-0.6.1.md`.
+- **v2 (2.0)**: eşzamanlı 4 ve 5 eksen.
+- **v3 (3.0)**: montaj, eklemler, yüzey modelleme, sac metal, konfigürasyon tablosu, bulut, ortak çalışma, veri yönetimi.
 
 ## Sıra gerekçesi
 1. Önce güven: yanlış BLOCK ve yanlış "temiz" (WP-03), sonra setup'lar arası stok (WP-05). Karşılaştırma testinde 13 setup'ın 6'sında NC'yi engelleyen bunlardı.
