@@ -206,5 +206,56 @@ const area = (sk) => findRegions(sk).regions.reduce((s, r) => s + r.net, 0);
   const sk3 = empty(); const a3 = addPoint(sk3, 0, 0), b3 = addPoint(sk3, 20, 0), c3 = addPoint(sk3, 5, -5), d3 = addPoint(sk3, 5, 5), e3 = addPoint(sk3, 15, -5), f3 = addPoint(sk3, 15, 5);
   const m = addEnt(sk3, { type: 'line', a: a3, b: b3 }); addEnt(sk3, { type: 'line', a: c3, b: d3 }); addEnt(sk3, { type: 'line', a: e3, b: f3 });
   O.trimAt(sk3, m, [10, 0]); const kept = getEnt(sk3, m); ok(kept && sk3.points[kept.a].x === 0 && Math.abs(sk3.points[kept.b].x - 5) < 1e-9, 'buda (orta): özgün kimlik başlangıç parçasında'); }
+// ---- C-21: budama kalan geometriyi hareket ettirmemeli (daire → yay: merkez ve yarıçap korunur; orta nokta kısıtlı kenar budanınca daire kaymaz)
+{
+  const arcOf = (sk, id) => { const e = getEnt(sk, id), c = sk.points[e.c]; const r = e.type === 'circle' ? e.r : Math.hypot(sk.points[e.a].x - c.x, sk.points[e.a].y - c.y); return { e, cx: c.x, cy: c.y, r }; };
+  const onLine = (sk, pid, lid) => { const l = getEnt(sk, lid), a = sk.points[l.a], b = sk.points[l.b], p = sk.points[pid]; return Math.abs((p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x)) / Math.hypot(b.x - a.x, b.y - a.y); };
+  const same = (sk, id, b4, m) => { const af = arcOf(sk, id); const d = Math.max(Math.abs(af.cx - b4.cx), Math.abs(af.cy - b4.cy), Math.abs(af.r - b4.r)); ok(d <= 1e-6, `${m}: merkez/yarıçap kaydı ${d.toExponential(2)} (önce ${b4.cx},${b4.cy},R${b4.r} sonra ${af.cx},${af.cy},R${af.r})`); return af; };
+  const twoRects = (sk) => { const A = rect(sk, 0, -20, 60, 20), B = rect(sk, 0, -10, 40, 10); return { A, B }; };
+  // (a) yönergedeki senaryo: iki dikdörtgen + kenarları kesen daire; kısıtlı/kısıtsız merkez, yarıçap/çap ölçüsü olan/olmayan
+  for (const fixC of [false, true]) for (const dim of [null, 'radius', 'diameter']) {
+    const sk = empty(); const { B } = twoRects(sk); const cp = addPoint(sk, 40, 3); const c = addEnt(sk, { type: 'circle', c: cp, r: 12 });
+    if (dim) addCon(sk, dim, c, undefined, { expr: dim === 'radius' ? '12' : '24' });
+    if (fixC) { addCon(sk, 'hdist', 'O', cp, { expr: '40' }); addCon(sk, 'vdist', 'O', cp, { expr: '3' }); }
+    await solve(sk); const b4 = arcOf(sk, c), tag = `C-21a merkez ${fixC ? 'kısıtlı' : 'serbest'} ölçü ${dim || 'yok'}`;
+    const r = O.trimAt(sk, c, [b4.cx - b4.r, b4.cy]); ok(r.ok && getEnt(sk, c).type === 'arc', tag + ': daire yaya döndü');
+    const s = await solve(sk); ok(s.ok, tag + ': çözüldü'); const af = same(sk, c, b4, tag);
+    const e = getEnt(sk, c); ok(onLine(sk, e.a, B.l[1]) < 1e-6 || onLine(sk, e.b, B.l[1]) < 1e-6, tag + ': yay ucu iç dikdörtgenin sağ kenarında');
+    ok([e.a, e.b].every((pid) => Math.abs(Math.hypot(sk.points[pid].x - af.cx, sk.points[pid].y - af.cy) - b4.r) < 1e-6), tag + ': yay uçları özgün çember üstünde (kesişim noktaları)');
+    if (dim) ok(sk.cons.some((k) => k.type === dim && k.a === c), tag + ': ölçü yaya taşındı');
+  }
+  // (b) kullanıcı akışı: daire merkezi kenarın orta noktasına yakalandı (otomatik "orta nokta" kısıtı, sketcher.js _ptFor), sonra kenar daire içinden budanır
+  for (const order of ['kenar-sonra-daire', 'daire-sonra-kenar']) for (const dim of [null, 'radius']) {
+    const sk = empty(); const { B } = twoRects(sk); const cp = addPoint(sk, 40, 0); addCon(sk, 'midpoint', cp, B.l[1]); const c = addEnt(sk, { type: 'circle', c: cp, r: 6 });
+    if (dim) addCon(sk, dim, c, undefined, { expr: '6' });
+    await solve(sk); const b4 = arcOf(sk, c), tag = `C-21b ${order} ölçü ${dim || 'yok'}`;
+    const steps = order === 'kenar-sonra-daire' ? [[B.l[1], [40, 2]], [c, [34, 0]]] : [[c, [34, 0]], [B.l[1], [40, 2]]];
+    for (const [id, pt] of steps) { const r = O.trimAt(sk, id, pt); ok(r.ok, tag + ': budama ' + id); const s = await solve(sk); ok(s.ok, tag + ': çözüldü'); same(sk, c, b4, tag + ' (' + id + ' budandıktan sonra)'); }
+    ok(sk.points[cp].x === 40 && Math.abs(sk.points[cp].y) < 1e-9, tag + ': merkez kenar üstünde yerinde');
+  }
+  // (c) iki noktalı daire (circle2 aracı): yapı çapı orta nokta kısıtlı; daireye çapın ucundan tıklanınca çap budanıyordu → daire kayıyordu
+  {
+    const sk = empty(); twoRects(sk); const p1 = addPoint(sk, 28, 0), p2 = addPoint(sk, 52, 0), cp = addPoint(sk, 40, 0);
+    const dl = addEnt(sk, { type: 'line', a: p1, b: p2, cons: true }); const c = addEnt(sk, { type: 'circle', c: cp, r: 12 }); addCon(sk, 'pointOn', p1, c); addCon(sk, 'midpoint', cp, dl);
+    await solve(sk); const b4 = arcOf(sk, c);
+    const r = O.trimAt(sk, dl, [28, 0]); ok(r.ok, 'C-21c: çap budandı'); const s = await solve(sk); ok(s.ok, 'C-21c: çözüldü'); same(sk, c, b4, 'C-21c: çap budanınca daire');
+    O.trimAt(sk, c, [b4.cx, b4.cy + b4.r]); await solve(sk); same(sk, c, b4, 'C-21c: ardından daire budanınca yay');
+  }
+  // (d) bölme (break) de orta nokta / eşit uzunluk kısıtlı çizgiyi kaydırmamalı
+  {
+    const sk = empty(); const l = line(sk, [0, 0], [40, 0]); line(sk, [10, -5], [10, 5]); const m = addPoint(sk, 20, 0); addCon(sk, 'midpoint', m, l);
+    const q = line(sk, [0, 10], [40, 10]); addCon(sk, 'equal', l, q); addCon(sk, 'horizontal', q); await solve(sk);
+    const snap = JSON.stringify(sk.points); const r = O.breakAt(sk, l, [5, 0]); ok(r.ok, 'C-21d: bölme'); const s = await solve(sk); ok(s.ok, 'C-21d: çözüldü');
+    const P0 = JSON.parse(snap); const mv = Math.max(...Object.keys(P0).filter((k) => sk.points[k]).map((k) => Math.hypot(sk.points[k].x - P0[k].x, sk.points[k].y - P0[k].y)));
+    ok(mv <= 1e-6, 'C-21d: bölmeden sonra hiçbir nokta kaymadı: ' + mv);
+  }
+  // (e) kayma ölçümü: budama sonrası kalan varlıkların yer değiştirmesi (arayüz sınırı aşarsa işlemi geri alır)
+  if (O.geomSnap && O.geomDrift) {
+    const sk = empty(); const c = circle(sk, 0, 0, 10); line(sk, [-20, 0], [20, 0]); await solve(sk); const g = O.geomSnap(sk);
+    O.trimAt(sk, c, [0, 10]); ok(O.geomDrift(g, sk) < 1e-9, 'C-21e: budama (çözümsüz) kayma 0');
+    sk.points[getEnt(sk, c).c].x += 0.5; near(O.geomDrift(g, sk), 0.5, 'C-21e: merkez kayması ölçülür', 1e-9);
+    sk.points[getEnt(sk, c).c].x -= 0.5; const e = getEnt(sk, c); sk.points[e.a].x *= 1.1; sk.points[e.a].y *= 1.1; ok(O.geomDrift(g, sk) > 0.5, 'C-21e: daire → yay yarıçap değişimi ölçülür');
+  } else ok(false, 'C-21e: geomSnap/geomDrift (kayma ölçümü) yok');
+}
 function TAU() { return Math.PI * 2; }
 console.log(`sketchops: ${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

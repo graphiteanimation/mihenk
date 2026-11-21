@@ -862,6 +862,7 @@ const base = {
   "sk.dlg.pm_plane": "Edges lying in the plane (face boundary)",
   "sk.dlg.pm_all": "All body edges",
   "sk.dlg.project_note": "Edges are added as fixed construction geometry that dimensions and constraints can reference.",
+  "sk.op.moved_undone": "{kind} would move the remaining geometry by {d} mm; operation undone.",
   "sk.op.cons_removed": "{n} constraints removed",
   "sk.op.projected": "{n} edges projected",
   "sk.op.project_none": "No edges found for this option; try \"All body edges\".",

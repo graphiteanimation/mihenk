@@ -862,6 +862,7 @@ const base = {
   "sk.dlg.pm_plane": "Düzlemdeki kenarlar (yüz sınırı)",
   "sk.dlg.pm_all": "Tüm gövde kenarları",
   "sk.dlg.project_note": "Kenarlar sabit yapı geometrisi olarak eklenir; bu sketch'i etkilemeden ölçü ve kısıt hedefi olur.",
+  "sk.op.moved_undone": "{kind} kalan geometriyi {d} mm kaydıracaktı; işlem geri alındı.",
   "sk.op.cons_removed": "{n} kısıt kaldırıldı",
   "sk.op.projected": "{n} kenar izdüşürüldü",
   "sk.op.project_none": "Bu seçenekle izdüşürülecek kenar bulunamadı; \"Tüm gövde kenarları\"nı deneyin.",

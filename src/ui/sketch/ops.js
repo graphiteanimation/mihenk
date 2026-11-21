@@ -3,7 +3,7 @@ import { G, clone, entPts, conRefs, deleteItems, getEnt, segOf, newId, addPoint,
 import { ellipseGeom } from '../../shared/profiles.js';
 import { evalExpr } from '../../shared/expr.js';
 
-export { trimAt, extendAt, breakAt, trimSpan } from './trim.js';
+export { trimAt, extendAt, breakAt, trimSpan, geomSnap, geomDrift } from './trim.js';
 const ok = (extra = {}) => ({ ok: true, ...extra });
 const fail = (key, params) => ({ ok: false, err: { key, params } });
 const DEG = Math.PI / 180;
