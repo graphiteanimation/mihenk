@@ -6,7 +6,7 @@ import { KErr, tk } from '../shared/errors.js';
 import * as V from '../shared/vec.js';
 import * as TP from './topo.js';
 import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
-import { edgeName } from './naming.js';
+import { edgeName, edgeNameText } from './naming.js';
 
 const oc = () => R.getOC();
 const OPS = new Set(['new', 'join', 'cut', 'intersect']);
@@ -318,7 +318,7 @@ function vfillet(K, f, state, N, ctx) {
       b.Build(progress(r));
       if (b.IsDone()) {
         const raw = b.Shape(); const shape = TP.wrap(raw);
-        const nmE = (j) => { const nm = edgeName(body, j); return nm.error ? `#${j}` : `<${nm.a}&${nm.b}${nm.nb ? '|' + nm.nb.join('|') : ''}>`; };
+        const nmE = (j) => { const nm = edgeName(body, j); return nm.error ? `#${j}` : edgeNameText(nm); };
         const fn = TP.propagate(b, [{ shape: body.shape, fn: body.fn }], shape, { generated: (Ti, gen) => { for (const j of sel) gen(Ti.edges.list[j], `${f.id}:vblend${nmE(j)}`); } });
         res = { shape, fn };
       }
