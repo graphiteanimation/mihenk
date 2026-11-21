@@ -7,7 +7,9 @@
 // X ve Y isinlari takim orneklerinin ardisik ciftinden kapsul (iki ornek arasi supurulen disk) ile kesilir: yan duvar konumu
 // isin yonunde surekli (hucreye yuvarlanmaz; V-24 yanal cozunurluk siniri bu iki yonde kalkar).
 // SINIRLAR: takim ekseni +Z (setup cercevesi); egimli hareketlerde kapsul yaricapi iki ucun KUCUGU (ic yaklasim: az kaldirma, fazla
-// malzeme = muhafazakar); model (oyma denetimi) hala yukseklik haritasi; zincirde kaynak uyeligi uc isinin VEYA'si (muhafazakar).
+// malzeme = muhafazakar); zincirde kaynak uyeligi uc isinin VEYA'si (muhafazakar).
+// WP-22b: model (oyma) denetimi opts.modelMeshes verilince model aginin ayni izgaradaki X/Y/Z araliklarina karsi (model3d.js);
+// sap/tutucu yanal carpmasi X/Y isinlarinda bant ortusmesiyle (triBandHit).
 import { createHeightmap } from './heightmap.js';
 
 const EPS = 1e-9;
@@ -140,8 +142,8 @@ function capsuleChord(ax, ay, bx, by, r, c) {
   return lo < hi ? [lo, hi] : null;
 }
 // p0 -> p1 takim ornek cifti (p0 null: tek disk); rho(u): uctan u yukseklikte yaricap. fn(ray, lo, hi) her X/Y isin parcasina.
-function sweepRays(T, rho, p0, p1, zTop, fn) {
-  const { res, nx, ny, nz } = T; const zlo = p0 ? Math.min(p0.z, p1.z) : p1.z;
+function sweepRays(T, rho, p0, p1, zTop, fn, uMin = 0) {
+  const { res, nx, ny, nz } = T; const zlo = (p0 ? Math.min(p0.z, p1.z) : p1.z) + uMin;
   const k0 = Math.max(0, Math.ceil((zlo - T.z0) / res - 0.5)), k1 = Math.min(nz - 1, Math.floor((zTop - T.z0) / res - 0.5));
   for (let k = k0; k <= k1; k++) {
     const z = T.z0 + (k + 0.5) * res;
@@ -153,21 +155,25 @@ function sweepRays(T, rho, p0, p1, zTop, fn) {
     const ylo = Math.min(...ys) - rm, yhi = Math.max(...ys) + rm;
     for (let j = Math.max(0, Math.ceil((ylo - T.y0) / res - 0.5)); j <= Math.min(ny - 1, Math.floor((yhi - T.y0) / res - 0.5)); j++) {
       const c = T.y0 + (j + 0.5) * res, ray = T.xr[k * ny + j]; if (!ray.length) continue;
-      if (r1 > 0) { const p = discChord(p1.x, p1.y, r1, c); if (p) fn(ray, p[0], p[1]); }
-      if (r0 > 0) { const p = discChord(p0.x, p0.y, r0, c); if (p) fn(ray, p[0], p[1]); }
-      if (rc > 0) { const p = capsuleChord(p0.x, p0.y, p1.x, p1.y, rc, c); if (p) fn(ray, p[0], p[1]); }
+      if (r1 > 0) { const p = discChord(p1.x, p1.y, r1, c); if (p) fn(ray, p[0], p[1], 'x', c, z); }
+      if (r0 > 0) { const p = discChord(p0.x, p0.y, r0, c); if (p) fn(ray, p[0], p[1], 'x', c, z); }
+      if (rc > 0) { const p = capsuleChord(p0.x, p0.y, p1.x, p1.y, rc, c); if (p) fn(ray, p[0], p[1], 'x', c, z); }
     }
     // Y isinlari: sutunlar i (x <-> y)
     const xlo = Math.min(...xs) - rm, xhi = Math.max(...xs) + rm;
     for (let i = Math.max(0, Math.ceil((xlo - T.x0) / res - 0.5)); i <= Math.min(nx - 1, Math.floor((xhi - T.x0) / res - 0.5)); i++) {
       const c = T.x0 + (i + 0.5) * res, ray = T.yr[k * nx + i]; if (!ray.length) continue;
-      if (r1 > 0) { const p = discChord(p1.y, p1.x, r1, c); if (p) fn(ray, p[0], p[1]); }
-      if (r0 > 0) { const p = discChord(p0.y, p0.x, r0, c); if (p) fn(ray, p[0], p[1]); }
-      if (rc > 0) { const p = capsuleChord(p0.y, p0.x, p1.y, p1.x, rc, c); if (p) fn(ray, p[0], p[1]); }
+      if (r1 > 0) { const p = discChord(p1.y, p1.x, r1, c); if (p) fn(ray, p[0], p[1], 'y', c, z); }
+      if (r0 > 0) { const p = discChord(p0.y, p0.x, r0, c); if (p) fn(ray, p[0], p[1], 'y', c, z); }
+      if (rc > 0) { const p = capsuleChord(p0.y, p0.x, p1.y, p1.x, rc, c); if (p) fn(ray, p[0], p[1], 'y', c, z); }
     }
   }
 }
 // kesme: X/Y isinlarindan takim supurmesini cikarir
 export function triCut(T, rho, p0, p1, zTop) { sweepRays(T, rho, p0, p1, zTop, (ray, lo, hi) => { subRay(ray, lo, hi); }); }
 // hizli: X/Y isinlarinda takim zarfinin malzemeyle en buyuk yanal ortusmesi (mm)
+// WP-22b: genel supurme (fn(ray, lo, hi, eksen 'x'|'y', isin dik koordinati, z)); uMin: uctan bu yuksekligin altindaki katmanlar atlanir
+export function triSweep(T, rho, p0, p1, zTop, fn, uMin = 0) { sweepRays(T, rho, p0, p1, zTop, fn, uMin); }
+// WP-22b: [u0, u1] bandinda (uctan yukseklik) X/Y isinlarinda en buyuk yanal ortusme; rho(u) bant disinda 0 dondurmeli
+export function triBandHit(T, rho, p0, p1, u0, zTop) { let best = 0; sweepRays(T, rho, p0, p1, zTop, (ray, lo, hi) => { const o = rayOverlap(ray, lo, hi); if (o > best) best = o; }, u0); return best; }
 export function triHit(T, rho, p0, p1, zTop) { let best = 0; sweepRays(T, rho, p0, p1, zTop, (ray, lo, hi) => { const o = rayOverlap(ray, lo, hi); if (o > best) best = o; }); return best; }
