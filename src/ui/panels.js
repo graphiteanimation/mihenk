@@ -40,6 +40,8 @@ export class FeaturePanel {
   fields() { return fieldsFor(this.draft, this.ctx()); }
   hasSel() { return this.fields().some((f) => f.t === 'sel' || (f.t === 'source' && this.draft.source?.kind === 'body') || (f.t === 'tool' && this.draft.tool?.kind === 'face')); }
   pickBase() { return this.activeSel != null; }
+  // C-47/C-35: tek seçim alanlı Yuvarlat/Pah'ta değer alanı etkin kenar seçimini kapatmaz
+  keepPick() { return this.draft.type === 'fillet' || this.draft.type === 'chamfer'; }
   // düzenlenen işlemin sağında (işaretçiye kadar) işlem var mı
   hasAfter() { const rb = this.app.doc.rollback; const end = rb ?? this.app.doc.features.length; return this.isNew ? this.at < end : this.at + 1 < end; }
   makeDoc(rollback) {
@@ -131,8 +133,8 @@ export class FeaturePanel {
           msg.hidden = !bad; msg.replaceChildren(...(bad ? [h('span', { html: icon('error', 'sm') }), h('span', { text: bad })] : []));
         };
         upd();
-        inp.addEventListener('input', () => { const was = d[fd.k]; d[fd.k] = inp.value; upd(); this.setActive(null); if (fd.optional && !String(was ?? '').trim() !== !inp.value.trim()) { this.fieldChanged(fd.k); const ni = document.querySelector('#panel input[data-k="' + fd.k + '"]'); if (ni) { ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); } return; } this.changed(); });
-        inp.addEventListener('focus', () => this.setActive(null));
+        inp.addEventListener('input', () => { const was = d[fd.k]; d[fd.k] = inp.value; upd(); if (!this.keepPick()) this.setActive(null); if (fd.optional && !String(was ?? '').trim() !== !inp.value.trim()) { this.fieldChanged(fd.k); const ni = document.querySelector('#panel input[data-k="' + fd.k + '"]'); if (ni) { ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); } return; } this.changed(); });
+        inp.addEventListener('focus', () => { if (!this.keepPick()) this.setActive(null); });
         inp.addEventListener('change', () => { if (d[fd.k] !== inp.value) { d[fd.k] = inp.value; upd(); this.changed(); } });
         return this.row(fd.label, h('div', {}, box, hint, msg));
       }
@@ -143,7 +145,7 @@ export class FeaturePanel {
       }
       case 'check': {
         const c = h('input', { type: 'checkbox', 'data-k': fd.k, checked: !!d[fd.k] });
-        c.addEventListener('change', () => { d[fd.k] = c.checked; this.setActive(null); this.changed(); });
+        c.addEventListener('change', () => { d[fd.k] = c.checked; if (!this.keepPick()) this.setActive(null); this.changed(); });
         return this.row(fd.label, checkBox(c));
       }
       case 'sketch': {
