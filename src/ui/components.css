@@ -263,6 +263,10 @@ svg.ic.sm { width: 16px; height: 16px; stroke-width: 2; }
 .vp-overlay-bl { position: absolute; left: var(--sp-4); bottom: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); z-index: var(--z-viewport-overlay); }
 .vp-overlay-tr { position: absolute; right: var(--sp-4); top: var(--sp-4); z-index: var(--z-viewport-overlay); display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-end; }
 .vp-overlay-br { position: absolute; right: var(--sp-4); bottom: var(--sp-4); z-index: var(--z-viewport-overlay); display: flex; gap: var(--sp-3); }
+/* Köşe kapları saydamdır: yalnız içerdikleri denetimler fareyi alır. Kap, en geniş çocuğu kadar yer kaplar; görünmez boşluğu (ör. görünüm
+   küpünün solu) tıklamaları ve fare hareketlerini yutmasın — eskizde ikinci köşe tıklaması kaybolup ön izleme donuyordu. */
+.vp-overlay-tl, .vp-overlay-bl, .vp-overlay-tr, .vp-overlay-br { pointer-events: none; }
+.vp-overlay-tl > *, .vp-overlay-bl > *, .vp-overlay-tr > *, .vp-overlay-br > * { pointer-events: auto; }
 .hud { display: inline-flex; align-items: center; gap: var(--sp-3); min-height: 28px; padding: 3px var(--sp-4); background: var(--bg-surface); border: var(--bw) solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-sm); font-size: var(--fs-sm); }
 .vbtns { display: flex; background: var(--bg-surface); border: var(--bw) solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-sm); overflow: hidden; }
 .vbtns button { width: var(--ctl-h); height: var(--ctl-h); border: 0; border-right: var(--bw) solid var(--line); background: transparent; display: grid; place-items: center; color: var(--text); }

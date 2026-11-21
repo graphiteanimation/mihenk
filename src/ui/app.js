@@ -648,7 +648,11 @@ class App {
   }
   onSketchChange() {
     if (this._skRaf) return;
-    this._skRaf = requestAnimationFrame(() => { this._skRaf = 0; this.C.renderToolbar(); this.sketchPanel?.refresh(); });
+    this._skRaf = requestAnimationFrame(() => {
+      this._skRaf = 0; this.C.renderToolbar(); this.sketchPanel?.refresh();
+      // durum çubuğundaki "Araç" bölümü etkin eskiz aracını izler (şeritle tutarlı; önceden Seç'te kalıyordu)
+      const tool = this.sketchSession ? this.sketcher?.tool : null; if (tool !== this._skToolShown) { this._skToolShown = tool; this.C.renderStatus(); }
+    });
   }
   sketchTool(id) { this.sketcher?.setTool(id); this.C.renderToolbar(); }
   sketchConstraint(type) { try { this.sketcher?.applyConstraint(type); } catch (e) { toast(t('msg.constraint_failed', { msg: errText(e) }), true); } this.onSketchChange(); }
