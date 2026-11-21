@@ -751,7 +751,7 @@ Known and **deferred** findings (CAM-VERIFY / CAM-FIXES):
 
 - **Lateral gouge resolution** (V-24): the table above.
 - **Pocket corner remainder** (V-28): at a high stepover an unmachined area can remain between ring corners. The program reports it with the "About … mm² of the pocket cannot be machined" and "cannot be reached" warnings but does not produce a corner cleanup move.
-- **Pocket / inside contour cutting direction** (V-29): in pockets and inside contours a very small part of the wall samples (especially in star/dumbbell shapes) came out opposite to the requested climb/conventional direction. The cause was not investigated. **Read the NC on jobs where surface quality matters.**
+- **Pocket / inside contour cutting direction** (V-29): the few "reversed direction" samples seen in the earlier verification were examined in WP-21: all came from the measuring method (a cusp where two walls meet, or the first point of a move leaving a wall); no reversed wall cut was found in the toolpaths. Not verified on a machine; still read the NC on jobs where surface quality matters.
 - **Program number** (V-21): reserved program-number ranges such as O8000/O9000 are not checked.
 - **Line number** (V-22): N numbers wrap around when they exceed 99999 (with a warning); this limit has not been confirmed on the M80V.
 

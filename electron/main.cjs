@@ -8,6 +8,7 @@ const os = require('node:os');
 const { atomicWrite, isInside } = require('./safe-write.cjs');
 const { CSP, WORKER_CSP, isWorkerScript } = require('./csp.cjs');
 const { createLogger } = require('./log.cjs');
+const { examplesDir, listExamples, readExample } = require('./examples.cjs');
 
 const DIST = path.join(__dirname, '..', 'dist');
 const DEV = !app.isPackaged;                                  // geliştirme: paketlenmemiş
@@ -206,6 +207,10 @@ function lockdownContents(wc) {
 function registerIpc() {
   // Yardım menüsü: günlük klasörünü işletim sistemi dosya yöneticisinde açar (yolu arayüz vermez, görmez)
   ipcMain.handle('native:openLogFolder', guarded(async () => { const dir = path.join(app.getPath('userData'), 'logs'); fs.mkdirSync(dir, { recursive: true }); const err = await shell.openPath(dir); return err === ''; }));
+  // WP-21: örnek belgeler (kurulu: resources/ornekler; geliştirme: depo ornekler/). Yalnız ad listesi; açılan örnek belge yolu olmaz (Kaydet farklı kaydet diyaloğu açar)
+  const exDir = () => examplesDir({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath, appRoot: path.join(__dirname, '..') });
+  ipcMain.handle('native:examples', guarded(async () => listExamples(exDir())));
+  ipcMain.handle('native:openExample', guarded(async (ev, name) => { const r = readExample(exDir(), name); if (r) pendingPath = null; return r; }));
   ipcMain.handle('native:open', guarded(async (ev, kind) => {
     if (!Object.hasOwn(KINDS, kind) || SAVE_ONLY.has(kind)) throw new Error('bad kind');
     const r = await dialog.showOpenDialog(win, { title: titleFor(kind, true), properties: ['openFile'], filters: safeFilters(null, kind, false) });

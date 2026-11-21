@@ -19,6 +19,7 @@ import { openCutData } from './cutdata.js';
 import { openTemplates, openHoleSequence, openParts } from './templatesui.js';
 import { openQuote } from './quoteui.js';
 import { setUnits, getUnits } from '../../shared/units.js';
+import { CAM_RIBBON } from './ribbon.js';
 import { CamView } from './view.js';
 import { CamOps } from './ops.js';
 
@@ -140,7 +141,7 @@ export class CamCtl {
     reg('cam-machine', 'cam.cmd.machine', 'cam-machine', () => openMachineManager(this));
     reg('cam-tools', 'cam.cmd.tools', 'cam-tool-library', () => openToolManager(this, 'doc'));
     reg('cam-sheet', 'cam.cmd.sheet', 'nc-code', () => { this.ops.sheet(); }, { off: needOps, tip: null });
-    reg('cam-cutdata', 'cam.cmd.cutdata', 'cam-tool-library', () => openCutData(this));
+    reg('cam-cutdata', 'cam.cmd.cutdata', 'parameters', () => openCutData(this));
     reg('cam-units', 'cam.cmd.units', 'cam-stock', () => this.toggleUnits(), { tip: null }); // WP-14: belge birimi mm <-> inc
     reg('cam-parts', 'cam.cmd.parts', 'cam-stock', () => openParts(this), { off: needSetup, tip: null });
     reg('cam-quote', 'cam.cmd.quote', 'nc-code', () => openQuote(this), { off: needOps, tip: null });
@@ -159,14 +160,7 @@ export class CamCtl {
   }
   ribbon(R) {
     const { group, toolBtn } = R; const b = (id) => toolBtn(id);
-    return [
-      group('cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools'].map(b), { items: ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools'] }),
-      group('cam-2d', 'cam.grp.2d', ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'].map(b), { items: ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'] }),
-      group('cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'].map(b), { items: ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'] }),
-      group('cam-3d', 'cam.grp.3d', [b('cam-op-surface')], { items: ['cam-op-surface'] }),
-      group('cam-act', 'cam.grp.actions', ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'].map(b), { cls: 'end', items: ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'] }),
-      group('cam-flow', 'cam.grp.flow', ['cam-tpl', 'cam-holeseq', 'cam-parts', 'cam-units', 'cam-quote'].map(b), { items: ['cam-tpl', 'cam-holeseq', 'cam-parts', 'cam-units', 'cam-quote'] }), // WP-14: en sonda; sigmazsa ilk » menusune gider
-    ];
+    return CAM_RIBBON.map(([id, key, items, o = {}]) => group(id, key, items.map(b), { ...o, items }));
   }
 
   // ---------------------------------------------------------------- tarayıcı

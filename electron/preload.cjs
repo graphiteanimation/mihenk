@@ -30,6 +30,9 @@ if (location.protocol === 'app:' && location.host === 'mihenk') {
     recoveryClear: () => ipcRenderer.invoke('native:recoveryClear'),
     // Yardım → günlük klasörünü aç (yerel hata günlüğü; ağa gönderilmez). true: açıldı
     openLogFolder: () => ipcRenderer.invoke('native:openLogFolder'),
+    // örnek belgeler: [ad] ve adla açma → {name, data} | null (yol yok; kurulu sürümde resources/ornekler)
+    examplesList: () => ipcRenderer.invoke('native:examples'),
+    openExample: (name) => ipcRenderer.invoke('native:openExample', String(name)),
     versions: { electron: process.versions.electron, chrome: process.versions.chrome },
   });
 }

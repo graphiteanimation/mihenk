@@ -13,6 +13,7 @@ import { postProgram } from '../../../src/cam/post/index.js';
 import { initKernel } from '../../../src/kernel/kernel.js';
 import { validateDoc } from '../../../src/shared/schema.js';
 import { simulate, heightmapFromFn } from '../../../src/cam/sim/index.js';
+import { stockFromPrevious } from '../../../src/cam/sim/chain.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url)); const ROOT = path.join(here, '..', '..', '..');
 const OUT = process.env.P1_OUT || path.join(here, 'out'); fs.mkdirSync(OUT, { recursive: true });
@@ -308,6 +309,38 @@ if (!process.env.P_NOCHAIN) {
 
 // ------------------------------------------------------------------ cikti
 R.sure_s = r3(now() - t0);
+// WP-21 madde 7: S3 holder_collision x2 siniflamasi. o10 delik dibinde tutucu alti (z dip + T30 tasma) ile tutucu dairesindeki en yuksek
+// malzeme uc stok modelinde karsilastirilir: (a) ayri setup (ham kutu, ana kapi sayilari), (b) sim zinciri (stockFromPrevious:
+// komsu hucre genisletmesi + yarim hucre yukari yuvarlama), (c) ayni zincir kurali GENISLETMESIZ ve 0,05 mm isin adimiyla
+// (onceki setup'larin gercekte biraktigi malzemeye en yakin tahmin), (d) model ust haritasi. P_NOCHAIN=1 ile atlanir.
+if (!process.env.P_NOCHAIN) {
+  try {
+    const ok3 = progs.filter((r) => r.program && r.hm); const i3 = ok3.findIndex((r) => r.S.id === 'S3');
+    if (i3 > 0) {
+      const S = ok3[i3].S, hm3 = ok3[i3].hm;
+      const fin = ok3.slice(0, i3).map((p) => ({ frame: p.S.frame, hm: CAM.advanceStock({ done: 0 }, p.tps, p.S, RES), box: p.S.stockBox }));
+      const zin = stockFromPrevious(fin, { frame: S.frame, box: S.stockBox }, RES);
+      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const toF = (F, q) => { const d = [q[0] - F.o[0], q[1] - F.o[1], q[2] - F.o[2]]; return [dot(d, F.x), dot(d, F.y), dot(d, F.z)]; };
+      const fromF = (F, q) => [0, 1, 2].map((k) => F.o[k] + F.x[k] * q[0] + F.y[k] * q[1] + F.z[k] * q[2]);
+      const dolu = (P) => { for (const f of fin) { const q = toF(f.frame, P), H = f.hm, B = f.box, e = 1e-6; if (q[0] < B.min[0] - e || q[0] > B.max[0] + e || q[1] < B.min[1] - e || q[1] > B.max[1] + e || q[2] < B.min[2] - e || q[2] > B.max[2] + e) continue; const i = Math.min(H.nx - 1, Math.max(0, Math.floor((q[0] - H.x0) / H.res))), j = Math.min(H.ny - 1, Math.max(0, Math.floor((q[1] - H.y0) / H.res))); const h = H.data[j * H.nx + i]; if (h <= B.min[2] + e || q[2] > h + e) return false; } return true; };
+      const ham = (x, y) => { for (let z = S.stockBox.max[2]; z > S.stockBox.min[2]; z -= 0.05) if (dolu(fromF(S.frame, [x, y, z]))) return z; return S.stockBox.min[2]; };
+      const o10 = S3.ops.find((o) => o.id === 'o10'), T30 = tools.find((t) => t.id === o10.toolId); const alt = o10.depth.z + T30.bodyLen; const HR = HOLDER.dia / 2;
+      const delik = {};
+      for (const hx of [16, -16]) {
+        const en = { ayri: S.stockBox.max[2], zincir: -Infinity, zincir_genisletmesiz: -Infinity, model: -Infinity };
+        for (let j = 0; j < zin.ny; j++) for (let i = 0; i < zin.nx; i++) {
+          const x = zin.x0 + (i + 0.5) * RES, y = zin.y0 + (j + 0.5) * RES; if (Math.hypot(x - hx, y) > HR) continue;
+          en.zincir = Math.max(en.zincir, zin.data[j * zin.nx + i]); en.zincir_genisletmesiz = Math.max(en.zincir_genisletmesiz, ham(x, y));
+          const mi = Math.floor((x - hm3.x0) / hm3.res), mj = Math.floor((y - hm3.y0) / hm3.res); if (mi >= 0 && mj >= 0 && mi < hm3.nx && mj < hm3.ny) en.model = Math.max(en.model, hm3.data[mj * hm3.nx + mi]);
+        }
+        delik[hx] = Object.fromEntries(Object.entries(en).map(([k, v]) => [k, { en_yuksek: r3(v), bosluk: r3(alt - v) }]));
+      }
+      R.deneyler.WP21_S3_tutucu = { aciklama: 'o10 dibinde tutucu alti ile tutucu dairesindeki en yuksek malzeme (bosluk < 0: carpisma)', tutucu_alti: r3(alt), tasma: T30.bodyLen, delik };
+      log('deney WP21_S3_tutucu', JSON.stringify(R.deneyler.WP21_S3_tutucu));
+    }
+  } catch (e) { R.deneyler.WP21_S3_tutucu = { hata: opError(e) }; }
+}
 for (const rec of R.setups) { delete rec.S; delete rec.tps; delete rec.hm; if (rec.program) { rec.tahmini_sure_s = r3(rec.islemler.filter((o) => o.ok).reduce((a, o) => a + o.sure_s, 0)); delete rec.program; } else delete rec.program; }
 R.fusion = fs.existsSync(FUSION_JSON) ? JSON.parse(fs.readFileSync(FUSION_JSON, 'utf8')) : null;
 if (R.fusion) delete R.fusion.nc;

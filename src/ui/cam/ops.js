@@ -10,6 +10,7 @@ import { postProgram, postPropsMissing } from '../../cam/post/index.js';
 import { openMachineManager } from './machines.js';
 import { uid, hashStr } from './util.js';
 import { replicateProgram } from '../../cam/multipart.js';
+import { postRunOpts } from './postopts.js';
 import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
 import { SimRun } from './simbar.js';
 import { showIssueList, showNc as showNcModal, openVerify as openVerifyDlg } from './postui.js';
@@ -235,7 +236,8 @@ export class CamOps {
   runPost(program, gates) {
     const v = this.verifiedState(); program.number = this.progNo;
     { const pt = this.cam.data().parts; if (pt && pt.count > 1) program = replicateProgram(program, { count: pt.count, order: pt.order || 'byOp', machine: this.cam.machine() }).program; } // WP-14: mengenede coklu parca
-    return postProgram(program, this.cam.machine(), { gates, units: this.cam.data().units === 'inch' ? 'inch' : 'mm', appVersion: APP_VERSION, date: new Date().toISOString().slice(0, 10), ...(v.ok ? { verified: { by: v.rec.by, date: v.rec.date, note: v.rec.note } } : {}) });
+    // WP-21: NC başlığı model özeti için belge adı, model kutusu ve tam üretim zamanı (postopts.js)
+    return postProgram(program, this.cam.machine(), { ...postRunOpts({ program, fileName: this.app.fileName, result: this.app.result, gates, appVersion: APP_VERSION, verified: v.ok ? { by: v.rec.by, date: v.rec.date, note: v.rec.note } : null }), units: this.cam.data().units === 'inch' ? 'inch' : 'mm' });
   }
   async post() {
     const r = await this.prepare(); if (!r) return;

@@ -51,8 +51,8 @@ function checkPocket(tp, PR, r, stR, op, label) {
     if (!V.inRegion(p, PR)) outside++;
     if (Math.abs(s.z - finalZ) < 1e-6) finalPts.push(p);
     if (s.t && Math.abs(D - (r + stR)) < 1e-3 && s.m.kind === 'cut' && s.m.z === s.from.z) {
-      const nq = V.nearestOn(p, PR.segs); const w = [nq.q[0] - p[0], nq.q[1] - p[1]]; const cr = s.t[0] * w[1] - s.t[1] * w[0];
-      if (Math.abs(cr) > 0.5 * Math.hypot(...w)) { dirN++; if (op.dir === 'conv' ? cr < 0 : cr > 0) dirBad++; }
+      const wd = V.wallDir(p, s.t, PR.segs, r + stR); // WP-21: iki ayri duvara degen (sivri uc) ornek belirsiz sayilir
+      if (wd) { dirN++; if (op.dir === 'conv' ? wd.cr < 0 : wd.cr > 0) dirBad++; }
     }
   });
   // rampa egimi
@@ -85,7 +85,7 @@ function checkContour(tp, PR, r, stR, op, label, inside) {
     const p = [s.x, s.y]; const D = grid.near(p, r + stR + 2); if (D < worst) worst = D;
     const inn = V.inRegion(p, PR); if (inside ? !inn : inn) wrongSide++;
     if (Math.abs(s.z - zFloor) < 1e-6) finalPts.push(p);
-    if (s.t && Math.abs(D - (r + stR)) < 1e-3 && s.m.kind === 'cut') { const nq = V.nearestOn(p, PR.segs); const w = [nq.q[0] - p[0], nq.q[1] - p[1]]; const cr = s.t[0] * w[1] - s.t[1] * w[0]; if (Math.abs(cr) > 0.5 * Math.hypot(...w)) { dirN++; if (op.dir === 'conv' ? cr < 0 : cr > 0) dirBad++; } }
+    if (s.t && Math.abs(D - (r + stR)) < 1e-3 && s.m.kind === 'cut') { const wd = V.wallDir(p, s.t, PR.segs, r + stR); if (wd) { dirN++; if (op.dir === 'conv' ? wd.cr < 0 : wd.cr > 0) dirBad++; } }
   });
   ok(worst >= r + stR - TOL, `${label}: takim merkezi parcaya ${worst.toFixed(4)} < ${(r + stR).toFixed(4)}`);
   ok(wrongSide === 0, `${label}: ${wrongSide} ornek yanlis tarafta`);
