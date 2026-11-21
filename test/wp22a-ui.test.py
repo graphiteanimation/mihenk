@@ -186,6 +186,46 @@ try:
     tt = ev('document.querySelector("#toast .toast.err").textContent'); check('bozuk PDF: Türkçe hata iletisi', 'PDF' in tt and ('bozuk' in tt or 'okunamadı' in tt), tt)
     check('bozuk PDF: süre makul, altlık değişmedi', time.time() - t0 < 40 and UL()['data'] == before['data'], '%.1f' % (time.time() - t0))
     shot('wp22a-4-bozuk-pdf')
+
+    # ---------------------------------------------------------------- H. teknik resim: kopuk ölçüyü yeni kenara bağla
+    print('H: kopuk ölçü -> yeni kenar')
+    ev('app.cancelSketch && app.cancelSketch()'); page.wait_for_timeout(300)
+    pts = {'O': {'x': 0, 'y': 0, 'fixed': True}, 'a': {'x': 0, 'y': 0}, 'b': {'x': 50, 'y': 0}, 'c': {'x': 50, 'y': 30}, 'd': {'x': 0, 'y': 30}}
+    ents = [{'id': 'l1', 'type': 'line', 'a': 'a', 'b': 'b'}, {'id': 'l2', 'type': 'line', 'a': 'b', 'b': 'c'}, {'id': 'l3', 'type': 'line', 'a': 'c', 'b': 'd'}, {'id': 'l4', 'type': 'line', 'a': 'd', 'b': 'a'}]
+    docH = {'params': [], 'rollback': None, 'features': [{'id': 's1', 'type': 'sketch', 'name': 'S', 'plane': {'kind': 'base', 'name': 'XY', 'offset': '0'}, 'points': pts, 'ents': ents, 'cons': []},
+        {'id': 'e1', 'type': 'extrude', 'name': 'E', 'sketch': 's1', 'profiles': 'all', 'dist': '10', 'extent': 'dist', 'dir': 'one', 'op': 'new'}]}
+    ev('(d) => app.loadDoc(d)', docH); idle(); page.wait_for_function('() => app.result && app.result.bodies && app.result.bodies.length === 1', timeout=30000)
+    ev('app.setMode("drawing")'); page.wait_for_timeout(300); ev('app.drawing.newSheet()')
+    page.wait_for_function('() => app.drawing.C && Object.keys(app.drawing.C.views).length >= 1', timeout=60000)
+    info = ev("""() => { const D = app.drawing; const vid = Object.keys(D.C.views).find((k) => D.C.views[k].v.orient === 'front'); const V = D.C.views[vid];
+      return { vid, prims: V.prims.filter((p) => p.t === 'l' && p.vis && p.src).map((p) => ({ src: p.src, a: p.a, b: p.b })) }; }""")
+    vert = [q for q in info['prims'] if abs(q['a'][0] - q['b'][0]) < 1e-6]
+    check('önden görünüşte iki dikey kenar var', len(vert) >= 2, str(len(vert)))
+    left = min(vert, key=lambda q: q['a'][0]); right = max(vert, key=lambda q: q['a'][0])
+    # ölçüyü belgeye yaz (iki dikey kenar arası yatay ölçü), sonra sağ kenarın bağını kopar
+    ev("""([vid, l, r]) => { const D = app.drawing; const V = D.C.views[vid]; const P = (src) => V.prims.find((p) => p.src === src);
+      const ref = (p) => ({ src: p.src, t: 'l', g: { a: p.a.slice(), b: p.b.slice() }, pt: 'a', q: p.a.slice() });
+      D.mut((d) => { d.dims.push({ id: 'dH1', view: vid, type: 'lin', dir: 'h', refs: [ref(P(l)), ref(P(r))], off: 8 }); }); }""", [info['vid'], left['src'], right['src']])
+    page.wait_for_function('() => app.drawing.C && app.drawing.C.dims.length === 1 && !app.drawing.C.dims[0].lost', timeout=30000)
+    v0 = ev('app.drawing.C.dims[0].value'); check('ölçü 50 mm, kopuk değil', abs(v0 - 50) < 1e-6, str(v0))
+    ev("""() => { app.drawing.mut((d) => { const r = d.dims[0].refs[1]; r.src = 'yok-kenar'; r.g = { a: [999, 999], b: [999, 1005] }; }); }""")
+    page.wait_for_function('() => app.drawing.C && app.drawing.C.dims[0] && app.drawing.C.dims[0].lost', timeout=30000)
+    check('ölçü kopuk (kırmızı) işaretlendi', ev('app.drawing.C.dims[0].lost') is True)
+    ev("app.drawing.select({ kind: 'dim', id: 'dH1' })"); page.wait_for_selector('[data-testid="drw-dim-relink"]', timeout=5000)
+    page.click('[data-testid="drw-dim-relink"]'); check('bağlama aracı etkin', ev('app.drawing.tool && app.drawing.tool.kind') == 'relink')
+    # sağ kenarın ortasına gerçek fare tıklaması (sayfa -> ekran: SVG matrisi)
+    scr = ev("""([vid, r]) => { const D = app.drawing; const V = D.C.views[vid]; const p = V.prims.find((q) => q.src === r); const m = [(p.a[0] + p.b[0]) / 2, (p.a[1] + p.b[1]) / 2]; const pl = V.pl;
+      const sp = pl.c ? [pl.o[0] + pl.s * (m[0] - pl.c[0]), pl.o[1] + pl.s * (m[1] - pl.c[1])] : [pl.o[0] + pl.s * m[0], pl.o[1] + pl.s * m[1]];
+      const s = D.svg; const pt = s.createSVGPoint(); pt.x = sp[0]; pt.y = D.C.H - sp[1]; const q = pt.matrixTransform(s.getScreenCTM()); return [q.x, q.y]; }""", [info['vid'], right['src']])
+    page.mouse.move(scr[0], scr[1]); page.wait_for_timeout(80); page.mouse.click(scr[0], scr[1])
+    page.wait_for_function('() => app.drawing.C && app.drawing.C.dims[0] && !app.drawing.C.dims[0].lost', timeout=30000)
+    check('bağ yenilendi: ölçü kopuk değil, 50 mm', abs(ev('app.drawing.C.dims[0].value') - 50) < 1e-6, str(ev('app.drawing.C.dims[0].value')))
+    check('yeni bağ gerçek kenar anahtarını taşır; araç kapandı', ev('app.drawing.current().dims[0].refs[1].src') == right['src'] and ev('app.drawing.tool') is None)
+    # model değişince (50 -> 60) yenilenen bağ anahtarla izlenir
+    ev("(d) => app.loadDoc(d)", {**docH, 'features': [{**docH['features'][0], 'points': {**pts, 'b': {'x': 60, 'y': 0}, 'c': {'x': 60, 'y': 30}}}, docH['features'][1]], 'drawings': ev('app.doc.drawings')}); idle()
+    page.wait_for_function('() => app.drawing.C && app.drawing.C.dims[0] && !app.drawing.C.dims[0].lost && Math.abs(app.drawing.C.dims[0].value - 60) < 1e-6', timeout=30000)
+    check('model 60 mm olunca bağlanan ölçü 60 mm izler', True)
+    shot('wp22a-5-relink')
     check('konsolda sayfa hatası yok', not errs, str(errs[:3]))
     br.close()
 finally:
