@@ -10,6 +10,7 @@ import { computeChamfer } from './ops/chamfer.js';
 import { computeCircular } from './ops/circular.js';
 import { computeSlot, computeTrace } from './ops/slot.js';
 import { computeThread } from './ops/thread.js';
+import { computeWrapContour, computeWrapPocket, computeWrapDrill } from './ops/wrap.js';
 export { gates, gatesAsync } from './gates.js';
 export { simulateAsync } from './sim/async.js';
 export { gcodeToProgram } from './sim/gcode.js';
@@ -77,7 +78,8 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
     const o = org.kind === 'point' ? F0.map((a) => dot(a, org.p)) : [0, 0, 0]; const R = st.dia / 2; const cx = (mb.min[0] + mb.max[0]) / 2;
     sb = { min: [cx - st.len / 2, o[1] - R, o[2] - R], max: [cx + st.len / 2, o[1] + R, o[2] + R] }; stock = { kind: 'cyl', dia: st.dia, len: st.len };
     // model silindirin icinde mi (yonlu kutu koseleri, muhafazakar)
-    for (const yy of [mb.min[1], mb.max[1]]) for (const zz of [mb.min[2], mb.max[2]]) if (Math.hypot(yy - o[1], zz - o[2]) > R + 1e-6) throw cerr('cam.setup.stock_small');
+    // WP-16: kutu koseleri yerine goruntu agi koseleri (silindirik model kutu koselerinde yanlis "stok kucuk" verirdi); ag kirisleri yuzeyin icinde
+    for (const b of bodies) { const v = b.vertices; for (let i = 0; i < v.length; i += 3) { const yy = v[i] * F0[1][0] + v[i + 1] * F0[1][1] + v[i + 2] * F0[1][2], zz = v[i] * F0[2][0] + v[i + 1] * F0[2][1] + v[i + 2] * F0[2][2]; if (Math.hypot(yy - o[1], zz - o[2]) > R + 1e-6) throw cerr('cam.setup.stock_small'); } }
     if (mb.min[0] < sb.min[0] - 1e-6 || mb.max[0] > sb.max[0] + 1e-6) throw cerr('cam.setup.stock_small');
   } else throw cerr('cam.setup.bad_field', { field: 'stock.kind' });
   // orijin (yonlu koordinatlarda)
@@ -118,7 +120,18 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
   const stockCyl = stock.kind === 'cyl' ? { yc: (stockBox.min[1] + stockBox.max[1]) / 2, zc: (stockBox.min[2] + stockBox.max[2]) / 2, R: stock.dia / 2 } : null;
   // WP-13: baglama govdeleri (taban setup cercevesi / model uzayi -> setup cercevesi; sim carpma denetimi + gorunum)
   const fixtures = resolveFixtures(setup.fixtures, { frame, frame0: { o, x, y, z }, bodies: rebuild?.bodies || [], partBodies: ids });
-  return { id: setup.id, name: setup.name ?? setup.id, bodies: ids, workOffset: { ...wo }, frame, frame0: { o, x, y, z }, aAngle, stock, stockCyl, stockBox, modelBBox, clearance: clr, stockTop: stockBox.max[2], machinePos: setup.machinePos ?? null, ...(fixtures.length ? { fixtures } : {}) };
+  // WP-16: sarma kipi (setup.wrap.enabled): silindir stok (eksen X, WCS orijini eksen uzerinde: stockCyl merkezi), A ekseni X etrafinda;
+  // 3+1 indeksleme ile birlikte kullanilmaz (sarma islemleri A'yi kendileri surer). r = setup.wrap.dia/2 (yoksa stok capi/2).
+  let wrap = null;
+  if (setup.wrap?.enabled) {
+    if (stock.kind !== 'cyl') throw cerr('cam.wrap.needs_cyl');
+    if (aAngle !== null) throw cerr('cam.wrap.rotary_conflict');
+    const A = machine?.axes?.A; if (!A || A.kind !== 'rotary' || A.about !== 'X' || !Array.isArray(A.dir)) throw cerr('cam.setup.no_rotary');
+    if (Math.hypot(stockCyl.yc, stockCyl.zc) > 1e-6) throw cerr('cam.wrap.origin_off_axis', { y: stockCyl.yc, z: stockCyl.zc });
+    const dia = setup.wrap.dia ?? stock.dia; if (!(isNum(dia) && dia > 0)) throw cerr('cam.setup.bad_field', { field: 'wrap.dia' });
+    wrap = { r: dia / 2, R: stock.dia / 2, dia, sign: A.dir[0] < 0 ? -1 : 1 };
+  }
+  return { id: setup.id, name: setup.name ?? setup.id, bodies: ids, workOffset: { ...wo }, frame, frame0: { o, x, y, z }, aAngle, stock, stockCyl, stockBox, modelBBox, clearance: clr, stockTop: stockBox.max[2], machinePos: setup.machinePos ?? null, ...(fixtures.length ? { fixtures } : {}), ...(wrap ? { wrap } : {}) };
 }
 
 // computeOp(op, ctx) -> Toolpath (IR) | throw CamErr.  ctx = { setup: resolveSetup sonucu, tool: belge takimi, geom, machine }
@@ -145,6 +158,9 @@ function runOp(op, c) {
     case 'threadmill': return computeThread(op, c);
     case 'adaptive': return computeAdaptive(op, c);
     case 'flat': return computeFlat(op, c);
+    case 'wrapContour': return computeWrapContour(op, c);
+    case 'wrapPocket': return computeWrapPocket(op, c);
+    case 'wrapDrill': return computeWrapDrill(op, c);
     default: throw cerr('cam.op.unsupported', { what: String(op.type) });
   }
 }

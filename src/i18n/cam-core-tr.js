@@ -231,4 +231,13 @@ export default {
   "err.cam.adaptive.no_entry_left": "Yaklaşık {area} mm² malzemeye giriş bulunamadı (helis sığmıyor ve havadan ulaşılamıyor). Helis çapını küçültün ya da bölgeyi önce başka işlemle açın.",
   "err.cam.flat.nothing": "Seçili yüzlerin üstünde alınacak malzeme yok (yüz stok üstünde).",
   "err.cam.flat.face_at_top": "{n} yüz stok üstüyle aynı yükseklikte; atlandı.",
+  // WP-16 sarma
+  "err.cam.wrap.needs_cyl": "Sarma kipi silindir stok ister (eksen X).",
+  "err.cam.wrap.rotary_conflict": "Sarma kipi ile A indeksleme (3+1) aynı setup'ta kullanılamaz; sarma işlemleri A eksenini kendileri döndürür.",
+  "err.cam.wrap.origin_off_axis": "Sarma kipinde iş koordinatı orijini A ekseni üzerinde olmalı (eksenden uzaklık Y {y}, Z {z} mm).",
+  "err.cam.wrap.no_wrap_setup": "{op}: sarma işlemi yalnız sarma kipindeki setup'ta hesaplanır (setup → Sarma kipi).",
+  "err.cam.wrap.move_unsupported": "Sarma: '{t}' hareketi silindire sarılamıyor.",
+  "err.cam.wrap.no_wear_comp": "{op}: sarma işleminde takım telafisi (G41/G42) yok; telafiyi 'bilgisayar' yapın.",
+  "err.cam.wrap.predrill_unsupported": "Sarılmış cepte ön delik girişi desteklenmiyor; helis, rampa ya da dalma seçin.",
+  "err.cam.gate.wrap_sim_limits": "{op}: sarma simülasyonu silindirik stokta malzeme kaldırır ve takım/sap/tutucu çarpmasını denetler; modele oyma ve bağlama gövdesi denetimi yapılmaz.",
 };

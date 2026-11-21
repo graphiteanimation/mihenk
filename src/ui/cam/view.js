@@ -132,6 +132,7 @@ export class CamView {
 
 // Takım yolu hareketlerini doğru parçalarına açar: cb(tür 'rapid'|'cut'|'lead', [x,y,z], [x,y,z]); only verilirse yalnız o hareket.
 export function walkMoves(tp, cb, only = null) {
+  if (tp.wrap) { wrapWalk(tp, cb, only); return; }
   let p = null;
   tp.moves.forEach((m, k) => {
     const want = only === null || only === k; const q = m.t === 'cycle' ? null : [m.x, m.y, m.z];
@@ -142,5 +143,16 @@ export function walkMoves(tp, cb, only = null) {
     } else if (m.t === 'cycle') {
       for (const [x, y] of m.points) { if (want) { if (p) cb('rapid', p, [x, y, m.clearance]); cb('rapid', [x, y, m.clearance], [x, y, m.retract]); cb('cut', [x, y, m.retract], [x, y, m.bottom]); } p = [x, y, m.clearance]; }
     }
+  });
+}
+// WP-16: sarma yolu parca uzerinde (A = 0 cercevesi): (x, z = uc yaricapi, a) -> (x, z sin phi, z cos phi); A degisen parcalar <= 2 derece bolunur
+function wrapWalk(tp, cb, only) {
+  const sg = tp.meta?.wrap?.sign ?? 1; const P = (q) => { const f = (q.a * Math.PI / 180) * sg; return [q.x, q.z * Math.sin(f), q.z * Math.cos(f)]; };
+  const line = (kind, a, b) => { const n = Math.max(1, Math.ceil(Math.abs(b.a - a.a) / 2)); let q0 = P(a); for (let i = 1; i <= n; i++) { const t = i / n; const q1 = P({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, a: a.a + (b.a - a.a) * t }); cb(kind, q0, q1); q0 = q1; } };
+  let p = null;
+  tp.moves.forEach((m, k) => {
+    const want = only === null || only === k;
+    if (m.t === 'rapid' || m.t === 'feed') { const q = { x: m.x, z: m.z, a: m.a ?? p?.a ?? 0 }; if (want && p) line(m.t === 'rapid' ? 'rapid' : m.kind === 'cut' ? 'cut' : 'lead', p, q); p = q; }
+    else if (m.t === 'cycle') for (const [x] of m.points) { const a = p?.a ?? 0, c = { x, z: m.clearance, a }; if (want) { if (p) line('rapid', p, c); line('rapid', c, { x, z: m.retract, a }); line('cut', { x, z: m.retract, a }, { x, z: m.bottom, a }); } p = c; }
   });
 }

@@ -2,9 +2,9 @@
 // Dil: G0/1/2/3/4, G17, G21, G28 (G91 ile), G40/41/42, G43/49, G53, G54-59/G54.1 Pn, G73/74/80-85/89, G90/G91, G94, G98/99, G05/G05.1 (olay),
 // A, M0/1/3/4/5/6/8/9/30 (+ ozellik tablosundaki sogutma kodlari, makine A kilidi, senkron kilavuz M kodu), T S F H D X Y Z I J R Q P, ",R1", N, O.
 // NC'de karsiligi olmayan alanlar (kind, cycle.top, opName...) geri okunamaz: ir.js compareToolpaths bunlari yok sayar.
-import { perr, resolveProps, resolveRotary } from './engine.js';
+import { perr, resolveProps, resolveRotary, wrapAMode } from './engine.js';
 import { getPost } from './registry.js';
-import { computeStats } from '../ir.js';
+import { computeStats, wrapMoveLen } from '../ir.js';
 
 const LETTERS = 'NOGMXYZAIJRQPFSTHD';
 
@@ -40,7 +40,7 @@ export function readNC(text, opts = {}) {
   const sections = [];
   const S = {
     motion: null, x: null, y: null, z: null, f: null, rpm: null, dir: null, tool: null, pendingT: null, H: null, D: null,
-    wcs: { kind: 'G54' }, aCur: 0, inc: false, comp: null, coolant: 'off', cycle: null, retrMode: null, end: false, program: { name: null, number: null }, opComment: null,
+    wcs: { kind: 'G54' }, aCur: 0, aCont: 0, inverse: false, inc: false, comp: null, coolant: 'off', cycle: null, retrMode: null, end: false, program: { name: null, number: null }, opComment: null,
   };
   let cur = null; let pending = null; // pending: {x,y,line}
   const mcodeEq = (v, code) => code != null && String(code).toUpperCase() === 'M' + v;
@@ -53,7 +53,10 @@ export function readNC(text, opts = {}) {
     if (!cur) return;
     const c = cur; cur = null; if (!c.moves.length) return;
     const firstZ = c.moves[0].z;
-    const tp = { opId: 'rd' + sections.length, opName: c.opName || 'read', opType: 'read', tool: { number: c.tool, H: c.H, D: c.D }, rpm: S.rpm, spindleDir: S.dir === 'M4' ? 'ccw' : 'cw', coolant: S.coolant, comp: c.comp, compSide: c.compSide, clearanceZ: firstZ, retractZ: firstZ, moves: c.moves };
+    // WP-16: bolumde eszamanli A hareketi varsa sarma yolu (tum hareketler a tasir); yoksa a alanlari atilir
+    if (c.wrap) for (const m of c.moves) { if ((m.t === 'rapid' || m.t === 'feed') && m.a == null) m.a = c.setup.aAngle; }
+    else for (const m of c.moves) delete m.a;
+    const tp = { opId: 'rd' + sections.length, opName: c.opName || 'read', opType: 'read', tool: { number: c.tool, H: c.H, D: c.D }, rpm: S.rpm, spindleDir: S.dir === 'M4' ? 'ccw' : 'cw', coolant: S.coolant, comp: c.comp, compSide: c.compSide, clearanceZ: firstZ, retractZ: firstZ, moves: c.moves, ...(c.wrap ? { wrap: { axis: 'X' } } : {}) };
     tp.stats = computeStats(tp);
     sections.push({ setup: c.setup, toolpath: tp });
   };
@@ -100,7 +103,7 @@ export function readNC(text, opts = {}) {
     const Ms = words.filter((w) => w.l === 'M').map((w) => w.v);
     // WP-14: G20 (inc) iken uzunluk/ilerleme sozcukleri mm'ye cevrilir (G21 geri alir)
     if (Gs.includes(20)) S.inch = true; else if (Gs.includes(21)) S.inch = false;
-    if (S.inch) for (const w of words) if ('XYZIJRQF'.includes(w.l) && !Gs.includes(5) && !Gs.includes(5.1)) w.v *= 25.4;
+    if (S.inch) for (const w of words) if ('XYZIJRQF'.includes(w.l) && !Gs.includes(5) && !Gs.includes(5.1) && !(w.l === 'F' && (S.inverse || Gs.includes(93)))) w.v *= 25.4;
     const has = (g) => Gs.includes(g);
     const isCycleCode = (g) => [73, 74, 76, 81, 82, 83, 84, 85, 87, 89].includes(g);
 
@@ -110,7 +113,9 @@ export function readNC(text, opts = {}) {
       if (g === 0 || g === 1 || g === 2 || g === 3) newMotion = g;
       else if (g === 4) dwell = true;
       else if (g === 5 || g === 5.1) { events.push({ line: ln, ev: 'highSpeed', word: 'G' + g, p: W('P')?.v ?? W('Q')?.v }); }
-      else if (g === 17 || g === 20 || g === 21 || g === 94) { /* sabit lehce */ }
+      else if (g === 17 || g === 20 || g === 21) { /* sabit lehce */ }
+      else if (g === 94) S.inverse = false;
+      else if (g === 93) { S.inverse = true; S.f = null; } // WP-16: ters zaman ilerleme (sarma)
       else if (g === 90) S.inc = false;
       else if (g === 91) S.inc = true;
       else if (g === 28) retractEv = true;
@@ -174,13 +179,21 @@ export function readNC(text, opts = {}) {
       emit({ t: 'dwell', s: readDwell(a, props.dwellUnit, w, ln) }, ln);
       S.motion = null; return;
     }
-    // ---- A indeksleme
+    // ---- A indeksleme (A tek basina). A + X/Y/Z: WP-16 sarma hareketi (asagida, yalniz bolum ortasinda G0/G1)
+    let aNew = null;
     if (A) {
-      if (hasXYZ) fail('cam.post.read_a_with_xyz', ln);
       if (!R) fail('cam.post.read_no_a_axis', ln);
-      S.aCur = A.v; events.push({ line: ln, ev: 'aIndex', a: A.v });
-      if (cur && cur.moves.length) fail('cam.post.read_a_inside_section', ln);
-      return;
+      if (hasXYZ) {
+        const mo = newMotion ?? S.motion;
+        if (!(cur && cur.moves.length) || S.z == null || (mo !== 0 && mo !== 1) || wantCycle != null || S.cycle) fail('cam.post.read_a_with_xyz', ln);
+        // surekli A: 'continuous' kelime farki; 'shortest' kelime farkinin (-180, 180] karsiligi
+        let d = A.v - S.aWord; if (wrapAMode(props, R) === 'shortest') { d = ((d % 360) + 360) % 360; if (d > 180) d -= 360; }
+        aNew = S.aCont + d; S.aWord = A.v; cur.wrap = true;
+      } else {
+        S.aCur = A.v; S.aCont = A.v; S.aWord = A.v; events.push({ line: ln, ev: 'aIndex', a: A.v });
+        if (cur && cur.moves.length) fail('cam.post.read_a_inside_section', ln);
+        return;
+      }
     }
     // ---- delik cevrimi
     if (wantCycle != null || S.cycle) {
@@ -246,14 +259,28 @@ export function readNC(text, opts = {}) {
         return;
       }
       if (Z) S.z = Z.v;
-      emit({ t: 'rapid', x: S.x, y: S.y, z: S.z }, ln);
+      if (aNew != null) S.aCont = aNew;
+      emit({ t: 'rapid', x: S.x, y: S.y, z: S.z, a: S.aCont }, ln);
       return;
     }
     if (S.z == null || S.x == null) fail('cam.post.read_no_position', ln);
-    const sx = S.x, sy = S.y;
+    const sx = S.x, sy = S.y; const from = { x: S.x, y: S.y, z: S.z, a: S.aCont };
     if (X) S.x = X.v; if (Y) S.y = Y.v; if (Z) S.z = Z.v;
+    if (aNew != null) S.aCont = aNew;
+    if (S.inverse) { // WP-16: G93 F = 1 / sure (dakika) -> f = L * F; F her blokta zorunlu
+      if (S.motion !== 1) fail('cam.post.read_inverse_arc', ln);
+      if (!fW) fail('cam.post.read_missing_word', ln, { word: 'F' });
+      const to = { x: S.x, y: S.y, z: S.z, a: S.aCont }; S.f = null;
+      emit({ t: 'feed', x: S.x, y: S.y, z: S.z, f: wrapMoveLen(from, to) * fW.v, kind: 'cut', a: S.aCont }, ln);
+      return;
+    }
     if (S.f == null) fail('cam.post.read_missing_word', ln, { word: 'F' });
-    if (S.motion === 1) emit({ t: 'feed', x: S.x, y: S.y, z: S.z, f: S.f, kind: 'cut' }, ln);
+    if (aNew != null && props.wrapFeedMode === 'degmm') { // birlesik F = f * |dX,dY,dZ,dA| / L
+      const to = { x: S.x, y: S.y, z: S.z, a: S.aCont }, comb = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z, to.a - from.a);
+      emit({ t: 'feed', x: S.x, y: S.y, z: S.z, f: comb > 1e-12 ? S.f * wrapMoveLen(from, to) / comb : S.f, kind: 'cut', a: S.aCont }, ln);
+      return;
+    }
+    if (S.motion === 1) emit({ t: 'feed', x: S.x, y: S.y, z: S.z, f: S.f, kind: 'cut', a: S.aCont }, ln);
     else emit({ t: 'arc', x: S.x, y: S.y, z: S.z, i: I ? I.v : 0, j: J ? J.v : 0, dir: S.motion === 2 ? 'cw' : 'ccw', f: S.f, kind: 'cut' }, ln);
     void sx; void sy;
   });

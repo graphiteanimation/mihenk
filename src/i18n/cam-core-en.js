@@ -230,4 +230,13 @@ export default {
   "err.cam.adaptive.no_entry_left": "No entry found for about {area} mm² of material (the helix does not fit and it cannot be reached from the air). Reduce the helix diameter or open the area with another operation first.",
   "err.cam.flat.nothing": "There is no material above the selected faces (face is at the stock top).",
   "err.cam.flat.face_at_top": "{n} face(s) at the same height as the stock top; skipped.",
+  // WP-16 sarma
+  "err.cam.wrap.needs_cyl": "Wrap mode needs a cylinder stock (axis X).",
+  "err.cam.wrap.rotary_conflict": "Wrap mode and A indexing (3+1) cannot be used in the same setup; wrap operations drive the A axis themselves.",
+  "err.cam.wrap.origin_off_axis": "In wrap mode the work offset origin must be on the A axis (offset from axis Y {y}, Z {z} mm).",
+  "err.cam.wrap.no_wrap_setup": "{op}: a wrap operation is only calculated in a setup in wrap mode (setup → Wrap mode).",
+  "err.cam.wrap.move_unsupported": "Wrap: the '{t}' move cannot be wrapped onto the cylinder.",
+  "err.cam.wrap.no_wear_comp": "{op}: wrap operations have no cutter compensation (G41/G42); set compensation to 'computer'.",
+  "err.cam.wrap.predrill_unsupported": "Predrill entry is not supported in a wrapped pocket; choose helix, ramp or plunge.",
+  "err.cam.gate.wrap_sim_limits": "{op}: the wrap simulation removes material from the cylinder stock and checks tool/shank/holder collisions; gouge against the model and fixture collisions are not checked.",
 };

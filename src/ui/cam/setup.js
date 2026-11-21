@@ -46,6 +46,18 @@ export class SetupPanel {
       return { S: resolveSetup(this.draft, this.app.result, this.cam.machine(), { planes }) };
     } catch (e) { return { err: e }; }
   }
+  // WP-16: sarma capi ve ekseni silindirik yuzden: cap = 2 x yaricap, orijin = yuz ekseni uzerindeki nokta (eksen X'e paralel olmali)
+  async pickWrap(hit) {
+    if (!hit || hit.kind !== 'face') return;
+    const d = this.draft;
+    try {
+      const ds = await this.app.describe(hit, 'face');
+      if (!(ds?.radius > 0) || !ds.axis) { this.app.toastInfo(t('cam.su.wrap_not_cyl')); }
+      else if (Math.abs(Math.abs(ds.axis.d[0]) - 1) > 1e-6) { this.app.toastInfo(t('cam.su.wrap_axis_not_x')); }
+      else { d.wrap = { ...(d.wrap || {}), enabled: true, dia: Math.round(ds.radius * 2e3) / 1e3 }; d.frame.origin = { kind: 'point', p: ds.axis.o.map((v) => Math.round(v * 1e6) / 1e6) }; }
+    } catch (e) { this.app.toastInfo(errText(e)); }
+    this.endPick(); this.render(); this.check();
+  }
   // WP-07: eksen secimi gorunumden (yuz ya da duz kenar)
   // WP-07: yuvarlak stok onerisi: secili govdelerin X eksenine gore yaricap (orijinden) ve X boyu + 2 mm pay (yalniz oneri; kullanici duzenler)
   cylGuess() {
@@ -56,6 +68,7 @@ export class SetupPanel {
   startPick(which) { this.pickAxis = which; const vp = this.app.viewport; vp.setFilter({ face: true, edge: true }); vp.setSelection([]); this.app.setHint(t('cam.su.pick_axis_hint')); this.render(); this.check(); }
   endPick() { this.pickAxis = null; const vp = this.app.viewport; vp.setFilter({}); vp.setSelection([]); this.app.setHint(''); }
   async onPick(hit) {
+    if (this.pickAxis === 'wrap') { await this.pickWrap(hit); return; }
     if (!this.pickAxis || !hit || (hit.kind !== 'face' && hit.kind !== 'edge')) return;
     const which = this.pickAxis; const key = which === 'z' ? 'zAxis' : 'xAxis'; const d = this.draft;
     try {
@@ -140,9 +153,20 @@ export class SetupPanel {
     rows.push(sec(t('cam.su.rotary')));
     if (!A) rows.push(h('div', { class: 'note', text: t('cam.su.no_a_axis') }));
     else {
-      rows.push(checkField({ label: t('cam.su.a_on'), value: !!d.rotary.enabled, f: 'su-a-on', hint: t('cam.su.a_hint'), set: (v) => { d.rotary.enabled = v; this.render(); upd(); } }));
+      rows.push(checkField({ label: t('cam.su.a_on'), value: !!d.rotary.enabled, f: 'su-a-on', hint: t('cam.su.a_hint'), set: (v) => { d.rotary.enabled = v; if (v) delete d.wrap; this.render(); upd(); } }));
       // M-02: 3+1'de orijin A=0 çerçevesinde tanımlıdır; döndürülen stok üstü Z=0 olmaz, Mutlak Z buna göre girilir
       if (d.rotary.enabled) rows.push(h('div', { class: 'help', 'data-testid': 'su-a-origin-note', text: t('cam.su.a_origin_note') }));
+      // WP-16: sarma kipi (eszamanli X/A): silindir stok, A indeksleme kapali; cap bos = stok capi
+      const W = d.wrap || {};
+      rows.push(checkField({ label: t('cam.su.wrap_on'), value: !!W.enabled, f: 'su-wrap-on', hint: t('cam.su.wrap_hint'), set: (v) => {
+        if (v) { d.wrap = { ...W, enabled: true }; d.rotary.enabled = false; if (d.stock.kind !== 'cyl') d.stock = { kind: 'cyl', ...this.cylGuess(), axis: 'X' }; if (!['point', 'model'].includes(d.frame.origin.kind)) d.frame.origin = { kind: 'model' }; }
+        else delete d.wrap;
+        this.render(); upd(); } }));
+      if (W.enabled) {
+        rows.push(numField({ label: t('cam.su.wrap_dia'), value: W.dia ?? null, unit: 'mm', nullable: true, min: 0.001, f: 'su-wrap-dia', hint: t('cam.su.wrap_dia_hint'), set: (v) => { if (v == null) delete d.wrap.dia; else d.wrap.dia = v; upd(); } }));
+        rows.push(h('div', { class: 'op-grow' }, h('button', { class: 'btn ghost sm', type: 'button', 'data-testid': 'su-wrap-pick', 'aria-pressed': String(this.pickAxis === 'wrap'), onclick: () => { if (this.pickAxis === 'wrap') { this.endPick(); this.render(); } else { this.pickAxis = 'wrap'; const vp = this.app.viewport; vp.setFilter({ face: true }); vp.setSelection([]); this.app.setHint(t('cam.su.wrap_pick_hint')); this.render(); } } }, t(this.pickAxis === 'wrap' ? 'cam.su.pick_axis_cancel' : 'cam.su.wrap_pick'))));
+        rows.push(h('div', { class: 'help', 'data-testid': 'su-wrap-note', text: t('cam.su.wrap_note') }));
+      }
       if (d.rotary.enabled) rows.push(numField({ label: t('cam.su.a_angle'), value: d.rotary.aAngle, unit: '°', nullable: false, min: -1e5, f: 'su-a-angle', warn: (v) => (v !== null && A.limits && (v < A.limits[0] || v > A.limits[1]) ? t('cam.su.a_limits', { min: A.limits[0], max: A.limits[1] }) : null), set: (v) => { d.rotary.aAngle = v; upd(); } }));
     }
     // WP-13: bağlama gövdeleri (mengene, fikstür, divizör aynası): taban setup çerçevesinde kutu/silindir ya da işlenmeyen belge gövdesi

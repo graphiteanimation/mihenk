@@ -1149,6 +1149,35 @@ try:
     check('teklif: girdi belgeyle saklandı (yoğunluk 2,7)', pg.evaluate("() => app.doc.cam.quote.material.density") == 2.7)
     ctx.close()
 
+    print('WP-16: 4. eksen sarma (setup sarma kipi, radyal delme paneli, şerit)')
+    CYL = {'params': [], 'features': [
+        {'id': 'c1', 'type': 'primitive', 'name': 'Mil', 'kind': 'cylinder', 'x': '0', 'y': '0', 'z': '0', 'dia': '50', 'h': '100', 'axis': 'X', 'op': 'new'},
+    ], 'cam': {'tools': [{'id': 'tdr5', 'number': 7, 'lengthOffset': 7, 'diaOffset': 7, 'type': 'drill', 'dia': 5, 'tipAngle': 118, 'fluteLen': 30, 'bodyLen': 50, 'flutes': 2, 'centerCutting': True,
+        'presets': [{'name': 'Al', 'rpm': 3000, 'feedCut': 150, 'feedPlunge': 150, 'coolant': 'flood'}]}], 'setups': []}}
+    ctx, pg = nw_page(CYL)
+    check('WP-16 şerit 1440 px: delme grubu görünür', pg.evaluate("() => !document.querySelector('#toolbar [data-cmd=cam-op-drill]').closest('.rgroup').classList.contains('ov-hidden')"))
+    check('WP-16 şerit: sarma komutları şeritte ya da taşma menüsünde', pg.evaluate("() => ['cam-op-wrapcontour','cam-op-wrappocket','cam-op-wrapdrill'].every((c) => document.querySelector('#toolbar [data-cmd=' + c + ']'))"))
+    pg.click('[data-cmd=cam-setup]'); pg.wait_for_selector('[data-f=su-wrap-on]', timeout=5000)
+    pg.evaluate("() => document.querySelector('[data-f=su-wrap-on]').click()"); pg.wait_for_timeout(300)
+    check('WP-16 setup: sarma kipi açılınca stok silindir, çap alanı ve doğrulanmadı notu görünür', pg.input_value('[data-f=su-stock-kind]') == 'cyl' and count(pg, '[data-f=su-wrap-dia]') == 1 and 'doğrulanmadı' in txt(pg, '[data-testid=su-wrap-note]'), txt(pg, '#panel')[:300])
+    check('WP-16 setup: A indeksleme kapalı', not pg.evaluate("() => document.querySelector('[data-f=su-a-on]').checked"))
+    pg.click('[data-testid=panel-ok]'); pg.wait_for_timeout(300)
+    check('WP-16 setup: belgede wrap.enabled', pg.evaluate("() => app.doc.cam.setups[0].wrap?.enabled === true && app.doc.cam.setups[0].stock.kind === 'cyl'"), pg.evaluate("() => JSON.stringify(app.doc.cam.setups[0])")[:300])
+    pg.evaluate("() => { app.C.run('cam-op-wrapdrill'); }"); pg.wait_for_selector('[data-testid=op-tab-geom]', timeout=5000)
+    check('WP-16 panel: Radyal delme başlığı', 'Radyal delme' in txt(pg, '#panel'), txt(pg, '#panel')[:120])
+    pg.click('[data-testid=op-tab-geom]'); pg.fill('[data-f=op-wd-points]', '30 0; 30 90; 70 180'); pg.keyboard.press('Tab')
+    pg.click('[data-testid=op-tab-heights]'); pg.fill('[data-f=op-depth-d]', '5'); pg.keyboard.press('Tab')
+    check('WP-16 panel: sarmada işlem A açısı alanı yok', count(pg, '[data-f=op-a-angle]') == 0)
+    pg.click('[data-testid=op-compute]')
+    pg.wait_for_function("() => document.querySelector('[data-testid=op-result] .callout.err') || document.querySelector('[data-testid=op-result] .callout.ok')", timeout=30000)
+    check('WP-16 panel: radyal delme hesaplandı (3 delik, A ile)', count(pg, '[data-testid=op-result] .callout.ok') == 1 and pg.evaluate("() => { const tp = app.cam.ops.draftPath?.tp; return !!tp && tp.wrap?.axis === 'X' && tp.moves.filter((m) => m.t === 'cycle').length === 3 && tp.moves.some((m) => m.a === 90); }"), txt(pg, '[data-testid=op-result]'))
+    pg.click('[data-testid=panel-ok]'); pg.wait_for_timeout(300)
+    pg.evaluate("() => { app.C.run('cam-op-wrapcontour'); }"); pg.wait_for_selector('[data-testid=op-tab-geom]', timeout=5000); pg.click('[data-testid=op-tab-geom]')
+    check('WP-16 panel: sarılmış konturda açılmış geometri notu, telafi seçimi yok', 'açılmış' in txt(pg, '#panel') and count(pg, '[data-f=op-comp]') == 0, txt(pg, '#panel')[:200])
+    pg.click('[data-testid=panel-cancel]'); pg.wait_for_timeout(200)
+    check('WP-16: sayfa hatası yok', not [e for e in pg.errs if 'Failed to load resource' not in e], pg.errs[:3])
+    ctx.close()
+
     br.close()
 finally:
     _srv.stop(server)

@@ -23,7 +23,7 @@ import { CAM_RIBBON } from './ribbon.js';
 import { CamView } from './view.js';
 import { CamOps } from './ops.js';
 
-const OP_ICON = { face: 'op-face', contour: 'op-contour', pocket: 'op-pocket', drill: 'op-drill', chamfer: 'chamfer', circular: 'op-drill', threadmill: 'op-thread', slot: 'op-contour', trace: 'op-contour', adaptive: 'op-adaptive', flat: 'op-face' };
+const OP_ICON = { face: 'op-face', contour: 'op-contour', pocket: 'op-pocket', drill: 'op-drill', chamfer: 'chamfer', circular: 'op-drill', threadmill: 'op-thread', slot: 'op-contour', trace: 'op-contour', adaptive: 'op-adaptive', flat: 'op-face', wrapContour: 'op-contour', wrapPocket: 'op-pocket', wrapDrill: 'op-drill' };
 
 export function hashStr(s) { let x = 2166136261; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 16777619); return (x >>> 0).toString(36); }
 function hashArr(a, seed = 2166136261) { let x = seed; for (let i = 0; i < a.length; i++) x = Math.imul(x ^ ((a[i] * 1000) | 0), 16777619); return x >>> 0; }
@@ -152,6 +152,8 @@ export class CamCtl {
     opcmd('cam-op-adaptive', 'cam.cmd.adaptive', 'op-adaptive', 'adaptive'); opcmd('cam-op-flat', 'cam.cmd.flat', 'op-face', 'flat'); // WP-12
     opcmd('cam-op-drill', 'cam.cmd.drill', 'op-drill', 'drill', 'drill'); opcmd('cam-op-thread', 'cam.cmd.thread', 'op-thread', 'drill', 'tap'); opcmd('cam-op-circular', 'cam.cmd.circular', 'op-pocket', 'circular'); opcmd('cam-op-threadmill', 'cam.cmd.threadmill', 'op-thread', 'threadmill');
     opcmd('cam-op-slot', 'cam.cmd.slot', 'op-contour', 'slot'); opcmd('cam-op-trace', 'cam.cmd.trace', 'op-contour', 'trace');
+    // WP-16: 4. eksen sarma islemleri (setup sarma kipinde hesaplanir)
+    opcmd('cam-op-wrapcontour', 'cam.cmd.wrapcontour', 'op-contour', 'wrapContour'); opcmd('cam-op-wrappocket', 'cam.cmd.wrappocket', 'op-pocket', 'wrapPocket'); opcmd('cam-op-wrapdrill', 'cam.cmd.wrapdrill', 'op-drill', 'wrapDrill');
     reg('cam-op-surface', 'cam.cmd.surface', 'op-surface', () => {}, { off: () => t('cam.soon_op') });
     reg('cam-compute', 'cam.cmd.compute', 'cam-compute', () => this.ops.computeAll(), { off: needOps });
     reg('cam-sim', 'cam.cmd.sim', 'simulate', () => this.ops.simulate(), { off: needOps });
