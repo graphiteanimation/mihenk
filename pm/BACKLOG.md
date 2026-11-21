@@ -57,11 +57,11 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | WP | İş | Kaynak | Model |
 |---|---|---|---|
 | WP-15 | 3D işleme: model yükseklik haritasından ada (T-20), 3D adaptif kaba, Z-seviye kontur, paralel/scallop, kalem, 3D rest, yay uydurma | T-20, T-13, O-026 | O |
-| WP-16 | 4. eksen sarma (wrap) | O-026 | O |
+| WP-16 | 4. eksen sarma (wrap) | O-026 | O · ☑ (bağımsız doğrulandı) |
 | WP-17 | Teknik resim: görünüş, kesit, ölçü/tolerans, delik tablosu, PDF/DXF; ilk parça kontrol formu | O-026, O-015 | S, O · ☑ (bağımsız doğrulandı; açıklar WP-22) |
-| WP-18 | Çok eksen altyapısı: genel kinematik zincirli tezgâh profili, IR'de takım ekseni, setup yönü serbest yüz normali, **3+2 konumlu işleme**, post'ta eğik düzlem (G68.2 sınıfı) seçeneği | K-029 | O |
+| WP-18 | Çok eksen altyapısı: genel kinematik zincirli tezgâh profili, IR'de takım ekseni, setup yönü serbest yüz normali, **3+2 konumlu işleme**, post'ta eğik düzlem (G68.2 sınıfı) seçeneği | K-029 | O · ☑ (bağımsız doğrulandı) |
 | WP-19 | Modelleme ikinci tur: sweep, loft, draft, rib, değişken fillet, helis/diş, IGES | envanter §6–§7 | O · ☑ (bağımsız doğrulandı, bulgular düzeltildi) |
-| WP-22 | 0.6 devirleri: PDF altlık arayüzü (WP-14 çekirdeği hazır) + vektör PDF (pdfjs-dist kararı), DXF kesme çizgisi uçları ayrı katman/çizgi tipi (WP-17), kopuk resim ölçüsünü yeni kenara bağlama, tri-dexel kipinde oyma ve tutucu yan çarpışması + görünüm (WP-13), G87 yukarı kesimde oyma denetimi; WP-12 verimi: rest kipinde havada helis girişi, `rest_material` uyarısının abartılı alanı, dar halkada `no_entry_left` uyarısının kaybolması, temas açısı tepe aşımı (ızgara), paso sonu "çıkış" ilerleme düşürmesi, büyük ceplerde hesap süresi | WP-13/14/17 raporları | O, S |
+| WP-22 | 0.6 devirleri. **22a ☑** (bağımsız doğrulandı): PDF altlık arayüzü + vektör PDF (O-049), DXF kesme çizgisi katmanı, kopuk resim ölçüsünü bağlama. **22b**: tri-dexel kipinde oyma ve tutucu yan çarpışması + görünüm (WP-13), G87 yukarı kesimde oyma denetimi; WP-12 verimi: rest kipinde havada helis girişi, `rest_material` uyarısının abartılı alanı, dar halkada `no_entry_left` uyarısının kaybolması, temas açısı tepe aşımı (ızgara), paso sonu "çıkış" ilerleme düşürmesi, büyük ceplerde hesap süresi | WP-13/14/17 raporları | O, S |
 | — | **Sürüm 0.6** | | |
 
 ## 1.0 ve sonrası
