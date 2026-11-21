@@ -13,7 +13,7 @@ Mihenk; Fusion, NX CAM ve SolidCAM muadili, kendi başına bir masaüstü CAD/CA
 ## 2. Tek doğruluk kaynağı
 | Ne | Nerede |
 |---|---|
-| Kod + geçmiş | GitHub `graphiteanimation/mihenk` (özel, ana depo). Bilgisayardaki `Documents\Fusion-Klon-Spec\Mihenk\mihenk.git` yedektir; sürüm çıkarken eşitlenir. |
+| Kod + geçmiş | GitHub `graphiteanimation/mihenk` (özel, ana depo). Bilgisayardaki `Documents\Mihenk\Mihenk\mihenk.git` yedektir; sürüm çıkarken eşitlenir. |
 | Güncel durum (≤ 40 satır, üzerine yazılır) | `pm/DURUM.md` (kopyası claude.ai projesinde `claude/DURUM.md`) |
 | Yapılacak her şey | `pm/BACKLOG.md` (iş paketleri, sürüm sırası, kaynak bulgu numaraları) |
 | Kararlar ve öneriler | `pm/KARARLAR.md` (K-nnn kullanıcı, O-nnn Claude) |
@@ -32,7 +32,7 @@ Kural: bir bilgi tek yerde durur. Zip kopyası, tarihli devam günlüğü, sohbe
 Başlangıç (kullanıcı mesajı: `Mihenk: devam` ya da `Mihenk: WP-NN`):
 0. **İzinler önce, hepsi birden (K-042).** Hiçbir okuma ya da iş başlamadan, ilk yanıtta tek satır ("Başlamadan izinleri istiyorum; hepsini onaylarsan sonra bir daha sormam.") ve ardından aynı turda şu istemler:
    a. GitHub: `add_repo` (graphiteanimation/mihenk, push).
-   b. Bilgisayar klasörü: `device_request_folder_access` → `~/Documents/Fusion-Klon-Spec` (zaten bağlıysa atla).
+   b. Bilgisayar klasörü: `device_request_folder_access` → `~/Documents/Mihenk` (zaten bağlıysa atla).
    c. Silme izni: `device_request_delete_permission` → aynı klasör (git kilit dosyaları ve yedek depo eşitlemesi için; kullanıcı dosyası silinmez).
    d. Ekran kontrolü: `computer-use` skill'ine göre aç, `computer_request_access` ile Mihenk ve Dosya Gezgini (kurulum dosyasını çalıştırmak için) için erişim iste.
    Bir araç yoksa (ör. telefondan açılan sohbet) o adım atlanır ve DURUM'a yazılır; iş durmaz. Yanıt beklenen bir istem varken başka iş başlatılmaz; onaylar gelince 1. adıma geçilir. Oturumun geri kalanında yeni izin istenmez; gerekirse iş o izni gerektirmeyen yoldan sürer ve DURUM'a not düşülür.

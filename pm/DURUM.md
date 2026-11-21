@@ -1,7 +1,7 @@
 # Mihenk — durum (2026-11-21 UTC, beşinci oturum sonu) — TAMAMLANDI (0.6.0 yayımlandı)
 
 Sürüm: `v0.6.0` (master), bilgisayarda kurulu (son kurulum SHA-256 `427caa1d…3a85`, `Mihenk\surumler\0.6.0\`). Önceki adaylar `Mihenk\arsiv\0.6.0-aday1`, `-aday2`.
-Depo: GitHub `master` yedek depoyla eşitlendi (2026-11-21, 210e3e4 ve sonrası). Etiketler (v0.4.0, v0.5.0, v0.6.0) ve GitHub sürüm sayfası yalnız yedekte: bu ortamın vekili etiket, dal silme ve sürüm yazımını engelliyor. Yedek `Documents\Fusion-Klon-Spec\Mihenk\mihenk.git`.
+Depo: GitHub `master` yedek depoyla eşitlendi (2026-11-21, 210e3e4 ve sonrası). Etiketler (v0.4.0, v0.5.0, v0.6.0) ve GitHub sürüm sayfası yalnız yedekte: bu ortamın vekili etiket, dal silme ve sürüm yazımını engelliyor. Yedek `Documents\Mihenk\Mihenk\mihenk.git`.
 Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARARLAR.md` (K-045, O-051) · kabul: `pm/KABUL-WINDOWS.md`.
 K-035 hedefi (0.6 dahil bitene kadar) tamamlandı: kendi kendini uyandırma kurulmaz. Yeni hedef kullanıcıdan gelir (`Mihenk: devam`).
 

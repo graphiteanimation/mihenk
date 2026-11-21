@@ -52,6 +52,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-046** (2026-11-21) — "tezgah denemesi şimdi yapmıyoruz. kıyaslamayı diğer programların kullanımıyla yapıyoruz. fusion ile yaptığımız test gibi" Anlam: Mihenk'in doğruluk ölçütü tezgâh denemesi değil, aynı parçanın Fusion (ve benzeri programlar) ile programlanıp sonuçların karşılaştırılmasıdır (P1–P4 yöntemi). `pm/SORULAR.md`'deki üç varsayıma itiraz edilmedi; yürürlükte.
 
+- **K-047** (2026-11-21) — "atolye cad i sildim. dosya yolunun adını mihenk olarak değiştirdim." `%APPDATA%\AtolyeCAD` silindi. Bilgisayardaki proje klasörü `Documents\Fusion-Klon-Spec` → `Documents\Mihenk` (içinde `Mihenk\` alt klasörü: `mihenk.git`, `surumler`, `tezgahlar`, `test-fusion-karsilastirma`, `arsiv`). Oturumlar klasör erişimini yeni yoldan ister.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
