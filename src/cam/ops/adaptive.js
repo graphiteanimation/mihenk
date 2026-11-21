@@ -321,7 +321,7 @@ export function clearRegion(A) {
   };
   const emit = (pts, z, extra) => { for (const q of pts.slice(1)) b.feed(q[0], q[1], z, cut.feedCut, 'cut', extra); };
 
-  let pos = null; let guard = 0;
+  let pos = null; let guard = 0; let noEntryLast = 0;
   for (let li = 0; li < levels.length; li++) {
     const z = levels[li];
     if (surf) { zNow = z; setMask(z); if (A.onLevel) A.onLevel(li, z); }
@@ -330,7 +330,6 @@ export function clearRegion(A) {
     const pt = surf ? surf.partTop(G, cx, cy) : null; // 3D: parcanin kendisi malzeme sayilmaz (duvar gibi)
     dmR = null; // WP-22c: seviye basinda tam EDT
     for (let c = 0; c < N; c++) { mat[c] = 0; rch[c] = 0; bad[c] = 0; if (inRv[c] && hg[c] > z + EPSZ && !(pt && pt[c] > z + EPSZ)) { mat[c] = 1; if (reach(c)) { rch[c] = 1; left++; } else unreach++; } }
-    if (li === levels.length - 1 && !surf) stats.restArea += unreach * g * g;
     const pend = []; // 3D: temizlenecek kucuk artik hucreleri
     let down = false; // takim bu seviyede asagida mi
     let forced = null; // giristen hemen sonra: paso takimin bulundugu yerden baslar
@@ -342,11 +341,11 @@ export function clearRegion(A) {
       if (!st) st = findStart(pos, z);
       if (!st) {
         let leftNow = 0; for (let c = 0; c < N; c++) leftNow += rch[c];
-        if (leftNow * g * g < Math.max(0.05 * r * r, 4 * g * g)) { if (surf) { for (let c = 0; c < N; c++) if (rch[c]) pend.push(c); } else stats.restArea += leftNow * g * g; break; }
+        if (leftNow * g * g < Math.max(0.05 * r * r, 4 * g * g)) { if (surf) { for (let c = 0; c < N; c++) if (rch[c]) pend.push(c); } break; } // 2D: kalan alan seviye sonunda olculur (WP-22c)
         // giris: helis yeri = malzemeli, duvardan en uzak izinli hucre
         let bc = -1;
         for (let c = 0; c < N; c++) if (allowC[c] && dmR[c] < r && dToWallNA[c] >= helixR + g && (bc < 0 || dToWallNA[c] > dToWallNA[bc])) bc = c;
-        if (bc < 0) { stats.noEntry = (stats.noEntry || 0) + leftNow * g * g; break; }
+        if (bc < 0) { stats.noEntry = (stats.noEntry || 0) + leftNow * g * g; if (li === levels.length - 1) noEntryLast += leftNow * g * g; break; }
         const c0 = [cx(bc % nx), cy((bc / nx) | 0)];
         if (!allowedExact(c0[0], c0[1])) { allowC[bc] = 0; continue; }
         // WP-22c (yalniz rest kipi): helis halkasi (helixR + r) cogunlukla bu seviyede zaten bos (hava) ise helis gereksiz: artiga havadan, malzemeye
@@ -360,7 +359,7 @@ export function clearRegion(A) {
         if (near * g * g < 0.5 * ae * r) {
           for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (rch[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) { rch[c] = 0; dirt(c); } }
           if (surf) { for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (hg[c] > z + EPSZ && mat[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) pend.push(c); } }
-          else stats.restArea += near * g * g; continue;
+          continue; // 2D: kalan alan seviye sonunda olculur (WP-22c)
         }
         const zs = maxIn(c0, helixR + r); const top = Math.max(zs, z);
         const s0p = [c0[0] + helixR, c0[1]];
@@ -406,6 +405,14 @@ export function clearRegion(A) {
         b.linkTo(best[0], best[1], z, cut.feedPlunge); clearCapsule(best, best, rClr, z); stats.zaps = (stats.zaps || 0) + 1; pos = best;
       }
       pend.length = 0;
+    }
+    // WP-22c: 2D kalan malzeme alani (cam.pocket.rest_material) son seviyede OLCULUR: izgarada hala malzemeli (hg > z) ve duvara
+    // (izinli sinir) yanal pay + bir hucreden uzak hucreler. Eski hesap (reach() esigiyle erisilemez sayilan + atlanan artiklar) takimin
+    // gercekte suphurdugu kenar seridini de sayiyordu (abartili alan).
+    if (!surf && li === levels.length - 1) {
+      let a = 0; const lim = stR + g;
+      for (let c = 0; c < N; c++) if (inRv[c] && hg[c] > z + EPSZ && sg.nearest([cx(c % nx), cy((c / nx) | 0)], lim) >= lim) a++;
+      stats.restArea += Math.max(0, a * g * g - noEntryLast); // girissiz kalan (no_entry_left) ayrica bildirilir: iki kez sayilmaz
     }
     if (surf && A.afterLevel) { A.afterLevel({ z, hg, G, cx, cy, N, inRv }); pos = b.pos ? b.pos.slice(0, 2) : pos; }
   }

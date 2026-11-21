@@ -88,6 +88,10 @@ if (sec('2a')) {
   ok(!s2.issues.some((i) => i.level === 'error'), 'rest sim hatasiz');
   const corners = [[21.5, 16.5], [78.5, 16.5], [21.5, 43.5], [78.5, 43.5]].map(([x, y]) => sampleHeightmap(s2.remainHeightmap, x, y));
   ok(corners.every((v) => v <= -8 + 0.01), 'dort kose tabanda: ' + corners.map((v) => v.toFixed(2)).join(' '));
+  // 2b: kalan malzeme uyarisi olculen artiga yakin (analitik: dort kose r^2 (1 - pi/4) = 3,43 mm2; WP-12 hesabi 48,25 mm2 idi)
+  const rw = rs.warnings.find((w) => w.code === 'cam.pocket.rest_material'); const cornerA = 4 * 4 * (1 - Math.PI / 4);
+  let simA = 0; { const h = s2.remainHeightmap; for (let j = 0; j < h.ny; j++) for (let i = 0; i < h.nx; i++) { const x = h.x0 + (i + 0.5) * h.res, y = h.y0 + (j + 0.5) * h.res; if (x > 20.25 && x < 79.75 && y > 15.25 && y < 44.75 && h.data[j * h.nx + i] > -8 + 0.05) simA += h.res * h.res; } }
+  ok(rw && rw.params.area >= 0.5 * cornerA && rw.params.area <= Math.max(2 * cornerA, simA + 2), `2b: rest_material alani ${rw?.params?.area} mm2 ~ kose analitik ${cornerA.toFixed(2)} / sim (duvardan 0,25 icerde) ${simA.toFixed(2)}`);
   console.log(`   kesme ${rs.stats.cutLen.toFixed(0)} mm, paso ${rs.meta.adaptive.passes}, kalkis ${rs.meta.adaptive.lifts} (${el()})`);
 }
 
