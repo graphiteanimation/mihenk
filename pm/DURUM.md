@@ -17,7 +17,6 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 ## İE-001 sonucu (Bitti 2026-11-21, iki iş oturumu)
 - Puan T01–T10: **GEÇTİ 6** (T01, T02, T06, T07, T08, T10) · **KISMEN 4** (T03, T04, T05, T09) · KALDI 0. Yapılabilen geometri her parçada referansla birebir. Rapor: `pm/test/CAD-TEST.md` (Sonuç raporu), parça notları `pm/test/sonuc/Tnn.md`, kayıtlar `Documents\Mihenk\Mihenk\cad-test\Tnn\`.
 - KISMEN nedenleri: C-31, C-33, C-39, C-42 (İE-005'te) ve yeni **C-50** (kabuk sonrası kenarların kalıcı ad çakışması; T09'da 0,5 pah yapılamadı) → İE-005'e eklenmesi önerildi (Gündem G-13). Yeni bulgular C-47…C-52 WP-CAD1'de.
-- "Sol tuşla döndür" ayarı test sırasında açıldı, sonunda kapatıldı.
 
 ## İE-005 bitti (2026-11-21d) — çekirdek, 0.6.1'e girer (kurulu 0.6.0 değişmedi)
 - C-31: dikişte bölünen iki yay artık ayrı kalıcı ad alır (`nk`, O-059); Fillet R4 geçer, eski belgeler açılır.
@@ -25,11 +24,9 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - C-39: boolean 1e-5 mm bulanık tolerans (O-061); 45° düzlemde şerit yüz kalkar, R3/R14/R16 geçer; T04 R16 Fillet'le 113 789,232 mm³.
 - C-42: kayıtlı T04 belgesiyle Join/Combine zaten geçiyor; uygulamadaki hatanın nedeni bilinmiyor (o anki eskiz değerleri farklı olabilir).
 - Kullanıcı denemesi 0.6.1 kurulunca: T03, T04, T05 fillet'lerle yeniden çizilip `beklenen.json` güncellenir. Açık: dikiş taşıma yalnız silindir. GitHub'da `ie005-entegre` dalı silinemedi (403), `wp-ie005*` dalları duruyor.
-- İE-002 (b): CI-1, C-21 düzeltildi, C-14 savunmacı düzeltme; ayrıntı `pm/OTURUMLAR.md`.
 
 ## Test durumu
 - `npm run test:all` `wp-ie006` CI 44920210934 (İE-006, master'a birleşti): 48/48 adım, 7420 denetim geçti, 0 kaldı (paket ve yayın işleri de yeşil).
-- Bu çalışma alanında ilk koşuda Electron ikilisi indirilememişti (ortam); yeniden kurulunca geçti.
 
 ## Açık (1.0 öncesi değerlendirilecek)
 - Tezgâh denemesi şimdilik yapılmaz (K-046); doğruluk ölçütü Fusion karşılaştırması. 0.5–0.6 işlemleri (3D, sarma, 3+2, adaptif) Fusion ile henüz karşılaştırılmadı. İE-004 bunu kapsar; P1–P4 Fusion çıktıları bilgisayarda hazır (`test-fusion-karsilastirma\sonuclar`), Fusion yalnız sarma ve 3+2 referansı için gerekir.
@@ -37,7 +34,7 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - Kabul listesi tam: 14. adım da 2026-11-21'de geçti.
 - `%APPDATA%\AtolyeCAD` kullanıcı tarafından silindi; proje klasörü artık `Documents\Mihenk` (K-047).
 - Sıradaki sürüm (1.0) için BACKLOG'da sıra onayı kullanıcıdan beklenir.
-- Yedek `mihenk.git` İE-006 kapanışında GitHub master ile eşitlendi (2026-11-21g).
+- Yedek `mihenk.git` GitHub'dan geride (yedekte `1909b15`, 75+ commit eksik); İE-006 kapanışında eşitlenemedi (bilgisayar bağlantısı oturum sonunda koptu). Sonraki oturumda eşitlenecek.
 
 ## Notlar
 - Fusion deneme lisansı 23 Kasım 2026'da bitiyor.
