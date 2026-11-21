@@ -33,3 +33,8 @@ Kaynak: Too Tall Toby "Party Pack" ve yarışma çizimleri; build123d belgelerin
 
 ## Bilinen ön bulgular
 - C-13 (kullanıcı, 2026-11-21): Mihenk'i kapatırken çıkan uyarı penceresi arayüzle uyumsuz (yerel işletim sistemi kutusu, tasarım sistemine uymuyor). Test sırasında ekran görüntüsü alınacak.
+
+## İlerleme
+| T | Sonuç | Hacim farkı | Bulgular | Not |
+|---|---|---|---|---|
+| T01 | GEÇTİ | 0 | C-13…C-19 | `pm/test/sonuc/T01.md` |
