@@ -98,7 +98,7 @@ function splineEdge(pts, closed) {
 // ------------------------------------------------------------------ boru taraması (BRepOffsetAPI_MakePipeShell)
 // wires: profil telleri (sırayla); mode: 'path' (düzeltilmiş Frenet: profil yola göre döner) | 'fixed' (profil yönü sabit) | 'frenet'
 // | {binormal:[x,y,z]} (helis/diş: eksene göre sabit). Döner {shape, gen(edgeRaw)→[yüz dizini], first, last} ya da null.
-function pipeShell(spine, wires, mode, solid = true) {
+function pipeShell(spine, wires, mode, solid = true, tol = 0) {
   const O = oc(); const r = TP.scope();
   try {
     const b = r(new O.BRepOffsetAPI_MakePipeShell(spine.wrapped));
@@ -106,6 +106,8 @@ function pipeShell(spine, wires, mode, solid = true) {
     else if (mode === 'frenet') b.SetMode(true);
     else if (mode && mode.binormal) b.SetMode(D3(r, mode.binormal));
     else b.SetMode(false);
+    // helis taramalarında varsayılan yaklaşık yüzey toleransı (1e-4) uç düzlemleriyle boolean'da yanlış hacim veriyordu (M10: +%3,5); sıkı tolerans
+    if (tol > 0) b.SetTolerance(tol, tol, 1e-3);
     for (const w of wires) b.Add(w.wrapped, false, false);
     b.Build(progress(r)); if (!b.IsDone()) return null;
     if (solid && !b.MakeSolid()) return null;
@@ -387,29 +389,33 @@ function thread(K, f, state, N, ctx) {
   } else {
     const R0 = D / 2, rIn = Rc - e, hwM = P / 16, hwI = hwM + (R0 - rIn) * t30;
     if (!(hwI < P / 2) || !(rIn > 0)) throw new KErr('thread.bad_spec');
-    prof = [[R0, -hwM], [rIn, -hwI], [rIn, hwI], [R0, hwM]]; rh = R0;
+    prof = [[rIn, -hwI], [R0, -hwM], [R0, hwM], [rIn, hwI]]; rh = rIn; // dış dişle aynı dolanım yönü (içten dışa)
   }
   const roles = external ? ['flank-', 'crest', 'flank+', 'root'] : ['flank-', 'root', 'flank+', 'crest'];
   const v0 = TP.volume(body.shape);
-  // Yiv başlangıcı silindirin dikiş (seam) çizgisinde: OCCT boolean'ı dikişten başlayan helis taramasında kararlı. Başarısızsa
-  // başlangıç açısı kaydırılarak yeniden denenir (diş geometrisi açıdan bağımsızdır; yalnız giriş noktası döner).
+  // Üst sınır (denetim): yivin malzeme tarafındaki kesiti × 2πr (Pappus) × boy / adım. Gövde tam silindir değilse (düz yüz,
+  // ince cidar) kaldırılan daha az olur; fazlası boolean hatasıdır (helis–yüzey kesişiminde görüldü) ve kabul edilmez.
+  const [ra, rb] = external ? [prof[0][0], Rc] : [Rc, prof[1][0]]; const hwAt = (r) => { const [[r0, z0], [r1, z1]] = [prof[0], prof[1]]; return Math.abs(z0 + ((z1 - z0) * (r - r0)) / (r1 - r0)); };
+  let vmax = 0; { const n = 400; for (let k = 0; k < n; k++) { const rr = ra + ((k + 0.5) * (rb - ra)) / n; vmax += 2 * hwAt(rr) * TAU * rr * ((rb - ra) / n); } vmax *= len / P; }
+  // Yiv başlangıcı önce silindirin dikiş (seam) çizgisinde; OCCT boolean'ı helis taramasında bazı başlangıç açılarında boş ya da
+  // yanlış sonuç veriyor. Sonuç (geçerlilik + hacim aralığı) tutmazsa başlangıç açısı kaydırılarak yeniden denenir; diş geometrisi
+  // açıdan bağımsızdır, yalnız giriş noktası döner.
   const u0 = Math.abs(V.dot(ux, dir)) < 1e-9 ? ux : perp(dir); const v1 = V.cross(dir, u0);
   let res = null;
-  for (const a of [0, 0.5, 1.3, 2.2]) {
+  for (const a of [0, 2, 0.5, 4, 1.3, 3]) {
     const u = V.norm(V.add(V.mul(u0, Math.cos(a)), V.mul(v1, Math.sin(a))));
     const W = (rr, z) => V.add(V.add(hc, V.mul(u, rr)), V.mul(dir, z));
     const pw = polyWire(prof.map(([rr, z]) => W(rr, z)));
     const hx = helixWire(hc, dir, u, rh, P, height, hand === 'left');
-    const tool = pipeShell(hx, [pw], { binormal: dir }); if (!tool || isEmpty(tool.shape) || TP.validity(tool.shape)) continue;
+    const tool = pipeShell(hx, [pw], { binormal: dir }, true, 1e-6 * Math.max(1, D)); if (!tool || isEmpty(tool.shape) || TP.validity(tool.shape)) continue;
     const fn = Array.from({ length: TP.topoOf(tool.shape).faces.size }, () => []);
     tool.wiresEdges[0].forEach(({ faces }, k) => { for (const q of faces) fn[q] = [`${f.id}:${roles[k] || 'g' + k}`]; });
     if (tool.first >= 0) fn[tool.first] = [`${f.id}:runout0`]; if (tool.last >= 0) fn[tool.last] = [`${f.id}:runout1`];
     res = TP.boolean('cut', [body], [{ shape: tool.shape, fn }]);
-    if (res && !isEmpty(res.shape) && !TP.validity(res.shape)) break;
+    if (res && !isEmpty(res.shape) && !TP.validity(res.shape)) { const dv = v0 - TP.volume(res.shape); if (dv > 1e-9 * v0 && dv <= vmax * 1.002 + 1e-9) break; }
     res = null;
   }
   if (!res) throw new KErr('thread.failed');
-  if (!(v0 - TP.volume(res.shape) > 1e-9 * v0)) throw new KErr('op.no_effect');
   state.bodies.set(f.face.body, { ...body, shape: res.shape, fn: res.fn });
   return [f.face.body];
 }
@@ -431,7 +437,7 @@ function coil(K, f, state, N) {
   const hx = helixWire(c, d, u, r, pitch, turns * pitch, hand === 'left');
   const st = V.add(c, V.mul(u, r)); const v = V.cross(d, u); const tan = V.norm(V.add(V.mul(v, (hand === 'left' ? -1 : 1) * TAU * r), V.mul(d, pitch)));
   const circ = R.assembleWire([R.makeCircle(sd / 2, st, tan)]);
-  const res = pipeShell(hx, [circ], { binormal: d }); if (!res || isEmpty(res.shape)) throw new KErr('coil.failed');
+  const res = pipeShell(hx, [circ], { binormal: d }, true, 1e-6 * Math.max(1, dia)); if (!res || isEmpty(res.shape)) throw new KErr('coil.failed');
   const why = TP.validity(res.shape); if (why) throw new KErr('coil.failed');
   const fn = Array.from({ length: TP.topoOf(res.shape).faces.size }, () => [`${f.id}:side`]);
   if (res.first >= 0) fn[res.first] = [`${f.id}:start`]; if (res.last >= 0) fn[res.last] = [`${f.id}:end`];

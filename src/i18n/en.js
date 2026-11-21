@@ -1034,6 +1034,7 @@ const base = {
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
 import sketchCf from './sketch-en.js';
 import model from './model-en.js';
-Object.assign(base, sketchCf); Object.assign(base, model); // WP-09: çizim konforu metinleri
+import model2 from './model2-en.js'; // WP-19
+Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); // WP-09: çizim konforu metinleri
 
 export default { ...base, ...camCore, ...camPost, ...camUi, ...camUi2, ...hist };

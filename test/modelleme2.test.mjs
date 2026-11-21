@@ -194,7 +194,7 @@ section('thread');
   doc.features[0].h = '20'; doc.features.pop();
   // kısmi boy + sol el
   doc.features[1].length = '10'; doc.features[1].hand = 'left'; out = await K.rebuild(doc); ok(out.status.th.ok, 'kısmi sol el diş: ' + errOf(out, 'th'));
-  rel(Math.PI * 25 * 20 - vol(out), rem * 11 / 20, 0.08, 'kısmi diş hacmi (10 mm + giriş)');
+  rel(Math.PI * 25 * 20 - vol(out), rem * 10 / 20, 0.01, 'kısmi diş hacmi (10 mm)');
   const d2 = roundTrip(doc); ok(d2.features[1].thread.designation === 'M10' && d2.features[1].length === '10' && d2.features[1].hand === 'left', 'diş parametreleri dosyada');
   // iç diş: Ø8,5 delikli blok
   const doc2 = { features: [box('bl', 20, 20, 12, -10, -10, 0), { id: 'hs', type: 'sketch', plane: base('XY', '12'), points: { c: { x: 0, y: 0 } }, ents: [{ id: 'pp', type: 'point', p: 'c' }] }, { id: 'h1', type: 'hole', sketch: 'hs', kind: 'simple', dia: '8.5', extent: 'all', flip: false }] };
@@ -255,7 +255,7 @@ section('rib');
   doc.features[1].h = '70'; out = await K.rebuild(doc); ok(out.status.rb.ok, 'duvar düzenlenince kaburga: ' + errOf(out, 'rb'));
   const d2 = roundTrip(doc); ok(d2.features[3].t === '8', 'kaburga parametreleri dosyada');
   // gövdeye değmeyen doğru
-  doc.features[2] = openPoly('rs', base('XZ', '20'), [[30, 80], [60, 80]]); out = await K.rebuild(doc);
+  doc.features[2] = openPoly('rs', base('XZ', '20'), [[150, 50], [180, 50]]); out = await K.rebuild(doc);
   ok(errOf(out, 'rb') === 'rib.unbounded', 'kapanmayan kaburga hatası: ' + errOf(out, 'rb'));
   doc.features[2] = circle('rs', base('XZ', '20'), 50, 50, 5); out = await K.rebuild(doc); ok(errOf(out, 'rb') === 'rib.lines_only', 'daire kaburga hatası');
 }
