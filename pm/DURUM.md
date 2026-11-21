@@ -5,11 +5,15 @@ Depo: GitHub `graphiteanimation/mihenk` (ana): yalnız `master` dalı, `v0.6.0` 
 Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARARLAR.md` (K-045, O-051) · kabul: `pm/KABUL-WINDOWS.md`.
 Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, iş `Mihenk: devam` oturumunda `pm/IS-EMRI.md` sırasıyla. Gündem: `pm/YONETIM.md`. Sıra (K-054, Y-02 15:15 UTC): önce bütün CAD bulguları → 0.6.1, sonra Fusion kıyaslaması. Sürüyor: İE-003, İE-005, İE-007 · Hazır (ekransız): İE-008 eskiz, İE-010 kabuk/görünüm, İE-006 (İE-005'ten sonra), İE-009 (İE-006 + İE-007'den sonra) · Beklemede: İE-004A Fusion referansı (ekran; lisans 23 Kasım), İE-011 sürüm 0.6.1, İE-004 kıyaslama.
 
+## İE-003 sonucu (Bitti 2026-11-21f)
+- `test/cad-bench/mhnk/` altında arayüzden çizilen 12 belge (T01–T09, T10a/b/c); `test/cad-bench.test.mjs` her birini çekirdekte yeniden hesaplar: şema, geçmişte hata yok, hacim referansa ±%0,1, kutu ±0,05 mm, bugünkü hacim/gövde/yüz sayısı sabit; `ref/*.step` de çekirdekle ölçülüp tabloyla sağlanır. 152 geçti / 0 kaldı; `test:all` zincirinde (43 adım); master `ci` 44914597501 yeşil. Bağımsız doğrulama ONAY.
+- Bilinen eksik (`test/cad-bench/beklenen.json`): T03 (yöntem), T04 (2 gövde), T05 (−%0,054), T09 (+%0,107). Parça düzeltmeden sonra yeniden çizilince mhnk + beklenen.json birlikte güncellenir; çekirdek düzeltmesi sayıları değiştirirse (ör. İE-005 C-39: T04 yüz 30 → 28) `bugun` değeri aynı commit'te güncellenir.
+- Öneri (Gündem G-14): `.gitattributes` ile `*.mhnk`, `*.step` için `-text`; eskizlerin "tam tanımlı" ölçütü bu testte yok (belgelerdeki eskizler tam tanımlı değil).
+
 ## İE-001 sonucu (Bitti 2026-11-21, iki iş oturumu)
 - Puan T01–T10: **GEÇTİ 6** (T01, T02, T06, T07, T08, T10) · **KISMEN 4** (T03, T04, T05, T09) · KALDI 0. Yapılabilen geometri her parçada referansla birebir. Rapor: `pm/test/CAD-TEST.md` (Sonuç raporu), parça notları `pm/test/sonuc/Tnn.md`, kayıtlar `Documents\Mihenk\Mihenk\cad-test\Tnn\`.
 - KISMEN nedenleri: C-31, C-33, C-39, C-42 (İE-005'te) ve yeni **C-50** (kabuk sonrası kenarların kalıcı ad çakışması; T09'da 0,5 pah yapılamadı) → İE-005'e eklenmesi önerildi (Gündem G-13). Yeni bulgular C-47…C-52 WP-CAD1'de.
 - "Sol tuşla döndür" ayarı test sırasında açıldı, sonunda kapatıldı.
-- Sıradaki Hazır emir: İE-004 (Fusion kıyası). Fusion lisansı 23 Kasım'da bitiyor; Adım A önce yapılmalı.
 
 ## İE-002 bitti (2026-11-21b)
 - Ana dal yeşil: master `ci` 44911498632 — 43/43 adım, 7088 denetim geçti, 0 kaldı (paket işi de geçti).
@@ -17,11 +21,6 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - C-21 düzeltildi: kayma, budanan/bölünen çizgide kalan orta nokta (ve eşit uzunluk) kısıtından; artık orta nokta "çizgi üstünde"ye döner, budama sonrası kalan geometri 1e-5 mm'den fazla oynarsa işlem geri alınır. Yan bulgular WP-CAD1'e (G-2).
 - C-14 gerçek akışta yeniden üretilemedi (7 akış); savunmacı düzeltme: onaydan önce paneldeki görünen sayısal değerler taslağa yazılır. Soru `SORULAR`'da. Düzeltmeler 0.6.1 ile kuruluma gelir (G-9); kurulu 0.6.0 değişmedi.
 - GitHub'da geçici `tani-ie002` dalı silinemedi (G-12); `wp-ie002*` dalları da duruyor.
-
-## Önceki oturumda biten
-- K-045: K-044 durdurması kalktı.
-- `fix-lnk` (O-051): Türkçe kaldırma kısayolu "/" yüzünden oluşmuyordu; artık "Mihenk Kaldır" / "Uninstall Mihenk", eski kısayollar temizlenir. Bağımsız doğrulandı (Sonnet, ONAY) ve ekranda görüldü.
-- Windows kabulü (ekran kontrolüyle): 0, 1, 2, 3, 3a, 10, 11, 12, 13, 15 geçti; ayrıntı `pm/KABUL-WINDOWS.md`.
 
 ## Test durumu
 - `npm run test:all` master CI 44911498632 (İE-002 sonrası): 43/43 adım, 7088 denetim geçti, 0 kaldı (altın set P1–P4 dahil).

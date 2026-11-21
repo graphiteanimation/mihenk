@@ -112,7 +112,7 @@ Mihenk: devam
 - Kapsam: sürüm numarası 0.6.1, değişiklik notu, `test:all` + altın set, Windows kurulum dosyası, bilgisayara kurulum (`Mihenk\surumler\0.6.1\`, eski sürüm `arsiv`'e), kısa kabul (aç, örnek, kaydet, NC). KISMEN parçalar T03, T04, T05, T09 kurulu 0.6.1'de arayüzden yeniden çizilir; hedef dördü de GEÇTİ. `cad-bench` regresyon hedefleri referans hacme çekilir. Kullanıcı için 10 dakikalık deneme listesi (`pm/test/DENEME-0.6.1.md`): C-13, C-14, C-20, C-21 ve açılı düzlem dahil.
 - Kabul: GitHub'da `v0.6.1` etiketi ve sürüm sayfası (SHA-256); kurulu; CAD testi puan tablosu güncel; deneme listesi kullanıcıya verildi.
 
-## İE-003 — CAD test parçalarının otomatik regresyonu · **Sürüyor** (oturum 2026-11-21f) (O-056; ekransız, paralel açılabilir)
+## İE-003 — CAD test parçalarının otomatik regresyonu · **Bitti** (2026-11-21f; `test/cad-bench.test.mjs` 152 denetim, 12 belge, master `ci` yeşil 44914597501) (O-056; ekransız, paralel açılabilir)
 - Ön koşul: yok. Alan yalnız `test/` (kaynak koda dokunmaz). Girdi: bilgisayarda `Documents\Mihenk\Mihenk\cad-test\Tnn\*.mhnk` (T01–T10; klasör erişimi istenir) → depoda `test/cad-bench/mhnk/`.
 - Biten her `cad-test/Tnn.mhnk` depoya `test/cad-bench/mhnk/` altına alınır; yeni test adımı her belgeyi çekirdekte yeniden hesaplar, hacim ve kutuyu `ref/` ile karşılaştırır (±%0,1).
 - KISMEN parçalar (T03, T04, T05, T09) bugünkü hacimleriyle "bilinen eksik" olarak kaydedilir; İE-005/006 düzeltmelerinden sonra hedef referans hacme çekilir.
