@@ -104,11 +104,20 @@ export function gates(program, machine, opts = {}) {
       if (!A || A.kind !== 'rotary') out.push(G('block', 'cam.gate.no_rotary', { op: tp.opName }, X));
       else if (Array.isArray(A.limits) && (a < A.limits[0] - 1e-9 || a > A.limits[1] + 1e-9)) out.push(G('block', 'cam.gate.a_limit', { a, min: A.limits[0], max: A.limits[1], op: tp.opName }, X));
     }
+    // WP-16: sarma (eszamanli X/A): A ekseni X etrafinda olmali; surekli A degerleri sinir icinde (kisa yol biciminde sinir kelimeye post'ta bakilir)
+    if (tp.wrap) {
+      const A = machine?.axes?.A; let aMin = Infinity, aMax = -Infinity; for (const m of tp.moves) if (isNum(m.a)) { aMin = Math.min(aMin, m.a); aMax = Math.max(aMax, m.a); }
+      if (!A || A.kind !== 'rotary' || A.about !== 'X') out.push(G('block', 'cam.gate.no_rotary', { op: tp.opName }, X));
+      else if (Array.isArray(A.limits) && (aMin < A.limits[0] - 1e-9 || aMax > A.limits[1] + 1e-9)) out.push(G('block', 'cam.gate.a_limit', { a: Math.round((aMin < A.limits[0] ? aMin : aMax) * 1000) / 1000, min: A.limits[0], max: A.limits[1], op: tp.opName }, X));
+      if (opts.sim) out.push(G('warn', 'cam.gate.wrap_sim_limits', { op: tp.opName }, X));
+    }
+    // ---- 6b (WP-18): 3+2 egik setup -- doner eksen sinirlari ve acilmis cikis icin eksik kinematik verisi
+    if (s.setup?.rot) out.push(...tiltGates(s.setup, machine, tp.opName, X));
     // islem uyarilari
     for (const w of tp.warnings || []) out.push(G('warn', w.code, { ...w.params, op: tp.opName }, X));
   });
   // ---- 6: A isareti makinede dogrulanmadi (V-01): profil A.dir'i yanlis girilmisse yol ters yuze gider
-  if (machine?.axes?.A && secs.some((s) => s.setup?.aAngle != null)) out.push(G('warn', 'cam.gate.a_dir_unverified', { dir: JSON.stringify(machine.axes.A.dir ?? null) }));
+  if (machine?.axes?.A && secs.some((s) => s.setup?.aAngle != null || s.toolpath?.wrap)) out.push(G('warn', 'cam.gate.a_dir_unverified', { dir: JSON.stringify(machine.axes.A.dir ?? null) }));
   // ---- 5: simulasyon (yalniz once gelen kapilar engellemiyorsa anlamli; yine de calistirilir)
   let simSec = null;
   if (opts.sim === false || !opts.sim) out.push(G('warn', 'cam.gate.sim_not_run', {}));
@@ -160,4 +169,17 @@ export async function gatesAsync(program, machine, opts = {}, ctl = {}) {
   let simResult = null, simError = null;
   try { simResult = await simulateAsync(program, { stockBoxes, ...opts.sim }, ctl); } catch (e) { if (e?.code === 'cam.sim.cancelled') throw e; simError = e; }
   return gates(program, machine, { ...opts, simResult, simError });
+}
+
+// WP-18: egik setup kapilari. Sinir disi aci ENGEL; acilmis cikista merkez/makine konumu eksikse ENGEL (kapi 1 ile ayni kural)
+function tiltGates(st, machine, op, X) {
+  const out = [];
+  for (const [k, a] of Object.entries(st.rot)) {
+    const A = machine?.axes?.[k];
+    if (!A || A.kind !== 'rotary') { out.push({ level: 'block', code: 'cam.gate.no_rotary_axis', params: { axis: k, op }, ...X }); continue; }
+    if (Array.isArray(A.limits) && (a < A.limits[0] - 1e-9 || a > A.limits[1] + 1e-9)) out.push({ level: 'block', code: 'cam.gate.rot_limit', params: { axis: k, a: Math.round(a * 1000) / 1000, min: A.limits[0], max: A.limits[1], op }, ...X });
+  }
+  const t = st.tilt;
+  if (t?.mode === 'unwound' && !t.shift) out.push({ level: 'block', code: t.missing === 'head' ? 'cam.gate.unwound_head' : 'cam.gate.missing', params: { field: t.missing, op }, ...X });
+  return out;
 }

@@ -272,7 +272,7 @@ section('5. cep');
 section('2b. yerlesik genel sablonlar ve tezgah ice/disa aktarma');
 {
   const B = builtinMachines();
-  ok(B.map((m) => m.id).join() === 'builtin-generic-3axis-fanuc,builtin-generic-4axis-a-fanuc,builtin-generic-3axis-mitsubishi', 'yerlesikler yalniz uc genel sablon');
+  ok(B.map((m) => m.id).join() === 'builtin-generic-3axis-fanuc,builtin-generic-4axis-a-fanuc,builtin-generic-3axis-mitsubishi,builtin-generic-5axis-ac-table,builtin-generic-5axis-bc-table', 'yerlesikler yalniz genel sablonlar (WP-18: +3+2 A/C, B/C)');
   ok(!JSON.stringify(B).match(/neway|vm1160|gsa/i), 'yerlesiklerde tezgah markasi yok');
   ok(B.every((m) => m.builtin && m.nameKey), 'yerlesik: builtin bayragi ve ad anahtari');
   const g4 = B[1], gm = B[2], c4 = checkMachine(g4), cm = checkMachine(gm);

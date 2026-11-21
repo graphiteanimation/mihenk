@@ -14,7 +14,11 @@ import { WP12_TOOL_KINDS, WP12_GEOM_TYPES, FEEDOPT_TYPES, wp12Default, adaptiveR
 import { WP15_TYPES, WP15_TOOL_KINDS, wp15Default, surfGeomRows, surfPassRows } from './oppanel-wp15.js'; // WP-15
 
 const TABS = [['tool', 'cam.op.tab_tool'], ['geom', 'cam.op.tab_geom'], ['heights', 'cam.op.tab_heights'], ['passes', 'cam.op.tab_passes']];
-const TOOL_KINDS = { face: ['face', 'flat', 'bullnose'], contour: ['flat', 'bullnose', 'ball'], pocket: ['flat', 'bullnose', 'ball'], chamfer: ['chamfer', 'spot'], circular: ['flat', 'bullnose'], threadmill: ['threadmill'], slot: ['flat', 'bullnose'], trace: ['flat', 'bullnose', 'ball', 'chamfer', 'spot', 'drill', 'face'], ...WP12_TOOL_KINDS, ...WP15_TOOL_KINDS };
+// WP-16: sarilmis kontur/cep panelde kontur/cep gibi (bt); sarilmis delme kendi satirlari
+const WRAP_BASE = { wrapContour: 'contour', wrapPocket: 'pocket' };
+const bt = (d) => WRAP_BASE[d.type] ?? d.type;
+const WRAP_CYCLES = ['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore'];
+const TOOL_KINDS = { wrapContour: ['flat', 'bullnose', 'ball'], wrapPocket: ['flat', 'bullnose', 'ball'], face: ['face', 'flat', 'bullnose'], contour: ['flat', 'bullnose', 'ball'], pocket: ['flat', 'bullnose', 'ball'], chamfer: ['chamfer', 'spot'], circular: ['flat', 'bullnose'], threadmill: ['threadmill'], slot: ['flat', 'bullnose'], trace: ['flat', 'bullnose', 'ball', 'chamfer', 'spot', 'drill', 'face'], ...WP12_TOOL_KINDS, ...WP15_TOOL_KINDS };
 const COOLANT = ['flood', 'mist', 'air', 'through', 'off'];
 const TOP_FROM = ['stockTop', 'modelTop', 'selection', 'abs'];
 const BOT_FROM = ['selection', 'modelBottom', 'stockBottom', 'modelTop', 'abs'];
@@ -38,7 +42,7 @@ export function sketchChains(sk) {
 }
 export const OP_TYPE_KEY = (op) => (op.type === 'drill' && op.cycle === 'tap' ? 'thread' : op.type);
 
-export const compatibleTools = (tools, type, cycle) => tools.filter((x) => (type === 'drill' ? (CYCLE_TOOLS[cycle] || []) : TOOL_KINDS[type] || []).includes(x.type));
+export const compatibleTools = (tools, type, cycle) => tools.filter((x) => (type === 'drill' || type === 'wrapDrill' ? (CYCLE_TOOLS[cycle] || []) : TOOL_KINDS[type] || []).includes(x.type));
 
 // Yeni işlem: yalnız güvenli geometrik varsayılanlar (yükseklikler). Kesme verisi ön ayardan gelir; yoksa boş kalır ve doldurulması istenir.
 export function defaultOp(type, cycle, id, name, tools) {
@@ -54,6 +58,9 @@ export function defaultOp(type, cycle, id, name, tools) {
   else if (type === 'drill') Object.assign(op, { cycle: cycle || 'drill', holes: { kind: 'feature' }, depth: { from: 'hole', tipComp: true, breakThrough: 1 }, order: 'shortest' });
   else if (WP12_GEOM_TYPES.includes(type)) wp12Default(type, op);
   else if (WP15_TYPES.includes(type)) wp15Default(type, op); // WP-15
+  else if (type === 'wrapContour') Object.assign(op, { geom: [], side: 'on', dir: 'climb', comp: 'computer', stepdown: null, ramp: { kind: 'plunge' }, leadIn: { kind: 'none' }, leadOut: { kind: 'none' } }), op.heights = { ...op.heights, top: { from: 'stockTop', off: 0 }, bottom: { from: 'stockTop', off: -1 } };
+  else if (type === 'wrapPocket') Object.assign(op, { geom: [], dir: 'climb', stepover: null, stepdown: null, entry: { kind: 'ramp', angle: null }, finishPass: false }), op.heights = { ...op.heights, top: { from: 'stockTop', off: 0 }, bottom: { from: 'stockTop', off: -1 } };
+  else if (type === 'wrapDrill') Object.assign(op, { cycle: 'drill', points: [], depth: { from: 'top', d: null }, order: 'asis' });
   if (op.side === undefined) delete op.side;
   const tl = compatibleTools(tools, type, op.cycle)[0];
   if (tl) { op.toolId = tl.id; if (tl.presets?.length) { try { Object.assign(op, applyPreset(op, tl, tl.presets[0].name)); } catch (e) { /* ön ayar yoksa boş kalır */ } } }
@@ -169,7 +176,7 @@ export class OpPanel {
       this.invalidate(); this.render(); this.showResult(); } }));
     const tl = this.tool;
     if (tl) {
-      if (!ok.includes(tl.id)) rows.push(callout('err', null, t(d.type === 'drill' ? 'cam.op.tool_cycle_bad' : 'cam.op.tool_type_bad', { type: t('cam.tt.' + tl.type) })));
+      if (!ok.includes(tl.id)) rows.push(callout('err', null, t(d.type === 'drill' || d.type === 'wrapDrill' ? 'cam.op.tool_cycle_bad' : 'cam.op.tool_type_bad', { type: t('cam.tt.' + tl.type) })));
       const hit = protectedHits(cam.protectedLists(), tl);
       if (hit.length) rows.push(callout('warn', null, t('cam.op.tool_protected', { list: hit.map((x) => x.kind + x.n).join(', ') })));
       if (tl.presets?.length) rows.push(selField({ label: t('cam.op.preset'), value: d.preset || '', f: 'op-preset', hint: t('cam.op.preset_hint'), opts: [['', t('cam.op.preset_manual')], ...tl.presets.map((p) => [p.name, p.name])], set: (v) => {
@@ -182,7 +189,7 @@ export class OpPanel {
       this.num(t('cam.op.feed_cut'), 'feedCut', { unit: t('cam.u.mm_min'), min: 0.001, f: 'feedCut', warn: () => { manual(); return null; } }),
       this.num(t('cam.op.feed_plunge'), 'feedPlunge', { unit: t('cam.u.mm_min'), min: 0.001, f: 'feedPlunge' }));
     if (tl) rows.push(h('button', { class: 'btn ghost sm', type: 'button', 'data-testid': 'op-cutdata', onclick: () => openCutData(this.cam, { tool: tl, apply: (rpm, feed) => { delete d.preset; d.rpm = rpm; d.feedCut = feed; this.invalidate(); this.render(); this.showResult(); } }) }, t('cam.cd.open')));
-    if (d.type === 'contour' || d.type === 'pocket' || WP12_GEOM_TYPES.includes(d.type) || d.type === 'adaptive3d') rows.push(this.num(t('cam.op.feed_ramp'), 'feedRamp', { unit: t('cam.u.mm_min'), min: 0.001, nullable: true, f: 'feedRamp', hint: t('cam.op.feed_ramp_hint') }));
+    if (bt(d) === 'contour' || bt(d) === 'pocket' || WP12_GEOM_TYPES.includes(d.type) || d.type === 'adaptive3d') rows.push(this.num(t('cam.op.feed_ramp'), 'feedRamp', { unit: t('cam.u.mm_min'), min: 0.001, nullable: true, f: 'feedRamp', hint: t('cam.op.feed_ramp_hint') }));
     if (d.cycle === 'tap') rows.push(h('div', { class: 'note', text: t('cam.op.tap_feed') }));
     rows.push(this.sel(t('cam.op.coolant'), 'coolant', COOLANT.map((c) => [c, t('cam.cool.' + c)]), { f: 'coolant' }));
     return rows;
@@ -202,9 +209,11 @@ export class OpPanel {
     }
     if (d.type === 'drill' || d.type === 'circular' || d.type === 'threadmill') return this.holesRows();
     if (WP15_TYPES.includes(d.type)) return surfGeomRows(this); // WP-15: model = setup gövdeleri
+    if (d.type === 'wrapDrill') return this.wrapDrillRows();
+    if (WRAP_BASE[d.type]) rows.push(callout('info', null, t('cam.op.wrap_geom_note', { dia: fmtNum(this.wrapDia() ?? 0, 3) })));
     // kontur, cep ve pah: seçim listesi
     const mode = this.pickMode; const sk = this.app.doc.features.filter((f) => f.type === 'sketch');
-    rows.push(selField({ label: t('cam.op.pick_what'), value: mode, f: 'op-pickmode', hint: t('cam.op.pickhint.' + mode), opts: [['face', t('cam.op.pm_face')], ['sketch', t('cam.op.pm_sketch')], ['chain', t('cam.op.pm_chain')], ['silhouette', t('cam.op.pm_sil')]].filter((o) => (d.type === 'slot' || d.type === 'trace' ? o[0] === 'chain' : d.type === 'contour' || d.type === 'chamfer' || o[0] !== 'chain')), set: (v) => { this.pickMode = v; this.render(); this.showResult(); this.pickView(); } }));
+    rows.push(selField({ label: t('cam.op.pick_what'), value: mode, f: 'op-pickmode', hint: t('cam.op.pickhint.' + mode), opts: [['face', t('cam.op.pm_face')], ['sketch', t('cam.op.pm_sketch')], ['chain', t('cam.op.pm_chain')], ['silhouette', t('cam.op.pm_sil')]].filter((o) => (d.type === 'slot' || d.type === 'trace' ? o[0] === 'chain' : bt(d) === 'contour' || d.type === 'chamfer' || o[0] !== 'chain')), set: (v) => { this.pickMode = v; this.render(); this.showResult(); this.pickView(); } }));
     if (mode === 'sketch' || mode === 'chain') {
       if (!sk.length) rows.push(callout('warn', null, t('cam.op.no_sketch')));
       else { if (!sk.some((s) => s.id === this.sketchId)) this.sketchId = sk[0].id; rows.push(selField({ label: t('cam.op.sketch'), value: this.sketchId, f: 'op-sketch', opts: sk.map((s) => [s.id, s.name || s.id]), set: (v) => { this.sketchId = v; this.pickView(); } })); }
@@ -233,13 +242,27 @@ export class OpPanel {
       const hasCh = (d.geom || []).some((g) => g.kind === 'chain');
       rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ...(hasCh ? [['left', t('cam.op.side_left')], ['right', t('cam.op.side_right')]] : [])], { f: 'side', hint: t('cam.op.chamfer_side_hint') }));
     }
-    if (d.type === 'contour') {
+    if (bt(d) === 'contour') {
       rows.push(this.sel(t('cam.op.side'), 'side', [['', t('cam.op.side_auto')], ['outside', t('cam.op.side_out')], ['inside', t('cam.op.side_in')], ['on', t('cam.op.side_on')], ...((d.geom || []).some((g) => g.kind === 'chain') ? [['left', t('cam.op.side_left')], ['right', t('cam.op.side_right')]] : [])], { f: 'side', hint: t('cam.op.side_hint') }),
-        this.sel(t('cam.op.comp'), 'comp', [['computer', t('cam.op.comp_computer')], ['wear', t('cam.op.comp_wear')]], { f: 'comp', def: 'computer', hint: t('cam.op.comp_hint'), redraw: true }));
+        ...(d.type === 'wrapContour' ? [] : [this.sel(t('cam.op.comp'), 'comp', [['computer', t('cam.op.comp_computer')], ['wear', t('cam.op.comp_wear')]], { f: 'comp', def: 'computer', hint: t('cam.op.comp_hint'), redraw: true })]));
     }
     // acik zincir (yalniz zincir secimi olan kontur): yon zincir yonu (+ Ters cevir); dir yok sayilir -> alan gizli. Pah ve kapali dongulerde dir gecerli.
-    const chainOnly = d.type === 'contour' && (d.geom || []).length > 0 && (d.geom || []).every((g) => g.kind === 'chain' && !sketchChains(this.app.doc.features.find((f) => f.id === g.sketch) || {}).some((c) => c.closed && [...c.ents].sort().join() === [...(g.ents || [])].sort().join()));
+    const chainOnly = bt(d) === 'contour' && (d.geom || []).length > 0 && (d.geom || []).every((g) => g.kind === 'chain' && !sketchChains(this.app.doc.features.find((f) => f.id === g.sketch) || {}).some((c) => c.closed && [...c.ents].sort().join() === [...(g.ents || [])].sort().join()));
     if (!chainOnly) rows.push(this.sel(t('cam.op.dir'), 'dir', [['climb', t('cam.op.dir_climb')], ['conv', t('cam.op.dir_conv')]], { f: 'dir', def: 'climb' }));
+    return rows;
+  }
+  // WP-16: sarma capi (setup; bos = stok capi)
+  wrapDia() { const su = this.cam.setup(this.setupId); return su?.wrap?.dia ?? (su?.stock?.kind === 'cyl' ? su.stock.dia : null); }
+  // WP-16: sarilmis delme: cevrim + konum listesi (X, A) ya da eskiz noktalari (acilmis: x = X, y = yay boyu)
+  wrapDrillRows() {
+    const d = this.draft, rows = []; const sk = this.app.doc.features.filter((f) => f.type === 'sketch');
+    rows.push(this.sel(t('cam.op.cycle'), 'cycle', WRAP_CYCLES.map((c) => [c, t('cam.op.cy.' + c)]), { f: 'cycle', def: 'drill', redraw: true, set: (v) => { d.cycle = v; if (v === 'peck' || v === 'chipbreak') d.peck = d.peck ?? null; this.invalidate(); } }));
+    const src = d.holes?.kind === 'points' ? 'sketch' : 'list';
+    rows.push(selField({ label: t('cam.op.wd_src'), value: src, f: 'op-wd-src', opts: [['list', t('cam.op.wd_list')], ['sketch', t('cam.op.wd_sketch')]], set: (v) => { if (v === 'sketch') { d.holes = { kind: 'points', sketch: sk[0]?.id }; delete d.points; } else { delete d.holes; d.points = d.points || []; } this.invalidate(); this.render(); this.showResult(); } }));
+    if (src === 'list') rows.push(textField({ label: t('cam.op.wd_points'), value: (d.points || []).map((q) => `${fmtNum(q.x, 3)} ${fmtNum(q.a, 3)}`).join('; '), f: 'op-wd-points', hint: t('cam.op.wd_points_hint'), placeholder: '30 0; 30 90; 30 180',
+      set: (v) => { d.points = v.split(';').map((x) => x.trim().split(/\s+/).map((y) => Number(y.replace(',', '.')))).filter((q) => q.length === 2 && q.every(Number.isFinite)).map(([x, a]) => ({ x, a })); this.invalidate(); } }));
+    else if (!sk.length) rows.push(callout('warn', null, t('cam.op.no_sketch')));
+    else rows.push(selField({ label: t('cam.op.sketch'), value: d.holes.sketch ?? sk[0].id, f: 'op-sketch', hint: t('cam.op.wd_sketch_hint', { dia: fmtNum(this.wrapDia() ?? 0, 3) }), opts: sk.map((s) => [s.id, s.name || s.id]), set: (v) => { d.holes = { kind: 'points', sketch: v }; this.invalidate(); } }));
     return rows;
   }
   holesRows() {
@@ -287,7 +310,7 @@ export class OpPanel {
   // görünüm: seçim kipi, vurgu
   pickView() {
     const vp = this.app.viewport, d = this.draft; vp.setRegions(null, null); this.app.setHint('');
-    if (this.tab !== 'geom' || !(d.type === 'contour' || d.type === 'pocket' || d.type === 'chamfer' || d.type === 'slot' || d.type === 'trace' || WP12_GEOM_TYPES.includes(d.type))) { vp.setFilter({}); vp.setSelection([]); return; }
+    if (this.tab !== 'geom' || !(bt(d) === 'contour' || bt(d) === 'pocket' || WP12_GEOM_TYPES.includes(d.type) || d.type === 'chamfer' || d.type === 'slot' || d.type === 'trace')) { vp.setFilter({}); vp.setSelection([]); return; }
     const m = this.pickMode;
     if (m === 'chain') { vp.setFilter({}); vp.setSelection([]); this.app.setHint(t('cam.op.pickhint.chain')); return; }
     if (m === 'sketch') {
@@ -301,7 +324,7 @@ export class OpPanel {
     this.app.setHint(t('cam.op.pickhint.' + m));
   }
   async onPick(hit) {
-    const d = this.draft; if (this.tab !== 'geom' || !hit || !(d.type === 'contour' || d.type === 'pocket' || d.type === 'chamfer' || d.type === 'slot' || d.type === 'trace' || WP12_GEOM_TYPES.includes(d.type))) return;
+    const d = this.draft; if (this.tab !== 'geom' || !hit || !(bt(d) === 'contour' || bt(d) === 'pocket' || WP12_GEOM_TYPES.includes(d.type) || d.type === 'chamfer' || d.type === 'slot' || d.type === 'trace')) return;
     d.geom = d.geom || [];
     if (hit.kind === 'region' && this.pickMode === 'sketch') {
       const sk = this.app.doc.features.find((f) => f.id === this.sketchId); if (!sk) return; const rg = findRegions(sk).regions;
@@ -324,9 +347,16 @@ export class OpPanel {
   // ---- yükseklikler
   tabHeights() {
     const d = this.draft, rows = [];
-    if (this.cam.machine()?.axes?.A?.kind === 'rotary') rows.push(this.num(t('cam.op.a_angle'), 'aAngle', { unit: '°', min: -36000, max: 36000, nullable: true, f: 'a-angle', hint: t('cam.op.a_angle_hint', { a: fmtNum(this.cam.setup(this.setupId)?.rotary?.enabled ? this.cam.setup(this.setupId).rotary.aAngle : 0, 3) }) }));
+    const wrapSu = !!this.cam.setup(this.setupId)?.wrap?.enabled || d.type.startsWith('wrap'); // WP-16: sarmada islem A acisi yok
+    if (this.cam.machine()?.axes?.A?.kind === 'rotary' && !wrapSu) rows.push(this.num(t('cam.op.a_angle'), 'aAngle', { unit: '°', min: -36000, max: 36000, nullable: true, f: 'a-angle', hint: t('cam.op.a_angle_hint', { a: fmtNum(this.cam.setup(this.setupId)?.rotary?.enabled ? this.cam.setup(this.setupId).rotary.aAngle : 0, 3) }) }));
     rows.push(this.num(t('cam.op.clearance'), 'heights.clearance', { min: 0.001, f: 'clearance', hint: t('cam.op.clearance_hint') }),
       this.num(t('cam.op.retract'), 'heights.retract', { min: 0.001, f: 'retract', hint: t('cam.op.retract_hint'), warn: (v) => (v !== null && d.heights.clearance != null && v > d.heights.clearance ? t('cam.op.retract_over') : null) }));
+    if (d.type === 'wrapDrill') { // WP-16: derinlik yaricapsal: delik ustunden (stok yuzeyi) d mm ya da mutlak dip yaricapi
+      const dep = d.depth;
+      rows.push(sec(t('cam.op.depth')), this.sel(t('cam.op.depth_from'), 'depth.from', [['top', t('cam.op.df_top_r')], ['abs', t('cam.op.df_abs_r')]], { f: 'depth-from', redraw: true, def: 'top', set: (v) => { dep.from = v; if (v === 'abs') { dep.z = dep.z ?? null; delete dep.d; } else { dep.d = dep.d ?? null; delete dep.z; } this.invalidate(); } }));
+      rows.push(dep.from === 'abs' ? this.num(t('cam.op.depth_r'), 'depth.z', { f: 'depth-z', min: 0.001 }) : this.num(t('cam.op.depth_d'), 'depth.d', { f: 'depth-d', min: 0.001 }));
+      return rows;
+    }
     if (d.type === 'drill' || d.type === 'circular' || d.type === 'threadmill') {
       const dep = d.depth;
       rows.push(sec(t('cam.op.depth')), this.sel(t('cam.op.depth_from'), 'depth.from', [['hole', t('cam.op.df_hole')], ['abs', t('cam.op.df_abs')]], { f: 'depth-from', redraw: true, def: 'hole', set: (v) => { dep.from = v; if (v === 'abs') dep.z = dep.z ?? null; else delete dep.z; this.invalidate(); } }));
@@ -349,7 +379,7 @@ export class OpPanel {
     const stepover = () => this.num(t('cam.op.stepover'), 'stepover', { min: 0.001, f: 'stepover', hint: t('cam.op.stepover_hint'), warn: (v) => (v !== null && this.tool && v >= this.tool.dia ? t('cam.op.stepover_big', { dia: fmtNum(this.tool.dia, 3) }) : null) });
     if (d.type === 'face') {
       rows.push(stepover(), this.num(t('cam.op.stepdown'), 'stepdown', { min: 0.001, nullable: true, f: 'stepdown', hint: t('cam.op.stepdown_face_hint') }), this.num(t('cam.op.sta_axial'), 'stockToLeave', { min: 0, nullable: true, f: 'stockToLeave' }));
-    } else if (d.type === 'pocket') {
+    } else if (bt(d) === 'pocket') {
       const e = d.entry;
       rows.push(stepover(), this.num(t('cam.op.stepdown'), 'stepdown', { min: 0.001, f: 'stepdown' }), this.num(t('cam.op.finish_stepdown'), 'finishStepdown', { min: 0.001, nullable: true, f: 'finishStepdown' }),
         this.num(t('cam.op.sta_radial'), 'stockToLeave.radial', { min: 0, nullable: true, f: 'sta-radial' }), this.num(t('cam.op.sta_axial'), 'stockToLeave.axial', { min: 0, nullable: true, f: 'sta-axial' }),
@@ -367,7 +397,7 @@ export class OpPanel {
       rows.push(this.num(t('cam.op.ch_width'), 'width', { min: 0.001, f: 'ch-width', hint: t('cam.op.ch_width_hint'), after: upd }),
         this.num(t('cam.op.ch_clear'), 'tipClearance', { min: 0, nullable: true, f: 'ch-clear', hint: t('cam.op.ch_clear_hint') }), note);
       if ((d.geom || []).some((g) => g.kind === 'chain')) rows.push(sec(t('cam.op.chain_ext')), this.num(t('cam.op.extend_start'), 'extendStart', { min: 0, nullable: true, f: 'extend-start', hint: t('cam.op.extend_chain_hint') }), this.num(t('cam.op.extend_end'), 'extendEnd', { min: 0, nullable: true, f: 'extend-end' }));
-    } else if (d.type === 'contour') {
+    } else if (bt(d) === 'contour') {
       const r = d.ramp, wear = d.comp === 'wear';
       rows.push(this.num(t('cam.op.stepdown'), 'stepdown', { min: 0.001, f: 'stepdown' }), this.num(t('cam.op.finish_stepdown'), 'finishStepdown', { min: 0.001, nullable: true, f: 'finishStepdown' }),
         this.num(t('cam.op.sta_radial'), 'stockToLeave.radial', { min: 0, nullable: true, f: 'sta-radial' }), this.num(t('cam.op.sta_axial'), 'stockToLeave.axial', { min: 0, nullable: true, f: 'sta-axial' }),
@@ -423,7 +453,11 @@ export class OpPanel {
     } else if (d.type === 'adaptive') rows.push(...adaptiveRows(this));
     else if (d.type === 'flat') rows.push(...flatRows(this));
     else if (WP15_TYPES.includes(d.type)) rows.push(...surfPassRows(this)); // WP-15
-    else if (d.type === 'drill') {
+    else if (d.type === 'wrapDrill') {
+      if (d.cycle === 'peck' || d.cycle === 'chipbreak') rows.push(this.num(t('cam.op.peck'), 'peck', { min: 0.001, f: 'peck', hint: t('cam.op.peck_hint') }));
+      rows.push(this.num(t('cam.op.dwell'), 'dwell', { unit: t('cam.u.s'), min: 0, nullable: true, f: 'dwell', hint: t('cam.op.dwell_hint') }),
+        this.sel(t('cam.op.order'), 'order', [['asis', t('cam.op.or_asis')], ['angle', t('cam.op.or_angle')]], { f: 'order', def: 'asis' }));
+    } else if (d.type === 'drill') {
       if (d.cycle === 'peck' || d.cycle === 'chipbreak') rows.push(this.num(t('cam.op.peck'), 'peck', { min: 0.001, f: 'peck', hint: t('cam.op.peck_hint') }));
       if (d.cycle === 'fineBore' || d.cycle === 'backBore') rows.push(this.num(t('cam.op.shift'), 'shift', { min: 0.001, f: 'shift', hint: t('cam.op.shift_hint') }), this.num(t('cam.op.shift_dir'), 'shiftDir', { unit: '°', min: -360, max: 360, nullable: true, f: 'shift-dir', hint: t('cam.op.shift_dir_hint') }));
       if (d.cycle === 'backBore') rows.push(this.num(t('cam.op.back_depth'), 'backDepth', { min: 0.001, f: 'back-depth', hint: t('cam.op.back_depth_hint') }), this.num(t('cam.op.start_below'), 'startBelow', { min: 0, nullable: true, f: 'start-below', hint: t('cam.op.start_below_hint') }));

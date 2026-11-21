@@ -1,12 +1,13 @@
 // WP-17: cizim listesi -> DXF R12 (AC1009, ASCII). Katmanlar ve cizgi turleri (CONTINUOUS, HIDDEN, CENTER) tablolarla yazilir.
 // Metin: TEXT; ASCII disi karakterler AutoCAD denetim kodlari (%%c cap, %%d derece, %%p arti-eksi) ya da \U+XXXX ile kacislanir.
+// WP-22a: kesme cizgisinin kalin uclari (cutk) ayri katman CUTTING_ENDS (CONTINUOUS); ince govde CUTTING (CENTER). Eskiden ikisi tek katmandaydi ve uclar eksen cizgisi cikiyordu.
 // Dolu oklar SOLID, cokgen cizgi ve elips/B-spline parcalari LINE dizisi olarak yazilir (eski okuyucularla uyum, O onerisi).
 import { LAYERS } from './sheet.js';
 import { textWidth } from './text.js';
 
 const f6 = (v) => (Math.abs(v) < 1e-12 ? '0' : String(+v.toFixed(6)));
 const deg = (a) => ((((a * 180) / Math.PI) % 360) + 360) % 360;
-export const DXF_LAYER = { vis: 'VISIBLE', tan: 'TANGENT', hid: 'HIDDEN', ctr: 'CENTER', cut: 'CUTTING', cutk: 'CUTTING', hat: 'HATCH', dim: 'DIM', lost: 'DIM_LOST', txt: 'TEXT', frm: 'FRAME', tb: 'TITLE', thin: 'THIN' };
+export const DXF_LAYER = { vis: 'VISIBLE', tan: 'TANGENT', hid: 'HIDDEN', ctr: 'CENTER', cut: 'CUTTING', cutk: 'CUTTING_ENDS', hat: 'HATCH', dim: 'DIM', lost: 'DIM_LOST', txt: 'TEXT', frm: 'FRAME', tb: 'TITLE', thin: 'THIN' };
 function dxfText(s) {
   let o = '';
   for (const ch of String(s)) { const c = ch.codePointAt(0); if (c === 0xd8 || c === 0xf8) o += '%%c'; else if (c === 0xb0) o += '%%d'; else if (c === 0xb1) o += '%%p'; else if (c >= 32 && c <= 126) o += ch; else o += '\\U+' + c.toString(16).toUpperCase().padStart(4, '0'); }

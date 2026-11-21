@@ -15,7 +15,7 @@ export function buildProgram({ name, number = null, machine, sections }) {
   const out = [];
   for (const sec of sections || []) for (const tp of sec.toolpaths || []) {
     const S = sec.setup;
-    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, stockCyl: S.stockCyl ?? null, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous', ...(S.fixtures?.length ? { fixtures: S.fixtures } : {}) }, toolpath: tp }); // WP-13: baglama govdeleri (setup cercevesinde)
+    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, ...(S.wrap ? { wrap: S.wrap } : {}), stockBox: S.stockBox, stockCyl: S.stockCyl ?? null, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous', ...(S.fixtures?.length ? { fixtures: S.fixtures } : {}), ...(S.toolAxis ? { toolAxis: S.toolAxis } : {}), ...(S.tilt ? { rot: S.rot, tilt: S.tilt } : {}) }, toolpath: tp }); // WP-18: takim ekseni, 3+2 egim // WP-13: baglama govdeleri (setup cercevesinde)
   }
   if (!out.length) throw cerr('cam.program.empty');
   const p = { name, number, machine: machine ? { id: machine.id, name: machine.name, rev: machine.rev ?? null, control: machine.control } : null, units: 'mm', sections: out };
@@ -34,7 +34,7 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
       const plane = rebuild?.sketches?.[sel.sketch]?.plane;
       for (const f of sketchFaces(sel, sk, plane, S.frame)) { sels.push({ ...sel, kind: 'face' }); faces.push(f); }
     } else if (sel.kind === 'chain') { // T-02: eskiz ogelerinden acik/kapali zincir (yalniz kontur)
-      if (!['contour', 'chamfer', 'slot', 'trace'].includes(op.type)) throw cerr('cam.geom.sel_unsupported', { kind: 'chain' });
+      if (!['contour', 'chamfer', 'slot', 'trace', 'wrapContour'].includes(op.type)) throw cerr('cam.geom.sel_unsupported', { kind: 'chain' });
       const sk = (doc?.features || []).find((f) => f && f.type === 'sketch' && f.id === sel.sketch);
       const plane = rebuild?.sketches?.[sel.sketch]?.plane;
       sels.push(sel); faces.push(sketchChain(sel, sk, plane, S.frame));
@@ -228,6 +228,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
     try {
       const planes = {};
       for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face' || ax?.kind === 'edge') planes[k] = await axisPlane(query, ax); }
+      if (setup.tilt?.enabled && setup.tilt.kind === 'face') planes.tilt = await axisPlane(query, { kind: 'face', ref: setup.tilt.ref }); // WP-18
       S = resolveSetup(setup, rebuild, machine, { planes });
       // T-04: setup.stockFrom 'previous' (varsayilan) | 'blank' (zincir yok, ham stok). Gecersiz deger: muhafazakar 'blank'.
       S = { ...S, stockFrom: setup.stockFrom == null ? 'previous' : setup.stockFrom === 'previous' ? 'previous' : 'blank' };
@@ -242,7 +243,8 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         const holeOp = op.type === 'drill' || op.type === 'circular' || op.type === 'threadmill'; // WP-07: delik secimi kullanan islemler
         if (holeOp) { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
-        if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer' || op.type === 'slot' || op.type === 'trace' || op.type === 'adaptive' || op.type === 'flat') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
+        if (op.type === 'wrapDrill' && op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); // WP-16
+        if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer' || op.type === 'slot' || op.type === 'trace' || op.type === 'adaptive' || op.type === 'flat' || op.type === 'wrapContour' || op.type === 'wrapPocket') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
         const preOp = op.type === 'pocket' && op.entry?.kind === 'predrill'; // on delik girisi: stok haritasiyla dogrulanir
         if (holeOp || preOp) chainStock(recs, ri, mres);
         let maps = holeOp || preOp ? await drillMaps(stk, tps, S, { res: mres, query }) : {};

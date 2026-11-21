@@ -18,6 +18,7 @@ export const irErr = (code, params = {}) => new KErr(code, params);
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isInt = (v) => Number.isInteger(v);
+const isUnit = (v) => Array.isArray(v) && v.length === 3 && v.every(isNum) && Math.abs(Math.hypot(...v) - 1) < 1e-6;
 
 // ---------------------------------------------------------------- uretim yardimcilari
 export const mk = {
@@ -86,8 +87,11 @@ export function walk(tp, fn) {
   let pos = null;
   tp.moves.forEach((m, k) => {
     fn(m, k, pos ? { ...pos } : null);
+    // WP-16: sarma (wrap) yolunda konum A'yi da tasir (hareket a vermezse onceki A modal kalir)
+    const a = m.a ?? pos?.a;
     if (m.t === 'rapid' || m.t === 'feed' || m.t === 'arc') pos = { x: m.x, y: m.y, z: m.z };
     else if (m.t === 'cycle' && m.points?.length) { const p = m.points[m.points.length - 1]; pos = { x: p[0], y: p[1], z: m.clearance }; }
+    if (pos && a != null) pos.a = a;
   });
   return pos;
 }
@@ -106,16 +110,41 @@ export function pathBBox(moves) {
   return Number.isFinite(mn[0]) ? { min: mn, max: mx } : null;
 }
 
+// WP-16: sarma (wrap, eszamanli X/A) hareketinin takim ucu yol boyu. WCS orijini A ekseni uzerinde (Y=Z=0 eksen) oldugundan uc
+// yaricapi = |z|; A yayi ortalama uc yaricapinda olculur: L = hypot(dx, dy, dz, rho_ort * dA[rad]). Post (G93 ters zaman F = f / L),
+// geri okuyucu ve istatistik AYNI tanimi kullanir.
+export function wrapMoveLen(from, m) {
+  const a0 = from.a ?? m.a ?? 0, a1 = m.a ?? a0;
+  const rho = Math.abs((from.z + m.z) / 2);
+  return Math.hypot(m.x - from.x, m.y - from.y, m.z - from.z, rho * (a1 - a0) * Math.PI / 180);
+}
+// WP-16: uzun A donusunu |dA| <= maxStep (derece) esit parcalara boler (X/Y/Z/A dogrusal: geometri ayni). Post her sarma blogunu
+// bununla yazar; splitWrapMoves IR'yi NC bicimine getirir (geri okuma karsilastirmasi, normalizeRapids gibi).
+export function wrapSteps(from, m, maxStep = 90) {
+  const a0 = from.a ?? m.a, da = (m.a ?? a0) - a0;
+  const n = Math.max(1, Math.ceil(Math.abs(da) / maxStep - 1e-9)); if (n === 1) return [m];
+  const out = [];
+  for (let k = 1; k <= n; k++) { const t = k / n; out.push(k === n ? m : { ...m, x: from.x + (m.x - from.x) * t, y: from.y + (m.y - from.y) * t, z: from.z + (m.z - from.z) * t, a: a0 + da * t }); }
+  return out;
+}
+export function splitWrapMoves(tp, maxStep = 90) {
+  if (!tp.wrap) return tp;
+  const moves = [];
+  walk(tp, (m, k, from) => { if ((m.t === 'rapid' || m.t === 'feed') && from) moves.push(...wrapSteps(from, m, maxStep)); else moves.push(m); });
+  return { ...tp, moves };
+}
+const segLen = (from, m) => (from.a != null || m.a != null ? wrapMoveLen(from, m) : Math.hypot(m.x - from.x, m.y - from.y, m.z - from.z));
+
 // Istatistik: cutLen (kesme/dalma/yay yolu), rapidLen, timeMin (hizli sure yalniz opts.rapidFeed verilirse), zMin, bbox
 export function computeStats(tp, opts = {}) {
   let cutLen = 0, rapidLen = 0, tMin = 0, zMin = Infinity;
   walk(tp, (m, k, from) => {
     if (m.t === 'rapid') {
-      if (from) { const l = Math.hypot(m.x - from.x, m.y - from.y, m.z - from.z); rapidLen += l; if (opts.rapidFeed > 0) tMin += l / opts.rapidFeed; }
+      if (from) { const l = segLen(from, m); rapidLen += l; if (opts.rapidFeed > 0) tMin += l / opts.rapidFeed; }
       zMin = Math.min(zMin, m.z);
     } else if (m.t === 'feed' || m.t === 'arc') {
       let l;
-      if (m.t === 'feed') l = from ? Math.hypot(m.x - from.x, m.y - from.y, m.z - from.z) : 0;
+      if (m.t === 'feed') l = from ? segLen(from, m) : 0;
       else { const r = arcRadius(from || { x: 0, y: 0 }, m); const sw = from ? Math.abs(arcSweep(from, m)) : 0; l = Math.hypot(r * sw, m.z - (from?.z ?? m.z)); }
       cutLen += l; if (m.f > 0) tMin += l / m.f; zMin = Math.min(zMin, m.z);
     } else if (m.t === 'cycle') {
@@ -129,12 +158,15 @@ export function computeStats(tp, opts = {}) {
 
 // Karisik (XY + Z birlikte) hizli hareketi guvenli sirayla boler: inis = once XY sonra Z; cikis = once Z sonra XY.
 // (G0 dog-leg riskine karsi; post ve simulasyon ayni normalizasyonu kullanir.)
+// WP-16: A tasiyan (sarma) hizlida A, XY ile birlikte hareket eder (cikista Z'den sonra, iniste Z'den once).
 export function splitRapid(from, m) {
   if (!from) return [m];
-  const dxy = Math.hypot(m.x - from.x, m.y - from.y), dz = m.z - from.z;
+  const da = m.a != null && from.a != null ? Math.abs(m.a - from.a) : 0;
+  const dxy = Math.hypot(m.x - from.x, m.y - from.y) + da, dz = m.z - from.z;
   if (dxy < EPS || Math.abs(dz) < EPS) return [m];
-  return dz > 0 ? [{ t: 'rapid', x: from.x, y: from.y, z: m.z }, { t: 'rapid', x: m.x, y: m.y, z: m.z }]
-                : [{ t: 'rapid', x: m.x, y: m.y, z: from.z }, { t: 'rapid', x: m.x, y: m.y, z: m.z }];
+  const wa = (o, a) => (m.a != null ? { ...o, a } : o);
+  return dz > 0 ? [wa({ t: 'rapid', x: from.x, y: from.y, z: m.z }, from.a ?? m.a), wa({ t: 'rapid', x: m.x, y: m.y, z: m.z }, m.a)]
+                : [wa({ t: 'rapid', x: m.x, y: m.y, z: from.z }, m.a), wa({ t: 'rapid', x: m.x, y: m.y, z: m.z }, m.a)];
 }
 export function normalizeRapids(tp) {
   const moves = []; let pos = null;
@@ -175,6 +207,9 @@ export function toolpathErrors(tp, firstOnly = false) {
   if (!isNum(tp.clearanceZ)) { if (bad('cam.ir.field', { field: 'clearanceZ' })) return errs; }
   if (!isNum(tp.retractZ) || (isNum(tp.clearanceZ) && tp.retractZ > tp.clearanceZ + EPS)) { if (bad('cam.ir.field', { field: 'retractZ' })) return errs; }
   if (!Array.isArray(tp.moves) || tp.moves.length === 0) { bad('cam.ir.no_moves'); return errs; }
+  // WP-16: sarma (wrap) yolu: tp.wrap = {axis:'X', r?}; hareketlerde a (derece, surekli A kelimesi). Yalniz bu yolda a izinli; yay yok.
+  const W = tp.wrap;
+  if (W != null && (typeof W !== 'object' || W.axis !== 'X' || (W.r != null && !(isNum(W.r) && W.r > 0)))) { if (bad('cam.ir.field', { field: 'wrap' })) return errs; }
 
   let pos = null, compActive = false, pending = null, compOnCount = 0;
   for (let k = 0; k < tp.moves.length; k++) {
@@ -184,7 +219,11 @@ export function toolpathErrors(tp, firstOnly = false) {
     if (m.t === 'rapid' || m.t === 'feed' || m.t === 'arc') {
       for (const a of ['x', 'y', 'z']) if (!isNum(m[a])) { if (bad('cam.ir.field', { ...at, field: a })) return errs; }
       if (!isNum(m.x) || !isNum(m.y) || !isNum(m.z)) continue;
+      if (m.toolAxis != null && !isUnit(m.toolAxis)) { if (bad('cam.ir.field', { ...at, field: 'toolAxis' })) return errs; } // WP-18: istege bagli, setup cercevesinde (yoksa [0,0,1])
     }
+    if (m.a != null) { if (!W) { if (bad('cam.ir.a_without_wrap', at)) return errs; } else if (!isNum(m.a) || (m.t !== 'rapid' && m.t !== 'feed')) { if (bad('cam.ir.field', { ...at, field: 'a' })) return errs; } }
+    if (W && (m.t === 'arc' || m.t === 'comp')) { if (bad('cam.ir.wrap_move', { ...at, t: m.t })) return errs; }
+    if (W && k === 0 && !isNum(m.a)) { if (bad('cam.ir.field', { ...at, field: 'a' })) return errs; }
     if (pending !== null && !(m.t === 'feed' && m.kind === 'lead')) { if (bad('cam.ir.comp_not_on_lead', at)) return errs; }
     if (m.t === 'rapid') {
       if (compActive && bad('cam.ir.rapid_in_comp', at)) return errs;
@@ -269,6 +308,8 @@ export function validateProgram(p) {
     if (!w || !WCS.includes(w.kind)) throw irErr('cam.ir.field', { section: n, field: 'workOffset' });
     if (w.kind === 'G54.1' && !(isInt(w.p) && w.p >= 1)) throw irErr('cam.ir.field', { section: n, field: 'workOffset.p' });
     if (st.aAngle != null && !isNum(st.aAngle)) throw irErr('cam.ir.field', { section: n, field: 'aAngle' });
+    if (st.toolAxis != null && !isUnit(st.toolAxis)) throw irErr('cam.ir.field', { section: n, field: 'toolAxis' }); // WP-18: tabla koord. takim ekseni (3 eksen [0,0,1])
+    if (st.rot != null && (typeof st.rot !== 'object' || !Object.values(st.rot).every(isNum))) throw irErr('cam.ir.field', { section: n, field: 'rot' });
     try { validateToolpath(s.toolpath); } catch (e) { if (e instanceof KErr) throw irErr(e.code, { ...e.params, section: n }); throw e; }
   });
   return true;
@@ -286,10 +327,26 @@ export function compareToolpaths(a, b, tol = 0.001) {
   const near = (u, v, t = tol) => Math.abs(u - v) <= t;
   if (ma.length !== mb.length) diffs.push(`move count ${ma.length} != ${mb.length}`);
   const n = Math.min(ma.length, mb.length);
+  // WP-16: A (sarma) karsilastirmasi: NC'de A kelimesi 360 kati kadar kaydirilmis olabilir (kisa yol bicimi) -> ilk A farki 360'in
+  // kati olmali, sonraki farklar bu kaymayla esit. Sarma ilerlemesi: yuvarlanmis koordinatlardan yeniden kurulur (G93 F = f / L) ->
+  // tolerans 0,051 + f * 0,002 / L (L: IR hareket boyu).
+  let aOff = null; let prevP = null;
   for (let k = 0; k < n; k++) {
     const p = ma[k], q = mb[k];
+    const fromP = prevP; if (p.t === 'rapid' || p.t === 'feed' || p.t === 'arc') prevP = { x: p.x, y: p.y, z: p.z, a: p.a ?? fromP?.a };
     if (p.t !== q.t) { diffs.push(`#${k} type ${p.t} != ${q.t}`); continue; }
     const chk = (keys, t = tol) => keys.forEach((key) => { if (!(typeof p[key] === 'number' && typeof q[key] === 'number' && near(p[key], q[key], t))) diffs.push(`#${k} ${p.t}.${key} ${p[key]} != ${q[key]}`); });
+    if ((p.t === 'rapid' || p.t === 'feed') && (p.a != null || q.a != null)) {
+      if (!(typeof p.a === 'number' && typeof q.a === 'number')) diffs.push(`#${k} ${p.t}.a ${p.a} != ${q.a}`);
+      else {
+        const d = p.a - q.a;
+        if (aOff == null) { aOff = Math.round(d / 360) * 360; if (!near(d, aOff, 0.0011)) diffs.push(`#${k} ${p.t}.a ${p.a} != ${q.a} (mod 360)`); }
+        else if (!near(d, aOff, 0.0011)) diffs.push(`#${k} ${p.t}.a ${p.a} != ${q.a} (+${aOff})`);
+      }
+      chk(['x', 'y', 'z']);
+      if (p.t === 'feed') { const L = fromP ? wrapMoveLen(fromP, p) : 0; chk(['f'], 0.051 + (L > 1e-9 ? p.f * 0.002 / L : 0)); }
+      continue;
+    }
     if (p.t === 'rapid') chk(['x', 'y', 'z']);
     else if (p.t === 'feed') { chk(['x', 'y', 'z']); chk(['f'], 0.051); }
     else if (p.t === 'arc') { chk(['x', 'y', 'z', 'i', 'j']); chk(['f'], 0.051); if (p.dir !== q.dir) diffs.push(`#${k} arc.dir ${p.dir} != ${q.dir}`); }

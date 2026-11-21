@@ -4,6 +4,7 @@
 // Cikti: metin + satir -> (section, move) eslemesi. Uretilen NC yalniz test ciktisidir; DOGRULANMADI basligi daima yazilir.
 import { KErr } from '../../shared/errors.js';
 import { validateProgram, splitRapid, arcCenter } from '../ir.js';
+import { unwindProgram } from '../kinematics.js';
 
 export const MIHENK_VERSION = '0.3.0'; // yalniz baslik yorumu icin; opts.appVersion ile ezilir
 export const perr = (code, params = {}) => new KErr(code, params);
@@ -92,6 +93,19 @@ export function resolveRotary(machine) {
   };
 }
 
+// WP-16: sarma (eszamanli X/A) hareketlerinde A kelimesi bicimi. Post ozelligi wrapAWord: 'continuous' (A dogrusal eksen gibi birikimli
+// derece; kontrol A'yi 360'a sarmiyorsa), 'shortest' (A kelimesi 360'a sarilir; kontrol kisa yolu secer -> post her blokta |dA| <=
+// wrapMaxAStep < 180 tutar, yon belirsizligi olmaz), 'auto' (varsayilan): makine profili A.wrap 'shortest' (ya da shortest:true) ->
+// 'shortest'; shortest:false ve wrap yok -> 'continuous'; '0-360' / 'signed' (mutlak, isaretle yon) -> acik hata (profilde secilmeli).
+export function wrapAMode(props, R) {
+  const w = props.wrapAWord ?? 'auto';
+  if (w === 'continuous' || w === 'shortest') return w;
+  if (w !== 'auto') throw perr('cam.post.bad_prop', { prop: 'wrapAWord', value: String(w) });
+  if (R?.wrap === 'shortest') return 'shortest';
+  if (R?.wrap === 'none') return 'continuous';
+  throw perr('cam.post.wrap_a_format', { wrap: String(R?.wrap) });
+}
+
 // ---------------------------------------------------------------- baglam
 export class PostContext {
   constructor(post, program, machine, props, opts) {
@@ -143,6 +157,7 @@ export const CONDITIONAL_PROPS = Object.freeze(['dwellAddress', 'dwellUnit', 'cy
 export const requiredPropsMissing = (post, props) => Object.keys(post.defaultProps).filter((k) => !CONDITIONAL_PROPS.includes(k) && isEmptyProp(props[k]));
 export function runPost(post, program, machine, opts = {}) {
   validateProgram(program);
+  program = unwindProgram(program); // WP-18: acilmis 3+2 bolumleri makine koordinatina (oteleme); digerleri aynen
   const props = resolveProps(post, machine, opts.props);
   { const miss = requiredPropsMissing(post, props); if (miss.length) throw perr('cam.post.prop_missing', { prop: miss[0], post: post.id, all: miss.join(', ') }); }
   const ctx = new PostContext(post, program, machine, props, opts);
@@ -156,12 +171,17 @@ export function runPost(post, program, machine, opts = {}) {
     let kind = null; let pendingComp = null; let pos = null;
     tp.moves.forEach((m, k) => {
       ctx.cur = { section: si, move: k };
+      // WP-16: sarma yolunda (tp.wrap) hizli/kesme hareketi A ile birlikte: onRapid5D / onLinear5D (Fusion adlari; b, c = null)
       if (m.t === 'rapid') {
         const parts = props.rapidSplit ? splitRapid(pos, m) : [m];
-        for (const p of parts) { call('onRapid', p.x, p.y, p.z); ctx.pos = pos = { x: p.x, y: p.y, z: p.z }; }
+        for (const p of parts) {
+          if (tp.wrap) { const a = p.a ?? pos?.a; call('onRapid5D', p.x, p.y, p.z, a, null, null); ctx.pos = pos = { x: p.x, y: p.y, z: p.z, a }; }
+          else { call('onRapid', p.x, p.y, p.z); ctx.pos = pos = { x: p.x, y: p.y, z: p.z }; }
+        }
       } else if (m.t === 'feed') {
         if (m.kind !== kind) { kind = m.kind; if (post.onMovement) call('onMovement', kind); }
         if (pendingComp) { call('onRadiusCompensation', pendingComp.on, tp.compSide, tp.tool.D); }
+        if (tp.wrap) { const a = m.a ?? pos?.a; call('onLinear5D', m.x, m.y, m.z, a, null, null, m.f); pendingComp = null; ctx.pos = pos = { x: m.x, y: m.y, z: m.z, a }; return; }
         call('onLinear', m.x, m.y, m.z, m.f);
         pendingComp = null; ctx.pos = pos = { x: m.x, y: m.y, z: m.z };
       } else if (m.t === 'arc') {
@@ -173,7 +193,7 @@ export function runPost(post, program, machine, opts = {}) {
         call('onCycle', m);
         for (const p of m.points) call('onCyclePoint', p[0], p[1], m.bottom);
         call('onCycleEnd');
-        const lp = m.points[m.points.length - 1]; ctx.pos = pos = { x: lp[0], y: lp[1], z: m.clearance };
+        const lp = m.points[m.points.length - 1]; ctx.pos = pos = { x: lp[0], y: lp[1], z: m.clearance, ...(pos?.a != null ? { a: pos.a } : {}) };
       } else if (m.t === 'dwell') call('onDwell', m.s);
       else if (m.t === 'comp') { pendingComp = { on: m.on }; ctx.state.pendingComp = pendingComp; }
     });

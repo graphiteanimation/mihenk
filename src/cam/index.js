@@ -2,6 +2,7 @@
 import { cerr } from './geom/err.js';
 import { normalizeTool } from './tools.js';
 import { resolveFixtures } from './sim/fixtures.js';
+import { resolveTilt, unwoundShift } from './kinematics.js';
 import { computeFace } from './ops/face.js';
 import { computeDrill } from './ops/drill.js';
 import { computeContour } from './ops/contour.js';
@@ -10,6 +11,7 @@ import { computeChamfer } from './ops/chamfer.js';
 import { computeCircular } from './ops/circular.js';
 import { computeSlot, computeTrace } from './ops/slot.js';
 import { computeThread } from './ops/thread.js';
+import { computeWrapContour, computeWrapPocket, computeWrapDrill } from './ops/wrap.js';
 export { gates, gatesAsync } from './gates.js';
 export { simulateAsync } from './sim/async.js';
 export { gcodeToProgram } from './sim/gcode.js';
@@ -81,7 +83,8 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
     const o = org.kind === 'point' ? F0.map((a) => dot(a, org.p)) : [0, 0, 0]; const R = st.dia / 2; const cx = (mb.min[0] + mb.max[0]) / 2;
     sb = { min: [cx - st.len / 2, o[1] - R, o[2] - R], max: [cx + st.len / 2, o[1] + R, o[2] + R] }; stock = { kind: 'cyl', dia: st.dia, len: st.len };
     // model silindirin icinde mi (yonlu kutu koseleri, muhafazakar)
-    for (const yy of [mb.min[1], mb.max[1]]) for (const zz of [mb.min[2], mb.max[2]]) if (Math.hypot(yy - o[1], zz - o[2]) > R + 1e-6) throw cerr('cam.setup.stock_small');
+    // WP-16: kutu koseleri yerine goruntu agi koseleri (silindirik model kutu koselerinde yanlis "stok kucuk" verirdi); ag kirisleri yuzeyin icinde
+    for (const b of bodies) { const v = b.vertices; for (let i = 0; i < v.length; i += 3) { const yy = v[i] * F0[1][0] + v[i + 1] * F0[1][1] + v[i + 2] * F0[1][2], zz = v[i] * F0[2][0] + v[i + 1] * F0[2][1] + v[i + 2] * F0[2][2]; if (Math.hypot(yy - o[1], zz - o[2]) > R + 1e-6) throw cerr('cam.setup.stock_small'); } }
     if (mb.min[0] < sb.min[0] - 1e-6 || mb.max[0] > sb.max[0] + 1e-6) throw cerr('cam.setup.stock_small');
   } else throw cerr('cam.setup.bad_field', { field: 'stock.kind' });
   // orijin (yonlu koordinatlarda)
@@ -96,6 +99,14 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
   const o = [0, 1, 2].map((k) => oR[0] * F0[0][k] + oR[1] * F0[1][k] + oR[2] * F0[2][k]);
   // A ekseni (3+1): phi = aAngle * isaret(A.dir . +X); etkin cerceve F = Rx(phi) * F0
   let aAngle = null; let F = F0;
+  // WP-18: 3+2 egik setup. Takim ekseni yuz normali / vektor / acilardan; ters kinematikle doner acilar; etkin cerceve F = W^T F0 (W: tabla koord.)
+  let tiltR = null;
+  if (setup.tilt?.enabled) {
+    if (setup.rotary?.enabled) throw cerr('cam.kin.tilt_with_rotary', {});
+    if (stock.kind === 'cyl') throw cerr('cam.kin.tilt_cyl_stock', {});
+    tiltR = resolveTilt(setup.tilt, F0, machine, opts.planes?.tilt);
+    const W = tiltR.W; F = [0, 1, 2].map((k) => [0, 1, 2].map((i) => W[0][k] * F0[0][i] + W[1][k] * F0[1][i] + W[2][k] * F0[2][i]));
+  }
   if (setup.rotary?.enabled) {
     const A = machine?.axes?.A; if (!A || A.kind !== 'rotary' || A.about !== 'X') throw cerr('cam.setup.no_rotary');
     aAngle = setup.rotary.aAngle; if (!isNum(aAngle)) throw cerr('cam.setup.bad_field', { field: 'rotary.aAngle' });
@@ -112,6 +123,11 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
       stockBox = { min: mn, max: mx };
     }
   }
+  if (tiltR) { // egik stok: taban kutusu koselerinin yerel kutusu (muhafazakar; 3+1 ile ayni kural)
+    const W = tiltR.W; const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (const xx of [stockBox.min[0], stockBox.max[0]]) for (const yy of [stockBox.min[1], stockBox.max[1]]) for (const zz of [stockBox.min[2], stockBox.max[2]]) for (let k = 0; k < 3; k++) { const v = W[0][k] * xx + W[1][k] * yy + W[2][k] * zz; mn[k] = Math.min(mn[k], v); mx[k] = Math.max(mx[k], v); }
+    stockBox = { min: mn, max: mx };
+  }
   const frame = { o, x: F[0], y: F[1], z: F[2] };
   const mbe = orientedBBox(bodies, F); const oe = F.map((a) => dot(a, o));
   const modelBBox = { min: mbe.min.map((v, k) => v - oe[k]), max: mbe.max.map((v, k) => v - oe[k]) };
@@ -122,7 +138,24 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
   const stockCyl = stock.kind === 'cyl' ? { yc: (stockBox.min[1] + stockBox.max[1]) / 2, zc: (stockBox.min[2] + stockBox.max[2]) / 2, R: stock.dia / 2 } : null;
   // WP-13: baglama govdeleri (taban setup cercevesi / model uzayi -> setup cercevesi; sim carpma denetimi + gorunum)
   const fixtures = resolveFixtures(setup.fixtures, { frame, frame0: { o, x, y, z }, bodies: rebuild?.bodies || [], partBodies: ids });
-  return { id: setup.id, name: setup.name ?? setup.id, bodies: ids, workOffset: { ...wo }, frame, frame0: { o, x, y, z }, aAngle, stock, stockCyl, stockBox, modelBBox, clearance: clr, stockTop: stockBox.max[2], machinePos: setup.machinePos ?? null, ...(fixtures.length ? { fixtures } : {}) };
+  // WP-16: sarma kipi (setup.wrap.enabled): silindir stok (eksen X, WCS orijini eksen uzerinde: stockCyl merkezi), A ekseni X etrafinda;
+  // 3+1 indeksleme ile birlikte kullanilmaz (sarma islemleri A'yi kendileri surer). r = setup.wrap.dia/2 (yoksa stok capi/2).
+  let wrap = null;
+  if (setup.wrap?.enabled) {
+    if (stock.kind !== 'cyl') throw cerr('cam.wrap.needs_cyl');
+    if (aAngle !== null) throw cerr('cam.wrap.rotary_conflict');
+    if (setup.tilt?.enabled) throw cerr('cam.wrap.tilt_conflict'); // WP-16 + WP-18: sarma ve 3+2 egim ayni setup'ta olmaz
+    const A = machine?.axes?.A; if (!A || A.kind !== 'rotary' || A.about !== 'X' || !Array.isArray(A.dir)) throw cerr('cam.setup.no_rotary');
+    if (Math.hypot(stockCyl.yc, stockCyl.zc) > 1e-6) throw cerr('cam.wrap.origin_off_axis', { y: stockCyl.yc, z: stockCyl.zc });
+    const dia = setup.wrap.dia ?? stock.dia; if (!(isNum(dia) && dia > 0)) throw cerr('cam.setup.bad_field', { field: 'wrap.dia' });
+    wrap = { r: dia / 2, R: stock.dia / 2, dia, sign: A.dir[0] < 0 ? -1 : 1 };
+  }
+  return { id: setup.id, name: setup.name ?? setup.id, bodies: ids, workOffset: { ...wo }, frame, frame0: { o, x, y, z }, aAngle, stock, stockCyl, stockBox, modelBBox, clearance: clr, stockTop: stockBox.max[2], machinePos: setup.machinePos ?? null, ...(fixtures.length ? { fixtures } : {}), ...(wrap ? { wrap } : {}), toolAxis: F0.map((r) => { const v = dot(r, F[2]); return Math.abs(v) < 1e-15 ? 0 : v; }), ...(tiltR ? { rot: tiltR.angles, tilt: tiltInfo(tiltR, setup) } : {}) };
+}
+// WP-18: bolum egim bilgisi (post ve G-code sim icin): cikis bicimi, W (tabla koord. satirlar), Euler ZXZ, acilmis kaydirma
+function tiltInfo(r, setup) {
+  const mode = r.kin.tiltOutput; const u = mode === 'unwound' ? unwoundShift(r.kin, r.angles, setup.machinePos) : { shift: null, missing: null };
+  return { mode, W: r.W, euler: r.euler, solutions: r.count, shift: u.shift, missing: u.missing };
 }
 
 // computeOp(op, ctx) -> Toolpath (IR) | throw CamErr.  ctx = { setup: resolveSetup sonucu, tool: belge takimi, geom, machine }
@@ -151,6 +184,9 @@ function runOp(op, c) {
     case 'adaptive': return computeAdaptive(op, c);
     case 'flat': return computeFlat(op, c);
     case 'adaptive3d': case 'zlevel': case 'parallel': case 'scallop': case 'pencil': return computeSurface(op, c); // WP-15
+    case 'wrapContour': return computeWrapContour(op, c);
+    case 'wrapPocket': return computeWrapPocket(op, c);
+    case 'wrapDrill': return computeWrapDrill(op, c);
     default: throw cerr('cam.op.unsupported', { what: String(op.type) });
   }
 }

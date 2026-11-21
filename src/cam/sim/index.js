@@ -16,11 +16,13 @@ import { freePieces } from './free.js';
 import { lowerForChamfer } from './chamfer.js';
 import { fixtureGrid, fixtureHit } from './fixtures.js';
 import { triFromBox, triFromHeightmap, triFromSources, triHeightmap, triCut, triHit, subRay, rayTop } from './tridexel.js';
+import { createWrapStock, wrapTouch } from './wrap.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, stockHeightmap, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom, holderSegments } from './tool.js';
 export { fixtureGrid, fixtureHit, normalizeFixtures, resolveFixtures, normalizeSolids } from './fixtures.js';
 export { triFromBox, triFromHeightmap, triHeightmap, triVolume, triContains, subRay } from './tridexel.js';
+export { createWrapStock, wrapRay, wrapRadiiAt, wrapTheta } from './wrap.js';
 
 const err = (code, params = {}) => new KErr(code, params);
 // below_stock: islemin bildirdigi bilincli pay (toolpath.meta.belowStock, mm; boydan boya delik/kontur) icindeyse 'warn', disindaysa 'error' (V-12)
@@ -45,7 +47,8 @@ export function createSim(input, opts = {}) {
   const TRI = opts.dexel === 'tri', latTol = opts.lateralTol ?? 0.01;
   const fixTol = opts.fixtureTol ?? 0.01; // WP-13: baglama govdesine bu kadardan az (dusey/yanal) giris temas sayilmaz (kayan nokta)
   let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts, secStats;
-  const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
+  let wraps; // WP-16: sarma bolumleri icin silindirik stok (setup kimligi -> createWrapStock); yukseklik haritasiyla stok PAYLASILMAZ (her biri digerinin kesimini bilmez: daha cok malzeme, muhafazakar)
+  const reset = () => { wraps = new Map(); setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
   reset();
 
   function setupFor(id, sset) {
@@ -79,6 +82,16 @@ export function createSim(input, opts = {}) {
     const sec = sections[si], tp = sec.toolpath;
     const id = sec.setup?.id ?? 'default';
     const tool = { ...tp.tool, ...(opts.tools?.[tp.tool.number] || {}), ...(opts.tool || {}) };
+    if (tp.wrap) { // WP-16
+      if (!wraps.has(id)) {
+        const st = sec.setup || {}; const box = opts.stockBoxes?.[id] ?? st.stockBox ?? opts.stockBox, cyl = st.stockCyl;
+        if (!box || !cyl) throw err('cam.sim.wrap_no_cyl', { setup: id });
+        if (Math.hypot(cyl.yc, cyl.zc) > 1e-6) throw err('cam.sim.wrap_off_axis', { setup: id });
+        wraps.set(id, createWrapStock({ ...st, stockBox: box }, res));
+      }
+      cur = { si, tp, wrap: wraps.get(id), geom: toolGeom(tool), pos: null, acc: null, move: 0, clr: Infinity, marked: 0, allow: 0, cycAllow: 0, allowNow: 0, pre: null, mask: null };
+      return;
+    }
     const allow = Number.isFinite(tp.meta?.belowStock) && tp.meta.belowStock > 0 ? tp.meta.belowStock : 0;
     // B2: delme cevriminde stok alti pay en cok breakThrough + uc boyu (meta.drillAllow; yoksa yalniz takim uc boyu)
     const tipL = tool.tipAngle > 0 && tool.tipAngle < 180 ? (tool.dia / 2) / Math.tan(tool.tipAngle * Math.PI / 360) : 0;
@@ -113,6 +126,7 @@ export function createSim(input, opts = {}) {
   }
   function closeSection() {
     const c = cur; if (!c || c.closed) return; c.closed = true;
+    if (c.wrap) { secStats[c.si] = { localTop: null, holderClearance: null, envelope: 'tool', wrap: true }; return; } // WP-16
     const st = { localTop: localTop(), holderClearance: c.geom.holderR > 0 && Number.isFinite(c.clr) ? c.clr : null, envelope: c.geom.holderR > 0 ? 'holder' : 'tool' };
     secStats[c.si] = st;
     if (st.holderClearance != null && st.holderClearance < clrLow && !c.hadHolderHit) {
@@ -283,7 +297,33 @@ export function createSim(input, opts = {}) {
     for (const p of sampleArc(startPos, m, 0.002)) { const q = { x: p[0], y: p[1], z: p[2] }; sweep(cur.pos, q, 1); cur.pos = q; }
   }
 
+  // WP-16: sarma hareketi (X, Z = uc yaricapi, A). Ornek araligi en buyuk yaricapta (stok ya da uc) yay boyu <= step.
+  function wrapSweep(a, b, mode) {
+    const W = cur.wrap, k = Math.PI / 180 * W.sign;
+    const at = (q) => { if (Math.abs(q.y) > 1e-6) throw err('cam.sim.wrap_y', { y: q.y }); samples++; removedTotal += wrapTouch(W, cur.geom, q.x, q.z, q.a * k, mode, (code, depth) => note(code, depth, q.x, 0, q.z), tol); };
+    if (!a) { at(b); return; }
+    const aa = a.a ?? b.a, ba = b.a ?? aa;
+    const len = Math.hypot(b.x - a.x, b.z - a.z, Math.max(W.R, Math.abs(a.z), Math.abs(b.z)) * (ba - aa) * Math.PI / 180);
+    const n = Math.max(1, Math.ceil(len / step));
+    for (let q = 1; q <= n; q++) { const t = q / n; at({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t, a: aa + (ba - aa) * t }); }
+  }
+  function wrapMove(m) {
+    const P = (o) => ({ x: o.x, y: o.y, z: o.z, a: o.a ?? cur.pos?.a });
+    if (m.t === 'rapid') { for (const p of (rapidSplit ? splitRapid(cur.pos, m) : [m])) { const q = P(p); wrapSweep(cur.pos, q, 0); cur.pos = q; } }
+    else if (m.t === 'feed') { const q = P(m); wrapSweep(cur.pos, q, 1); cur.pos = q; }
+    else if (m.t === 'cycle') {
+      for (const [n, p] of m.points.entries()) {
+        const last = n === m.points.length - 1, a = cur.pos.a, go = (z, mode) => { const q = { x: p[0], y: p[1], z, a }; wrapSweep(cur.pos, q, mode); cur.pos = q; };
+        if (cur.pos.x !== p[0] || cur.pos.y !== p[1]) go(cur.pos.z, 0);
+        if (m.cycle === 'backBore' || m.cycle === 'fineBore') throw err('cam.sim.wrap_cycle', { cycle: m.cycle });
+        go(m.retract, 0); go(m.bottom, 1); if (m.cycle === 'tap') go(m.retract, 1);
+        go(last || m.retract === m.clearance || m.returnTo === 'clearance' ? m.clearance : m.retract, 0);
+      }
+    }
+  }
+
   function doMove(m) {
+    if (cur.wrap) { wrapMove(m); return; }
     if (m.t === 'comp') { cur.compPend = m.on; return; }
     if (m.t === 'rapid') { rapidTo(m); cur.prog = { x: m.x, y: m.y, z: m.z }; }
     else if (m.t === 'feed') {
@@ -390,7 +430,7 @@ export function createSim(input, opts = {}) {
     const fresh = [...cur.cycFresh, ...flush(si, k)];
     idx++;
     if (idx >= steps.length) { const n0 = issues.length; closeSection(); freeCheck(); fresh.push(...issues.slice(n0)); }
-    if (opts.frames > 0 && idx % opts.frames === 0) frames.push({ index: idx, section: si, moveIndex: k, removedVolume: removedTotal, heightmap: new Float32Array(cur.setup.hm.data) });
+    if (opts.frames > 0 && idx % opts.frames === 0 && cur.setup?.hm) frames.push({ index: idx, section: si, moveIndex: k, removedVolume: removedTotal, heightmap: new Float32Array(cur.setup.hm.data) });
     return fresh;
   }
 
@@ -417,7 +457,7 @@ export function createSim(input, opts = {}) {
     },
     result() {
       const remainBySetup = {}; for (const [id, s] of setups) remainBySetup[id] = s.hm;
-      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, ...(TRI ? { triBySetup: Object.fromEntries([...setups].map(([id, x]) => [id, x.tri])) } : {}), suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => !!x.chained).map((x) => x.id) };
+      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur?.setup ? cur.setup.hm : null, remainBySetup, ...(wraps.size ? { wrapBySetup: Object.fromEntries(wraps) } : {}), ...(TRI ? { triBySetup: Object.fromEntries([...setups].map(([id, x]) => [id, x.tri])) } : {}), suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => !!x.chained).map((x) => x.id) };
       if (opts.frames > 0) out.frames = frames;
       return out;
     },

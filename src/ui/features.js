@@ -7,9 +7,10 @@ export const TYPE_KEY = {
   sketch: tk('feat.sketch'), extrude: tk('feat.extrude'), revolve: tk('feat.revolve'), hole: tk('feat.hole'), fillet: tk('feat.fillet'), chamfer: tk('feat.chamfer'), shell: tk('feat.shell'),
   combine: tk('feat.combine'), move: tk('feat.move'), pattern: tk('feat.pattern'), mirror: tk('feat.mirror'), import: tk('feat.import'),
   split: tk('feat.split'), splitface: tk('feat.splitface'), faceop: tk('feat.faceop'),
+  sweep: tk('feat.sweep'), loft: tk('feat.loft'), draft: tk('feat.draft'), rib: tk('feat.rib'), vfillet: tk('feat.vfillet'), thread: tk('feat.thread'), coil: tk('feat.coil'), // WP-19
 };
 export const KIND_KEY = { box: tk('feat.box'), cylinder: tk('feat.cylinder'), sphere: tk('feat.sphere') };
-const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', split: 'spl', splitface: 'sfc', faceop: 'fop', box: 'box', cylinder: 'cyl', sphere: 'sph' };
+const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', split: 'spl', splitface: 'sfc', faceop: 'fop', sweep: 'swp', loft: 'loft', draft: 'dft', rib: 'rib', vfillet: 'vfil', thread: 'thr', coil: 'coil', box: 'box', cylinder: 'cyl', sphere: 'sph' };
 
 export const featLabel = (f) => (f.type === 'primitive' ? t(KIND_KEY[f.kind] || KIND_KEY.box) : TYPE_KEY[f.type] ? t(TYPE_KEY[f.type]) : f.type);
 
@@ -83,12 +84,20 @@ export function defaults(type, kind, ctx) {
       const src = patternSources(ctx.doc).slice(-1)[0];
       return { kind: 'rect', source: src ? { kind: 'feature', id: src.id } : { kind: 'body', bodies: [] }, count1: '3', step1: '20', dir1: 'X', count2: '1', step2: '20', dir2: 'Y', count: '4', total: '360', axis: 'Z', cx: '0', cy: '0', cz: '0', join: false };
     }
+    // WP-19
+    case 'sweep': { const sk = ctx.sketches; const sketch = sk.length > 1 ? sk[sk.length - 2].id : sk[0]?.id || ''; const path = sk.length > 1 ? sk[sk.length - 1].id : ''; return { sketch, profiles: 'all', path, orient: 'path', ...sketchOp(sketch) }; }
+    case 'loft': { const sk = ctx.sketches; return { sections: sk.slice(-2).map((s) => s.id), ruled: false, rail: '', op: hasBody ? 'join' : 'new' }; }
+    case 'draft': return { faces: [], tool: { kind: 'base', name: 'XY', offset: '0' }, angle: '3', flip: false };
+    case 'rib': { const withLines = ctx.sketches.filter((s) => (s.ents || []).some((e) => e.type === 'line' && !e.cons)); return { sketch: (withLines.slice(-1)[0] || ctx.sketches.slice(-1)[0])?.id || '', t: '3', flip: false }; }
+    case 'vfillet': return { edges: [], r1: '2', r2: '4', rm: '', tm: '0.5', chain: true };
+    case 'thread': return { face: '', thread: { designation: 'M10', pitch: 1.5, major: 10, family: 'iso' }, length: '', hand: 'right', flip: false };
+    case 'coil': return { plane: 'XY', offset: '0', cx: '0', cy: '0', dia: '20', pitch: '5', turns: '5', sdia: '2', hand: 'right', flip: false, op: hasBody ? 'join' : 'new' };
     case 'mirror': { const src = patternSources(ctx.doc).slice(-1)[0]; return { source: src ? { kind: 'feature', id: src.id } : { kind: 'body', bodies: [] }, plane: 'YZ', offset: '0' }; }
   }
   return {};
 }
 
-export const patternSources = (doc) => doc.features.filter((f) => ['extrude', 'revolve', 'hole', 'primitive'].includes(f.type) && !f.suppressed);
+export const patternSources = (doc) => doc.features.filter((f) => ['extrude', 'revolve', 'hole', 'primitive', 'sweep', 'loft', 'coil'].includes(f.type) && !f.suppressed);
 
 // Alan tanımları (panel formu bunlardan üretilir). t: expr | select | check | sketch | profiles | axis | sel | source | thread | note
 export function fieldsFor(f, ctx) {
@@ -166,6 +175,33 @@ export function fieldsFor(f, ctx) {
       F.push({ t: 'sel', k: 'faces', label: tk('fld.faces'), kind: 'face' }, { t: 'select', k: 'mode', label: tk('fld.faceop_mode'), opts: [['offset', tk('faceop.offset')], ['move', tk('faceop.move')], ['delete', tk('faceop.delete')]] });
       if ((f.mode ?? 'offset') === 'offset') F.push({ t: 'expr', k: 'dist', label: tk('fld.offset_dist'), unit: 'mm' });
       if (f.mode === 'move') F.push({ t: 'expr', k: 'dx', label: tk('fld.tr_x'), unit: 'mm' }, { t: 'expr', k: 'dy', label: tk('fld.tr_y'), unit: 'mm' }, { t: 'expr', k: 'dz', label: tk('fld.tr_z'), unit: 'mm' });
+      break;
+    // WP-19
+    case 'sweep':
+      F.push({ t: 'sketch', k: 'sketch', label: tk('fld.sketch') }, { t: 'profiles', k: 'profiles', label: tk('fld.profiles') }, { t: 'sketch', k: 'path', label: tk('fld.path'), other: 'sketch' },
+        { t: 'select', k: 'orient', label: tk('fld.orient'), opts: [['path', tk('orient.path')], ['fixed', tk('orient.fixed')], ['frenet', tk('orient.frenet')]] }, opField());
+      break;
+    case 'loft':
+      F.push({ t: 'sketches', k: 'sections', label: tk('fld.sections') }, { t: 'check', k: 'ruled', label: tk('fld.ruled') }, { t: 'sketch', k: 'rail', label: tk('fld.rail'), optional: true }, opField());
+      break;
+    case 'draft':
+      F.push({ t: 'sel', k: 'faces', label: tk('fld.faces'), kind: 'face' }, { t: 'tool', k: 'tool', label: tk('fld.neutral_plane') }, { t: 'expr', k: 'angle', label: tk('fld.draft_angle'), unit: '°' }, { t: 'check', k: 'flip', label: tk('fld.pull_flip') });
+      break;
+    case 'rib': F.push({ t: 'sketch', k: 'sketch', label: tk('fld.sketch'), need: 'lines' }, { t: 'expr', k: 't', label: tk('fld.rib_t'), unit: 'mm' }, { t: 'check', k: 'flip', label: tk('fld.rib_flip') }); break;
+    case 'vfillet':
+      F.push({ t: 'sel', k: 'edges', label: tk('fld.edges'), kind: 'edge' }, { t: 'check', k: 'chain', label: tk('fld.chain') }, { t: 'expr', k: 'r1', label: tk('fld.radius_start'), unit: 'mm' }, { t: 'expr', k: 'r2', label: tk('fld.radius_end'), unit: 'mm' },
+        { t: 'expr', k: 'rm', label: tk('fld.radius_mid'), unit: 'mm', optional: true });
+      if (f.rm != null && String(f.rm).trim() !== '') F.push({ t: 'expr', k: 'tm', label: tk('fld.vf_pos'), def: '0.5' });
+      break;
+    case 'thread':
+      F.push({ t: 'sel', k: 'face', label: tk('fld.thread_face'), kind: 'face', single: true }, { t: 'thread3d', k: 'thread', label: tk('fld.thread_size') }, { t: 'expr', k: 'length', label: tk('fld.thread_len'), unit: 'mm', optional: true },
+        { t: 'select', k: 'hand', label: tk('fld.hand'), opts: [['right', tk('hand.right')], ['left', tk('hand.left')]] }, { t: 'check', k: 'flip', label: tk('fld.thread_flip') });
+      break;
+    case 'coil':
+      F.push({ t: 'select', k: 'plane', label: tk('fld.coil_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')]] }, { t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' },
+        { t: 'expr', k: 'cx', label: tk('fld.c_x'), unit: 'mm' }, { t: 'expr', k: 'cy', label: tk('fld.c_y'), unit: 'mm' }, { t: 'expr', k: 'dia', label: tk('fld.coil_dia'), unit: 'mm' }, { t: 'expr', k: 'pitch', label: tk('fld.pitch'), unit: 'mm' },
+        { t: 'expr', k: 'turns', label: tk('fld.turns') }, { t: 'expr', k: 'sdia', label: tk('fld.sdia'), unit: 'mm' }, { t: 'select', k: 'hand', label: tk('fld.hand'), opts: [['right', tk('hand.right')], ['left', tk('hand.left')]] },
+        { t: 'check', k: 'flip', label: tk('fld.coil_flip') }, opField());
       break;
     case 'mirror':
       F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')], ['face', tk('fld.plane_face')]] });
@@ -265,6 +301,14 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
     case 'import': parts.push(String(f.format || '').toUpperCase()); break;
     case 'split': case 'splitface': parts.push(f.tool?.kind === 'face' ? t('hs.on_face') : String(f.tool?.name || '') + (f.tool?.offset && n(f.tool.offset) !== fmt(0) ? ' ' + mm(f.tool.offset) : '')); if (f.type === 'splitface') parts.push(cnt('hs.n_faces', f.faces)); break;
     case 'faceop': parts.push(t(f.mode === 'move' ? 'faceop.move' : f.mode === 'delete' ? 'faceop.delete' : 'faceop.offset')); if ((f.mode ?? 'offset') === 'offset') parts.push(mm(f.dist)); parts.push(cnt('hs.n_faces', f.faces)); break;
+    // WP-19
+    case 'sweep': parts.push(t(f.orient === 'fixed' ? 'orient.fixed' : f.orient === 'frenet' ? 'orient.frenet' : 'orient.path')); parts.push(op(f.op)); break;
+    case 'loft': parts.push(tn('hs.n_sections', Array.isArray(f.sections) ? f.sections.length : 0)); if (f.rail) parts.push(t('fld.rail')); parts.push(op(f.op)); break;
+    case 'draft': parts.push(n(f.angle) + '°'); parts.push(cnt('hs.n_faces', f.faces)); break;
+    case 'rib': parts.push(mm(f.t)); break;
+    case 'vfillet': parts.push('R' + n(f.r1) + '→R' + n(f.r2)); parts.push(cnt('hs.n_edges', f.edges)); break;
+    case 'thread': parts.push(String(f.thread?.designation || '?')); if (f.length != null && String(f.length).trim() !== '') parts.push(mm(f.length)); if (f.hand === 'left') parts.push(t('hand.left')); break;
+    case 'coil': parts.push('Ø' + n(f.dia) + ' × ' + n(f.turns)); parts.push(op(f.op)); break;
     default: break;
   }
   return parts.filter(Boolean).join(' · ');

@@ -46,7 +46,7 @@ const AX = ['X', 'Y', 'Z'];
 const sourceChk = obj({ kind: oneOf(['feature', 'body']), id: str(LIMITS.shortStr), bodies: strArr() });
 const sketchChk = {
   seq: num(),
-  underlay: nullable(obj({ name: str(200), mime: oneOf(['image/png', 'image/jpeg']), data: str(12 * 1024 * 1024), wPx: num(), hPx: num(), mmPerPx: num(), origin: arrOf(num(), 2), angle: num(), opacity: num(), visible: bool() })), // WP-14: eskiz altligi
+  underlay: nullable(obj({ name: str(200), mime: oneOf(['image/png', 'image/jpeg']), data: str(12 * 1024 * 1024), wPx: num(), hPx: num(), mmPerPx: num(), origin: arrOf(num(), 2), angle: num(), opacity: num(), visible: bool(), locked: bool() })), // WP-14; WP-22a: locked (kilit): eskiz altligi
   plane: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }),
   points: (v, p) => {
     if (!isObj(v)) fail('schema.bad_field', { path: p, expect: 'object' });
@@ -75,7 +75,15 @@ const TYPES = {
   split: { body: str(LIMITS.shortStr), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
   splitface: { faces: arrOf(obj(), LIMITS.refs), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
   faceop: { faces: arrOf(obj(), LIMITS.refs), mode: oneOf(['offset', 'move', 'delete']), dist: expr(), dx: expr(), dy: expr(), dz: expr() },
-  import: { format: oneOf(['step', 'stl']), name: str(LIMITS.str), data: str(LIMITS.fileBytes), hash: str(LIMITS.shortStr) },
+  import: { format: oneOf(['step', 'stl', 'iges']), name: str(LIMITS.str), data: str(LIMITS.fileBytes), hash: str(LIMITS.shortStr) },
+  // WP-19: modelleme ikinci tur
+  sweep: { sketch: str(LIMITS.shortStr), profiles: profilesChk, path: str(LIMITS.shortStr), orient: oneOf(['path', 'fixed', 'frenet']), op: oneOf(OPS), targets: strArr() },
+  loft: { sections: strArr(), ruled: bool(), rail: str(LIMITS.shortStr), op: oneOf(OPS), targets: strArr() },
+  draft: { faces: arrOf(obj(), LIMITS.refs), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }), angle: expr(), flip: bool() },
+  rib: { sketch: str(LIMITS.shortStr), t: expr(), flip: bool(), targets: strArr() },
+  vfillet: { edges: arrOf(obj(), LIMITS.refs), r1: expr(), r2: expr(), rm: expr(), tm: expr(), pts: arrOf(obj({ t: expr(), r: expr() }), 64), chain: bool() },
+  thread: { face: obj(), thread: nullable(obj({ designation: str(40), pitch: num(), major: num(), family: oneOf(['iso', 'iso_fine']), drill: num() })), length: expr(), hand: oneOf(['right', 'left']), flip: bool() },
+  coil: { plane: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), cx: expr(), cy: expr(), dia: expr(), pitch: expr(), turns: expr(), sdia: expr(), hand: oneOf(['right', 'left']), flip: bool(), op: oneOf(OPS), targets: strArr() },
 };
 export const KNOWN_TYPES = Object.keys(TYPES);
 
@@ -97,13 +105,13 @@ const camTool = obj({
 const axisSpec = obj({ kind: oneOf(['base', 'face', 'edge']), dir: oneOf(['+X', '-X', '+Y', '-Y', '+Z', '-Z']), ref: obj(), flip: bool(), auto: bool() });
 const heightRef = obj({ from: oneOf(['stockTop', 'stockBottom', 'modelTop', 'modelBottom', 'selection', 'abs']), off: camNum() });
 const camOp = obj({
-  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer', 'circular', 'threadmill', 'slot', 'trace', 'adaptive', 'flat', 'adaptive3d', 'zlevel', 'parallel', 'scallop', 'pencil']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
+  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer', 'circular', 'threadmill', 'slot', 'trace', 'adaptive', 'flat', 'wrapContour', 'wrapPocket', 'wrapDrill', 'adaptive3d', 'zlevel', 'parallel', 'scallop', 'pencil']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
   rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), coolant: oneOf(COOL), suppressed: bool(),
   heights: obj({ clearance: camNum(), retract: camNum(), top: heightRef, bottom: heightRef }),
   geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr, ents: strArr(), reverse: bool(), z: camNum() }), CAM_LIMITS.geom),
   stepover: camNum(0), stepdown: camNum(0), finishStepdown: camNum(0), finishStock: camNum(0), direction: camNum(), extend: camNum(0),
   side: oneOf(['outside', 'inside', 'on', 'left', 'right']), extendStart: camNum(0), extendEnd: camNum(0), width: camNum(0), tipClearance: camNum(0), dir: oneOf(['climb', 'conv']), comp: oneOf(['computer', 'wear']), finishPass: bool(),
-  cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore', 'fineBore', 'backBore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
+  cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore', 'fineBore', 'backBore']), order: oneOf(['asis', 'shortest', 'angle']), peck: camNum(0), dwell: camNum(0),
   shift: camNum(0), shiftDir: camNum(-360, 360), backDepth: camNum(0), startBelow: camNum(0), // WP-14: G76/G87
   aAngle: camNum(-36000, 36000),
   sharp: bool(),
@@ -126,11 +134,14 @@ const camOp = obj({
   tolerance: camNum(0, 1), slope: obj({ min: camNum(0, 90), max: camNum(0, 90) }), boundary: obj({ kind: oneOf(['model', 'stock']), offset: camNum() }),
   angle: camNum(-360, 360), pattern: oneOf(['zigzag', 'oneway']), sampling: camNum(0), scallopHeight: camNum(0), minAngle: camNum(0, 90), minLength: camNum(0),
   fillStepdown: camNum(0), flatLevels: bool(), arcFit: obj({ tol: camNum(0, 1), arcs: bool() }),
+  points: arrOf(obj({ x: camNum(), a: camNum(-36000, 36000) }), 500), top: camNum(0), // WP-16 sarilmis delme
 });
 const camSetup = obj({
   id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),
   frame: obj({ origin: obj({ kind: oneOf(['model', 'stockCorner', 'stockTopCenter', 'point']), corner: str(16), p: arrOf(camNum(), 3) }), zAxis: axisSpec, xAxis: axisSpec }),
   rotary: obj({ enabled: bool(), aAngle: camNum(-36000, 36000) }),
+  wrap: obj({ enabled: bool(), dia: camNum(0) }), // WP-16 sarma kipi
+  tilt: obj({ enabled: bool(), kind: oneOf(['face', 'vector', 'angles']), ref: obj(), flip: bool(), v: arrOf(camNum(), 3), angles: obj({ A: camNum(-36000, 36000), B: camNum(-36000, 36000), C: camNum(-36000, 36000) }) }), machinePos: arrOf(camNum(), 3), // WP-18: 3+2 egim, is sifirinin makine konumu
   workOffset: obj({ kind: oneOf(['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1']), p: posInt(9999) }),
   stock: obj({ kind: oneOf(['boxOffset', 'box', 'cyl']), side: camNum(0), top: camNum(0), bottom: camNum(0), min: arrOf(camNum(), 3), max: arrOf(camNum(), 3), dia: camNum(0), len: camNum(0), axis: oneOf(['X']) }),
   clearanceZ: camNum(0), stockFrom: oneOf(['previous', 'blank']), freePieceBlock: bool(), ops: arrOf(camOp, CAM_LIMITS.ops),

@@ -4,6 +4,7 @@
 // post icin gerekiyorsa guvenlik kapisi 1 (cam.gate.missing) NC uretimini durdurur.
 // Metin alanlari: name kullanici verisidir (cevrilmez); yerlesik sablonlar nameKey ile iki dilde gosterilir.
 import { cerr, issue } from '../geom/err.js';
+import { checkKinematics } from '../kinematics.js';
 
 export const A_WRAP_VALUES = ['shortest', 'signed', '0-360']; // T-21b A kelimesi bicimi (post/engine.js ile ayni)
 const WCS = ['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1'];
@@ -44,9 +45,28 @@ const GENERIC_MITSUBISHI = {
   post: { props: {} },
 };
 
+// WP-18 (K-029): genel 3+2 tabla-tabla sablonlari (marka yok; sayisal degerler, sinirlar ve eksen merkezleri bos, kullanici doldurur).
+// Zincir sirasi: dis (egme) ekseni once, ic (doner tabla C) sonra. tiltOutput 'plane' = egik duzlem cevrimi (G68.2 sinifi).
+const rot = (about, dir) => ({ kind: 'rotary', about, dir, on: 'table', center: null, limits: null, shortest: false, wrap: null, rapid: null, feedMax: null, clamp: { lock: null, unlock: null, output: false } });
+const GENERIC_5AC = {
+  id: 'builtin-generic-5axis-ac-table', name: 'Generic table-table 3+2 (A/C)', nameKey: 'cam.machine.generic5ac', rev: 1, builtin: true,
+  control: 'fanuc-generic',
+  axes: { X: { travel: null, min: null, max: null }, Y: { travel: null, min: null, max: null }, Z: { travel: null, min: null, max: null }, A: rot('X', [1, 0, 0]), C: rot('Z', [0, 0, 1]) },
+  kinematics: { chain: 'table-table', order: ['A', 'C'], prefer: null, tiltOutput: 'plane' },
+  spindle: { maxRpm: null, minRpm: null }, feed: { maxCut: null, rapid: null },
+  toolChange: { maxTools: null, kind: 'fixed', pos: null },
+  protected: { T: [], H: [], D: [], wcs: [] },
+  post: { props: {} },
+};
+const GENERIC_5BC = {
+  ...GENERIC_5AC, id: 'builtin-generic-5axis-bc-table', name: 'Generic table-table 3+2 (B/C)', nameKey: 'cam.machine.generic5bc',
+  axes: { X: { travel: null, min: null, max: null }, Y: { travel: null, min: null, max: null }, Z: { travel: null, min: null, max: null }, B: rot('Y', [0, 1, 0]), C: rot('Z', [0, 0, 1]) },
+  kinematics: { chain: 'table-table', order: ['B', 'C'], prefer: null, tiltOutput: 'plane' },
+};
+
 const clone = (x) => JSON.parse(JSON.stringify(x));
 export const GENERIC_3AXIS_ID = GENERIC.id;
-export const BUILTIN_MACHINES = Object.freeze([GENERIC, GENERIC_4A, GENERIC_MITSUBISHI].map((m) => Object.freeze(clone(m))));
+export const BUILTIN_MACHINES = Object.freeze([GENERIC, GENERIC_4A, GENERIC_MITSUBISHI, GENERIC_5AC, GENERIC_5BC].map((m) => Object.freeze(clone(m))));
 export const builtinMachines = () => BUILTIN_MACHINES.map(clone);
 export function machineById(list, id) { return (list || []).find((m) => m && m.id === id) || null; }
 // Kopya: yeni kimlik, builtin bayragi yok (kullanici profili)
@@ -91,6 +111,7 @@ export function checkMachine(m) {
       if (a.clamp?.output && (typeof a.clamp.lock !== 'string' || typeof a.clamp.unlock !== 'string')) bad(`axes.${k}.clamp`, 'lock/unlock');
     }
   }
+  if (ax && typeof ax === 'object') checkKinematics(m, bad); // WP-18: on/center ve kinematics alanlari (istege bagli; eski profil gecerli)
   const sp = m.spindle; if (!sp || typeof sp !== 'object') bad('spindle', 'object'); else {
     if (nn(sp.maxRpm, 'spindle.maxRpm') === false && sp.maxRpm == null) missing.push('spindle.maxRpm');
     nn(sp.minRpm, 'spindle.minRpm');

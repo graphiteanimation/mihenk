@@ -13,7 +13,7 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | T-05a delme `points` = O-022 "nokta listesinden delme" | WP-05 |
 | T-05b delik tanıma = O-025 "delik tanıma + sıra şablonu" (tanıma kısmı) | WP-05 (sıra şablonu WP-14) |
 | T-04 önceki setup stoğu = O-025 "in-process stock" = P1 S2/S3 hayalet stok | WP-05 (0.5'ten 0.4'e çekildi: NC'yi engelliyor) |
-| T-09 adaptif = O-025 adaptif kaba = envanter kritik açık 2 | WP-12 |
+| T-09 adaptif = O-025 adaptif kaba = envanter kritik açık 2 | WP-12 · ☑ (bağımsız doğrulandı; verim bulguları WP-22) |
 | T-13 + T-20 3D = O-026 3D kaba/bitirme = envanter kritik açık 1 | WP-15 |
 | T-19 + T-20 + M-01 silüet/tek kesit sorunu | WP-06 (T-19), WP-15 (T-20 kökten) |
 | T-21 A işareti = V-01 = O-019'daki "A yönü teyidi" | WP-01 (profil alanı; K-026, O-032) + WP-03 (T-21b yazım biçimi) |
@@ -41,7 +41,7 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | WP-08 ☑ | Modelleme: yüze/nesneye kadar extrude, konik, gövde/yüz bölme, doğrudan düzenleme (yüz taşı/ofsetle/sil), iki mesafeli ve açılı pah, teğet zincir seçimi, ince diş/boru dişi tabloları, yüzden ayna, kenar ekseninden desen; açık çekirdek hataları | O-020; F-15, F-26, F-21, C-03 | kernel, ui (özellik panelleri) | Her özellik için model testi; içe aktarılan STEP'te yüz taşıma/silme çalışır | O |
 | WP-09 ☑ | Çizim konforu: hizalama izleri, çeyrek nokta, mutlak/bağıl koordinat, yakalama filtresi, ızgara aralığı, otomatik kısıtlandırma, aşırı kısıtta referans ölçü, ilişkisel izdüşüm, komut tekrarı, seçim filtresi, görüntü modları (tel kafes/saydam), adlandırılmış görünüş | O-021; envanter §3–§5 | ui/sketch, ui | Sketch testleri + P1 çizim süresi ölçümü kısalır | S |
 | WP-10 ☑ | Güven altyapısı: `test/models/results.json` test koşusunda izlenen dosyayı kirletmesin, part-h bellek tepe değeri (3,4 GB) düşürülsün, `test/shots-ui.py` sabit port/yol; altın parça setine kullanıcı parçaları, örnek parçalar, çökme/hata günlüğü, NC başlığında model özeti, V-29 incelemesi, hesap iptali testi | O-024, O-028, V-29 | test, electron | Set her sürümde tek komutla koşar | S |
-| WP-21 | 0.4 kapanış: `src/ui/cam` devirleri (`postProgram`'a belge adı, post düzenleyicide `modelSummary`, "Kesme verisi" şeritte), V-29 `annulus#16` ters yay (cam/ops), hizalama izinden otomatik H/V kısıtı (7g: "Sabitle" ile fazla kısıt çatışması), kurulu sürümde Örnekler'in `resources/ornekler`'den okunması, eğri hedef yüze extrude, eskiz metnini metin olarak düzenleme, P1 S3 `holder_collision` ×2 sınıflaması | WP-07/08/10 raporları | cam/ops, ui/cam, ui/sketch, kernel | Her madde testle kapanır | S, O | ☐ |
+| WP-21 | 0.4 kapanış: `src/ui/cam` devirleri (`postProgram`'a belge adı, post düzenleyicide `modelSummary`, "Kesme verisi" şeritte), V-29 `annulus#16` ters yay (cam/ops), hizalama izinden otomatik H/V kısıtı (7g: "Sabitle" ile fazla kısıt çatışması), kurulu sürümde Örnekler'in `resources/ornekler`'den okunması, eğri hedef yüze extrude, eskiz metnini metin olarak düzenleme, P1 S3 `holder_collision` ×2 sınıflaması | WP-07/08/10 raporları | cam/ops, ui/cam, ui/sketch, kernel | Her madde testle kapanır | S, O |☑ |
 | — | **Sürüm 0.4** | | | §6 | ana |
 
 ## 0.5 — Verim ve çarpışma güvenliği
@@ -49,19 +49,19 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 |---|---|---|---|
 | WP-11 | Açık kaynak takım yolu kütüphaneleri incelemesi (FreeCAD Adaptive/libarea, OpenCAMLib, Clipper2): lisans, WASM, kalite. Çıktı: seçim raporu | O-023 | S + ana · ☑ (O-038) |
 | WP-12 | 2D adaptif kaba (açık kenar dahil), kalan malzeme (rest), yatay temizleme, aşağıda kalma, köşede ilerleme düşürme, çıkışta ilerleme düşürme, ince duvar | T-09, O-025, O-028 | O |
-| WP-13 | Çarpışma: fikstür/mengene/divizör modeli (montaj yerine "bağlama gövdeleri"), gerçek tutucu geometrisi, üç yönlü dexel simülasyon (alt kesme, yan yüz), sim'in worker'a taşınması, G-code üzerinden simülasyon | O-025; V-24, V-28 | O |
-| WP-14 | İş akışı: işlem şablonları, delik sıra şablonu, G76/G87, mengenede çoklu parça, teklif yardımcısı (süre + malzeme), PDF altlık, inç birimi | O-025, O-028 | S |
+| WP-13 | Çarpışma: fikstür/mengene/divizör modeli (montaj yerine "bağlama gövdeleri"), gerçek tutucu geometrisi, üç yönlü dexel simülasyon (alt kesme, yan yüz), sim'in worker'a taşınması, G-code üzerinden simülasyon | O-025; V-24, V-28 | O · ☑ (bağımsız doğrulandı; açıklar WP-22) |
+| WP-14 | İş akışı: işlem şablonları, delik sıra şablonu, G76/G87, mengenede çoklu parça, teklif yardımcısı (süre + malzeme), PDF altlık, inç birimi | O-025, O-028 | S · ☑ (bağımsız doğrulandı; PDF altlık arayüzü WP-22) |
 | — | **Sürüm 0.5** | | |
 
 ## 0.6 — Eğrisel parça, çok eksen altyapısı, kâğıt
 | WP | İş | Kaynak | Model |
 |---|---|---|---|
 | WP-15 | 3D işleme: model yükseklik haritasından ada (T-20), 3D adaptif kaba, Z-seviye kontur, paralel/scallop, kalem, 3D rest, yay uydurma | T-20, T-13, O-026 | O |
-| WP-16 | 4. eksen sarma (wrap) | O-026 | O |
+| WP-16 | 4. eksen sarma (wrap) | O-026 | O · ☑ (bağımsız doğrulandı) |
 | WP-17 | Teknik resim: görünüş, kesit, ölçü/tolerans, delik tablosu, PDF/DXF; ilk parça kontrol formu | O-026, O-015 | S, O · ☑ (bağımsız doğrulandı; açıklar WP-22) |
-| WP-18 | Çok eksen altyapısı: genel kinematik zincirli tezgâh profili, IR'de takım ekseni, setup yönü serbest yüz normali, **3+2 konumlu işleme**, post'ta eğik düzlem (G68.2 sınıfı) seçeneği | K-029 | O |
-| WP-19 | Modelleme ikinci tur: sweep, loft, draft, rib, değişken fillet, helis/diş, IGES | envanter §6–§7 | O |
-| WP-22 | 0.6 devirleri: PDF altlık arayüzü (WP-14 çekirdeği hazır) + vektör PDF (pdfjs-dist kararı), DXF kesme çizgisi uçları ayrı katman/çizgi tipi (WP-17), kopuk resim ölçüsünü yeni kenara bağlama, tri-dexel kipinde oyma ve tutucu yan çarpışması + görünüm (WP-13), G87 yukarı kesimde oyma denetimi | WP-13/14/17 raporları | O, S |
+| WP-18 | Çok eksen altyapısı: genel kinematik zincirli tezgâh profili, IR'de takım ekseni, setup yönü serbest yüz normali, **3+2 konumlu işleme**, post'ta eğik düzlem (G68.2 sınıfı) seçeneği | K-029 | O · ☑ (bağımsız doğrulandı) |
+| WP-19 | Modelleme ikinci tur: sweep, loft, draft, rib, değişken fillet, helis/diş, IGES | envanter §6–§7 | O · ☑ (bağımsız doğrulandı, bulgular düzeltildi) |
+| WP-22 | 0.6 devirleri. **22a ☑** (bağımsız doğrulandı): PDF altlık arayüzü + vektör PDF (O-049), DXF kesme çizgisi katmanı, kopuk resim ölçüsünü bağlama. **22b**: tri-dexel kipinde oyma ve tutucu yan çarpışması + görünüm (WP-13), G87 yukarı kesimde oyma denetimi; WP-12 verimi: rest kipinde havada helis girişi, `rest_material` uyarısının abartılı alanı, dar halkada `no_entry_left` uyarısının kaybolması, temas açısı tepe aşımı (ızgara), paso sonu "çıkış" ilerleme düşürmesi, büyük ceplerde hesap süresi | WP-13/14/17 raporları | O, S |
 | — | **Sürüm 0.6** | | |
 
 ## 1.0 ve sonrası

@@ -49,9 +49,9 @@ export class FeaturePanel {
   }
   validate() {
     const d = this.draft;
-    if (['extrude', 'revolve', 'hole'].includes(d.type)) {
+    if (['extrude', 'revolve', 'hole', 'sweep', 'rib'].includes(d.type)) {
       if (!d.sketch || !this.ctx().sketches.some((s) => s.id === d.sketch)) return { code: 'val.no_sketch', params: {} };
-      if (d.type !== 'hole' && Array.isArray(d.profiles) && !d.profiles.length) return { code: 'val.no_profile', params: {} };
+      if (d.type !== 'hole' && d.type !== 'rib' && Array.isArray(d.profiles) && !d.profiles.length) return { code: 'val.no_profile', params: {} };
     }
     if (d.type === 'pattern') {
       // desen adedi üst sınırı (kilitlenmeyi önler); çözülemeyen ifadeyi çekirdek bildirir
@@ -123,6 +123,7 @@ export class FeaturePanel {
         const box = unitBox(inp, fd.unit);
         const upd = () => {
           let txt = ''; let bad = '';
+          if (fd.optional && !inp.value.trim()) { box.classList.remove('err'); inp.setAttribute('aria-invalid', 'false'); hint.hidden = true; msg.hidden = true; return; }
           try { const v = evalExpr(inp.value, app.vars()); if (!/^\s*-?[0-9]*[.,]?[0-9]+\s*$/.test(inp.value)) txt = '= ' + num(v) + ' ' + (fd.unit || ''); }
           catch (e) { bad = errText(e); }
           box.classList.toggle('err', !!bad); inp.setAttribute('aria-invalid', bad ? 'true' : 'false');
@@ -130,7 +131,7 @@ export class FeaturePanel {
           msg.hidden = !bad; msg.replaceChildren(...(bad ? [h('span', { html: icon('error', 'sm') }), h('span', { text: bad })] : []));
         };
         upd();
-        inp.addEventListener('input', () => { d[fd.k] = inp.value; upd(); this.setActive(null); this.changed(); });
+        inp.addEventListener('input', () => { const was = d[fd.k]; d[fd.k] = inp.value; upd(); this.setActive(null); if (fd.optional && !String(was ?? '').trim() !== !inp.value.trim()) { this.fieldChanged(fd.k); const ni = document.querySelector('#panel input[data-k="' + fd.k + '"]'); if (ni) { ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); } return; } this.changed(); });
         inp.addEventListener('focus', () => this.setActive(null));
         return this.row(fd.label, h('div', {}, box, hint, msg));
       }
@@ -145,13 +146,44 @@ export class FeaturePanel {
         return this.row(fd.label, checkBox(c));
       }
       case 'sketch': {
+        // WP-19: alan anahtarı fd.k (sweep yolu `path`, loft rayı `rail`); fd.optional → "Yok" seçeneği; fd.other → o alandaki eskiz listelenmez
+        const k = fd.k;
         let list = this.ctx().sketches;
         if (fd.need === 'points') list = list.filter((s) => (s.ents || []).some((e) => e.type === 'point' || e.type === 'circle'));
-        if (!list.length) return this.row(fd.label, h('span', { class: 'note', text: fd.need === 'points' ? t('fld.no_point_sketch') : t('fld.no_sketch') }));
-        if (!list.some((s) => s.id === d.sketch)) d.sketch = list[list.length - 1].id;
-        const s = h('select', { 'data-k': fd.k }, list.map((x) => h('option', { value: x.id, selected: x.id === d.sketch }, x.name || x.id)));
-        s.addEventListener('change', () => { d.sketch = s.value; d.profiles = 'all'; this.fieldChanged('sketch'); });
+        if (fd.need === 'lines') list = list.filter((s) => (s.ents || []).some((e) => e.type === 'line' && !e.cons));
+        if (fd.other) list = list.filter((s) => s.id !== d[fd.other]);
+        if (!list.length && !fd.optional) return this.row(fd.label, h('span', { class: 'note', text: fd.need === 'points' ? t('fld.no_point_sketch') : fd.need === 'lines' ? t('fld.no_line_sketch') : t('fld.no_sketch') }));
+        if (!fd.optional && !list.some((s) => s.id === d[k])) d[k] = list[list.length - 1].id;
+        if (fd.optional && d[k] && !list.some((s) => s.id === d[k])) d[k] = '';
+        const opts = [...(fd.optional ? [h('option', { value: '', selected: !d[k] }, t('common.none'))] : []), ...list.map((x) => h('option', { value: x.id, selected: x.id === d[k] }, x.name || x.id))];
+        const s = h('select', { 'data-k': k }, opts);
+        s.addEventListener('change', () => { d[k] = s.value; if (k === 'sketch') d.profiles = 'all'; this.fieldChanged(k); });
         return this.row(fd.label, unitBox(s));
+      }
+      case 'sketches': {
+        // WP-19: loft kesitleri (sıralı eskiz listesi; ekle/kaldır)
+        const list = this.ctx().sketches; const cur = Array.isArray(d[fd.k]) ? d[fd.k] : (d[fd.k] = []);
+        if (!list.length) return this.row(fd.label, h('span', { class: 'note', text: t('fld.no_sketch') }));
+        const rows = cur.map((id, j) => {
+          const s = h('select', { 'data-k': fd.k + '.' + j, 'aria-label': t('fld.section_n', { n: j + 1 }) }, list.map((x) => h('option', { value: x.id, selected: x.id === id }, x.name || x.id)));
+          if (!list.some((x) => x.id === id)) { s.value = list[0].id; cur[j] = list[0].id; }
+          s.addEventListener('change', () => { cur[j] = s.value; this.fieldChanged(fd.k); });
+          const rm = h('button', { class: 'btn sm ghost icon', type: 'button', 'data-testid': 'section-remove-' + j, title: t('fld.remove_section'), 'aria-label': t('fld.remove_section'), onclick: () => { cur.splice(j, 1); this.fieldChanged(fd.k); }, html: icon('close', 'sm') });
+          return h('div', { class: 'secrow', style: { display: 'flex', gap: '4px', marginBottom: '4px' } }, unitBox(s), rm);
+        });
+        const add = h('button', { class: 'btn sm', type: 'button', 'data-testid': 'section-add', onclick: () => { const used = new Set(cur); cur.push((list.find((x) => !used.has(x.id)) || list[list.length - 1]).id); this.fieldChanged(fd.k); } }, t('fld.add_section'));
+        return this.row(fd.label, h('div', { 'data-k': fd.k }, ...rows, add));
+      }
+      case 'thread3d': {
+        // WP-19: modellenmiş diş ölçüsü (ISO kaba / ince tablolarından; WP-08 THREAD_TABLES)
+        const fam = d.thread?.family === 'iso_fine' ? 'iso_fine' : 'iso'; const table = THREAD_TABLES[fam];
+        const fs = h('select', { 'data-k': 'thread.family', 'aria-label': t('fld.thread_family') }, THREAD_FAMILIES.filter(([v]) => v === 'iso' || v === 'iso_fine').map(([v, l]) => h('option', { value: v, selected: v === fam }, t(l))));
+        const pick = (th) => { d.thread = th ? { designation: th.designation, pitch: th.pitch, major: th.major, family: th.family } : null; };
+        fs.addEventListener('change', () => { pick(THREAD_TABLES[fs.value][0]); this.fieldChanged('thread'); });
+        const s = h('select', { 'data-k': 'thread' }, table.map((th) => h('option', { value: th.designation, selected: th.designation === d.thread?.designation }, t('fld.thread_opt', { d: th.designation, p: fmt(th.pitch, 3) }))));
+        if (!table.some((x) => x.designation === d.thread?.designation)) pick(table.find((x) => x.designation === 'M10') || table[0]);
+        s.addEventListener('change', () => { pick(table.find((x) => x.designation === s.value)); this.fieldChanged('thread'); });
+        return this.row(fd.label, h('div', {}, unitBox(fs), h('div', { style: { marginTop: '4px' } }, unitBox(s))));
       }
       case 'profiles': {
         this.profEl = h('span', { 'data-k': fd.k });
@@ -287,7 +319,7 @@ export class FeaturePanel {
     } else if (kind === 'body') vp.setSelection(this.getSel(k).map((id) => ({ kind: 'body', body: id })));
     else vp.setSelection([]);
     const d = this.draft;
-    if (['extrude', 'revolve'].includes(d.type)) {
+    if (['extrude', 'revolve', 'sweep'].includes(d.type)) {
       const sk = this.refProfiles(); const pl = this.app.result?.sketches?.[d.sketch]?.plane;
       const rg = sk ? findRegions(sk).regions : [];
       const selIdx = d.profiles === 'all' ? 'all' : resolveProfiles(rg, d.profiles).idx;
@@ -298,7 +330,7 @@ export class FeaturePanel {
   }
   hint() {
     const k = this.activeSel; if (k) { const hk = { edge: tk('hint.pick_edge'), face: tk('hint.pick_face'), body: tk('hint.pick_body') }[this.selKind(k)]; return hk ? t(hk) : ''; }
-    if (['extrude', 'revolve'].includes(this.draft.type)) return t('hint.profiles');
+    if (['extrude', 'revolve', 'sweep'].includes(this.draft.type)) return t('hint.profiles');
     return '';
   }
   // yeni sonuç geldiğinde
@@ -315,7 +347,7 @@ export class FeaturePanel {
     if (!hit) return;
     const d = this.draft;
     if (hit.kind === 'region') {
-      if (!['extrude', 'revolve'].includes(d.type)) return;
+      if (!['extrude', 'revolve', 'sweep'].includes(d.type)) return;
       const rg = this.app.viewport.regions || []; const total = rg.length;
       const sel = d.profiles === 'all' ? Array.from({ length: total }, (_, i) => i) : resolveProfiles(rg, d.profiles || []).idx.slice();
       const at = sel.indexOf(hit.idx); if (at >= 0) sel.splice(at, 1); else sel.push(hit.idx);
@@ -335,7 +367,7 @@ export class FeaturePanel {
       const i = list.findIndex((r) => r.body === hit.body && r.idx === hit.idx);
       // WP-08: teğet zincir (yuvarlat/pah): tıklanan kenarın G1 zinciri birlikte seçilir / bırakılır
       let chain = [hit.idx];
-      if (kind === 'edge' && (d.type === 'fillet' || d.type === 'chamfer') && d.chain) { try { chain = await this.app.query('tangentChain', { ref: { body: hit.body, idx: hit.idx } }); } catch (e) { chain = [hit.idx]; } }
+      if (kind === 'edge' && (d.type === 'fillet' || d.type === 'chamfer' || d.type === 'vfillet') && d.chain) { try { chain = await this.app.query('tangentChain', { ref: { body: hit.body, idx: hit.idx } }); } catch (e) { chain = [hit.idx]; } }
       if (i >= 0) list = list.filter((r) => !(r.body === hit.body && chain.includes(r.idx)));
       else {
         try { for (const idx of chain) if (!list.some((r) => r.body === hit.body && r.idx === idx)) list.push(await this.app.describe({ ...hit, idx }, kind)); }

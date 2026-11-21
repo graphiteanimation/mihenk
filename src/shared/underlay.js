@@ -34,12 +34,13 @@ export function makeUnderlay(name, bytes, opts = {}) {
   if (bytes.length > UNDERLAY_LIMITS.bytes) throw uerr('underlay.too_big', { mb: Math.round(UNDERLAY_LIMITS.bytes / 1048576) });
   const info = imageInfo(bytes);
   if (!info || !(info.w > 0 && info.h > 0) || info.w > UNDERLAY_LIMITS.maxPx || info.h > UNDERLAY_LIMITS.maxPx) throw uerr('underlay.bad_image');
-  return { name: String(name ?? '').slice(0, 200), mime: info.mime, data: toB64(bytes), wPx: info.w, hPx: info.h, mmPerPx: opts.mmPerPx ?? 1, origin: opts.origin ?? [0, 0], angle: 0, opacity: opts.opacity ?? 0.5, visible: true };
+  return { name: String(name ?? '').slice(0, 200), mime: info.mime, data: toB64(bytes), wPx: info.w, hPx: info.h, mmPerPx: opts.mmPerPx ?? 1, origin: opts.origin ?? [0, 0], angle: 0, opacity: opts.opacity ?? 0.5, visible: true, locked: false };
 }
 export function checkUnderlay(u) {
   if (!u || typeof u !== 'object') throw uerr('underlay.bad_image');
   if (!['image/png', 'image/jpeg'].includes(u.mime) || typeof u.data !== 'string' || u.data.length > UNDERLAY_LIMITS.bytes * 1.4) throw uerr('underlay.bad_image');
   if (!(isNum(u.mmPerPx) && u.mmPerPx > 0) || !(isNum(u.wPx) && u.wPx > 0) || !(isNum(u.hPx) && u.hPx > 0)) throw uerr('underlay.bad_image');
+  if (u.locked !== undefined && typeof u.locked !== 'boolean') throw uerr('underlay.bad_image');
   if (!Array.isArray(u.origin) || u.origin.length !== 2 || !u.origin.every(isNum) || !isNum(u.angle) || !(isNum(u.opacity) && u.opacity >= 0 && u.opacity <= 1)) throw uerr('underlay.bad_image');
   return true;
 }
@@ -73,6 +74,15 @@ export function fitTwoPoints(u, pA, pB, qA, qB) {
   const k = lq / lp; const dAng = (Math.atan2(vq[1], vq[0]) - Math.atan2(vp[1], vp[0])) * 180 / Math.PI;
   const out = { ...u, mmPerPx: u.mmPerPx * k, angle: ((u.angle + dAng) % 360 + 540) % 360 - 180 };
   out.origin = [0, 0]; const at = pxToSketch(out, pA); out.origin = [qA[0] - at[0], qA[1] - at[1]];
+  return out;
+}
+
+// WP-22a: ozellik degisiklikleri (yeni nesne doner; veri dizgesi paylasilir, geri al kayitlari ucuz kalir)
+export function withProps(u, p) {
+  const out = { ...u };
+  if (p.opacity !== undefined) { if (!(isNum(p.opacity) && p.opacity >= 0 && p.opacity <= 1)) throw uerr('underlay.bad_image'); out.opacity = p.opacity; }
+  if (p.visible !== undefined) out.visible = !!p.visible;
+  if (p.locked !== undefined) out.locked = !!p.locked;
   return out;
 }
 

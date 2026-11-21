@@ -1,9 +1,11 @@
 // Fanuc tarzi ortak post cekirdegi. Makineye/kontrole ozgu degerler KODA GOMULMEZ: ya ozellik (props) ya makine profili.
 // Varsayilanlar genel Fanuc kurallaridir (spesifikasyonda M80V icin dogrulanmadi); turetilen postlar (mitsubishi-m80v.js) ezer.
 // Bu dosyanin urettigi NC YALNIZ TEST CIKTISIDIR; makinede kosturulabilir diye sunulmaz.
-import { createFormat, createVariable, createModal, sanitizeComment, perr, isEmptyProp, MIHENK_VERSION } from './engine.js';
+import { createFormat, createVariable, createModal, sanitizeComment, perr, isEmptyProp, MIHENK_VERSION, wrapAMode } from './engine.js';
+import { wrapMoveLen, wrapSteps } from '../ir.js';
 import { describeIssue } from './describe.js';
 import { expandCyclePoint } from '../cycles.js';
+import { kinOf, fmtAng } from '../kinematics.js';
 
 export const FANUC_DEFAULT_PROPS = {
   lineNumbers: false, lineNumberStart: 10, lineNumberStep: 10,
@@ -34,6 +36,11 @@ export const FANUC_DEFAULT_PROPS = {
   endCode: 'M30',
   safeStartExtra: [],
   lineNumberMax: 99999,          // N ust siniri (genel Fanuc kurali; makinede teyit edilmedi). Asilinca bastan sarar + uyari.
+  // WP-16 sarma (eszamanli X/A). Tezgahta DOGRULANMADI (test ciktisi).
+  wrapFeedMode: 'inverse',       // 'inverse': G93 ters zaman (F = 1/dakika, her blokta); 'degmm': G94 birlesik F = f * |dX,dY,dZ,dA[derece]| / L
+  wrapAWord: 'auto',             // 'auto' | 'continuous' | 'shortest' (engine.js wrapAMode)
+  wrapMaxAStep: 90,              // bir blokta en buyuk A degisimi (derece, < 180): uzun donusler bolunur (geometri ayni: dogrusal X/A)
+  inverseFeedDecimals: 4,        // G93 F ondalik sayisi
 };
 
 const ucfirst = (s) => String(s).toUpperCase();
@@ -106,7 +113,7 @@ export function createFanucPost(over = {}) {
       prog.sections.forEach((sec) => {
         const st = sec.setup, id = st.id ?? st.name ?? ''; if (seen.has(id)) return; seen.add(id);
         const stock = size(st.stockBox), part = size(st.modelBBox);
-        cm(`SETUP ${seen.size} ${st.name ?? id}${st.workOffset?.kind ? ' WCS ' + st.workOffset.kind : ''}${stock ? ' STOCK ' + stock : ''}${part ? ' PART ' + part : ''}${st.aAngle != null ? ' A ' + f1(st.aAngle) : ''}`);
+        cm(`SETUP ${seen.size} ${st.name ?? id}${st.workOffset?.kind ? ' WCS ' + st.workOffset.kind : ''}${stock ? ' STOCK ' + stock : ''}${part ? ' PART ' + part : ''}${st.aAngle != null ? ' A ' + f1(st.aAngle) : ''}${st.rot ? ' ' + fmtAng(st.rot) : ''}`);
       });
       cm(`GENERATED ${o.generatedAt || o.date || new Date().toISOString()}`);
     },
@@ -134,7 +141,10 @@ export function createFanucPost(over = {}) {
         this.writeComment(`T${t.number} H${t.H}${t.D != null ? ' D' + t.D : ''} DIA ${t.dia.toFixed(3)} ${ucfirst(t.type)}`);
       }
       // 3+1: A isareti (machine.axes.A.dir) tezgahta isaretli parcayla teyit edilmeden NC'ye guvenilmez (V-01)
-      if (this.rotary && prog.sections.some((s) => s.setup.aAngle != null)) this.writeComment('WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING');
+      if (this.rotary && prog.sections.some((s) => s.setup.aAngle != null || s.toolpath.wrap)) this.writeComment('WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING');
+      // WP-18: 3+2 egik setup varsa coklu doner eksen yolu (yoksa eski 3+1 yolu birebir)
+      this.tiltProg = prog.sections.some((s) => s.setup.rot);
+      if (this.tiltProg) { this.kin = kinOf(this.machine); this.writeComment('WARNING 3+2 TILTED SETUP - TEST OUTPUT - ROTARY KINEMATICS NOT VERIFIED ON MACHINE'); }
       const gates = o.gates || [];
       const nb = gates.filter((g) => g.level === 'block').length, nw = gates.filter((g) => g.level === 'warn').length;
       this.writeComment(`GATES ${nb} BLOCK ${nw} WARN`);
@@ -152,7 +162,15 @@ export function createFanucPost(over = {}) {
       post._safeRetract.call(this);
       // T-07: ayni takim + ayni setup (is koordinati ve A acisi) ve mil/sogutma zaten istenen durumdaysa M5/M9/S M3/M8
       // tekrarlanmaz; devir ya da sogutma degisiyorsa yalniz degisen yazilir. Mil yonu degisiyorsa once M5.
-      const wo = st.workOffset, key = `${wo?.kind}|${wo?.p ?? ''}|${st.aAngle ?? 0}`;
+      // WP-16: sarma bolumu A'yi ilk hareketin acisina indeksler (yalniz NC A ekseni, mm)
+      const wrap = !!tp.wrap, a0 = wrap ? tp.moves[0].a : (st.aAngle ?? 0);
+      if (wrap) {
+        if (!this.rotary || p.rotaryMode !== '6a') this.fail('cam.post.wrap_needs_nc_a');
+        if (this.inch) this.fail('cam.post.wrap_inch');
+        post._wrapMode.call(this); // bicim hatasi erken
+      }
+      if (wrap && this.tiltProg) this.fail('cam.post.wrap_tilt_mix');
+      const wo = st.workOffset, key = `${wo?.kind}|${wo?.p ?? ''}|${wrap ? 'W' : ''}${a0}${st.rot ? '|' + fmtAng(st.rot) : ''}`;
       // program durdurma (M00/M01) varsa sadelestirme YOK: durmadan once M5/M9, sonra S M3 ve sogutma yeniden (mil/sogutma acikken durma yok)
       const keep = !p.optionalStop && S.tool === tp.tool.number && S.setupKey === key && !!S.spindle;
       const dirSame = keep && S.spindle.dir === tp.spindleDir;
@@ -162,7 +180,8 @@ export function createFanucPost(over = {}) {
       if (S.coolant !== 'off' && !coolSame) { this.writeBlock(post._coolantCode.call(this, 'off')); S.coolant = 'off'; }
       if (p.optionalStop) this.writeBlock('M01');
       if (S.tool !== tp.tool.number) { this.writeBlock('T' + tp.tool.number, p.toolChangeCode); S.tool = tp.tool.number; }
-      post._indexRotary.call(this, st.aAngle ?? 0);
+      if (this.tiltProg) post._tiltSection.call(this, st); else post._indexRotary.call(this, wrap ? post._wrapNorm.call(this, a0) : a0);
+      if (wrap) { S.aCont = a0; S.aWord = S.aCur; }
       if (!rpmSame) {
         if (dirSame) { const sv = Math.round(tp.rpm); if (!(sv >= 1)) this.fail('cam.post.bad_rpm', { rpm: tp.rpm }); this.writeBlock('S' + sv); S.spindle = { rpm: tp.rpm, dir: tp.spindleDir }; }
         else this.call('onSpindleSpeed', tp.rpm, tp.spindleDir);
@@ -207,6 +226,97 @@ export function createFanucPost(over = {}) {
       this.g.motion.reset();
     },
 
+    // ------------------------------------------------------------ WP-16 sarma (eszamanli X/A)
+    _wrapMode() { return wrapAMode(this.props, this.rotary); },
+    // kisa yol bicimi: A kelimesi 360'a sarilir (profil A.wrap 'signed' ise -180..180, degilse 0..360)
+    _wrapNorm(a) {
+      if (post._wrapMode.call(this) === 'continuous') return a;
+      let o = ((a % 360) + 360) % 360; if (this.rotary?.wrap === 'signed' && o > 180 + 1e-9) o -= 360; if (Math.abs(o) < 1e-9 || Math.abs(o - 360) < 1e-9) o = 0; return o;
+    },
+    _g94() { if (this.state.g93) { this.writeBlock('G94'); this.state.g93 = false; this.v.f.reset(); } },
+    // mode 0 hizli, 1 kesme. Uzun A donusu |dA| <= wrapMaxAStep bloklara bolunur (X/Y/Z/A dogrusal: ayni geometri).
+    _wrapMove(mode, x, y, z, a, f) {
+      const st = this.state, p = this.props, R = this.rotary;
+      if (!(p.wrapMaxAStep > 0 && p.wrapMaxAStep < 180)) throw perr('cam.post.bad_prop', { prop: 'wrapMaxAStep', value: String(p.wrapMaxAStep) });
+      const from = { ...this.pos, a: st.aCont };
+      const cont = post._wrapMode.call(this) === 'continuous';
+      let prev = from;
+      for (const q of wrapSteps(from, { x, y, z, a }, p.wrapMaxAStep)) {
+        const dA = q.a - prev.a; let word = cont ? st.aWord + dA : post._wrapNorm.call(this, st.aWord + dA);
+        if (Math.abs(word) < 1e-9) word = 0;
+        if (cont && R.limits && (word < R.limits[0] - 1e-9 || word > R.limits[1] + 1e-9)) this.fail('cam.post.a_out_of_limits', { angle: word, min: R.limits[0], max: R.limits[1] });
+        const A = createFormat({ prefix: 'A', decimals: 3 }); const aw = A.areDifferent(word, st.aWord) ? A.format(word) : '';
+        let xs = this.v.x.format(q.x), ys = this.v.y.format(q.y), zs = this.v.z.format(q.z);
+        if (aw && !xs && !ys && !zs) zs = this.v.z.formatForced(q.z); // A'li blok daima X/Y/Z kelimesi tasir (geri okuyucu: A tek basina = indeks)
+        if (mode === 0) { if (!this.writeBlock(this.g.motion.format(0), xs, ys, zs, aw)) this.warn('cam.post.zero_move'); }
+        else {
+          const L = wrapMoveLen(prev, q); if (!(L > 1e-9)) { prev = q; continue; }
+          let fw;
+          if (p.wrapFeedMode === 'inverse') {
+            if (!st.g93) { this.writeBlock('G93'); st.g93 = true; }
+            const inv = f / L; const F = createFormat({ prefix: 'F', decimals: p.inverseFeedDecimals });
+            if (!(Number(inv.toFixed(p.inverseFeedDecimals)) > 0)) this.fail('cam.post.inverse_feed_range', { f: inv });
+            fw = F.format(inv); this.g.motion.reset(); // G93: F her blokta
+          } else if (p.wrapFeedMode === 'degmm') {
+            post._g94.call(this);
+            const comb = Math.hypot(q.x - prev.x, q.y - prev.y, q.z - prev.z, dA); fw = this.v.f.format(f * comb / L);
+          } else throw perr('cam.post.bad_prop', { prop: 'wrapFeedMode', value: String(p.wrapFeedMode) });
+          this.writeBlock(this.g.motion.format(1), xs, ys, zs, aw, fw);
+        }
+        if (aw) st.aWord = word;
+        st.aCont = q.a; prev = q;
+      }
+      st.aCur = st.aWord; st.aCont = a;
+    },
+    onRapid5D(x, y, z, a) {
+      const st = this.state;
+      if (!this.section?.toolpath?.wrap || a == null) this.fail('cam.post.wrap_move');
+      if (!st.positioned) { if (Math.abs(a - st.aCont) > 1e-9) this.fail('cam.post.wrap_move'); return this.call('onRapid', x, y, z); }
+      post._wrapMove.call(this, 0, x, y, z, a, null);
+    },
+    onLinear5D(x, y, z, a, b, c, f) {
+      if (!this.section?.toolpath?.wrap || a == null || !this.state.positioned) this.fail('cam.post.wrap_move');
+      post._wrapMove.call(this, 1, x, y, z, a, f);
+    },
+    // WP-18: 3+2. Hedef acilar: egik setup'ta st.rot, digerlerinde 0 (A: aAngle). 'plane': G68.2 (Euler ZXZ) + G53.1 (kontrol doner
+    // eksenleri kendi kinematik parametresiyle konumlar); 'unwound': G0 ile doner acilar, XYZ onceden makineye cevrilmis (runPost).
+    _tiltSection(st) {
+      const K = this.kin, S = this.state;
+      if (this.props.rotaryMode !== '6a') this.fail('cam.post.tilt_needs_nc_rotary', {});
+      const target = {}; for (const k of K.names) target[k] = st.rot ? (st.rot[k] ?? 0) : k === 'A' && st.aAngle != null ? st.aAngle : 0;
+      if (st.rot && st.tilt?.mode === 'plane') {
+        const w = st.workOffset; let wcs = w.kind;
+        if (w.kind === 'G54.1') { const [lo, hi] = this.need('g541Range'); if (w.p < lo || w.p > hi) this.fail('cam.post.wcs_range', { p: w.p, min: lo, max: hi }); wcs = 'G54.1 P' + w.p; }
+        const e = st.tilt.euler, A3 = (pre, v) => createFormat({ prefix: pre, decimals: 3 }).format(v);
+        this.writeComment(`TILTED PLANE ${fmtAng(target)} - CONTROL SELECTS ROTARY SOLUTION`);
+        post._clamp.call(this, 'COMMAND_UNLOCK_MULTI_AXIS');
+        this.writeBlock('G90', wcs);
+        this.writeBlock('G68.2', 'X0.', 'Y0.', 'Z0.', A3('I', e[0]), A3('J', e[1]), A3('K', e[2]));
+        this.writeBlock('G53.1');
+        post._clamp.call(this, 'COMMAND_LOCK_MULTI_AXIS');
+        S.tiltOn = true; S.rotCur = { ...target }; this.g.motion.reset();
+        return;
+      }
+      post._indexRotaries.call(this, target);
+    },
+    _clamp(cmd) { const K = this.kin, seen = new Set(); for (const k of K.names) { const c = this.machine.axes[k].clamp; if (!c?.output) continue; const code = cmd === 'COMMAND_UNLOCK_MULTI_AXIS' ? c.unlock : c.lock; if (code == null) throw perr('cam.post.prop_missing', { prop: `machine.axes.${k}.clamp`, post: this.post.id }); if (!seen.has(code)) { seen.add(code); this.writeBlock(code); } } },
+    _indexRotaries(target) {
+      const S = this.state, cur = S.rotCur || null; const words = [];
+      for (const k of this.kin.names) {
+        let v = target[k]; const ax = this.machine.axes[k];
+        if (ax.wrap === '0-360') v = ((v % 360) + 360) % 360;
+        if (Array.isArray(ax.limits) && (v < ax.limits[0] - 1e-9 || v > ax.limits[1] + 1e-9)) this.fail('cam.post.a_out_of_limits', { angle: v, min: ax.limits[0], max: ax.limits[1] });
+        if (cur && Math.abs((cur[k] ?? NaN) - v) < 1e-6) continue;
+        words.push(createFormat({ prefix: k, decimals: 3 }).format(Math.abs(v) < 1e-9 ? 0 : v));
+      }
+      if (!words.length) return;
+      post._clamp.call(this, 'COMMAND_UNLOCK_MULTI_AXIS');
+      this.writeBlock('G0', ...words);
+      post._clamp.call(this, 'COMMAND_LOCK_MULTI_AXIS');
+      S.rotCur = { ...(cur || {}), ...target }; if (target.A != null) S.aCur = target.A;
+      this.g.motion.reset();
+    },
+
     onSpindleSpeed(rpm, dir) {
       const s = Math.round(rpm);
       if (!(s >= 1)) this.fail('cam.post.bad_rpm', { rpm }); // V-23b: S0 ile kesme yok
@@ -240,7 +350,7 @@ export function createFanucPost(over = {}) {
           if (w.p < lo || w.p > hi) this.fail('cam.post.wcs_range', { p: w.p, min: lo, max: hi });
           wcs = 'G54.1 P' + w.p;
         } else wcs = w.kind;
-        this.writeBlock('G0', 'G90', wcs, this.v.x.formatForced(x), this.v.y.formatForced(y));
+        this.writeBlock('G0', 'G90', st.tiltOn ? '' : wcs, this.v.x.formatForced(x), this.v.y.formatForced(y)); // WP-18: G68.2 etkinken WCS yeniden secilmez
         this.g.motion.format(0);
         this.writeBlock('G43', 'H' + tp.tool.H, this.v.z.formatForced(z));
         const cc = tp.coolant;
@@ -256,7 +366,7 @@ export function createFanucPost(over = {}) {
     },
 
     onLinear(x, y, z, f) {
-      const st = this.state; let comp = '';
+      const st = this.state; let comp = ''; post._g94.call(this);
       if (st.compRequest) {
         const r = st.compRequest; st.compRequest = null;
         comp = r.on ? [r.side === 'left' ? 'G41' : 'G42', 'D' + r.D] : 'G40';
@@ -266,7 +376,7 @@ export function createFanucPost(over = {}) {
     },
 
     onCircular(cw, cx, cy, cz, x, y, z, f) {
-      const s = this.pos; const d = this.dec;
+      const s = this.pos; const d = this.dec; post._g94.call(this);
       const I = createFormat({ prefix: 'I', decimals: d, scale: this.k }), J = createFormat({ prefix: 'J', decimals: d, scale: this.k });
       // V-05: yuvarlanmis bitis = yuvarlanmis baslangic ise G2/G3 kontrolde TAM DAIRE olur. Yay bu cozunurlukte dogrudan
       // ayirt edilemiyorsa (sehim < yarim birim) dogruya cevrilir; degilse (buyuk yay acisi) acik hata.
@@ -291,7 +401,7 @@ export function createFanucPost(over = {}) {
 
     // ------------------------------------------------------------ delik cevrimleri
     onCycle(c) {
-      const p = this.props, tp = this.section.toolpath;
+      const p = this.props, tp = this.section.toolpath; post._g94.call(this);
       this.state.cycle = { c, n: 0 };
       // WP-14: G76/G87 desteklenmiyorsa (profil ozelligi ya da cannedCycles:false) nokta basina acik harekete acilir; mil yonlendirme yok -> uyari
       if (c.cycle === 'fineBore' || c.cycle === 'backBore') {
@@ -379,13 +489,16 @@ export function createFanucPost(over = {}) {
 
     onSectionEnd() {
       if (this.state.cycle) this.writeBlock('G80');
+      post._g94.call(this);
+      if (this.state.tiltOn) { this.writeBlock('G69'); this.state.tiltOn = false; post._resetPos.call(this); this.g.motion.reset(); this.state.positioned = false; } // WP-18: egik duzlem iptali (takim yerel guvenli yukseklikte)
     },
 
     onClose() {
       const p = this.props, st = this.state;
       this.writeComment('END OF PROGRAM');
       post._safeRetract.call(this);
-      if (p.rotaryMode === '6a' && this.rotary && p.aReturnZero) post._indexRotary.call(this, 0);
+      if (this.tiltProg) { if (p.aReturnZero) post._indexRotaries.call(this, Object.fromEntries(this.kin.names.map((k) => [k, 0]))); }
+      else if (p.rotaryMode === '6a' && this.rotary && p.aReturnZero) post._indexRotary.call(this, 0);
       else if (p.rotaryMode === '6b' && (st.aShown ?? 0) !== 0) this.writeComment('RESET INDEXER TO ZERO');
       if (st.spindle) this.writeBlock('M5');
       if (st.coolant !== 'off') this.writeBlock(post._coolantCode.call(this, 'off'));
