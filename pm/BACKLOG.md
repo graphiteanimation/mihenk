@@ -74,3 +74,9 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 2. Geçmiş arayüzü (WP-02) erken: CAD'in her gün kullanılan omurgası ve sonraki modelleme özellikleri (WP-08) buna bağlanıyor.
 3. Sıklık: her parçada gereken (pah, delik, 2D) → verim (adaptif) → seyrek (3D, çok eksen, teknik resim).
 4. Paralel yürütülebilenler: WP-02 ‖ WP-03 · WP-04 ‖ WP-05 · WP-06 ‖ WP-08 ‖ WP-09 (alanlar ayrık).
+
+## CAD testi (pm/test/CAD-TEST.md)
+| WP | İş | Kaynak | Durum |
+|---|---|---|---|
+| WP-CAD0 | CAD kabiliyet testi T01–T10 (arayüzden çizim, ölçüm, bulgu listesi) | K-048 | ◐ |
+| WP-CAD1 | Test bulgularının düzeltilmesi; ilk kalem C-13 kapanış uyarı penceresi tasarım sistemine uymuyor | K-048, C-13 | ☐ |

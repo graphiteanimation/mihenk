@@ -54,6 +54,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-047** (2026-11-21) — "atolye cad i sildim. dosya yolunun adını mihenk olarak değiştirdim." `%APPDATA%\AtolyeCAD` silindi. Bilgisayardaki proje klasörü `Documents\Fusion-Klon-Spec` → `Documents\Mihenk` (içinde `Mihenk\` alt klasörü: `mihenk.git`, `surumler`, `tezgahlar`, `test-fusion-karsilastirma`, `arsiv`). Oturumlar klasör erişimini yeni yoldan ister.
 
+- **K-048** (2026-11-21) — "mevcut mihenk sürümünün sadece cad kısmını test etmek istiyorum… kaç adet ve hangi parçalar ile cad çizme denemesi yapabiliriz. cad lere karar verip çizdikten sonra kaydetmeni de istiyorum… cad test i için ayrı ve çok uzun olmayan ama yeterli bir yol haritası çıkar." + "mihenk'i kapatmak istediğimde gelen uyarı ekranı arayüzle çok uyumlu değil." Uygulama: `pm/test/CAD-TEST.md` (10 parça), C-13.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
