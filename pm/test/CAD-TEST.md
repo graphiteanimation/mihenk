@@ -46,9 +46,18 @@ Kaynak: Too Tall Toby "Party Pack" ve yarışma çizimleri; build123d belgelerin
 | T07 | GEÇTİ | 0 | C-47…C-49 | revolve + ayna + R8 fillet zinciri; teğet/ofset hesapla verildi; `pm/test/sonuc/T07.md` |
 | T08 | GEÇTİ | +0,00001 % | — (C-14 yeniden) | zarf, iki yönlü (simetrik) extrude, delik; teğetler hesapla verildi; `pm/test/sonuc/T08.md` |
 | T09 | KISMEN | +0,107 % | C-50, C-51 | 0,5 pah yapılamadı (C-50: kabuk sonrası kalıcı ad çakışması); pah dışında birebir; `pm/test/sonuc/T09.md` |
+| T10 | GEÇTİ | 0 / +0,00004 % | C-52 | T02'de 3 ölçü değişikliği, P3'te yüz sil/ofset/taşı, T02 teknik resmi (PDF); `pm/test/sonuc/T10.md` |
 
 ## Ara rapor (prizmatik faz, T01–T04, 2026-11-21)
 - Puan: GEÇTİ 2 (T01, T02) · KISMEN 2 (T03, T04) · KALDI 0. Dört parçada da son geometri referansla aynı (hacim farkı ≤ %0,0001, kutu aynı) — eksikler ancak dolanarak kapatılabildi.
 - Düzeltme paketi WP-CAD1 için öncelik (Engel/Hata, yüksek): C-39 boolean sonrası aynı düzlemli yüzleri birleştir (UnifySameDomain) · C-31 aynı yüz çifti arasındaki birden çok kenarın kalıcı adı · C-33 kenarı köşede biten fillet brepcheck hatası · C-42 teğet temaslı Join/Combine · C-14 Extrude mesafesi · C-21 budamada daire kayması · C-37 açılı yapı düzlemi.
 - Orta: C-23 kanal aracı iç kısıtları · C-40 koordinat girişi uç noktayı birleştirmiyor · C-25/C-38 eskiz fillet paneli ve köşe seçimi · C-15 son dosyalar · C-32 fillet önizlemesi.
 - Konfor (toplu): C-13, C-16, C-17, C-19, C-22, C-26, C-28, C-29, C-30, C-34, C-35, C-36, C-41, C-43, C-44.
+
+## Sonuç raporu (T01–T10, 2026-11-21)
+- **Puan: GEÇTİ 6 (T01, T02, T06, T07, T08, T10) · KISMEN 4 (T03, T04, T05, T09) · KALDI 0.** On parçanın onunda da yapılabilen geometri referansla birebir (boolean farkı ≤ 0,03 mm³); KISMEN'lerin hepsi tek bir kenar işleminin (fillet/pah) ya da birleştirmenin yapılamamasından.
+- Süre: T01–T06 ≈ 2 sa 15 dk (arayüzü tanıma dahil), T07–T10 ≈ 40 dk.
+- KISMEN nedenleri tek kök ailesinde toplanıyor: **kalıcı adlandırma (naming)** — C-31 (dikişle bölünen kenar, T03, T05), C-50 (kabuk sonrası dış/iç duvar kenarı, T09); ayrıca C-33 (fillet brepcheck), C-39 (birleşim sonrası yüzler), C-42 (teğet temaslı Join), C-37 (açılı düzlem yok). C-31, C-33, C-39, C-42 İE-005'te; **C-50 İE-005 kapsamına eklenmeli** (aynı `naming.js` alanı).
+- Yöntem sınırı: eskizlerde teğet/ofset noktaları hesaplanıp koordinatla verildi (C-16 yöntemi); eskiz Teğet kısıtı ve Ofset aracı bu turda sınanmadı, eskizlerin hiçbiri tam tanımlı değil (C-16, C-23). "Tam tanımlı eskiz" ölçütü arayüzden ayrıca sınanmalı (öneri: İE-003 ya da ayrı bir eskiz testi).
+- Düzeltme paketleri (BACKLOG): WP-CAD1'e C-47…C-52 eklendi. Öncelik: C-50 (yüksek, İE-005'e) · C-47 fillet/pah kenar seçiminin sessizce kapanması (orta) · C-48 koordinat girişinde Bağıl kutusu · C-49 Alt/Arka/Sol görünüm · C-51 eskiz fillet penceresinin konumu · C-52 resimde seçim toleransı.
+- Regresyon: İE-005 ve İE-002 düzeltmeleri 0.6.1'e girince T03, T04, T05, T09 arayüzden yeniden çizilir (İE-003 otomatik regresyonu bunun kalıcı biçimi).
