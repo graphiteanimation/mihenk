@@ -220,4 +220,12 @@ export default {
   "err.cam.pocket.predrill_unverified": "Ön delik (X{x} Y{y}) stok haritasından doğrulanamadı; merkezden kesmeyen takımla dalış yapılmaz. Önce delen işlemi aynı kurulumda ekleyin.",
   "err.cam.pocket.predrill_closed": "Ön delik açık değil (X{x} Y{y}, Z{z} civarında takımın gireceği yerde malzeme var). Önce deliği delin.",
   "err.cam.setup.edge_axis_not_line": "Eksen için seçilen kenar düz bir doğru değil (yay/eğri kenar eksen veremez). Düz bir kenar ya da düzlemsel yüz seçin.",
+  // WP-16 sarma
+  "err.cam.wrap.needs_cyl": "Sarma kipi silindir stok ister (eksen X).",
+  "err.cam.wrap.rotary_conflict": "Sarma kipi ile A indeksleme (3+1) aynı setup'ta kullanılamaz; sarma işlemleri A eksenini kendileri döndürür.",
+  "err.cam.wrap.origin_off_axis": "Sarma kipinde iş koordinatı orijini A ekseni üzerinde olmalı (eksenden uzaklık Y {y}, Z {z} mm).",
+  "err.cam.wrap.no_wrap_setup": "{op}: sarma işlemi yalnız sarma kipindeki setup'ta hesaplanır (setup → Sarma kipi).",
+  "err.cam.wrap.move_unsupported": "Sarma: '{t}' hareketi silindire sarılamıyor.",
+  "err.cam.wrap.no_wear_comp": "{op}: sarma işleminde takım telafisi (G41/G42) yok; telafiyi 'bilgisayar' yapın.",
+  "err.cam.wrap.predrill_unsupported": "Sarılmış cepte ön delik girişi desteklenmiyor; helis, rampa ya da dalma seçin.",
 };

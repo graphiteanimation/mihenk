@@ -219,4 +219,12 @@ export default {
   "err.cam.pocket.predrill_unverified": "The pre-drilled hole (X{x} Y{y}) could not be verified from the stock map; a non-center-cutting tool will not plunge. Add the drilling operation first in the same setup.",
   "err.cam.pocket.predrill_closed": "The pre-drilled hole is not open (X{x} Y{y}, material where the tool would enter near Z{z}). Drill the hole first.",
   "err.cam.setup.edge_axis_not_line": "The edge selected for the axis is not a straight line (an arc or curve cannot define an axis). Pick a straight edge or a planar face.",
+  // WP-16 sarma
+  "err.cam.wrap.needs_cyl": "Wrap mode needs a cylinder stock (axis X).",
+  "err.cam.wrap.rotary_conflict": "Wrap mode and A indexing (3+1) cannot be used in the same setup; wrap operations drive the A axis themselves.",
+  "err.cam.wrap.origin_off_axis": "In wrap mode the work offset origin must be on the A axis (offset from axis Y {y}, Z {z} mm).",
+  "err.cam.wrap.no_wrap_setup": "{op}: a wrap operation is only calculated in a setup in wrap mode (setup → Wrap mode).",
+  "err.cam.wrap.move_unsupported": "Wrap: the '{t}' move cannot be wrapped onto the cylinder.",
+  "err.cam.wrap.no_wear_comp": "{op}: wrap operations have no cutter compensation (G41/G42); set compensation to 'computer'.",
+  "err.cam.wrap.predrill_unsupported": "Predrill entry is not supported in a wrapped pocket; choose helix, ramp or plunge.",
 };
