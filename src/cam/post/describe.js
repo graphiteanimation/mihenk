@@ -3,8 +3,9 @@
 import coreEn from '../../i18n/cam-core-en.js';
 import postEn from '../../i18n/cam-post-en.js';
 import uiEn from '../../i18n/cam-ui2-en.js';
+import k5En from '../../i18n/cam-5x-en.js'; // WP-18
 
-const DICT = { ...coreEn, ...postEn };
+const DICT = { ...coreEn, ...postEn, ...k5En };
 const fieldName = (v) => (typeof v === 'string' && uiEn['cam.field.' + v]) || v; // alan yolu -> okunur ad (ham ad NC basligina yazilmaz)
 const fmtVal = (v) => (typeof v === 'number' && Number.isFinite(v) ? String(Math.round(v * 1000) / 1000) : String(v));
 

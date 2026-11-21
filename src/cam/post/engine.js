@@ -4,6 +4,7 @@
 // Cikti: metin + satir -> (section, move) eslemesi. Uretilen NC yalniz test ciktisidir; DOGRULANMADI basligi daima yazilir.
 import { KErr } from '../../shared/errors.js';
 import { validateProgram, splitRapid, arcCenter } from '../ir.js';
+import { unwindProgram } from '../kinematics.js';
 
 export const MIHENK_VERSION = '0.3.0'; // yalniz baslik yorumu icin; opts.appVersion ile ezilir
 export const perr = (code, params = {}) => new KErr(code, params);
@@ -143,6 +144,7 @@ export const CONDITIONAL_PROPS = Object.freeze(['dwellAddress', 'dwellUnit', 'cy
 export const requiredPropsMissing = (post, props) => Object.keys(post.defaultProps).filter((k) => !CONDITIONAL_PROPS.includes(k) && isEmptyProp(props[k]));
 export function runPost(post, program, machine, opts = {}) {
   validateProgram(program);
+  program = unwindProgram(program); // WP-18: acilmis 3+2 bolumleri makine koordinatina (oteleme); digerleri aynen
   const props = resolveProps(post, machine, opts.props);
   { const miss = requiredPropsMissing(post, props); if (miss.length) throw perr('cam.post.prop_missing', { prop: miss[0], post: post.id, all: miss.join(', ') }); }
   const ctx = new PostContext(post, program, machine, props, opts);
