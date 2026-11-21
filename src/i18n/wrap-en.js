@@ -51,4 +51,9 @@ export default {
   "cam.ppw.wrapMaxAStep": "Long A rotations are split into blocks smaller than this angle (must be below 180).",
   "cam.pp.inverseFeedDecimals": "G93 F decimals",
   "cam.ppw.inverseFeedDecimals": "Number of decimals of the inverse time F value.",
+  // WP-22b
+  "err.cam.sim.bad_model_mesh": "Simulation: invalid model mesh (vertex/triangle array empty or not a multiple of 3).",
+  "err.cam.gcode.inverse_arc": "NC line {line}: only G1 is supported in G93 (inverse time) mode.",
+  "err.cam.post.read_no_rotary": "NC line {line}: the machine profile has no {axis} axis.",
+  "err.cam.post.read_tilt": "NC line {line}: tilted plane (G68.2) cannot be read here (cycle/compensation active, or a rotary word inside the tilted plane).",
 };

@@ -240,7 +240,7 @@ export default {
   "err.cam.wrap.move_unsupported": "Wrap: the '{t}' move cannot be wrapped onto the cylinder.",
   "err.cam.wrap.no_wear_comp": "{op}: wrap operations have no cutter compensation (G41/G42); set compensation to 'computer'.",
   "err.cam.wrap.predrill_unsupported": "Predrill entry is not supported in a wrapped pocket; choose helix, ramp or plunge.",
-  "err.cam.gate.wrap_sim_limits": "{op}: the wrap simulation removes material from the cylinder stock and checks tool/shank/holder collisions; gouge against the model and fixture collisions are not checked.",
+  "err.cam.gate.wrap_sim_limits": "{op}: no model mesh was given to the wrap simulation; gouge against the model is not checked (material removal, tool/shank/holder and fixture collisions are checked).",
   // WP-18 (K-029): cok eksen / 3+2
   "cam.machine.generic5ac": "Generic 3+2 table-table A/C",
   "cam.machine.generic5bc": "Generic 3+2 table-table B/C",

@@ -241,7 +241,7 @@ export default {
   "err.cam.wrap.move_unsupported": "Sarma: '{t}' hareketi silindire sarılamıyor.",
   "err.cam.wrap.no_wear_comp": "{op}: sarma işleminde takım telafisi (G41/G42) yok; telafiyi 'bilgisayar' yapın.",
   "err.cam.wrap.predrill_unsupported": "Sarılmış cepte ön delik girişi desteklenmiyor; helis, rampa ya da dalma seçin.",
-  "err.cam.gate.wrap_sim_limits": "{op}: sarma simülasyonu silindirik stokta malzeme kaldırır ve takım/sap/tutucu çarpmasını denetler; modele oyma ve bağlama gövdesi denetimi yapılmaz.",
+  "err.cam.gate.wrap_sim_limits": "{op}: sarma simülasyonuna model ağı verilmedi; modele oyma denetlenmez (malzeme kaldırma, takım/sap/tutucu ve bağlama gövdesi çarpması denetlenir).",
   // WP-18 (K-029): cok eksen / 3+2
   "cam.machine.generic5ac": "Genel 3+2 tabla-tabla A/C",
   "cam.machine.generic5bc": "Genel 3+2 tabla-tabla B/C",

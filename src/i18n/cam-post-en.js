@@ -70,7 +70,7 @@ export default {
   "err.cam.gcode.comp_left_on": "NC line {line}: the section ends with cutter compensation (G41/G42) still on.",
   "err.cam.gcode.no_position": "NC line {line}: position unknown (give absolute X Y Z first).",
   "err.cam.gcode.missing_word": "NC line {line}: word '{word}' is missing.",
-  "err.cam.gcode.a_simultaneous": "NC line {line}: the A axis moves together with other axes (simultaneous 4-axis is not supported; 3+1 indexing only).",
+  "err.cam.gcode.a_simultaneous": "NC line {line}: the A axis moves together with other axes (simultaneous 4-axis is read only when the work offset matches a wrap setup; otherwise 3+1 indexing only).",
   "err.cam.gcode.cycle_in_comp": "NC line {line}: drilling cycle with cutter compensation on.",
   "err.cam.gcode.cycle_heights": "NC line {line}: invalid cycle heights (Z < R <= initial level required).",
   "err.cam.gcode.comp_no_move": "NC line {line}: G41/G42/G40 in a block without motion.",

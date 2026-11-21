@@ -51,4 +51,9 @@ export default {
   "cam.ppw.wrapMaxAStep": "Uzun A dönüşleri bu açıdan küçük bloklara bölünür (180'den küçük olmalı).",
   "cam.pp.inverseFeedDecimals": "G93 F ondalığı",
   "cam.ppw.inverseFeedDecimals": "Ters zaman F değerinin ondalık basamak sayısı.",
+  // WP-22b
+  "err.cam.sim.bad_model_mesh": "Simülasyon: model ağı geçersiz (köşe/üçgen dizisi boş ya da 3'ün katı değil).",
+  "err.cam.gcode.inverse_arc": "NC satırı {line}: G93 (ters zaman) kipinde yalnız G1 desteklenir.",
+  "err.cam.post.read_no_rotary": "NC satırı {line}: makine profilinde {axis} ekseni yok.",
+  "err.cam.post.read_tilt": "NC satırı {line}: eğik düzlem (G68.2) bu konumda okunamaz (çevrim/telafi etkin ya da eğik düzlemde döner eksen kelimesi).",
 };
