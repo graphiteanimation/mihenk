@@ -46,6 +46,7 @@ const AX = ['X', 'Y', 'Z'];
 const sourceChk = obj({ kind: oneOf(['feature', 'body']), id: str(LIMITS.shortStr), bodies: strArr() });
 const sketchChk = {
   seq: num(),
+  underlay: nullable(obj({ name: str(200), mime: oneOf(['image/png', 'image/jpeg']), data: str(12 * 1024 * 1024), wPx: num(), hPx: num(), mmPerPx: num(), origin: arrOf(num(), 2), angle: num(), opacity: num(), visible: bool() })), // WP-14: eskiz altligi
   plane: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }),
   points: (v, p) => {
     if (!isObj(v)) fail('schema.bad_field', { path: p, expect: 'object' });
@@ -100,11 +101,12 @@ const camOp = obj({
   geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr, ents: strArr(), reverse: bool() }), CAM_LIMITS.geom),
   stepover: camNum(0), stepdown: camNum(0), finishStepdown: camNum(0), finishStock: camNum(0), direction: camNum(), extend: camNum(0),
   side: oneOf(['outside', 'inside', 'on', 'left', 'right']), extendStart: camNum(0), extendEnd: camNum(0), width: camNum(0), tipClearance: camNum(0), dir: oneOf(['climb', 'conv']), comp: oneOf(['computer', 'wear']), finishPass: bool(),
-  cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
+  cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore', 'fineBore', 'backBore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
+  shift: camNum(0), shiftDir: camNum(-360, 360), backDepth: camNum(0), startBelow: camNum(0), // WP-14: G76/G87
   aAngle: camNum(-36000, 36000),
   sharp: bool(),
-  holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr }), sketch: idStr, ents: strArr(), rec: strArr(), acceptThread: strArr() }),
-  depth: obj({ from: oneOf(['hole', 'abs']), tipComp: bool(), breakThrough: camNum(0), z: camNum() }),
+  holes: obj({ kind: oneOf(['feature', 'points']), filter: obj({ dia: camNum(0), feature: idStr, features: strArr() }), sketch: idStr, ents: strArr(), rec: strArr(), acceptThread: strArr() }),
+  depth: obj({ from: oneOf(['hole', 'abs', 'top']), tipComp: bool(), breakThrough: camNum(0), z: camNum(), d: camNum(0) }),
   entry: obj({ kind: oneOf(['helix', 'ramp', 'plunge', 'predrill']), angle: camNum(0, 90), helixDia: camNum(0), points: arrOf(arrOf(camNum(), 2), 500) }),
   leadIn: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }), leadOut: obj({ kind: oneOf(['arc', 'line', 'none']), r: camNum(0), len: camNum(0) }),
   tabs: obj({ n: posInt(100), width: camNum(0), height: camNum(0) }), ramp: obj({ kind: oneOf(['plunge', 'ramp', 'helix']), angle: camNum(0, 90), helixDia: camNum(0) }),
@@ -133,6 +135,9 @@ export function validateCam(cam) {
   // WP-07: belgeye ozel kesme verisi satirlari ve varsayilan malzeme
   if (cam.cutLib !== undefined) arrOf(obj({ id: idStr, material: str(60), type: oneOf(['endmill', 'drill', 'tap', 'chamfer', 'other']), diaMin: camNum(0), diaMax: camNum(0), vc: camNum(0), fz: camNum(0), note: str(200) }), 500)(cam.cutLib, CP + '.cutLib');
   if (cam.material !== undefined) str(60)(cam.material, CP + '.material');
+  if (cam.units !== undefined) oneOf(['mm', 'inch'])(cam.units, CP + '.units'); // WP-14: belge birimi
+  if (cam.quote !== undefined && cam.quote !== null) obj({ no: str(80), customer: str(200), currency: str(8), qty: posInt(1000000), partsPerRun: posInt(48), validDays: posInt(3650), notes: str(2000), marginPct: camNum(0, 1000), vatPct: camNum(0, 1000), material: obj({ density: camNum(0, 100), pricePerKg: camNum(0, 1e9) }), rates: obj({ machinePerHour: camNum(0, 1e9), setup: camNum(0, 1e9), toolChangeSec: camNum(0, 3600) }), extras: arrOf(obj({ name: str(200), amount: camNum(0, 1e9), per: oneOf(['order', 'piece']) }), 30) })(cam.quote, CP + '.quote'); // WP-14: teklif girdileri (kullanici verisi)
+  if (cam.parts !== undefined && cam.parts !== null) obj({ count: posInt(48), order: oneOf(['byOp', 'byPart']) })(cam.parts, CP + '.parts'); // WP-14: mengenede coklu parca
   if (cam.verified !== undefined && cam.verified !== null) obj({ by: str(LIMITS.shortStr), date: str(40), note: str(), hash: str(LIMITS.shortStr) })(cam.verified, CP + '.verified');
   const ids = new Set();
   for (const [i, t] of (cam.tools || []).entries()) { if (!t.id) fail('schema.bad_field', { path: `${CP}.tools[${i}].id`, expect: 'text' }); if (ids.has(t.id)) fail('schema.dup_id', { id: t.id }); ids.add(t.id); }

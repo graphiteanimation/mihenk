@@ -16,6 +16,9 @@ import { SetupPanel, defaultSetup } from './setup.js';
 import { openMachineManager } from './machines.js';
 import { openToolManager, protectedHits, toolLabel } from './toolui.js';
 import { openCutData } from './cutdata.js';
+import { openTemplates, openHoleSequence, openParts } from './templatesui.js';
+import { openQuote } from './quoteui.js';
+import { setUnits, getUnits } from '../../shared/units.js';
 import { CamView } from './view.js';
 import { CamOps } from './ops.js';
 
@@ -34,7 +37,7 @@ export class CamCtl {
   machineLabel(m) { return machineName(m).split(' · ')[0]; }
   selLabel() { const s = this.sel; if (!s) return '—'; if (s.kind === 'setup') return this.setup(s.id)?.name || '—'; const l = this.opLoc(s.id); return l ? l.op.name : '—'; }
   defaultMachineId() { const l = allMachines(); return (l.find((m) => m.id === GENERIC_3AXIS_ID) || l[0])?.id || null; }
-  data() { return this.app.doc.cam || { machineId: this.defaultMachineId(), tools: [], setups: [], verified: null }; }
+  data() { setUnits(this.app.doc.cam?.units); return this.app.doc.cam || { machineId: this.defaultMachineId(), tools: [], setups: [], verified: null }; }
   get machineId() { return this.data().machineId ?? this.defaultMachineId(); }
   machine() {
     const l = allMachines(); const id = this.machineId;
@@ -53,6 +56,8 @@ export class CamCtl {
   mut(fn) {
     this.app.commitMeta((doc) => { if (!doc.cam) doc.cam = { machineId: this.defaultMachineId(), tools: [], setups: [], verified: null }; if (!doc.cam.machineId) doc.cam.machineId = this.defaultMachineId(); fn(doc.cam); });
   }
+  // WP-14: belge birimi (doc.cam.units). Cekirdek mm kalir; gorunum, giris ve post (G20/G21) birimi izler.
+  toggleUnits() { const next = getUnits() === 'inch' ? 'mm' : 'inch'; this.mut((c) => { c.units = next; }); setUnits(next); this.closePanel?.(); this.app.C.renderAll(); toast(t(next === 'inch' ? 'cam.units.set_inch' : 'cam.units.set_mm')); }
   setMachine(id) { if (id === this.machineId && this.app.doc.cam) return; this.mut((c) => { c.machineId = id; }); }
   refreshMachines() { this._res.clear(); this.app.C.renderAll(); }
   touchMachine(id) { if (id === this.machineId) { this._res.clear(); this.app.C.renderAll(); } }
@@ -136,6 +141,11 @@ export class CamCtl {
     reg('cam-tools', 'cam.cmd.tools', 'cam-tool-library', () => openToolManager(this, 'doc'));
     reg('cam-sheet', 'cam.cmd.sheet', 'nc-code', () => { this.ops.sheet(); }, { off: needOps, tip: null });
     reg('cam-cutdata', 'cam.cmd.cutdata', 'cam-tool-library', () => openCutData(this));
+    reg('cam-units', 'cam.cmd.units', 'cam-stock', () => this.toggleUnits(), { tip: null }); // WP-14: belge birimi mm <-> inc
+    reg('cam-parts', 'cam.cmd.parts', 'cam-stock', () => openParts(this), { off: needSetup, tip: null });
+    reg('cam-quote', 'cam.cmd.quote', 'nc-code', () => openQuote(this), { off: needOps, tip: null });
+    reg('cam-tpl', 'cam.cmd.tpl', 'cam-tool-library', () => openTemplates(this), { off: needSetup, tip: null }); // WP-14
+    reg('cam-holeseq', 'cam.cmd.holeseq', 'op-drill', () => openHoleSequence(this), { off: needSetup, tip: null });
     const opcmd = (id, nm, ic, type, cycle) => reg(id, nm, ic, () => this.ops.create(type, cycle), { off: needSetup });
     opcmd('cam-op-face', 'cam.cmd.face', 'op-face', 'face'); opcmd('cam-op-contour', 'cam.cmd.contour', 'op-contour', 'contour'); opcmd('cam-op-pocket', 'cam.cmd.pocket', 'op-pocket', 'pocket'); opcmd('cam-op-chamfer', 'cam.cmd.chamfer', 'chamfer', 'chamfer');
     reg('cam-op-adaptive', 'cam.cmd.adaptive', 'op-adaptive', () => {}, { off: () => t('cam.soon_op') });
@@ -155,6 +165,7 @@ export class CamCtl {
       group('cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'].map(b), { items: ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill'] }),
       group('cam-3d', 'cam.grp.3d', [b('cam-op-surface')], { items: ['cam-op-surface'] }),
       group('cam-act', 'cam.grp.actions', ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'].map(b), { cls: 'end', items: ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'] }),
+      group('cam-flow', 'cam.grp.flow', ['cam-tpl', 'cam-holeseq', 'cam-parts', 'cam-units', 'cam-quote'].map(b), { items: ['cam-tpl', 'cam-holeseq', 'cam-parts', 'cam-units', 'cam-quote'] }), // WP-14: en sonda; sigmazsa ilk » menusune gider
     ];
   }
 

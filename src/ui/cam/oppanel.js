@@ -416,6 +416,8 @@ export class OpPanel {
         callout('info', null, t('cam.op.th_sim_note')));
     } else if (d.type === 'drill') {
       if (d.cycle === 'peck' || d.cycle === 'chipbreak') rows.push(this.num(t('cam.op.peck'), 'peck', { min: 0.001, f: 'peck', hint: t('cam.op.peck_hint') }));
+      if (d.cycle === 'fineBore' || d.cycle === 'backBore') rows.push(this.num(t('cam.op.shift'), 'shift', { min: 0.001, f: 'shift', hint: t('cam.op.shift_hint') }), this.num(t('cam.op.shift_dir'), 'shiftDir', { unit: '°', min: -360, max: 360, nullable: true, f: 'shift-dir', hint: t('cam.op.shift_dir_hint') }));
+      if (d.cycle === 'backBore') rows.push(this.num(t('cam.op.back_depth'), 'backDepth', { min: 0.001, f: 'back-depth', hint: t('cam.op.back_depth_hint') }), this.num(t('cam.op.start_below'), 'startBelow', { min: 0, nullable: true, f: 'start-below', hint: t('cam.op.start_below_hint') }));
       rows.push(this.num(t('cam.op.dwell'), 'dwell', { unit: t('cam.u.s'), min: 0, nullable: true, f: 'dwell', hint: t('cam.op.dwell_hint') }),
         this.sel(t('cam.op.order'), 'order', [['asis', t('cam.op.or_asis')], ['shortest', t('cam.op.or_short')]], { f: 'order', def: 'asis' }));
     }

@@ -79,7 +79,7 @@ export function gates(program, machine, opts = {}) {
       walk(tp, (m, k, from) => {
         if (!from) return;
         // delme cevrimleri merkezden kesen uc ister; kilavuz/rayba/bara ONCEDEN DELINMIS deliğe girer (V-27: yanlis engel idi)
-        if (m.t === 'cycle') { if (!['tap', 'ream', 'bore'].includes(m.cycle)) bad = true; return; }
+        if (m.t === 'cycle') { if (!['tap', 'ream', 'bore', 'fineBore', 'backBore'].includes(m.cycle)) bad = true; return; }
         if (m.t !== 'feed' && m.t !== 'arc') return;
         if (!(m.z < from.z - 1e-9) || !isNum(stockTop) || !(m.z < stockTop - 1e-6)) return;
         const inside = !box || (m.x > box.min[0] + 1e-6 && m.x < box.max[0] - 1e-6 && m.y > box.min[1] + 1e-6 && m.y < box.max[1] - 1e-6);
