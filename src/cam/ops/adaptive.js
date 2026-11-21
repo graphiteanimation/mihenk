@@ -297,7 +297,6 @@ function clearRegion(A) {
     let forced = null; // giristen hemen sonra: paso takimin bulundugu yerden baslar
     for (;;) {
       if (++guard > 200000) throw cerr('cam.adaptive.no_progress');
-      if (globalThis.__AD_DBG && guard % 20 === 0) console.log('guard', guard, 'li', li, 'passes', stats.passes, 'entries', stats.entries, 'removed', removed);
       refreshDm();
       let st = forced; forced = null;
       if (!st) st = findStart(pos, z);
@@ -342,14 +341,12 @@ function clearRegion(A) {
         const stp = bestStep(p, head); if (!stp) break;
         const rb = removed; clearCapsule(p, stp.q, r, z); if (stp.th > stats.maxTheta) stats.maxTheta = stp.th;
         if (removed > rb) { lastProd = pts.length; undo = []; } else if (pts.length - lastProd > 25) break; // erisilemeyen serit boyunca bos yuruyus: paso biter
-        if (globalThis.__AD_DBG) (globalThis.__thlog = globalThis.__thlog || []).push(Math.round(stp.th * 180 / Math.PI) + '@' + Math.round(stp.a * 180 / Math.PI) + '/' + stp.q[1].toFixed(1));
         pts.push(stp.q); p = stp.q; head = stp.a;
         if (++nStep > 20000) break;
       }
       if (pts.length - 1 > lastProd) { pts = pts.slice(0, lastProd + 1); p = pts[pts.length - 1]; for (let k = undo.length - 3; k >= 0; k -= 3) { hg[undo[k]] = undo[k + 1]; mat[undo[k]] = undo[k + 2] & 1; rch[undo[k]] = undo[k + 2] >> 1; } } // sondaki verimsiz adimlar atilir (izgara geri alinir)
       undo = null;
       if (removed === r0) { if (st.c != null) bad[st.c] = 1; if (pts.length === 1) { pos = st.p; continue; } }
-      if (globalThis.__AD_DBG && stats.passes < globalThis.__AD_DBG) console.log('pass', stats.passes, 'z', z, 'start', st.p.map((v) => v.toFixed(2)).join(','), 'head', (st.head * 180 / Math.PI).toFixed(0), 'n', pts.length, 'rem', removed - r0, 'end', p.map((v) => v.toFixed(2)).join(','), 'ths', (globalThis.__thlog || []).join(' ')); globalThis.__thlog = [];
       emit(simplify(pts), z); stats.passes++; pos = p;
     }
   }
