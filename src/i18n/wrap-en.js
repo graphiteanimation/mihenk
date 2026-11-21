@@ -55,4 +55,9 @@ export default {
   "err.cam.sim.bad_model_mesh": "Simulation: invalid model mesh (vertex/triangle array empty or not a multiple of 3).",
   "err.cam.gcode.inverse_arc": "NC line {line}: only G1 is supported in G93 (inverse time) mode.",
   "err.cam.post.read_tilt": "NC line {line}: tilted plane (G68.2) cannot be read here (cycle/compensation active, or a rotary word inside the tilted plane).",
+  "cam.br.sim": "Simulation",
+  "cam.sim.detail": "Detailed simulation",
+  "cam.sim.detail_sub": "Tri-dexel, 3D gouge check against the model (slower, more memory)",
+  "cam.sim.detail_on": "Detailed simulation on: gates are checked with tri-dexel and the model mesh.",
+  "cam.sim.detail_off": "Detailed simulation off: gates are checked with the height map.",
 };

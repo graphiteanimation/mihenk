@@ -10,6 +10,7 @@ import { postProgram, postPropsMissing } from '../../cam/post/index.js';
 import { openMachineManager } from './machines.js';
 import { uid, hashStr } from './util.js';
 import { replicateProgram } from '../../cam/multipart.js';
+import { bodiesMeshInFrame } from '../../cam/sim/model3d.js';
 import { postRunOpts } from './postopts.js';
 import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
 import { SimRun } from './simbar.js';
@@ -161,8 +162,20 @@ export class CamOps {
       try { modelHeightmaps[S.id] = await this.app.query('camHeightmap', { bodies: S.bodies, frame: S.frame, res, bbox: [b.min[0], b.min[1], b.max[0], b.max[1]] }); }
       catch (e) { notes.push({ level: 'block', code: 'cam.ui.sim_no_model', params: { setup: S.name, msg: errText(e) } }); } // V-06: oyma denetlenemez → engel
     }
+    // WP-22b (O-050): ayrintili simulasyon (belge doc.cam.sim.detail): tri-dexel + model agi (setup cercevesinde, sarma dahil).
+    // Ag = goruntu agi (kernel meshBody toleransi max(0,005, kosegen/2000) mm -> err olarak oyma toleransina eklenir).
+    let detail = null;
+    if (this.cam.data().sim?.detail) {
+      const all = this.app.result?.bodies || []; const modelMeshes = {}; const transfer = [];
+      for (const S of Ss) {
+        const bs = all.filter((b) => (S.bodies || []).includes(b.id)); let err = 0.005;
+        for (const b of bs) { const v = b.vertices; if (!v?.length) continue; const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity]; for (let k = 0; k < v.length; k++) { const a = k % 3; if (v[k] < mn[a]) mn[a] = v[k]; if (v[k] > mx[a]) mx[a] = v[k]; } err = Math.max(err, Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) / 2000); }
+        const m = bodiesMeshInFrame(bs, S.frame, err); if (m) { modelMeshes[S.id] = m; transfer.push(m.v.buffer, m.t.buffer); }
+      }
+      detail = { modelMeshes, transfer };
+    }
     const tools = {}; for (const tl of this.cam.tools()) { const o = {}; if (tl.shaftDia != null) o.shaftDia = tl.shaftDia; if (tl.tipDia != null) o.tipDia = tl.tipDia; if (tl.holder) o.holder = tl.holder; if (Object.keys(o).length) tools[tl.number] = o; }
-    return { opts: { res, modelHeightmaps, tools }, notes };
+    return { opts: { res, modelHeightmaps, tools, ...(detail ? { dexel: 'tri', modelMeshes: detail.modelMeshes } : {}) }, notes, transfer: detail?.transfer ?? [] };
   }
   // tüm işlemleri hesapla (eskileri), program kur, kapıları (simülasyon dahil) çalıştır. Hata → null (kullanıcıya gösterilmiş)
   async prepare() {
@@ -183,9 +196,10 @@ export class CamOps {
       // WP-13: simulasyon Web Worker'da (arayuz donmaz); ilerleme ve iptal bildiriminde
       const ac = new AbortController(); this.simAbort = ac; let el = null, last = 0;
       const prog = ({ index, total }) => { const now = Date.now(); if (now - last < 400) return; last = now; const msg = t('cam.sim.progress', { p: Math.round((index / Math.max(1, total)) * 100) }); if (el?.isConnected) { const tt = el.querySelector('.tt'); if (tt) tt.textContent = msg; } else el = toast(msg, { kind: 'info', ms: 0, action: { label: t('cam.sim.cancel'), run: () => ac.abort() } }); };
-      let gl; try { gl = await gatesAsync(program, machine, { sim: so.opts }, { signal: ac.signal, onProgress: prog }); } finally { this.simAbort = null; if (el?.isConnected) el.querySelector('[data-testid="toast-close"]')?.click(); }
+      let gl; try { gl = await gatesAsync(program, machine, { sim: so.opts }, { signal: ac.signal, onProgress: prog, transfer: so.transfer }); } /* WP-22b: model agi worker'a aktarilir (kopyasiz) */ finally { this.simAbort = null; if (el?.isConnected) el.querySelector('[data-testid="toast-close"]')?.click(); }
       const g = [...so.notes, ...gl];
-      return { program, items, gates: g, simOpts: so.opts, docSig: this.docSig() };
+      const { modelMeshes: _mm, ...simKeep } = so.opts; // aktarilan ag tamponlari burada bostur; oynatici yukseklik haritasiyla calisir
+      return { program, items, gates: g, simOpts: simKeep, docSig: this.docSig() };
     } catch (e) { toast(errText(e), { kind: e?.code === 'cam.sim.cancelled' ? 'info' : 'err' }); return null; } finally { this.busy = false; }
   }
   // Aynı neden (kod + işlem dışı parametreler) birden çok işlemde tekrarlanırsa tek satır: işlem adları birleşir (U-08).

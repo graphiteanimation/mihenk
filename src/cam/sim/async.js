@@ -1,5 +1,5 @@
 // WP-13: asenkron simulasyon (arayuz donmasin). simulateAsync(input, opts, ctl) -> Promise<result> (simulate() ile ayni sonuc).
-// ctl: { signal?: AbortSignal (iptal -> KErr cam.sim.cancelled), onProgress?({index,total,removedVolume}), chunk? (adim/dilim),
+// ctl: { signal?: AbortSignal (iptal -> KErr cam.sim.cancelled), onProgress?({index,total,removedVolume}), chunk? (adim/dilim), transfer?: [ArrayBuffer] (WP-22b),
 //        worker?: 'auto' | false | () => Worker-benzeri }.
 //  'auto': tarayicida (Worker varsa) modul worker'i (simworker.js); yoksa (node testleri) ayni is parcaciginda dilimli calisir ve her
 //  dilim arasinda olay dongusune doner (iptal ve ilerleme calisir). Worker-benzeri: {postMessage, onmessage, onerror?, terminate}.
@@ -32,7 +32,9 @@ export function simulateAsync(input, opts = {}, ctl = {}) {
       else if (m.type === 'cancelled') end(reject, cancelErr());
     };
     w.onerror = (e) => end(reject, new KErr('cam.sim.worker_failed', { message: String(e?.message ?? e) }));
-    w.postMessage({ type: 'run', id, input, opts, chunk });
+    // WP-22b: ctl.transfer (dizi) = aktarilacak tamponlar (or. model agi; cagiran sonra kullanmaz). Aktarilamazsa kopyalanir.
+    const tl = Array.isArray(ctl.transfer) ? ctl.transfer.filter((b) => b && b.byteLength > 0) : [];
+    try { w.postMessage({ type: 'run', id, input, opts, chunk }, tl); } catch (e) { w.postMessage({ type: 'run', id, input, opts, chunk }); }
   });
 }
 

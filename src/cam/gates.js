@@ -125,7 +125,8 @@ export function gates(program, machine, opts = {}) {
     const stockBoxes = {}; for (const s of secs) if (s.setup?.stockBox) stockBoxes[s.setup.id] = s.setup.stockBox;
     // V-06: model haritasi yoksa oyma denetlenemez -> engel (sessizce kapali denetim yok)
     // WP-22b: model agi (modelMeshes) tri kipte ve sarma setup'inda gercek 3B oyma denetimi yapar -> model sayilir
-    const mesh = (id) => !!opts.sim.modelMeshes?.[id]?.v?.length, tri = opts.sim.dexel === 'tri';
+    const mesh = (id) => !!opts.sim.modelMeshes?.[id]?.v, // varlik (worker'a aktarilan tampon ayrilmis olabilir: uzunluk 0)
+      tri = opts.sim.dexel === 'tri';
     const isWrap = (id) => secs.some((s) => s.setup?.id === id && s.toolpath?.wrap);
     const hasModel = (id) => !!(opts.sim.modelHeightmaps?.[id]?.data || opts.sim.modelHeightmap?.data || (mesh(id) && (tri || isWrap(id))));
     const seenS = new Set();

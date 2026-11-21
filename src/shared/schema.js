@@ -156,6 +156,7 @@ export function validateCam(cam) {
   if (cam.units !== undefined) oneOf(['mm', 'inch'])(cam.units, CP + '.units'); // WP-14: belge birimi
   if (cam.quote !== undefined && cam.quote !== null) obj({ no: str(80), customer: str(200), currency: str(8), qty: posInt(1000000), partsPerRun: posInt(48), validDays: posInt(3650), notes: str(2000), marginPct: camNum(0, 1000), vatPct: camNum(0, 1000), material: obj({ density: camNum(0, 100), pricePerKg: camNum(0, 1e9) }), rates: obj({ machinePerHour: camNum(0, 1e9), setup: camNum(0, 1e9), toolChangeSec: camNum(0, 3600) }), extras: arrOf(obj({ name: str(200), amount: camNum(0, 1e9), per: oneOf(['order', 'piece']) }), 30) })(cam.quote, CP + '.quote'); // WP-14: teklif girdileri (kullanici verisi)
   if (cam.parts !== undefined && cam.parts !== null) obj({ count: posInt(48), order: oneOf(['byOp', 'byPart']) })(cam.parts, CP + '.parts'); // WP-14: mengenede coklu parca
+  if (cam.sim !== undefined && cam.sim !== null) obj({ detail: bool() })(cam.sim, CP + '.sim'); // WP-22b (O-050): ayrintili simulasyon (tri-dexel + model agi)
   if (cam.verified !== undefined && cam.verified !== null) obj({ by: str(LIMITS.shortStr), date: str(40), note: str(), hash: str(LIMITS.shortStr) })(cam.verified, CP + '.verified');
   const ids = new Set();
   for (const [i, t] of (cam.tools || []).entries()) { if (!t.id) fail('schema.bad_field', { path: `${CP}.tools[${i}].id`, expect: 'text' }); if (ids.has(t.id)) fail('schema.dup_id', { id: t.id }); ids.add(t.id); }
