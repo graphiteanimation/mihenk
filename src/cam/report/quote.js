@@ -89,14 +89,15 @@ export function buildQuoteHtml(data) {
   p.push('<table class="meta">' + meta.map((r) => `<tr><th>${e(r[0])}</th><td>${esc(r[1])}</td></tr>`).join('') + '</table>');
   if (!res.complete) p.push(`<p class="warn">${e('cam.quote.incomplete', { list: res.missing.map((k) => tr(MISSING_KEY[k] || 'cam.quote.m.other')).join(', ') })}</p>`);
   p.push(`<h2>${e('cam.quote.lines')}</h2>`);
+  const T = (v) => (res.complete ? NUM(v) : '-'); // eksik girdide toplamlar gosterilmez (kismi toplam yaniltir)
   const label = (l) => (l.key === 'material' ? tr('cam.quote.l_material', { kg: NUM(l.kg, 3) }) : l.key === 'machining' ? tr('cam.quote.l_machining', { min: NUM(l.minutes, 1) }) : l.key === 'setup' ? tr('cam.quote.l_setup') : l.name || tr('cam.quote.l_extra'));
   p.push(`<table><tr><th>${e('cam.quote.c_item')}</th><th class="n">${e('cam.quote.c_qty')}</th><th class="n">${e('cam.quote.c_unit')} (${cur})</th><th class="n">${e('cam.quote.c_amount')} (${cur})</th></tr>`
     + res.lines.map((l) => `<tr><td>${esc(label(l))}</td><td class="n">${esc(l.qty)}</td><td class="n">${esc(NUM(l.unitAmount))}</td><td class="n">${esc(NUM(l.amount))}</td></tr>`).join('')
-    + `<tr><th colspan="3">${e('cam.quote.subtotal')}</th><th class="n">${esc(NUM(res.subtotal))}</th></tr>`
-    + (res.margin ? `<tr><td colspan="3">${e('cam.quote.margin', { p: data.input?.marginPct })}</td><td class="n">${esc(NUM(res.margin))}</td></tr>` : '')
-    + (res.vat ? `<tr><td colspan="3">${e('cam.quote.vat', { p: data.input?.vatPct })}</td><td class="n">${esc(NUM(res.vat))}</td></tr>` : '')
-    + `<tr><th colspan="3">${e('cam.quote.total_order')}</th><th class="n">${esc(NUM(res.totalOrder))}</th></tr>`
-    + `<tr><th colspan="3">${e('cam.quote.total_piece')}</th><th class="n">${esc(NUM(res.totalPiece))}</th></tr></table>`);
+    + `<tr><th colspan="3">${e('cam.quote.subtotal')}</th><th class="n">${esc(T(res.subtotal))}</th></tr>`
+    + (res.margin ? `<tr><td colspan="3">${e('cam.quote.margin', { p: data.input?.marginPct })}</td><td class="n">${esc(T(res.margin))}</td></tr>` : '')
+    + (res.vat ? `<tr><td colspan="3">${e('cam.quote.vat', { p: data.input?.vatPct })}</td><td class="n">${esc(T(res.vat))}</td></tr>` : '')
+    + `<tr><th colspan="3">${e('cam.quote.total_order')}</th><th class="n">${esc(T(res.totalOrder))}</th></tr>`
+    + `<tr><th colspan="3">${e('cam.quote.total_piece')}</th><th class="n">${esc(T(res.totalPiece))}</th></tr></table>`);
   const s = data.summary;
   p.push(`<p class="small">${e('cam.quote.basis', { min: NUM(s.timeMin, 1), setups: s.setups, changes: s.toolChanges })}</p>`);
   if (data.notes) p.push(`<h2>${e('cam.quote.notes')}</h2><p>${esc(data.notes).replace(/\n/g, '<br>')}</p>`);

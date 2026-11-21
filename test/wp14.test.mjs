@@ -302,6 +302,7 @@ console.log('8. teklif yardimcisi');
   ok(html.includes("default-src 'none'") && html.includes(SHEET_CSS_HASH) && crypto.createHash('sha256').update(html.match(/<style>([\s\S]*?)<\/style>/)[1]).digest('base64') === SHEET_CSS_HASH.slice(7), 'HTML: CSP ozeti stil ile eslesir');
   ok(html.includes('263.34') && html.includes('26.33') && html.includes('cam.quote.total_order'), 'HTML: toplamlar');
   const html0 = buildQuoteHtml({ title: 'P', date: 'd', currency: '', input: {}, summary: sum, result: e0, tr, lang: 'en' });
+  ok(!/>0\.00</.test(html0) && /Order|total_order<\/th><th class="n">-</.test(html0.replace(/cam\.quote\.total_order/, 'total_order')), 'eksik girdide toplam "-" gosterilir');
   ok(/class="warn"/.test(html0) && html0.includes('cam.quote.incomplete'), 'eksik girdi uyarisi HTML\'de');
   try { validateDoc({ cam: { quote: { qty: 5, material: { density: 2.7, pricePerKg: 3 }, extras: [{ name: 'x', amount: 1, per: 'piece' }] } } }); ok(true, 'sema: quote'); } catch (e) { ok(false, 'sema quote: ' + e.code); }
   try { validateDoc({ cam: { quote: { rates: { setup: -1 } } } }); ok(false, 'sema negatif ucret reddedilir'); } catch (e) { ok(true, 'sema negatif ucret reddedilir'); }

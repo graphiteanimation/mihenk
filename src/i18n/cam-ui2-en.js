@@ -224,6 +224,7 @@ export default {
   "cam.quote.save": "Save quote (HTML)",
   "cam.quote.saved": "Quote saved.",
   "cam.quote.save_failed": "Could not save the quote: {msg}",
+  "cam.grp.flow": "Workflow",
   "cam.op.peck": "Peck depth",
   "cam.op.peck_hint": "Depth of each peck.",
   "cam.op.pick_tool": "Select a tool",

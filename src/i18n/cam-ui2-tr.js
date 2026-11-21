@@ -224,6 +224,7 @@ export default {
   "cam.quote.save": "Teklifi kaydet (HTML)",
   "cam.quote.saved": "Teklif kaydedildi.",
   "cam.quote.save_failed": "Teklif kaydedilemedi: {msg}",
+  "cam.grp.flow": "İş akışı",
   "cam.op.peck": "Gagalama adımı",
   "cam.op.peck_hint": "Her gagada inilecek derinlik.",
   "cam.op.pick_tool": "Takım seçin",
