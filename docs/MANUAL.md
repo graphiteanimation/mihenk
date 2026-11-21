@@ -284,7 +284,7 @@ Modeling commands are in the ribbon of the **Design** tab: **Create**, **Modify*
 - A construction plane is a feature in the history. When you change its angle or offset, the sketches on it and the features that depend on them are recomputed.
 - Use it as a sketch plane (click the plane in the view), as the **Mirror plane**, for **Split body** and **Split face**, and as the **Neutral plane** of **Draft**.
 - In the view it is a translucent rectangle in a color different from the origin planes. The eye button in the **Origin** section (*Show / hide origin planes*) also hides construction planes.
-- A document with a construction plane is saved with file version 2. Mihenk 0.6.0 opens such a file with the "File from a newer version" warning and does not know the construction plane feature. Documents without planes are not affected.
+- A document with a construction plane is saved with file version 2. Mihenk 0.6.0 does not know the construction plane feature and cannot open such a file; 0.6.1 or later is required. Documents without planes are not affected.
 
 ### 4.2 Modify
 

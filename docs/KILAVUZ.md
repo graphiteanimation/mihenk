@@ -284,7 +284,7 @@ Modelleme komutları **Tasarım** sekmesinin şeridindedir: **Oluştur**, **Düz
 - Yapı düzlemi geçmişte bir özelliktir. Açısı ya da ofseti değişince üzerindeki eskizler ve onlara bağlı özellikler yeniden hesaplanır.
 - Kullanıldığı yerler: eskiz düzlemi (görünümde düzleme tıklayın), **Ayna düzlemi**, **Gövde böl**, **Yüz böl** ve **Koniklik** için **Nötr düzlem**.
 - Görünümde yarı saydam dörtgen olarak çizilir; orijin düzlemlerinden ayrı renktedir. **Orijin** bölümündeki göz düğmesi (*Orijin düzlemlerini göster / gizle*) yapı düzlemlerini de gizler.
-- Yapı düzlemi içeren belge dosya sürümü 2 ile kaydedilir. Mihenk 0.6.0 bu belgeyi "Daha yeni bir sürümün dosyası" uyarısıyla açar ve yapı düzlemi özelliğini tanımaz. Düzlemsiz belgeler etkilenmez.
+- Yapı düzlemi içeren belge dosya sürümü 2 ile kaydedilir. Mihenk 0.6.0 yapı düzlemi özelliğini tanımadığı için bu belgeyi açamaz; 0.6.1 ya da sonrası gerekir. Düzlemsiz belgeler etkilenmez.
 
 ### 4.2 Düzenle
 
