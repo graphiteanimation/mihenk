@@ -683,7 +683,7 @@ class App {
   sketchConstruction() { this.sketcher?.toggleConstruction(); this.onSketchChange(); }
   async setSketchOffset(expr) {
     const s = this.sketchSession; if (!s || s.draft.plane.kind !== 'base') return;
-    try { const pl = basePlane(s.draft.plane.name, evalExpr(expr, this.vars())); await this.sketcher.idle(); const f = this.sketcher.stop(); Object.assign(s.draft, { points: f.points, ents: f.ents, cons: f.cons || [], seq: f.seq }); if (f.texts) s.draft.texts = f.texts; else delete s.draft.texts; s.draft.plane.offset = expr; s.plane = pl; this.sketcher.start(clone(s.draft), pl); }
+    try { const pl = basePlane(s.draft.plane.name, evalExpr(expr, this.vars())); await this.sketcher.idle(); const f = this.sketcher.stop(); Object.assign(s.draft, { points: f.points, ents: f.ents, cons: f.cons || [], seq: f.seq }); if (f.texts) s.draft.texts = f.texts; else delete s.draft.texts; if (f.underlay) s.draft.underlay = f.underlay; else delete s.draft.underlay; s.draft.plane.offset = expr; s.plane = pl; this.sketcher.start(clone(s.draft), pl); }
     catch (e) { toast(t('msg.offset_invalid', { msg: errText(e) }), true); }
   }
   async finishSketch() {
@@ -693,6 +693,7 @@ class App {
     const f = this.sketcher.stop() || s.draft;
     this.sketchSession = null; this.sketchPanel.close(); this.sketchPanel = null; this.setHint('');
     const merged = { ...s.draft, points: f.points, ents: f.ents, cons: f.cons || [], seq: f.seq }; if (f.texts) merged.texts = f.texts; else delete merged.texts; // WP-21: metin kayıtları
+    if (f.underlay) merged.underlay = f.underlay; else delete merged.underlay; // WP-22a: eskiz altlığı
     this.idleView(); this.C.renderAll();
     if (s.isNew) {
       if (!merged.ents.length) { toast(t('msg.empty_sketch')); this.refreshSketches(); return; }

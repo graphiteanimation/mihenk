@@ -12,6 +12,7 @@ import logoReverse from '../../brand/logo/logo-horizontal-reverse.svg?url';
 // Eskiz araç listeleri: [kimlik, etiket anahtarı, simge adı]
 const FEAT_IDS = new Set(['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section', 'split', 'splitface', 'faceop', 'sweep', 'loft', 'rib', 'coil', 'draft', 'vfillet', 'thread']);
 // Eskiz aracı ile model komutu aynı kimliği paylaşırsa eskiz komutu 'sk-' önekini alır.
+import { ulAdd, ulProps } from './sketch/underlay.js'; // WP-22a: eskiz altlığı
 const cid = (id) => (FEAT_IDS.has(id) ? 'sk-' + id : id);
 const SK_DRAW = [['select', tk('tb.select'), 'select'], ['line', tk('tb.line'), 'line'], ['rect', tk('tb.rect'), 'rect'], ['circle', tk('tb.circle'), 'circle'], ['arc', tk('tb.arc'), 'arc']];
 const SK_DRAW_MORE = [['point', tk('tb.point'), 'point'], ['rectc', tk('tb.rectc'), 'rect-center'], ['rect3', tk('tb.rect3'), 'rect3'], ['circle2', tk('tb.circle2'), 'circle'], ['circle3', tk('tb.circle3'), 'circle-3pt'], ['arc3', tk('tb.arc3'), 'arc-3pt'], ['arct', tk('tb.arct'), 'arc-tangent'], ['polygon', tk('tb.polygon'), 'polygon'], ['slot', tk('tb.slot'), 'slot'], ['ellipse', tk('tb.ellipse'), 'ellipse'], ['spline', tk('tb.spline'), 'spline']];
@@ -113,6 +114,12 @@ export function initChrome(app) {
   [...SK_DRAW, ...SK_DRAW_MORE, ...SK_EDIT, ...SK_EDIT_MORE, ...SK_DIMS, ...SK_DIMS_MORE].forEach(skTool);
   for (const [id, nm] of [...SK_CONS, ...SK_CONS_MORE]) reg('c-' + id, nm, id, () => app.sketchConstraint(id), { sk: true, tip: 'tip.con', tipParams: { name: nm } });
   reg('sk-text', tk('tb.text'), 'text', () => app.sketchText(), { sk: true, tip: 'tip.sk_text' }); // WP-08: eskiz metni
+  // WP-22a: eskiz altlığı (PNG/JPEG/PDF): ekle, iki noktayla ölçekle, iki noktaya oturt, özellikler (saydamlık/görünürlük/kilit)
+  const needUl = () => (app.sketcher?.underlay ? null : t('ul.none'));
+  reg('sk-ul-add', tk('tb.ul_add'), 'import', () => ulAdd(app), { sk: true, tip: 'tip.ul_add' });
+  reg('sk-ul-scale', tk('tb.ul_scale'), 'scale', () => app.sketchTool('ulscale'), { sk: true, tip: 'tip.ul_scale', off: needUl });
+  reg('sk-ul-fit', tk('tb.ul_fit'), 'move', () => app.sketchTool('ulfit'), { sk: true, tip: 'tip.ul_fit', off: needUl });
+  reg('sk-ul-props', tk('tb.ul_props'), 'properties', () => ulProps(app), { sk: true, tip: 'tip.ul_props', off: needUl });
   reg('c-construct', tk('con.construction'), 'construction', () => app.sketchConstruction(), { sk: true, tip: 'tip.construct' });
   reg('sk-finish', tk('sk.finish'), 'finish', () => app.finishSketch(), { sk: true, tip: 'tip.sk_finish' });
   reg('sk-cancel', tk('common.cancel'), 'cancel', () => app.cancelSketch(), { sk: true, tip: 'tip.sk_cancel' });
@@ -234,7 +241,7 @@ export function initChrome(app) {
   const group = (key, nm, kids, o = {}) => { const g = h('div', { class: 'rgroup' + (o.cls ? ' ' + o.cls : ''), 'data-group': key, role: 'group', 'aria-label': t(nm) }, h('div', { class: 'btns' }, kids), h('div', { class: 'glabel', text: t(nm) })); g._items = o.items || []; return g; };
   const ddBtn = (id, nm, ic) => { const b = h('button', { class: 'tool', 'data-cmd': 'dd-' + id, 'data-testid': 'dd-' + id, 'aria-haspopup': 'menu', 'aria-expanded': C.ddOpen === id ? 'true' : 'false', onclick: (e) => { e.stopPropagation(); C.ddOpen = C.ddOpen === id ? null : id; C.renderDD(); } },
     h('span', { html: icon(ic, 'lg') }), h('span', { class: 'l', text: t(nm) }), h('span', { html: icon('chevron-down', 'caret') })); tip(b, { name: t(nm), body: t('tip.dd') }); if (C.ddOpen === id) b.classList.add('on'); return b; };
-  const ddItems = (id) => id === 'draw' ? [...SK_DRAW_MORE.map((x) => cid(x[0])), 'sk-text'] : id === 'edit' ? SK_EDIT_MORE.map((x) => cid(x[0])) : id === 'cons' ? [...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...SK_DIMS_MORE.map((x) => cid(x[0]))] : id === 'prim' ? ['box', 'cylinder', 'sphere'] : id === 'direct' ? ['split', 'splitface', 'faceop'] : id === 'form' ? ['sweep', 'loft', 'rib', 'coil', 'draft', 'vfillet', 'thread'] : [];
+  const ddItems = (id) => id === 'draw' ? [...SK_DRAW_MORE.map((x) => cid(x[0])), 'sk-text'] : id === 'edit' ? SK_EDIT_MORE.map((x) => cid(x[0])) : id === 'cons' ? [...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...SK_DIMS_MORE.map((x) => cid(x[0]))] : id === 'ul' ? ['sk-ul-add', 'sk-ul-scale', 'sk-ul-fit', 'sk-ul-props'] : id === 'prim' ? ['box', 'cylinder', 'sphere'] : id === 'direct' ? ['split', 'splitface', 'faceop'] : id === 'form' ? ['sweep', 'loft', 'rib', 'coil', 'draft', 'vfillet', 'thread'] : [];
   // açılır alt menü (şeridin kaydırılabilir/taşabilir olması nedeniyle gövdeye sabitlenir)
   C.renderDD = () => {
     document.getElementById('ddpop')?.remove();
@@ -302,6 +309,7 @@ export function initChrome(app) {
         group('edit', tk('grp.edit'), [...tools(SK_EDIT), ddBtn('edit', tk('dd.edit'), 'more')], { items: [...ids(SK_EDIT), ...ids(SK_EDIT_MORE)] }),
         group('dimcons', tk('grp.dimcons'), [...tools(SK_DIMS), h('div', { class: 'icongrid g6' }, [...consIds.map((id) => iconBtn(id)), iconBtn('c-construct', { on: !!sk?.consMode }), (() => { const b = h('button', { class: 'tool icon36' + (C.ddOpen === 'cons' ? ' on' : ''), 'data-cmd': 'dd-cons', 'data-testid': 'dd-cons', 'aria-haspopup': 'menu', 'aria-expanded': C.ddOpen === 'cons' ? 'true' : 'false', onclick: (e) => { e.stopPropagation(); C.ddOpen = C.ddOpen === 'cons' ? null : 'cons'; C.renderDD(); } }, h('span', { html: icon('more', 'lg') })); tip(b, { name: t('dd.cons'), body: t('tip.dd') }); return b; })()])],
           { items: [...ids(SK_DIMS), ...consIds, 'c-construct', ...SK_CONS_MORE.map((x) => 'c-' + x[0]), ...ids(SK_DIMS_MORE)] }),
+        group('underlay', tk('grp.underlay'), [ddBtn('ul', tk('tb.underlay'), 'import')], { items: ['sk-ul-add', 'sk-ul-scale', 'sk-ul-fit', 'sk-ul-props'] }),
         group('sketch', tk('grp.sketch'), [toolBtn('sk-finish', { cls: 'primary' }), toolBtn('sk-cancel')], { cls: 'end', items: ['sk-finish', 'sk-cancel'] }));
       bar.querySelector('.rgroup.end').dataset.pin = '1';
       C.renderDD(); C.fitRibbon();

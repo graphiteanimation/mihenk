@@ -5,6 +5,7 @@ import camUi from './cam-ui-en.js';
 import camUi2 from './cam-ui2-en.js';
 import hist from './hist-en.js';
 import drawing from './drawing-en.js'; // WP-17
+import underlay from './ul-en.js'; // WP-22a
 import camWp12 from './cam-wp12-en.js';
 import wrap from './wrap-en.js'; // WP-16
 import cam5x from './cam-5x-en.js'; // WP-18
@@ -1045,4 +1046,4 @@ import model2 from './model2-en.js'; // WP-19
 Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); // WP-09: çizim konforu metinleri
 
 Object.assign(base, camWp12); // WP-12
-export default { ...base, ...camCore, ...camPost, ...camUi, ...camUi2, ...hist, ...drawing, ...wrap, ...cam5x };
+export default { ...base, ...camCore, ...camPost, ...camUi, ...camUi2, ...hist, ...drawing, ...wrap, ...cam5x, ...underlay };

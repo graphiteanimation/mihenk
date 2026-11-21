@@ -8,7 +8,7 @@ import { newDrawing, addStdViews, computeDrawing, drawingsOf, newId } from '../.
 import { composeSheet, SHEETS, TB_FIELDS, scaleText } from '../../drawing/sheet.js';
 import { placement, fromSheet, toSheet, ORIENT_KEYS, STD_SCALES, autoScale, viewBasis } from '../../drawing/views.js';
 import { primDist, dist, ends } from '../../drawing/geom.js';
-import { mkRef, fitOk } from '../../drawing/dims.js';
+import { mkRef, fitOk, lostRefIdx, relinkRef } from '../../drawing/dims.js';
 import { toSvg } from '../../drawing/svg.js';
 import { toPdf } from '../../drawing/pdf.js';
 import { toDxf } from '../../drawing/dxfout.js';
@@ -17,7 +17,7 @@ import { textWidth } from '../../drawing/text.js';
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const PICK_MM = 2.5;
-const TOOL_HINT = { base: 'drw.hint.base', proj: 'drw.hint.proj', sec: 'drw.hint.sec', det: 'drw.hint.det', lin: 'drw.hint.lin', dia: 'drw.hint.dia', ang: 'drw.hint.ang', ord: 'drw.hint.ord', cline: 'drw.hint.cline', rough: 'drw.hint.rough', note: 'drw.hint.note', holes: 'drw.hint.holes' };
+const TOOL_HINT = { base: 'drw.hint.base', proj: 'drw.hint.proj', sec: 'drw.hint.sec', det: 'drw.hint.det', lin: 'drw.hint.lin', dia: 'drw.hint.dia', ang: 'drw.hint.ang', ord: 'drw.hint.ord', cline: 'drw.hint.cline', rough: 'drw.hint.rough', note: 'drw.hint.note', holes: 'drw.hint.holes', relink: 'drw.hint.relink' };
 
 export class DrawingCtl {
   constructor(app) { this.app = app; this.cur = null; this.C = null; this.tool = null; this.sel = null; this.seq = 0; this.vb = null; this.lastVal = new Map(); this.err = null; }
@@ -194,6 +194,7 @@ export class DrawingCtl {
     if (T.kind === 'rough') { const hit = this.pickPrim(p, { filter: (q) => q.vis && q.t === 'l' }); if (!hit) return; const ang = (Math.atan2(hit.prim.b[1] - hit.prim.a[1], hit.prim.b[0] - hit.prim.a[0]) * 180) / Math.PI; const a = ((ang % 180) + 180) % 180; const near = closestOnLine(hit.q, hit.prim); this.mut((d) => { d.rough.push({ id: newId('r', used), view: hit.view, p: near, ang: a > 90 ? a - 180 : a, ...T.r }); }); this.setTool(null); return; }
     // dogrusal olcu: iki secimden sonra ucuncu tik yerlesimdir (bos alana da olabilir)
     if (T.kind === 'lin' && T.picks.length === 2) { this.placeLin(p, used); return; }
+    if (T.kind === 'relink') { this.relinkClick(p); return; }
     // olcu araclari: ilkel secimi
     const hit = this.pickPrim(p); if (!hit) return;
     if (T.picks.length && T.picks[0].view !== hit.view) { toast(t('drw.same_view')); return; }
@@ -211,6 +212,25 @@ export class DrawingCtl {
       add({ type: 'ord', axis: T.axis, refs: [mkRef(O.prim, O.pt, O.q), mkRef(cur.prim, cur.pt, cur.q)], off: 10 }); return;
     }
     if (T.kind === 'lin') { this.hint.textContent = t(P.length < 2 ? 'drw.hint.lin' : 'drw.hint.lin3'); this.render(); }
+  }
+  // WP-22a: kopuk olcunun kopuk basvurularini sirayla yeni kenara/noktaya bagla (T.todo: kalan basvuru dizinleri)
+  startRelink(dimId) {
+    const info = this.C?.dims.find((x) => x.id === dimId); if (!info?.lost) return;
+    const dr = this.current(); const dim = dr?.dims.find((x) => x.id === dimId); if (!dim) return;
+    let todo = lostRefIdx(info.how); if (!todo.length) todo = dim.refs.map((_, i) => i);
+    this.setTool('relink', { dimId, view: dim.view, todo });
+    this.hint.textContent = t('drw.hint.relink', { n: todo.length });
+  }
+  relinkClick(p) {
+    const T = this.tool; const dr = this.current(); const dim = dr?.dims.find((x) => x.id === T.dimId); if (!dim) { this.setTool(null); return; }
+    const hit = this.pickPrim(p); if (!hit) return;
+    if (hit.view !== T.view) { toast(t('drw.same_view')); return; }
+    const idx = T.todo[0]; const ref = relinkRef(dim.refs[idx], hit.prim, hit.q);
+    if (!ref) { toast(t('drw.relink_bad_kind')); return; }
+    this.mut((d) => { const dd = d.dims.find((y) => y.id === T.dimId); if (dd) dd.refs[idx] = ref; });
+    T.todo.shift();
+    if (T.todo.length) { this.hint.textContent = t('drw.hint.relink', { n: T.todo.length }); this.render(); return; }
+    this.setTool(null); toast(t('drw.relinked'));
   }
   placeLin(p, used) {
     const P = this.tool.picks; const vw = P[0].view; const V = this.C.views[vw]; if (!V) { this.setTool(null); return; }
@@ -273,7 +293,7 @@ export class DrawingCtl {
     if (d.type === 'ang') { const sup = h('input', { type: 'checkbox', checked: !!d.sup }); sup.addEventListener('change', () => this.mut((x) => { const dd = x.dims.find((y) => y.id === id); if (dd) dd.sup = sup.checked; })); extra.push(fld(t('drw.f.sup'), sup)); }
     this.side.replaceChildren(
       h('header', {}, h('h3', { text: t('drw.props_dim') }), h('button', { class: 'btn ghost', type: 'button', 'aria-label': t('common.close'), onclick: () => this.select(null), text: '×' })),
-      ...(info?.lost ? [h('div', { class: 'callout warn', 'data-testid': 'drw-dim-lost', text: t('drw.dim_lost') })] : []),
+      ...(info?.lost ? [h('div', { class: 'callout warn', 'data-testid': 'drw-dim-lost', text: t('drw.dim_lost') }), h('button', { class: 'btn', 'data-testid': 'drw-dim-relink', onclick: () => this.startRelink(id) }, t('drw.relink'))] : []),
       h('div', { class: 'drw-val', 'data-testid': 'drw-dim-val', text: info?.text ? info.text.main : '' }),
       ...extra, fld(t('drw.f.tol'), kind), upR, loR, fitR, showR, fld(t('drw.f.fai'), fai), msg,
       h('div', { class: 'row' }, h('button', { class: 'btn primary', 'data-testid': 'drw-dim-apply', onclick: apply }, t('common.ok')), h('button', { class: 'btn', 'data-testid': 'drw-dim-del', onclick: () => this.deleteSel() }, t('drw.delete'))));

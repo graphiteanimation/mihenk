@@ -595,7 +595,7 @@ try:
     lang_menu('en')
     check('İngilizce: menü başlıkları', menu_titles() == 'File', menu_titles())
     check('İngilizce: html lang, tercih saklandı', ev('document.documentElement.lang') == 'en' and stored_lang() == 'en')
-    check('İngilizce: sketch araç çubuğu grupları', group_titles() == 'Draw,Edit,Dimensions and constraints,Sketch', group_titles())
+    check('İngilizce: sketch araç çubuğu grupları', group_titles() == 'Draw,Edit,Dimensions and constraints,Underlay,Sketch', group_titles())
     check('İngilizce: sketch düğmeleri', btn_text('rect') == 'Rectangle' and btn_text('c-perpendicular') == 'Perpendicular' and btn_text('c-tangent') == 'Tangent' and btn_text('c-parallel') == 'Parallel' and btn_text('sk-finish') == 'Finish Sketch' and btn_text('c-construct') == 'Construction')
     check('İngilizce: sketch paneli (düzlem, kısıtlar)', page.inner_text('#panel h3').startswith('Sketch:') and 'Plane: XY' in page.inner_text('#panel') and 'Constraints' in page.inner_text('#panel'), page.inner_text('#panel'))
     check('İngilizce: sketch durumu', 'Degrees of freedom' in left_text() or 'Fully defined' in left_text(), left_text())

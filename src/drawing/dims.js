@@ -53,6 +53,17 @@ export function resolveRef(ref, prims, tol = 0.01) {
   // anahtarsiz (siluet vb.) ve yer degistirmis: yalniz tek aday varsa ve ayni turde baska ilkel yoksa kabul edilmez -> kopuk
   return null;
 }
+// WP-22a: kopuk olculeri yeni kenara baglama. lostRefIdx: koparilmis basvuru dizinleri (evalDim'in "how" dizisinde null olanlar;
+// geometri hesabi basarisiz olup hepsi null ise tum basvurular). relinkRef: eski basvurunun nokta secimini (uc 'a'/'b', orta, merkez)
+// koruyarak yeni ilkele bagli basvuru uretir; tur uyusmazsa null (cagiran uyari verir).
+export function lostRefIdx(how) { return (how || []).map((h, i) => (h ? -1 : i)).filter((i) => i >= 0); }
+export function relinkRef(oldRef, prim, click = null) {
+  if (!oldRef || !prim || !compat(oldRef.t, prim.t)) return null;
+  let pt = oldRef.pt;
+  if (pt === 'c' && !circLike(prim.t)) return null;
+  if ((pt === 'a' || pt === 'b') && !ends(prim)) return null;
+  return mkRef(prim, pt, click);
+}
 export function refPoint(ref, prim) {
   if (!ref.pt) return null;
   if (ref.pt === 'a' || ref.pt === 'b') { const e = ends(prim); if (!e) return null; if (ref.q) return dist(e[0], ref.q) <= dist(e[1], ref.q) ? e[0] : e[1]; return ref.pt === 'a' ? e[0] : e[1]; }
