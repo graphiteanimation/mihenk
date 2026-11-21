@@ -74,6 +74,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-057** (2026-11-21) — Kullanıcının kurulu 0.6.0'da gördükleri: "programı ilk açtığımızdaki arayüz ile ilgili bir geliştirme yapabilir miyiz? daha iyi daha anlamlı bir karşılama olabilir mi?" (C-53) · "hakkında kısmında bir ara açık kaynak lisanslarını gördüğümü hatırlıyorum ama şu an gözükmüyor" (C-54) · "export ve import seçenekleri bir satır olarak verip üzerine gelince alt ağaçlar açılabilir" (C-55) · "daha önceden sketch esnasında ölçüm yapma ve bir çizginin dikdörtgenin ya da dairenin ölçüsünü değiştirme gibi işlemler yapabiliyordum. bunlar kayıp mı oldu anlayamadım" (C-56). C-53…C-55 İE-010'a, C-56 İE-008'e eklendi.
 
+- **K-058** (2026-11-21) — "tornayı v2 ye bırakalım." Tornalama v2 hedefi (eşzamanlı 4 ve 5 eksenle birlikte). G-15 kapandı.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|

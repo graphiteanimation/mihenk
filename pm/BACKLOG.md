@@ -67,8 +67,8 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 
 ## 1.0 ve sonrası (K-056 yol haritası)
 - **0.6.1**: CAD testi bulguları (C-13…C-56), yapı düzlemleri (İE-005…İE-012).
-- **v1 (1.0)**: NX/Fusion'a göre kalan bütün eksikler. Bilinenler: 3B eskiz · yapı ekseni ve yapı noktası · kinematik tezgâh simülasyonu · prob çevrimleri · DNC aktarımı · tornalama (kullanıcı teyidi bekliyor, G-15) · kod imzası + güncelleme · performans · tam kılavuz · kabul. Doğrulanacaklar (İE-013): değişken yarıçaplı fillet, modellenmiş diş, helis, teknik resimde delik tablosu ve GD&T, DWG, erişilebilirlik ve en küçük yarıçap analizi, kalan CAM kalemleri. Kesin liste: `pm/kaynak/eksik-analizi-0.6.1.md`.
-- **v2 (2.0)**: eşzamanlı 4 ve 5 eksen.
+- **v1 (1.0)**: NX/Fusion'a göre kalan bütün eksikler. Bilinenler: 3B eskiz · yapı ekseni ve yapı noktası · kinematik tezgâh simülasyonu · prob çevrimleri · DNC aktarımı · kod imzası + güncelleme · performans · tam kılavuz · kabul. Doğrulanacaklar (İE-013): değişken yarıçaplı fillet, modellenmiş diş, helis, teknik resimde delik tablosu ve GD&T, DWG, erişilebilirlik ve en küçük yarıçap analizi, kalan CAM kalemleri. Kesin liste: `pm/kaynak/eksik-analizi-0.6.1.md`.
+- **v2 (2.0)**: eşzamanlı 4 ve 5 eksen, tornalama (K-058).
 - **v3 (3.0)**: montaj, eklemler, yüzey modelleme, sac metal, konfigürasyon tablosu, bulut, ortak çalışma, veri yönetimi.
 
 ## Sıra gerekçesi
