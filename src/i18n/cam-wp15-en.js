@@ -1,4 +1,4 @@
-// WP-15 strings (English): 3D operations, boundary, slope range, arc fitting, 3D rest, error texts.
+// WP-15 strings (English): 3D operations, boundary, slope range, arc fitting, 3D rest, error texts live in cam-core.
 // Key set must match cam-wp15-tr.js exactly.
 export default {
   "cam.cmd.adaptive3d": "3D rough",
@@ -60,17 +60,4 @@ export default {
   "cam.s3.arcfit_hint": "Consecutive short lines are turned into arcs (G2/G3) and longer lines within the tolerance; fewer NC lines.",
   "cam.s3.arcfit_tol": "Arc tolerance",
   "cam.s3.computing": "Computing 3D operation…",
-  "err.cam.surf.no_mesh": "Surface model is empty: no triangle mesh.",
-  "err.cam.surf.bad_mesh": "Surface model could not be read (invalid vertex or STL).",
-  "err.cam.surf.no_model": "Could not get the surface model of the setup bodies.",
-  "err.cam.surf.tool_type": "This 3D operation cannot use this tool type ({type}).",
-  "err.cam.surf.bad_offset": "Invalid surface offset: {off}.",
-  "err.cam.surf.empty_boundary": "Boundary is empty: the offset closes it completely.",
-  "err.cam.surf.rest_tool_small": "The previous tool ({prev} mm) must be larger than this tool ({dia} mm).",
-  "err.cam.surf.stepover_big": "Stepover ({stepover} mm) must be smaller than the tool diameter ({dia} mm).",
-  "err.cam.surf.nothing": "No surface to machine with these settings (check boundary, slope range or heights).",
-  "err.cam.surf.no_pencil": "No inside corner found; no pencil path.",
-  "err.cam.op.cancelled": "Computation cancelled.",
-  "err.cam.op.worker_failed": "The computation worker failed: {message}",
-  "err.cam.silhouette.empty": "No island at this level (Z {z}).",
 };

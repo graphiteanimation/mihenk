@@ -1,4 +1,4 @@
-// WP-15 metinleri (Türkçe): 3D işlemler, sınır, eğim aralığı, yay uydurma, 3D kalan malzeme, hata metinleri.
+// WP-15 metinleri (Türkçe): 3D işlemler, sınır, eğim aralığı, yay uydurma, 3D kalan malzeme, hata metinleri cam-core dosyasında.
 // Anahtar kümesi cam-wp15-en.js ile birebir aynı olmalı.
 export default {
   "cam.cmd.adaptive3d": "3B kaba",
@@ -60,17 +60,4 @@ export default {
   "cam.s3.arcfit_hint": "Ardışık kısa doğrular tolerans içinde yaylara (G2/G3) ve uzun doğrulara çevrilir; NC satır sayısı azalır.",
   "cam.s3.arcfit_tol": "Yay toleransı",
   "cam.s3.computing": "3B işlem hesaplanıyor…",
-  "err.cam.surf.no_mesh": "Yüzey modeli boş: üçgen ağı yok.",
-  "err.cam.surf.bad_mesh": "Yüzey modeli okunamadı (geçersiz köşe ya da STL).",
-  "err.cam.surf.no_model": "Setup gövdelerinin yüzey modeli alınamadı.",
-  "err.cam.surf.tool_type": "Bu 3D işlem bu takım türüyle yapılamaz ({type}).",
-  "err.cam.surf.bad_offset": "Geçersiz yüzey ofseti: {off}.",
-  "err.cam.surf.empty_boundary": "Sınır boş: ofset sınırı tamamen kapatıyor.",
-  "err.cam.surf.rest_tool_small": "Önceki takım ({prev} mm) bu takımdan ({dia} mm) büyük olmalı.",
-  "err.cam.surf.stepover_big": "Paso aralığı ({stepover} mm) takım çapından ({dia} mm) küçük olmalı.",
-  "err.cam.surf.nothing": "Bu ayarlarla işlenecek yüzey bulunamadı (sınır, eğim aralığı ya da yükseklikleri denetleyin).",
-  "err.cam.surf.no_pencil": "İç köşe bulunamadı; kalem izi yok.",
-  "err.cam.op.cancelled": "Hesap iptal edildi.",
-  "err.cam.op.worker_failed": "Hesap iş parçacığı çalışmadı: {message}",
-  "err.cam.silhouette.empty": "Bu seviyede ada yok (Z {z}).",
 };

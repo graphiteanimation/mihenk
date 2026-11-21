@@ -230,4 +230,18 @@ export default {
   "err.cam.adaptive.no_entry_left": "No entry found for about {area} mm² of material (the helix does not fit and it cannot be reached from the air). Reduce the helix diameter or open the area with another operation first.",
   "err.cam.flat.nothing": "There is no material above the selected faces (face is at the stock top).",
   "err.cam.flat.face_at_top": "{n} face(s) at the same height as the stock top; skipped.",
+  // WP-15: 3D işlemler
+  "err.cam.surf.no_mesh": "Surface model is empty: no triangle mesh.",
+  "err.cam.surf.bad_mesh": "Surface model could not be read (invalid vertex or STL).",
+  "err.cam.surf.no_model": "Could not get the surface model of the setup bodies.",
+  "err.cam.surf.tool_type": "This 3D operation cannot use this tool type ({type}).",
+  "err.cam.surf.bad_offset": "Invalid surface offset: {off}.",
+  "err.cam.surf.empty_boundary": "Boundary is empty: the offset closes it completely.",
+  "err.cam.surf.rest_tool_small": "The previous tool ({prev} mm) must be larger than this tool ({dia} mm).",
+  "err.cam.surf.stepover_big": "Stepover ({stepover} mm) must be smaller than the tool diameter ({dia} mm).",
+  "err.cam.surf.nothing": "No surface to machine with these settings (check boundary, slope range or heights).",
+  "err.cam.surf.no_pencil": "No inside corner found; no pencil path.",
+  "err.cam.op.cancelled": "Computation cancelled.",
+  "err.cam.op.worker_failed": "The computation worker failed: {message}",
+  "err.cam.silhouette.empty": "No island at this level (Z {z}).",
 };
