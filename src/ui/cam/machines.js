@@ -207,14 +207,14 @@ export async function openMachineManager(cam) {
     const draw = () => {
       const cur = cam.effectiveMachineId; const list = allMachines();
       const noUser = !userMachines().length;
-      wrap.replaceChildren(noUser ? h('div', { class: 'note', 'data-testid': 'mc-empty', text: t('cam.mc.empty_user') }) : null, h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', { text: t('cam.mc.col_name') }), h('th', { text: t('cam.mc.col_control') }), h('th', { text: t('cam.mc.col_missing') }), h('th', { text: '' }))),
+      wrap.replaceChildren(...[noUser ? h('div', { class: 'note', 'data-testid': 'mc-empty', text: t('cam.mc.empty_user') }) : null, h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', { text: t('cam.mc.col_name') }), h('th', { text: t('cam.mc.col_control') }), h('th', { text: t('cam.mc.col_missing') }), h('th', { text: '' }))),
         h('tbody', {}, list.map((m) => {
           const miss = checkMachine(m).missing.length + postMissing(m).length; const act = (label, ic, fn, tid) => h('button', { class: 'btn sm ghost', type: 'button', 'data-testid': tid, 'aria-label': label, title: label, onclick: fn, html: icon(ic, 'sm') });
           return h('tr', { class: m.id === cur ? 'sel' : '', 'data-id': m.id, 'data-testid': 'mc-row' },
             h('td', {}, h('label', { class: 'mc-pick' }, h('input', { type: 'radio', name: 'mc', checked: m.id === cur, 'data-testid': 'mc-use', onchange: () => { cam.setMachine(m.id); draw(); } }), h('span', { text: machineName(m) }), m.builtin ? h('span', { class: 'badge info', text: t('cam.mc.builtin') }) : null)),
             h('td', { class: 'mono', text: m.control }), h('td', { class: miss ? 'err' : '', text: miss ? t('cam.mc.n_missing', { n: miss }) : '—' }),
             h('td', { class: 'r' }, act(t('cam.mc.copy'), 'duplicate', go('copy', m), 'mc-copy'), act(t('cam.mc.export'), 'export', go('export', m), 'mc-export'), m.builtin ? null : act(t('cam.mc.edit'), 'properties', go('edit', m), 'mc-edit'), m.builtin ? null : act(t('cam.mc.delete'), 'trash', go('del', m), 'mc-del')));
-        }))));
+        })))].filter(Boolean)); // null alt öğe "null" metni olarak yazılırdı
     };
     draw();
     const r = modal({ title: t('cam.mc.manager_title'), width: 720, content: h('div', {}, h('div', { class: 'note', text: t('cam.mc.manager_hint') }), wrap),

@@ -109,6 +109,8 @@ export default {
   "msg.o044_changed": "Values changed by the new expression rule (unary minus after power: -2^2 = -4): {list}",
   "sk.text_max": "At most {n} characters.",
   "about.fonts": "Fonts",
+  "about.pdf": "PDF viewing",
+  "file.default_name": "Document",
   "about.third_party": "Third-party license texts are in the application folder under licenses/ (Inter, Inter Regular sketch font, JetBrains Mono: SIL OFL 1.1).",
   "menu.open_logs": "Open log folder",
   "menu.examples": "Examples",

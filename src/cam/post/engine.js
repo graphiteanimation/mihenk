@@ -14,7 +14,7 @@ const TR_MAP = { '\u011f': 'g', '\u011e': 'G', '\u00fc': 'u', '\u00dc': 'U', '\u
 export function sanitizeComment(text) {
   let s = String(text ?? '');
   s = s.replace(/[ğĞüÜşŞıİöÖçÇ]/g, (c) => TR_MAP[c]);
-  s = s.replace(/\u00b0/g, ' DEG').replace(/\u2026/g, '...').replace(/[\u2013\u2014]/g, '-').replace(/[\u201c\u201d\u00ab\u00bb]/g, '"').replace(/[\u2018\u2019]/g, "'").replace(/\u00d7/g, 'x').replace(/\u2192/g, '->').replace(/[\u2264]/g, '<=').replace(/[\u2265]/g, '>=');
+  s = s.replace(/\u00b0/g, ' DEG').replace(/\u2026/g, '...').replace(/[\u00b7\u2022\u2219\u22c5]/g, '-').replace(/[\u2010\u2011\u2012\u2212]/g, '-').replace(/[\u201a\u201e]/g, ',').replace(/\u00a0/g, ' ').replace(/[\u2013\u2014]/g, '-').replace(/[\u201c\u201d\u00ab\u00bb]/g, '"').replace(/[\u2018\u2019\u2032]/g, "'").replace(/\u00d7/g, 'x').replace(/\u2192/g, '->').replace(/[\u2264]/g, '<=').replace(/[\u2265]/g, '>=');
   // T-18: ASCII karsiligi olan ozel karakterler ('?'e dusmesin): ussu 2/3, capsaret, mikro, arti-eksi
   s = s.replace(/\u00b2/g, '2').replace(/\u00b3/g, '3').replace(/[\u00d8\u00f8\u2300]/g, 'D').replace(/[\u00b5\u03bc]/g, 'u').replace(/\u00b1/g, '+/-').replace(/\u2248/g, '~').replace(/\u2260/g, '!=');
   s = s.replace(/[()]/g, (c) => (c === '(' ? '[' : ']'));
