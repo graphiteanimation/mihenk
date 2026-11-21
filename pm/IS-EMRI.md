@@ -15,3 +15,7 @@ Mihenk: devam
 - C-14: Extrude panelinde görünen mesafe ile uygulanan mesafe farkı; yeniden üret, düzelt, test.
 - C-21: Budamada dairenin yaya dönüşürken kayması; önce yeniden üretme testi, sonra merkez/yarıçap korunarak düzeltme.
 - Kabul: iki yeniden üretme testi önce kalır sonra geçer; sketch ve app testleri yeşil; CI yeşil.
+
+## İE-003 — CAD test parçalarının otomatik regresyonu · **Taslak** (G-8)
+- Biten her `cad-test/Tnn.mhnk` depoya `test/cad-bench/mhnk/` altına alınır; yeni test adımı her belgeyi çekirdekte yeniden hesaplar, hacim ve kutuyu `ref/` ile karşılaştırır (±%0,1).
+- Kabul: T01 ve o ana dek biten parçalar testte; `npm run test:all` zincirine eklendi; CI yeşil.

@@ -31,6 +31,22 @@
 4. Bitiş: emir **Bitti** (ya da **Takıldı** + neden), `OTURUMLAR`'a tek satır, `DURUM` yenilenir, push. Sıradaki **Hazır** emir varsa ve kullanıcı "durmadan" dediyse aynı kuralla alınır; yoksa durulur ve kullanıcıya "yönetim oturumunda yeni iş emri gerekiyor" denir.
 5. Kullanıcıya ait karar gerekirse iş durmaz: varsayım `SORULAR`'a, konu **Gündem**'e yazılır.
 
+## Oturum adları (K-050)
+- Yönetim oturumları sırayla numaralanır: **Y-01, Y-02, …** (bu düzenin kurulduğu oturum Y-01). İş oturumları aldıkları emrin adını taşır: **İE-001**; aynı emir ikinci bir oturuma taşarsa **İE-001/2**.
+- Sohbet başlığı biçimi: `Mihenk Y-02 · yönetim · 2026-11-22` ve `Mihenk İE-001 · CAD testi T02–T10`. Claude sohbetin adını değiştiremez: her oturum ilk yanıtının ilk satırında önerilen başlığı verir, kullanıcı sohbeti öyle adlandırır.
+- Açılış mesajları sade kalır (`Mihenk: yönetim`, `Mihenk: devam`); numarayı oturum `OTURUMLAR.md`'den kendisi bulur ve kaydına yazar.
+- 2026-11-21 öncesinin sohbetleri: içerikleri depoya işlendi; dizin `pm/arsiv/SOHBETLER.md`. Silinmeleri veri kaybettirmez.
+
+## Çalışma ilkeleri (Y-01 gözden geçirmesi, O-053)
+1. **Ana dal yeşil kalır.** Kod değişikliği içeren iş emri, GitHub'daki test sonucu yeşil görülmeden Bitti sayılmaz. Yönetim oturumu her açılışta son sonucu kontrol eder.
+2. **Tek ekran, tek iş.** Ekran kontrolü kullanan iş emirleri aynı anda yürütülmez; kod emirleri (ekransız) bunlarla paralel açılabilir.
+3. **Bulunan her hata teste dönüşür.** Düzeltme emri önce hatayı yeniden üreten otomatik testi yazar. Elle çizilip doğrulanan her test parçası (`cad-test/Tnn.mhnk`) depoya regresyon girdisi olarak alınır: CI modeli yeniden hesaplar, hacmi referansla karşılaştırır.
+4. **Kullanıcı denemesi döngünün parçasıdır.** Her sürümde kullanıcıya 10 dakikalık deneme listesi verilir; kullanıcının bulguları yönetim oturumunda numaralanıp iş emrine girer. Otomatik testler ve Claude'un ekran denemesi bunun yerini tutmaz.
+5. **Düzeltmeler küçük sürümlerle çıkar** (0.6.1, 0.6.2); kullanıcı düzeltmeyi kurulu programda görür, 1.0 beklenmez.
+6. **Oturum ölçülür.** `OTURUMLAR.md` satırına süre ve varsa takılma nedeni yazılır; yönetim oturumu yavaşlayan yeri buradan görür.
+7. **Oturum uzamaz.** Yönetim oturumu da bağlamı bir kez özetlenince kapanır, yenisi açılır (Y-01 bu kuralı aştı; yavaşlama ve maliyet oradan geldi).
+8. **Yedek her yönetim oturumunda eşitlenir**; iş oturumu GitHub'a gönderemediyse fark burada kapanır.
+
 ## Gündem (yönetim oturumunun açık konuları)
 | # | Konu | Önerim | Durum |
 |---|---|---|---|
@@ -41,3 +57,5 @@
 | G-5 | Ana dal testleri belge değişikliklerinde iptal ediliyordu | CI'da `pm/**`, `*.md`, `docs/**` yolları test başlatmaz (bu oturumda yapıldı); ilk yeşil sonuç kontrol edilecek | İzleniyor |
 | G-6 | Bazı iş oturumları GitHub'a gönderemedi (O-047), iş yedek depoda kaldı | İş oturumu kapanışta GitHub'a gönderimi doğrular; gönderemezse `DURUM`'un ilk satırına yazar; yönetim oturumu eşitler | İzleniyor |
 | G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kullanıcıda |
+| G-8 | Test parçalarının otomatik regresyona alınması (İE-003 taslak) | T04 ara raporundan sonra Hazır yapılsın | Karar bekliyor |
+| G-9 | 0.6.1 düzeltme sürümü (WP-CAD1 bulguları) ve kullanıcı deneme listesi | İE-002 bitince | Karar bekliyor |

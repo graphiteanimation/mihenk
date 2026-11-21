@@ -58,6 +58,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-049** (2026-11-21) — "bundan sonra da bir proje yönetimi oturumu açıp proje gidişatıyla ilgili konuları orada konuşup süreci yürütmeyi istiyorum. yapılacak işleri ise yeni bir oturum açıp mihenk devam sistemiyle devam etmek istiyorum." Uygulama: `pm/YONETIM.md`, `pm/IS-EMRI.md`, `pm/OTURUMLAR.md`; CALISMA-DUZENI §4 ve §8. Ek teknik karar O-052: CI, yalnız `pm/**`, `*.md`, `docs/**` değişen gönderimde koşmaz (belge gönderimleri süren testi iptal ediyordu).
 
+- **K-050** (2026-11-21) — "bundan sonraki devam oturumlarının ve yönetim oturumlarının isimlendirmelerini de kafa karıştırmayacak şekilde düzenlesek?" + eski oturumların yönetimi + sürecin gözden geçirilmesi. Uygulama: `pm/YONETIM.md` "Oturum adları" ve "Çalışma ilkeleri" (O-053), `pm/arsiv/SOHBETLER.md`. `fusion-klon-spec` skill'i silindi; yerine `mihenk-gelistirme`.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
