@@ -71,7 +71,15 @@ const TYPES = {
   split: { body: str(LIMITS.shortStr), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
   splitface: { faces: arrOf(obj(), LIMITS.refs), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }) },
   faceop: { faces: arrOf(obj(), LIMITS.refs), mode: oneOf(['offset', 'move', 'delete']), dist: expr(), dx: expr(), dy: expr(), dz: expr() },
-  import: { format: oneOf(['step', 'stl']), name: str(LIMITS.str), data: str(LIMITS.fileBytes), hash: str(LIMITS.shortStr) },
+  import: { format: oneOf(['step', 'stl', 'iges']), name: str(LIMITS.str), data: str(LIMITS.fileBytes), hash: str(LIMITS.shortStr) },
+  // WP-19: modelleme ikinci tur
+  sweep: { sketch: str(LIMITS.shortStr), profiles: profilesChk, path: str(LIMITS.shortStr), orient: oneOf(['path', 'fixed', 'frenet']), op: oneOf(OPS), targets: strArr() },
+  loft: { sections: strArr(), ruled: bool(), rail: str(LIMITS.shortStr), op: oneOf(OPS), targets: strArr() },
+  draft: { faces: arrOf(obj(), LIMITS.refs), tool: obj({ kind: oneOf(['base', 'face']), name: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), ref: obj() }), angle: expr(), flip: bool() },
+  rib: { sketch: str(LIMITS.shortStr), t: expr(), flip: bool(), targets: strArr() },
+  vfillet: { edges: arrOf(obj(), LIMITS.refs), r1: expr(), r2: expr(), rm: expr(), tm: expr(), pts: arrOf(obj({ t: expr(), r: expr() }), 64), chain: bool() },
+  thread: { face: obj(), thread: nullable(obj({ designation: str(40), pitch: num(), major: num(), family: oneOf(['iso', 'iso_fine']), drill: num() })), length: expr(), hand: oneOf(['right', 'left']), flip: bool() },
+  coil: { plane: oneOf(['XY', 'XZ', 'YZ']), offset: expr(), cx: expr(), cy: expr(), dia: expr(), pitch: expr(), turns: expr(), sdia: expr(), hand: oneOf(['right', 'left']), flip: bool(), op: oneOf(OPS), targets: strArr() },
 };
 export const KNOWN_TYPES = Object.keys(TYPES);
 

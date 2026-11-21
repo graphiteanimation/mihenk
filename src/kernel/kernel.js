@@ -11,6 +11,7 @@ import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
 import * as DE from './direct.js';
+import { runModel2 } from './model2.js'; // WP-19: sweep, loft, draft, rib, değişken yuvarlatma, diş, helis
 import { reprojectLinked, matchEdge, edgeSig } from '../ui/sketch/ops.js'; // saf eskiz işlevleri (DOM yok)
 
 export { KErr };
@@ -353,6 +354,7 @@ export class Kernel {
       }
       case 'pattern': case 'mirror': return this.pattern(f, state, N);
       case 'split': case 'splitface': case 'faceop': return this.direct(f, state, N, ctx);
+      case 'sweep': case 'loft': case 'draft': case 'rib': case 'vfillet': case 'thread': case 'coil': return runModel2(this, f, state, N, ctx);
       case 'import': {
         const ent = this.imports.get(importKey(f, this.hashes));
         if (!ent || ent.error) throw new KErr('import.load_failed', { reason: ent?.error || 'no_data' });
