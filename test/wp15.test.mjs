@@ -58,7 +58,7 @@ function gougeAnalytic(tp, f, t, { step = 0.15, gs = 0.1, every = 1 } = {}) {
     const [x, y, z] = pts[q];
     const i0 = Math.ceil((x - R) / gs), i1 = Math.floor((x + R) / gs), j0 = Math.ceil((y - R) / gs), j1 = Math.floor((y + R) / gs);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-      const px = i * gs, py = j * gs; const d = Math.hypot(px - x, py - y); if (d > R - 1e-4) continue; // sinirda degme oyma degil
+      const px = i * gs, py = j * gs; const d = Math.hypot(px - x, py - y); if (d > R - 0.01) continue; // yanda 0,01 mm (tolerans) icindeki degme oyma sayilmaz; dusey giris ayrica <= 0,01
       const fz = f(px, py); if (fz === -Infinity) continue; const v = fz - (z + C.prof(d)); if (v > worst) { worst = v; at = [x, y, z]; }
     }
   }
