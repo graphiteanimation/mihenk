@@ -170,7 +170,7 @@ export function computeOp(op, ctx) {
   const c = { ...ctx, tool };
   let tp = runOp(op, c);
   if (op.arcFit) tp = applyArcFit(tp, op, ctx.machine); // WP-15: yay uydurma / dogru azaltma (IR duzeyi)
-  return op.feedOpt ? applyFeedOpt(tp, op, ctx.machine) : tp; // WP-12: koseda / cikista ilerleme dusurme
+  return op.feedOpt ? applyFeedOpt(tp, op, ctx.machine, ctx) : tp; // WP-12: koseda / cikista ilerleme dusurme
 }
 function runOp(op, c) {
   switch (op.type) {

@@ -102,9 +102,13 @@ export function computeAdaptive(op, ctx) {
     if (faces.length > 1 && Math.abs(face.z - zSel) > 1e-6) throw cerr('cam.pocket.faces_differ_z');
     // acik kenar: sanal bant takim capindan genis (bos baslangic seridi icin): W = 2(1,25 r) + yanal pay
     const { region: Rv } = pocketRegion(face, 1.25 * r, stR);
-    clearRegion({ Rv, S, r, stR, ae, thMax, levels, zTop: h.zTop, dir, stayDown, entry, ang, helixR, rest, restR, stockMap, b, cut, stats, nm });
+    clearRegion({ Rv, S, r, stR, ae, thMax, levels, zTop: h.zTop, dir, stayDown, entry, ang, helixR, rest, restR, stockMap, b, cut, stats, nm, shouldStop: ctx.shouldStop || null });
   }
-  if (!stats.passes && !stats.entries) throw cerr('cam.adaptive.nothing');
+  if (!stats.passes && !stats.entries) { // WP-22c: hic yol yoksa nedeni (girissiz / erisilemeyen alan) kaybolmasin: hata metninde alan
+    if (stats.noEntry > 1e-3) throw cerr('cam.adaptive.no_entry_left', { area: r3(stats.noEntry) });
+    if (stats.restArea > 1e-3) throw cerr('cam.pocket.rest_material', { area: r3(stats.restArea) });
+    throw cerr('cam.adaptive.nothing');
+  }
   if (stats.restArea > 1e-3) warnings.push(warn('cam.pocket.rest_material', { area: r3(stats.restArea) }));
   if (stats.noEntry) warnings.push(warn('cam.adaptive.no_entry_left', { area: r3(stats.noEntry) }));
   return finishToolpath(op, tool, cut, { ...h, zBot }, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined,
@@ -129,12 +133,14 @@ export function clearRegion(A) {
   const sg = new SegGrid(walls, Math.max(r, g * 4));
   const surf = A.surf || null; let zNow = Infinity;
   const rClr = surf ? r - 0.71 * g : r; // 3D: hucre ancak tamami takim icindeyse temiz sayilir (izgara arasi pim kalmasin)
-  const allowed2 = (x, y) => { const c = cellOf(x, y); if (c < 0 || !inRv[c]) return false; return sg.nearest([x, y], dAllow) >= dAllow; };
+  // WP-22c: duvardan uzak hucre maskesi (merkez uzakligi >= dAllow + yarim kosegen -> hucredeki her nokta izinli; kesin, yalniz hiz)
+  const farW = new Uint8Array(N); const HD = 0.7072 * g;
+  const allowed2 = (x, y) => { const c = cellOf(x, y); if (c < 0 || !inRv[c]) return false; if (farW[c]) return true; return sg.nearest([x, y], dAllow) >= dAllow; };
   // 3D: izinli merkezlerden >= 3g icerdeki nokta kesin izinlidir (R - rc >= g iken: aradaki her temas komsu merkezlerden birinde de olurdu)
   const allowedExact = surf ? (x, y) => { if (!allowed2(x, y)) return false; if (surf.flatR >= g) { const c = cellOf(x, y); if (c >= 0 && allowC[c] && dToWallNA[c] >= 3 * g) return true; } return surf.exact(x, y, zNow); } : allowed2;
   // izinli hucre (merkez) maskesi (3D: seviyeye gore)
   const allow0 = new Uint8Array(N);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = j * nx + i; if (inRv[c] && allowed2(cx(i), cy(j))) allow0[c] = 1; }
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = j * nx + i; if (!inRv[c]) continue; const d = sg.nearest([cx(i), cy(j)], dAllow + g); if (d >= dAllow) allow0[c] = 1; if (d >= dAllow + HD) farW[c] = 1; }
   let allowC = allow0, dAllowed = null, dToWallNA = null;
   const setMask = (z) => {
     if (surf) { const m = surf.allowAt(z, G, cx, cy); allowC = new Uint8Array(N); for (let c = 0; c < N; c++) allowC[c] = allow0[c] & m[c]; }
@@ -174,12 +180,12 @@ export function clearRegion(A) {
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const c = j * nx + i; if (hg[c] <= z + EPSZ) continue;
       const x = cx(i) - p[0], y = cy(j) - p[1]; const t = L2 > 0 ? Math.max(0, Math.min(1, (x * dx + y * dy) / L2)) : 0;
-      const ex = x - t * dx, ey = y - t * dy; if (ex * ex + ey * ey <= r2) { if (undo) undo.push(c, hg[c], mat[c] | (rch[c] << 1)); hg[c] = z; mat[c] = 0; if (rch[c]) { rch[c] = 0; removed++; } }
+      const ex = x - t * dx, ey = y - t * dy; if (ex * ex + ey * ey <= r2) { if (undo) undo.push(c, hg[c], mat[c] | (rch[c] << 1)); hg[c] = z; mat[c] = 0; if (rch[c]) { rch[c] = 0; removed++; dirt(c); } }
     }
   };
   const clearRing = (c0, rh, z) => { // helis: |d - rh| <= r
     const rr = rh + r; const i0 = Math.max(0, Math.floor((c0[0] - rr - G.x0) / g)), i1 = Math.min(nx - 1, Math.floor((c0[0] + rr - G.x0) / g)), j0 = Math.max(0, Math.floor((c0[1] - rr - G.y0) / g)), j1 = Math.min(ny - 1, Math.floor((c0[1] + rr - G.y0) / g));
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const c = j * nx + i; const d = Math.hypot(cx(i) - c0[0], cy(j) - c0[1]); if (Math.abs(d - rh) <= r && hg[c] > z + EPSZ) { hg[c] = z; mat[c] = 0; if (rch[c]) { rch[c] = 0; removed++; } } }
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const c = j * nx + i; const d = Math.hypot(cx(i) - c0[0], cy(j) - c0[1]); if (Math.abs(d - rh) <= r && hg[c] > z + EPSZ) { hg[c] = z; mat[c] = 0; if (rch[c]) { rch[c] = 0; removed++; dirt(c); } } }
   };
   const maxIn = (c0, rr) => { // diskteki en yuksek malzeme
     let m = -Infinity; const i0 = Math.max(0, Math.floor((c0[0] - rr - G.x0) / g)), i1 = Math.min(nx - 1, Math.floor((c0[0] + rr - G.x0) / g)), j0 = Math.max(0, Math.floor((c0[1] - rr - G.y0) / g)), j1 = Math.min(ny - 1, Math.floor((c0[1] + rr - G.y0) / g));
@@ -187,13 +193,15 @@ export function clearRegion(A) {
     return m;
   };
   // on yarim cemberde temas: {th, side} (side: malzeme orneklerinin sin(phi) toplami)
-  const engage = (x, y, a) => {
-    let n = 0, sd = 0, fl = 0; const kf = sgn < 0 ? 0 : NS - 1; const ca = Math.cos(a) * rs, sa = Math.sin(a) * rs; // rs = r + g/2: izgara kuantalamasina karsi temkinli
+  // lim (istege bagli): temas bu siniri asinca sayim durur (aday zaten reddedilir; sonuc ayni, yalniz hiz)
+  const REJ = { th: Infinity, side: 0, flank: 0 };
+  const engage = (x, y, a, lim = Infinity) => {
+    let n = 0, sd = 0, fl = 0; const lim1 = lim + 1e-12; const kf = sgn < 0 ? 0 : NS - 1; const ca = Math.cos(a) * rs, sa = Math.sin(a) * rs; // rs = r + g/2: izgara kuantalamasina karsi temkinli
     const ox = x - G.x0, oy = y - G.y0;
     for (let k = 0; k < NS; k++) {
       const px = ox + ca * CPHI[k] - sa * SPHI[k], py = oy + sa * CPHI[k] + ca * SPHI[k];
-      const i = Math.floor(px / g), j = Math.floor(py / g); if (i < 0 || j < 0 || i >= nx || j >= ny) continue;
-      if (mat[j * nx + i] === 1) { n++; sd += PHI[k]; if (k - kf <= 1 && kf - k <= 1) fl = 1; }
+      if (px < 0 || py < 0) continue; const i = (px / g) | 0, j = (py / g) | 0; if (i >= nx || j >= ny) continue; // px >= 0: |0 = floor
+      if (mat[j * nx + i] === 1) { n++; if (n * DPHI > lim1) return REJ; sd += PHI[k]; if (k - kf <= 1 && kf - k <= 1) fl = 1; }
     }
     return { th: n * DPHI, side: sd, flank: fl };
   };
@@ -210,21 +218,35 @@ export function clearRegion(A) {
       for (const dl of TURNS) {
         if (best && best.sc <= 0.05 * Math.abs(dl)) break; // TURNS |dl| sirali: daha iyisi olamaz
         const a = head + dl; const q = [p[0] + s * Math.cos(a), p[1] + s * Math.sin(a)];
-        const e = engage(q[0], q[1], a); if (!(e.th > 0) || e.th > limAt(q) + 1e-12 || !sideOk(e)) continue;
+        const lq = limAt(q); const e = engage(q[0], q[1], a, lq); if (!(e.th > 0) || e.th > lq + 1e-12 || !sideOk(e)) continue;
         const sc = Math.abs(thT - e.th) + 0.05 * Math.abs(dl) + (e.flank ? 0 : 0.5);
         if (!best || sc < best.sc) best = { sc, a, q, th: e.th };
       }
       if (best && segAllowed(p, best.q)) return best;
       if (best) { // en iyi aday izinsiz: izinli olanlari sirayla dene
         const cands = [];
-        for (const dl of TURNS) { const a = head + dl; const q = [p[0] + s * Math.cos(a), p[1] + s * Math.sin(a)]; const e = engage(q[0], q[1], a); if (e.th > 0 && e.th <= limAt(q) + 1e-12 && sideOk(e)) cands.push({ sc: Math.abs(thT - e.th) + 0.05 * Math.abs(dl) + (e.flank ? 0 : 0.5), a, q, th: e.th }); }
+        for (const dl of TURNS) { const a = head + dl; const q = [p[0] + s * Math.cos(a), p[1] + s * Math.sin(a)]; const lq = limAt(q); const e = engage(q[0], q[1], a, lq); if (e.th > 0 && e.th <= lq + 1e-12 && sideOk(e)) cands.push({ sc: Math.abs(thT - e.th) + 0.05 * Math.abs(dl) + (e.flank ? 0 : 0.5), a, q, th: e.th }); }
         cands.sort((u, v) => u.sc - v.sc); for (const c of cands) if (segAllowed(p, c.q)) return c;
       }
     }
     return null;
   };
   // bosluk: erisilebilir malzemeye uzaklik (erisilemeyen duvar dibi seritleri takim diskine girmez; temas olcumu yine HEPSINI gorur)
-  let dmR = null; const refreshDm = () => { dmR = edt((c) => rch[c] === 1, nx, ny, g); };
+  // WP-22c: dmR yalniz r + 3g'ye kadar kesin gerekir (esikler: < r, > r + g/4, (r + g, r + 3g]). Son yenilemeden beri rch'si degisen
+  // hucrelerin kutusu (dirty) +- CAP icindeki hedefler, +- 2 CAP pencerede yeniden hesaplanir: CAP'e kadar degerler tam EDT ile ayni.
+  let dmR = null; let inDry = false; const dirty = [Infinity, Infinity, -Infinity, -Infinity];
+  const dirt = (c) => { if (inDry) return; const i = c % nx, j = (c / nx) | 0; if (i < dirty[0]) dirty[0] = i; if (j < dirty[1]) dirty[1] = j; if (i > dirty[2]) dirty[2] = i; if (j > dirty[3]) dirty[3] = j; };
+  const CAPC = Math.ceil((r + 3 * g) / g) + 2;
+  const refreshDm = () => {
+    if (dmR && dirty[0] > dirty[2]) return;
+    const t0 = dmR ? [Math.max(0, dirty[0] - CAPC), Math.max(0, dirty[1] - CAPC), Math.min(nx - 1, dirty[2] + CAPC), Math.min(ny - 1, dirty[3] + CAPC)] : null;
+    const s0w = t0 ? [Math.max(0, t0[0] - CAPC), Math.max(0, t0[1] - CAPC), Math.min(nx - 1, t0[2] + CAPC), Math.min(ny - 1, t0[3] + CAPC)] : null;
+    dirty[0] = dirty[1] = Infinity; dirty[2] = dirty[3] = -Infinity;
+    if (!t0 || (s0w[2] - s0w[0] + 1) * (s0w[3] - s0w[1] + 1) > 0.6 * N) { dmR = edt((c) => rch[c] === 1, nx, ny, g); return; }
+    const w = s0w[2] - s0w[0] + 1, h = s0w[3] - s0w[1] + 1;
+    const d = edt((k) => rch[(s0w[1] + ((k / w) | 0)) * nx + s0w[0] + (k % w)] === 1, w, h, g);
+    for (let j = t0[1]; j <= t0[3]; j++) for (let i = t0[0]; i <= t0[2]; i++) dmR[j * nx + i] = d[(j - s0w[1]) * w + (i - s0w[0])];
+  };
   const freeAt = (x, y, lim) => { const c = cellOf(x, y); return c >= 0 && dmR[c] > lim; };
   // p'den baslayan ilk adim: 72 yon, kisalan adim; {p, head} | null
   const startAt = (p) => {
@@ -232,7 +254,7 @@ export function clearRegion(A) {
       let best = null;
       for (let t = 0; t < 72; t++) {
         const a = (t * Math.PI) / 36; const q = [p[0] + s * Math.cos(a), p[1] + s * Math.sin(a)];
-        const e = engage(q[0], q[1], a); if (!(e.th > 0) || e.th > limAt(q) + 1e-12 || !sideOk(e)) continue;
+        const lq = limAt(q); const e = engage(q[0], q[1], a, lq); if (!(e.th > 0) || e.th > lq + 1e-12 || !sideOk(e)) continue;
         const sc = Math.abs(thT - e.th) + (e.flank ? 0 : 0.5); if (!best || sc < best.sc) { if (segAllowed(p, q)) best = { sc, a }; }
       }
       if (best) return { p, head: best.a };
@@ -240,16 +262,16 @@ export function clearRegion(A) {
     return null;
   };
   // kuru kosu: st'den en cok kmax adim (degisiklikler geri alinir); donus: adim sayisi
-  const dryRun = (st, kmax, z) => {
-    undo = []; const rem0 = removed; let p = st.p, head = st.head, n = 0;
-    for (let k = 0; n < kmax && k < kmax + 25; k++) { const stp = bestStep(p, head); if (!stp) break; const rb = removed; clearCapsule(p, stp.q, rClr, z); p = stp.q; head = stp.a; if (removed > rb) n++; }
+  const dryRun = (st, kmax, z, idle = 25) => {
+    undo = []; inDry = true; const rem0 = removed; let p = st.p, head = st.head, n = 0; const tr = []; st.trace = tr; st.tEnd = false; // WP-22c: adimlar asil pasoda tekrar kullanilir (ayni izgara durumu -> ayni adimlar)
+    for (let k = 0; n < kmax && k < kmax + idle && (n > 0 || k < (idle >= 25 ? kmax + idle : idle)); k++) { const stp = bestStep(p, head); if (!stp) { st.tEnd = true; break; } tr.push(stp); const rb = removed; clearCapsule(p, stp.q, rClr, z); p = stp.q; head = stp.a; if (removed > rb) n++; }
     for (let k = undo.length - 3; k >= 0; k -= 3) { hg[undo[k]] = undo[k + 1]; mat[undo[k]] = undo[k + 2] & 1; rch[undo[k]] = undo[k + 2] >> 1; }
-    undo = null; removed = rem0; return n;
+    undo = null; inDry = false; removed = rem0; return n;
   };
   // pasonun baslangici: bos (malzemeye > r + g) ve malzeme cephesine yakin izinli hucre; konuma yakin olanlardan uzun
   // paso verebilen (kuru kosu KMAX adim) ilki, yoksa en uzun kuru kosulu
-  const KMAX = 10;
-  const findStart = (pos, z) => {
+  const KMAX = 10; const MAXTRY = 400;
+  const findStart = (pos, z, ext = false) => {
     const cand = [];
     for (let c = 0; c < N; c++) { if (!allowC[c] || bad[c]) continue; if (dmR[c] > r + g && dmR[c] <= r + 3 * g) cand.push(c); }
     if (!cand.length) return null;
@@ -257,12 +279,14 @@ export function clearRegion(A) {
     const dd = (c) => (cx(c % nx) - px) ** 2 + (cy((c / nx) | 0) - py) ** 2;
     cand.sort((u, v) => dd(u) - dd(v));
     let best = null, tried = 0;
-    for (let k = 0; k < cand.length && tried < 16; k++) {
+    // WP-22c (ext): yakin adaylarin hepsi verimsizse (sikismis kose) aramaya devam (aday basina en cok bir kuru kosu: verimsiz = bad).
+    // Yalniz rest kipinde, helis yeri cogunlukla havadaysa cagrilir (ince artik); tam stokta yeni cephe acan helis daha verimli (P2 3B kaba: uzatilmis arama 86 -> 137 sn).
+    for (let k = 0; k < cand.length && (tried < 16 || (ext && !best && tried < 16 + MAXTRY)); k++) {
       const c = cand[k]; const p = [cx(c % nx), cy((c / nx) | 0)];
       if (best && dd(c) > (best.d2 + 1) * 16 && tried >= 8) break;
       if (!allowedExact(p[0], p[1])) { bad[c] = 1; continue; }
       const st = startAt(p); if (!st) { bad[c] = 1; continue; }
-      tried++; const n = dryRun(st, KMAX, z);
+      tried++; const n = dryRun(st, KMAX, z, tried > 16 ? 6 : 25); // uzatilmis aramada bos yuruyus kisa
       if (n >= KMAX) return { ...st, c };
       if (n > 0 && (!best || n > best.n)) best = { ...st, c, n, d2: dd(c) }; else if (!n) bad[c] = 1;
     }
@@ -297,39 +321,45 @@ export function clearRegion(A) {
   };
   const emit = (pts, z, extra) => { for (const q of pts.slice(1)) b.feed(q[0], q[1], z, cut.feedCut, 'cut', extra); };
 
-  let pos = null; let guard = 0;
+  let pos = null; let guard = 0; let noEntryLast = 0;
   for (let li = 0; li < levels.length; li++) {
     const z = levels[li];
     if (surf) { zNow = z; setMask(z); if (A.onLevel) A.onLevel(li, z); }
     let left = 0, unreach = 0;
     // mat: 1 = malzeme (temas olcumu ve bosluk icin HEPSI), rch: takimin erisebildigi malzeme (ilerleme/cephe/giris icin)
     const pt = surf ? surf.partTop(G, cx, cy) : null; // 3D: parcanin kendisi malzeme sayilmaz (duvar gibi)
+    dmR = null; // WP-22c: seviye basinda tam EDT
     for (let c = 0; c < N; c++) { mat[c] = 0; rch[c] = 0; bad[c] = 0; if (inRv[c] && hg[c] > z + EPSZ && !(pt && pt[c] > z + EPSZ)) { mat[c] = 1; if (reach(c)) { rch[c] = 1; left++; } else unreach++; } }
-    if (li === levels.length - 1 && !surf) stats.restArea += unreach * g * g;
     const pend = []; // 3D: temizlenecek kucuk artik hucreleri
     let down = false; // takim bu seviyede asagida mi
     let forced = null; // giristen hemen sonra: paso takimin bulundugu yerden baslar
     for (;;) {
       if (++guard > 200000) throw cerr('cam.adaptive.no_progress');
+      if (A.shouldStop && (guard & 15) === 0) A.shouldStop(); // WP-22c: iptal / sure siniri denetimi (paso arasi)
       refreshDm();
       let st = forced; forced = null;
       if (!st) st = findStart(pos, z);
       if (!st) {
         let leftNow = 0; for (let c = 0; c < N; c++) leftNow += rch[c];
-        if (leftNow * g * g < Math.max(0.05 * r * r, 4 * g * g)) { if (surf) { for (let c = 0; c < N; c++) if (rch[c]) pend.push(c); } else stats.restArea += leftNow * g * g; break; }
+        if (leftNow * g * g < Math.max(0.05 * r * r, 4 * g * g)) { if (surf) { for (let c = 0; c < N; c++) if (rch[c]) pend.push(c); } break; } // 2D: kalan alan seviye sonunda olculur (WP-22c)
         // giris: helis yeri = malzemeli, duvardan en uzak izinli hucre
         let bc = -1;
         for (let c = 0; c < N; c++) if (allowC[c] && dmR[c] < r && dToWallNA[c] >= helixR + g && (bc < 0 || dToWallNA[c] > dToWallNA[bc])) bc = c;
-        if (bc < 0) { stats.noEntry = (stats.noEntry || 0) + leftNow * g * g; break; }
+        if (bc < 0) { stats.noEntry = (stats.noEntry || 0) + leftNow * g * g; if (li === levels.length - 1) noEntryLast += leftNow * g * g; break; }
         const c0 = [cx(bc % nx), cy((bc / nx) | 0)];
         if (!allowedExact(c0[0], c0[1])) { allowC[bc] = 0; continue; }
+        // WP-22c (yalniz rest kipi): helis halkasi (helixR + r) cogunlukla bu seviyede zaten bos (hava) ise helis gereksiz: artiga havadan, malzemeye
+        // yakin yandan girilebilir mi (uzatilmis paso baslangic aramasi)? Bulunursa helis acilmaz.
+        { let nAir = 0, nAll = 0; const RA = helixR + r;
+          for (let j = Math.max(0, Math.floor((c0[1] - RA - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RA - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RA - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RA - G.x0) / g)); i++) { const c = j * nx + i; if (!inRv[c] || Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) > RA) continue; nAll++; if (hg[c] <= z + EPSZ) nAir++; } // hava = bu seviyeye kadar bosaltilmis (3D: parca hucresi hava degil)
+          if (rest && nAll && nAir >= 0.25 * nAll) { const sx = findStart(pos, z, true); if (sx) { forced = sx; stats.sideEntries = (stats.sideEntries || 0) + 1; continue; } } }
         // kucuk artik (ince serit): helis acilmaz, artik sayilir
         let near = 0; const RR = helixR + r;
         for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (rch[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) near++; }
         if (near * g * g < 0.5 * ae * r) {
-          for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (rch[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) rch[c] = 0; }
+          for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (rch[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) { rch[c] = 0; dirt(c); } }
           if (surf) { for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (hg[c] > z + EPSZ && mat[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) pend.push(c); } }
-          else stats.restArea += near * g * g; continue;
+          continue; // 2D: kalan alan seviye sonunda olculur (WP-22c)
         }
         const zs = maxIn(c0, helixR + r); const top = Math.max(zs, z);
         const s0p = [c0[0] + helixR, c0[1]];
@@ -352,8 +382,9 @@ export function clearRegion(A) {
       } else { b.linkTo(st.p[0], st.p[1], z, cut.feedPlunge, { clear: true }); stats.lifts++; down = true; }
       // paso
       const r0 = removed; let pts = [st.p]; let p = st.p, head = st.head; let nStep = 0; let lastProd = 0; undo = [];
+      const tr = st.trace || null; let ti = 0; // kuru kosu adimlari (findStart): ayni baslangic + ayni izgara -> bestStep ayni sonucu verirdi
       for (;;) {
-        const stp = bestStep(p, head); if (!stp) break;
+        const stp = tr && ti < tr.length ? tr[ti++] : tr && st.tEnd ? null : bestStep(p, head); if (!stp) break;
         const rb = removed; clearCapsule(p, stp.q, rClr, z); if (stp.th > stats.maxTheta) stats.maxTheta = stp.th;
         if (removed > rb) { lastProd = pts.length; undo = []; } else if (pts.length - lastProd > 25) break; // erisilemeyen serit boyunca bos yuruyus: paso biter
         pts.push(stp.q); p = stp.q; head = stp.a;
@@ -374,6 +405,14 @@ export function clearRegion(A) {
         b.linkTo(best[0], best[1], z, cut.feedPlunge); clearCapsule(best, best, rClr, z); stats.zaps = (stats.zaps || 0) + 1; pos = best;
       }
       pend.length = 0;
+    }
+    // WP-22c: 2D kalan malzeme alani (cam.pocket.rest_material) son seviyede OLCULUR: izgarada hala malzemeli (hg > z) ve duvara
+    // (izinli sinir) yanal pay + bir hucreden uzak hucreler. Eski hesap (reach() esigiyle erisilemez sayilan + atlanan artiklar) takimin
+    // gercekte suphurdugu kenar seridini de sayiyordu (abartili alan).
+    if (!surf && li === levels.length - 1) {
+      let a = 0; const lim = stR + g;
+      for (let c = 0; c < N; c++) if (inRv[c] && hg[c] > z + EPSZ && sg.nearest([cx(c % nx), cy((c / nx) | 0)], lim) >= lim) a++;
+      stats.restArea += Math.max(0, a * g * g - noEntryLast); // girissiz kalan (no_entry_left) ayrica bildirilir: iki kez sayilmaz
     }
     if (surf && A.afterLevel) { A.afterLevel({ z, hg, G, cx, cy, N, inRv }); pos = b.pos ? b.pos.slice(0, 2) : pos; }
   }

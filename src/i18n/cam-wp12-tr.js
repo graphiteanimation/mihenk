@@ -30,6 +30,8 @@ export default {
   "cam.op.fo_factor_hint": "0 ile 1 arası (ör. 0,5 = yarı ilerleme).",
   "cam.op.fo_exit": "Çıkışta ilerleme düşür",
   "cam.op.fo_exit_hint": "Her kesme dizisinin son kısmında (takım malzemeden çıkarken) ilerleme düşürülür.",
+  "cam.op.fo_exit_material": "Yalnız malzemeden gerçek çıkışta",
+  "cam.op.fo_exit_material_hint": "İşaretliyse ilerleme yalnız takımın önü boşaldığında (stok kenarından/boşluğa çıkarken) düşürülür; malzeme içinde biten paso sonları (uyarlanır paso, cep duvarı) yavaşlatılmaz.",
   "cam.op.fo_exit_dist": "Çıkış mesafesi",
   "cam.op.tw_on": "İnce duvar (kademeli yan paso)",
   "cam.op.tw_hint": "Her derinlik kademesinde önce bütün yan pasolar ve bütün konturlar (duvarın iki yanı sırayla) işlenir, sonra bir alt kademeye geçilir.",

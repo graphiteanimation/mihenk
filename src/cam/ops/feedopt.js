@@ -4,9 +4,13 @@
 //    ve tarama acisi >= angle olan yay (yuvarlatilmis ic kose). Bolge: kosenin (yayin) dist oncesi ve sonrasi.
 //  exit: { dist (mm), factor (0..1) }: her kesintisiz kesme dizisinin (sonunda kalkis/baglanti olan) son dist mm'si
 //    (takimin malzemeden ciktigi yer: acik kenar, paso sonu). Baglanti hareketleri (link) ve giris (ramp/plunge/lead) degismez.
+//    WP-22c: exit.when 'material' (setup stogu biliniyorsa; arayuzde yeni secimde varsayilan): yalniz takim gercekten malzemeden cikiyorsa
+//    (dizinin sonunda takimin on konisi islem oncesi stogun disinda: stok kenarindan havaya cikis; materialExits). Malzeme icinde biten
+//    dizi (uyarlanir paso sonu, cep duvari dibinde kalkis) yavaslatilmaz. 'always' (belgede alan yoksa): eski davranis.
 // Bolgedeki hareket bolunur ve F = F * factor. Toplam yol (geometri) degismez.
 import { cerr } from '../geom/err.js';
 import { computeStats, validateToolpath, arcSweep, ARC_MIN_CHORD } from '../ir.js';
+import { stockHeightmap } from '../sim/index.js';
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 function parse(op, tool) {
@@ -20,7 +24,10 @@ function parse(op, tool) {
     const c = fo.corner; const angle = c.angle ?? 45; if (!(isNum(angle) && angle > 0 && angle < 180)) throw bad('corner.angle', '0 < angle < 180');
     out.corner = { angle: (angle * Math.PI) / 180, dist: pos(c.dist ?? tool.dia / 2, 'corner.dist'), factor: fac(c.factor, 'corner.factor'), maxR: pos(c.maxR ?? tool.dia, 'corner.maxR') };
   }
-  if (fo.exit) out.exit = { dist: pos(fo.exit.dist, 'exit.dist'), factor: fac(fo.exit.factor, 'exit.factor') };
+  if (fo.exit) {
+    const when = fo.exit.when ?? 'always'; if (!['material', 'always'].includes(when)) throw bad('exit.when', 'material/always'); // geriye uyum: alan yoksa 'always'; arayuz yeni secimde 'material'
+    out.exit = { dist: pos(fo.exit.dist, 'exit.dist'), factor: fac(fo.exit.factor, 'exit.factor'), when };
+  }
   return out;
 }
 const isCut = (m) => (m.t === 'feed' || m.t === 'arc') && m.kind === 'cut' && !m.link;
@@ -41,7 +48,24 @@ function piece(m, from, g, u0, u1) {
   return { start, m: { ...m, x: pb[0], y: pb[1], z, i: g.cx - pa[0], j: g.cy - pa[1] } };
 }
 
-export function applyFeedOpt(tp, op, machine) {
+// WP-22c: gercek malzeme cikisi. runs: kesme dizileri (items indeksleri). Donus: Set(dizi indeksi) | null (stok bilgisi yok).
+// Cikis = dizinin sonunda takimin on konisi (+-30 derece, yaricap r + h) ISLEM ONCESI malzemenin (stok kutusu/silindiri ya da onceki
+// stok haritasi) disinda: takim stok kenarindan (acik kenar) havaya cikiyor. Ayni islemin daha once bosalttigi bosluga cikis sayilmaz.
+function materialExits(items, runs, tool, S, stockMap) {
+  const box = S?.stockBox; if (!box && !stockMap?.data) return null;
+  const r = tool.dia / 2; const h = Math.min(1, Math.max(0.1, r / 8));
+  const src = stockMap?.data ? stockMap : stockHeightmap(box, Math.min(0.5, h), S.stockCyl ?? null);
+  const topAt = (x, y) => { const i = Math.floor((x - src.x0) / src.res), j = Math.floor((y - src.y0) / src.res); return i < 0 || j < 0 || i >= src.nx || j >= src.ny ? -Infinity : src.data[j * src.nx + i]; };
+  const out = new Set();
+  runs.forEach((run, q) => {
+    const it = items[run[run.length - 1]]; if (!it.g?.t1) return; const m = it.m; const a0 = Math.atan2(it.g.t1[1], it.g.t1[0]); const R = r + h;
+    for (let k = 0; k <= 12; k++) { const a = a0 + ((k - 6) * Math.PI) / 36; if (topAt(m.x + R * Math.cos(a), m.y + R * Math.sin(a)) > m.z + 1e-3) return; }
+    out.add(q);
+  });
+  return out;
+}
+
+export function applyFeedOpt(tp, op, machine, ctx = null) {
   const cfg = parse(op, tp.tool); if (!cfg.corner && !cfg.exit) return tp;
   const mv = tp.moves; const items = []; let pos = null;
   for (const m of mv) {
@@ -54,6 +78,7 @@ export function applyFeedOpt(tp, op, machine) {
   const runs = []; let cur = null;
   items.forEach((it, k) => { if (it.from && isCut(it.m)) { if (!cur) runs.push((cur = [])); cur.push(k); } else cur = null; });
   const zonesOf = new Map(); let nCorner = 0, nExit = 0;
+  const mex = cfg.exit && cfg.exit.when === 'material' ? materialExits(items, runs, tp.tool, ctx?.setup, ctx?.stockMap) : null; let nInside = 0; const runIdx = new Map(runs.map((u, i) => [u, i]));
   for (const run of runs) {
     const s = []; let acc = 0; for (const k of run) { s.push(acc); acc += items[k].g.L; }
     const zones = [];
@@ -69,11 +94,11 @@ export function applyFeedOpt(tp, op, machine) {
         }
       }
     }
-    if (cfg.exit && acc > 1e-9) { zones.push([acc - cfg.exit.dist, acc + 1, cfg.exit.factor]); nExit++; }
+    if (cfg.exit && acc > 1e-9) { if (!mex || mex.has(runIdx.get(run))) { zones.push([acc - cfg.exit.dist, acc + 1, cfg.exit.factor]); nExit++; } else nInside++; }
     if (!zones.length) continue;
     run.forEach((k, q) => zonesOf.set(k, { s0: s[q], zones }));
   }
-  if (!zonesOf.size) return { ...tp, meta: { ...tp.meta, feedOpt: { corners: 0, exits: 0 } } };
+  if (!zonesOf.size) return { ...tp, meta: { ...tp.meta, feedOpt: { corners: 0, exits: 0, insideEnds: nInside } } };
   const out = [];
   items.forEach((it, k) => {
     const zz = zonesOf.get(k); if (!zz || !(it.g.L > 1e-9)) { out.push(it.m); return; }
@@ -91,7 +116,7 @@ export function applyFeedOpt(tp, op, machine) {
       out.push(pc.m);
     }
   });
-  const nt = { ...tp, moves: out, meta: { ...tp.meta, feedOpt: { corners: nCorner, exits: nExit } } };
+  const nt = { ...tp, moves: out, meta: { ...tp.meta, feedOpt: { corners: nCorner, exits: nExit, insideEnds: nInside } } };
   nt.stats = computeStats(nt, { rapidFeed: machine?.feed?.rapid ?? undefined });
   try { validateToolpath(nt); } catch (e) { throw cerr('cam.internal_ir', { code: e.code || 'internal', params: JSON.stringify(e.params || {}) }); }
   return nt;

@@ -30,6 +30,8 @@ export default {
   "cam.op.fo_factor_hint": "Between 0 and 1 (e.g. 0.5 = half feed).",
   "cam.op.fo_exit": "Reduce feed at exit",
   "cam.op.fo_exit_hint": "The feed is reduced over the last part of each cutting run (where the tool leaves the material).",
+  "cam.op.fo_exit_material": "Only on a real exit from material",
+  "cam.op.fo_exit_material_hint": "When checked, the feed is reduced only where the front of the tool becomes empty (leaving the stock edge or breaking into a gap); pass ends inside material (adaptive passes, pocket walls) are not slowed.",
   "cam.op.fo_exit_dist": "Exit distance",
   "cam.op.tw_on": "Thin wall (stepped side passes)",
   "cam.op.tw_hint": "At each depth step all side passes on all contours (both sides of the wall in turn) are machined before going one step deeper.",

@@ -228,6 +228,7 @@ export default {
   "err.cam.adaptive.no_progress": "The adaptive path is not progressing (internal limit exceeded). Change the optimal load or the region.",
   "err.cam.adaptive.nothing": "There is no material to machine in this region.",
   "err.cam.adaptive.no_entry_left": "No entry found for about {area} mm² of material (the helix does not fit and it cannot be reached from the air). Reduce the helix diameter or open the area with another operation first.",
+  "err.cam.arcfit.skipped_rotary": "{op}: arc fitting was not applied to the wrapped/rotary toolpath (A-axis moves are not merged); the toolpath is used unchanged.",
   "err.cam.flat.nothing": "There is no material above the selected faces (face is at the stock top).",
   "err.cam.flat.face_at_top": "{n} face(s) at the same height as the stock top; skipped.",
   // WP-15: 3D işlemler

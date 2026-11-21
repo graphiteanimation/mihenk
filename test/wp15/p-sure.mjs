@@ -1,6 +1,7 @@
 // WP-15 olcum: P2 (NIST FTC-08 tepsi) uzerinde 3D islem hesap sureleri (cpu/duvar). Tezgaha gitmez; yalniz sure ve oyma sayisi.
+// ozet: hareketlerin md5'i (ilk 12): hiz degisikliginin yolu degistirip degistirmedigini gosterir (WP-22c).
 // Calistir: node test/wp15/p-sure.mjs [islem,...]   (vars. adaptive3d,zlevel,parallel,scallop,pencil)
-import path from 'node:path'; import fs from 'node:fs'; import { fileURLToPath } from 'node:url';
+import path from 'node:path'; import fs from 'node:fs'; import crypto from 'node:crypto'; import { fileURLToPath } from 'node:url';
 import opencascade from 'replicad-opencascadejs';
 import * as CAM from '../../src/cam/index.js';
 import { initKernel } from '../../src/kernel/kernel.js';
@@ -25,7 +26,7 @@ const which = (process.argv[2] || Object.keys(OPS).join(',')).split(',');
 const out = {};
 for (const k of which) {
   const [op, tool] = OPS[k]; const c0 = process.cpuUsage().user; t0 = Date.now();
-  try { const tp = CAM.computeOp({ id: k, name: k, ...base, ...op }, { setup: S, tool, geom: { surface: M }, machine: null }); out[k] = { cpu_s: +((process.cpuUsage().user - c0) / 1e6).toFixed(1), duvar_s: (Date.now() - t0) / 1000, hareket: tp.moves.length, meta: tp.meta.surf || null }; }
+  try { const tp = CAM.computeOp({ id: k, name: k, ...base, ...op }, { setup: S, tool, geom: { surface: M }, machine: null }); out[k] = { cpu_s: +((process.cpuUsage().user - c0) / 1e6).toFixed(1), duvar_s: (Date.now() - t0) / 1000, hareket: tp.moves.length, ozet: crypto.createHash('md5').update(JSON.stringify(tp.moves)).digest('hex').slice(0, 12), meta: tp.meta.surf || null }; }
   catch (e) { out[k] = { hata: e.code || String(e), params: e.params, cpu_s: +((process.cpuUsage().user - c0) / 1e6).toFixed(1) }; }
   console.log(k, JSON.stringify(out[k]));
 }
