@@ -69,7 +69,7 @@ Mihenk: devam
 Mihenk: devam
 ```
 
-## İE-006 — Kabuk sonrası kenarların kalıcı adı (C-50) + fillet/pah kenar seçiminin sessizce kapanması (C-47) · **Hazır** (O-056; ekransız)
+## İE-006 — Kabuk sonrası kenarların kalıcı adı (C-50) + fillet/pah kenar seçiminin sessizce kapanması (C-47) · **Sürüyor** (oturum 2026-11-21g) (O-056; ekransız)
 - Ön koşul: İE-005 Bitti (aynı `src/kernel/naming.js` alanı; çakışmasın). Ekran kullanmaz.
 - C-50 (`pm/test/sonuc/T09.md`): Kabuk (Shell) sonrası üst kenar halkasının kenarları, düz kenar dahil, `ref.ambiguous_here` ile reddediliyor; pah/fillet yapılamıyor. Önce çekirdek yeniden üretme testi (`test/cad-bench/ref/t09-kutu.py` modeli), sonra İE-005'in C-31 çözümü bu durumu da kapatıyor mu bakılır; kapatmıyorsa kabuğun iç/dış yüz adları ayrıştırılır. Eski belgeler açılmaya devam eder.
 - C-47 (`pm/test/sonuc/T07.md`, C-35 ile aynı kök): Fillet/Pah panelinde değer alanına yazınca kenar seçimi etkinliğini yitiriyor, tıklamalar sessizce yok sayılıyor. Araç açıkken görünümdeki kenar tıklaması her zaman seçime gider; arayüz testi eklenir.
