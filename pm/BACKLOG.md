@@ -41,7 +41,7 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | WP-08 ☑ | Modelleme: yüze/nesneye kadar extrude, konik, gövde/yüz bölme, doğrudan düzenleme (yüz taşı/ofsetle/sil), iki mesafeli ve açılı pah, teğet zincir seçimi, ince diş/boru dişi tabloları, yüzden ayna, kenar ekseninden desen; açık çekirdek hataları | O-020; F-15, F-26, F-21, C-03 | kernel, ui (özellik panelleri) | Her özellik için model testi; içe aktarılan STEP'te yüz taşıma/silme çalışır | O |
 | WP-09 ☑ | Çizim konforu: hizalama izleri, çeyrek nokta, mutlak/bağıl koordinat, yakalama filtresi, ızgara aralığı, otomatik kısıtlandırma, aşırı kısıtta referans ölçü, ilişkisel izdüşüm, komut tekrarı, seçim filtresi, görüntü modları (tel kafes/saydam), adlandırılmış görünüş | O-021; envanter §3–§5 | ui/sketch, ui | Sketch testleri + P1 çizim süresi ölçümü kısalır | S |
 | WP-10 ☑ | Güven altyapısı: `test/models/results.json` test koşusunda izlenen dosyayı kirletmesin, part-h bellek tepe değeri (3,4 GB) düşürülsün, `test/shots-ui.py` sabit port/yol; altın parça setine kullanıcı parçaları, örnek parçalar, çökme/hata günlüğü, NC başlığında model özeti, V-29 incelemesi, hesap iptali testi | O-024, O-028, V-29 | test, electron | Set her sürümde tek komutla koşar | S |
-| WP-21 | 0.4 kapanış: `src/ui/cam` devirleri (`postProgram`'a belge adı, post düzenleyicide `modelSummary`, "Kesme verisi" şeritte), V-29 `annulus#16` ters yay (cam/ops), hizalama izinden otomatik H/V kısıtı (7g: "Sabitle" ile fazla kısıt çatışması), kurulu sürümde Örnekler'in `resources/ornekler`'den okunması, eğri hedef yüze extrude, eskiz metnini metin olarak düzenleme, P1 S3 `holder_collision` ×2 sınıflaması | WP-07/08/10 raporları | cam/ops, ui/cam, ui/sketch, kernel | Her madde testle kapanır | S, O | ☐ |
+| WP-21 | 0.4 kapanış: `src/ui/cam` devirleri (`postProgram`'a belge adı, post düzenleyicide `modelSummary`, "Kesme verisi" şeritte), V-29 `annulus#16` ters yay (cam/ops), hizalama izinden otomatik H/V kısıtı (7g: "Sabitle" ile fazla kısıt çatışması), kurulu sürümde Örnekler'in `resources/ornekler`'den okunması, eğri hedef yüze extrude, eskiz metnini metin olarak düzenleme, P1 S3 `holder_collision` ×2 sınıflaması | WP-07/08/10 raporları | cam/ops, ui/cam, ui/sketch, kernel | Her madde testle kapanır | S, O |☑ |
 | — | **Sürüm 0.4** | | | §6 | ana |
 
 ## 0.5 — Verim ve çarpışma güvenliği
@@ -49,8 +49,8 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 |---|---|---|---|
 | WP-11 | Açık kaynak takım yolu kütüphaneleri incelemesi (FreeCAD Adaptive/libarea, OpenCAMLib, Clipper2): lisans, WASM, kalite. Çıktı: seçim raporu | O-023 | S + ana · ☑ (O-038) |
 | WP-12 | 2D adaptif kaba (açık kenar dahil), kalan malzeme (rest), yatay temizleme, aşağıda kalma, köşede ilerleme düşürme, çıkışta ilerleme düşürme, ince duvar | T-09, O-025, O-028 | O |
-| WP-13 | Çarpışma: fikstür/mengene/divizör modeli (montaj yerine "bağlama gövdeleri"), gerçek tutucu geometrisi, üç yönlü dexel simülasyon (alt kesme, yan yüz), sim'in worker'a taşınması, G-code üzerinden simülasyon | O-025; V-24, V-28 | O |
-| WP-14 | İş akışı: işlem şablonları, delik sıra şablonu, G76/G87, mengenede çoklu parça, teklif yardımcısı (süre + malzeme), PDF altlık, inç birimi | O-025, O-028 | S |
+| WP-13 | Çarpışma: fikstür/mengene/divizör modeli (montaj yerine "bağlama gövdeleri"), gerçek tutucu geometrisi, üç yönlü dexel simülasyon (alt kesme, yan yüz), sim'in worker'a taşınması, G-code üzerinden simülasyon | O-025; V-24, V-28 | O · ☑ (bağımsız doğrulandı; açıklar WP-22) |
+| WP-14 | İş akışı: işlem şablonları, delik sıra şablonu, G76/G87, mengenede çoklu parça, teklif yardımcısı (süre + malzeme), PDF altlık, inç birimi | O-025, O-028 | S · ☑ (bağımsız doğrulandı; PDF altlık arayüzü WP-22) |
 | — | **Sürüm 0.5** | | |
 
 ## 0.6 — Eğrisel parça, çok eksen altyapısı, kâğıt

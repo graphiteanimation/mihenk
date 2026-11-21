@@ -1,8 +1,7 @@
 # Kilit (CALISMA-DUZENI §8)
 <!-- WP-NN | dal | başlangıç UTC | alan -->
-
-WP-21 | wp-21 | 2026-11-20T22:30Z | ui/cam, cam/ops(V-29), ui/sketch, kernel(extrude)
-WP-12 | wp-12 | 2026-11-20T22:30Z | cam/ops (adaptif, rest), ui/cam panel
-WP-13 | wp-13 | 2026-11-20T22:30Z | cam/sim, cam/tools, bağlama gövdeleri
-WP-14 | wp-14 | 2026-11-20T22:30Z | cam/ops/drill, cam/post, cam/report, ui/cam
-WP-17 | wp-17 | 2026-11-20T22:45Z | yeni resim modülü, ui (çalışma alanı)
+WP-12 | wp-12 | 2026-11-20T22:30Z | doğrulamada
+WP-19 | wp-19 | 2026-11-21T00:30Z | doğrulamada
+WP-15 | wp-15 | 2026-11-21T02:10Z | cam/ops 3D, ui/cam 3D grubu
+WP-16 | wp-16 | 2026-11-21T02:10Z | cam/ops sarma, post A sürekli, sim silindir
+WP-18 | wp-18 | 2026-11-21T02:10Z | cam/machines kinematik, ir takım ekseni, post G68.2
