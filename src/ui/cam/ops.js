@@ -14,6 +14,7 @@ import { bodiesMeshInFrame } from '../../cam/sim/model3d.js';
 import { postRunOpts } from './postopts.js';
 import { OpPanel, defaultOp, OP_TYPE_KEY } from './oppanel.js';
 import { SimRun } from './simbar.js';
+import { simulateNcText } from './ncsim.js';
 import { showIssueList, showNc as showNcModal, openVerify as openVerifyDlg } from './postui.js';
 import { buildSetupSheet } from '../../cam/report/setupsheet.js';
 import { MATERIALS } from '../../cam/cutdata.js';
@@ -196,15 +197,20 @@ export class CamOps {
       }
       const machine = this.cam.machine();
       const program = buildProgram({ name: this.progName(), number: this.progNo, machine, sections });
-      const so = await this.simOpts(sections.map((x) => x.setup), program);
-      // WP-13: simulasyon Web Worker'da (arayuz donmaz); ilerleme ve iptal bildiriminde
-      const ac = new AbortController(); this.simAbort = ac; let el = null, last = 0;
-      const prog = ({ index, total }) => { const now = Date.now(); if (now - last < 400) return; last = now; const msg = t('cam.sim.progress', { p: Math.round((index / Math.max(1, total)) * 100) }); if (el?.isConnected) { const tt = el.querySelector('.tt'); if (tt) tt.textContent = msg; } else el = toast(msg, { kind: 'info', ms: 0, action: { label: t('cam.sim.cancel'), run: () => ac.abort() } }); };
-      let gl; try { gl = await gatesAsync(program, machine, { sim: so.opts }, { signal: ac.signal, onProgress: prog, transfer: so.transfer }); } /* WP-22b: model agi worker'a aktarilir (kopyasiz) */ finally { this.simAbort = null; if (el?.isConnected) el.querySelector('[data-testid="toast-close"]')?.click(); }
-      const g = [...so.notes, ...gl];
-      const { modelMeshes: _mm, ...simKeep } = so.opts; // aktarilan ag tamponlari burada bostur; oynatici yukseklik haritasiyla calisir
+      const { gates: g, simOpts: simKeep } = await this.runGates(program, sections.map((x) => x.setup), machine);
       return { program, items, gates: g, simOpts: simKeep, docSig: this.docSig() };
     } catch (e) { toast(errText(e), { kind: e?.code === 'cam.sim.cancelled' ? 'info' : 'err' }); return null; } finally { this.busy = false; }
+  }
+  // WP-22d: kapılar + simülasyon (prepare ve NC simülasyonu ortak): Ss = çözülmüş setup'lar (stok kutulu), program IR
+  async runGates(program, Ss, machine) {
+    const so = await this.simOpts(Ss, program);
+    // WP-13: simulasyon Web Worker'da (arayuz donmaz); ilerleme ve iptal bildiriminde
+    const ac = new AbortController(); this.simAbort = ac; let el = null, last = 0;
+    const prog = ({ index, total }) => { const now = Date.now(); if (now - last < 400) return; last = now; const msg = t('cam.sim.progress', { p: Math.round((index / Math.max(1, total)) * 100) }); if (el?.isConnected) { const tt = el.querySelector('.tt'); if (tt) tt.textContent = msg; } else el = toast(msg, { kind: 'info', ms: 0, action: { label: t('cam.sim.cancel'), run: () => ac.abort() } }); };
+    let gl; try { gl = await gatesAsync(program, machine, { sim: so.opts }, { signal: ac.signal, onProgress: prog, transfer: so.transfer }); } /* WP-22b: model agi worker'a aktarilir (kopyasiz) */ finally { this.simAbort = null; if (el?.isConnected) el.querySelector('[data-testid="toast-close"]')?.click(); }
+    const g = [...so.notes, ...gl];
+    const { modelMeshes: _mm, ...simKeep } = so.opts; // aktarilan ag tamponlari burada bostur; oynatici yukseklik haritasiyla calisir
+    return { gates: g, simOpts: simKeep };
   }
   // Aynı neden (kod + işlem dışı parametreler) birden çok işlemde tekrarlanırsa tek satır: işlem adları birleşir (U-08).
   gateRows(list) {
@@ -288,5 +294,10 @@ export class CamOps {
     try { const p = await this.app.writeOut(new TextEncoder().encode(html), name, 'html', true); if (p) toast(t('cam.sheet.saved', { name: typeof p === 'string' ? p : name }), { kind: 'ok' }); return html; }
     catch (e) { toast(t('cam.sheet.save_failed', { msg: errText(e) }), { kind: 'err' }); return null; }
   }
-  async showNc() { if (!this.nc) { toast(t('cam.need_post'), { kind: 'warn' }); return; } await showNcModal(this); this.cam.view?.hideMove(); }
+  simulateNcText(text, label) { return simulateNcText(this, text, label); } // WP-22d (test/arayüz erişimi)
+  async showNc() {
+    if (!this.nc) { toast(t('cam.need_post'), { kind: 'warn' }); return; }
+    const r = await showNcModal(this); this.cam.view?.hideMove();
+    if (r === 'sim') await simulateNcText(this, this.nc.text, this.nc.name); // WP-22d: üretilmiş kodu geri simüle et
+  }
 }

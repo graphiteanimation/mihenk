@@ -22,9 +22,9 @@ const MIME = {
 };
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
 // 'doc' = Mihenk belgesi: okuma ve yazma .mhnk.
-const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], iges: ['.igs', '.iges'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'], html: ['.html'], pdf: ['.pdf'], csv: ['.csv'], underlay: ['.png', '.jpg', '.jpeg', '.pdf'] }; // WP-17: teknik resim PDF, ilk parça formu CSV
+const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], iges: ['.igs', '.iges'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'], html: ['.html'], pdf: ['.pdf'], csv: ['.csv'], underlay: ['.png', '.jpg', '.jpeg', '.pdf'], ncread: ['.nc', '.tap', '.txt'] }; // WP-17: teknik resim PDF, ilk parça formu CSV
 const SAVE_ONLY = new Set(['nc', 'html', 'pdf', 'csv']);
-const OPEN_ONLY = new Set(['underlay']);                   // WP-22a: eskiz altlığı (PNG/JPEG/PDF) yalnız okunur; yazma reddedilir   // NC çıktısı ve kurulum föyü (WP-07) yalnız yazılır; arayüz bu türde dosya açtıramaz
+const OPEN_ONLY = new Set(['underlay', 'ncread']);                   // WP-22a: eskiz altlığı (PNG/JPEG/PDF) yalnız okunur; yazma reddedilir   // NC çıktısı ve kurulum föyü (WP-07) yalnız yazılır; arayüz bu türde dosya açtıramaz
 const DOC_EXT = '.mhnk';
 
 protocol.registerSchemesAsPrivileged([
@@ -149,7 +149,7 @@ function readLimited(p) {
 
 function safeFilters(filters, kind, save) {
   const exts = (kind === 'doc' && !save ? KINDS.doc : kind === 'doc' ? [DOC_EXT] : KINDS[kind]).map((e) => e.slice(1));
-  const names = { doc: strings.filterDoc, step: strings.filterStep, stl: strings.filterStl, dxf: strings.filterDxf, nc: strings.filterNc, json: strings.filterJson, underlay: 'PNG / JPEG / PDF' };
+  const names = { doc: strings.filterDoc, step: strings.filterStep, stl: strings.filterStl, dxf: strings.filterDxf, nc: strings.filterNc, json: strings.filterJson, underlay: 'PNG / JPEG / PDF', ncread: strings.filterNc };
   return [{ name: String(names[kind] || kind.toUpperCase()).slice(0, 60), extensions: exts }];
 }
 function safeName(n, kind) {

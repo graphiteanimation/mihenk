@@ -1,5 +1,6 @@
 // İmalat (CAM) çalışma alanı denetleyicisi: sekme kipi, şerit, tarayıcı ağacı, alt çubuk, durum çubuğu, doc.cam işlemleri.
 // Belge verisi doc.cam altındadır (geri al/yinele ve kayıtla birlikte gider); hesap sonuçları (takım yolu, NC) belgeye yazılmaz, çalışma belleğinde tutulur.
+import { simulateNcFile } from './ncsim.js';
 import './cam.css';
 import { h, $, toast, promptText, confirmBox, ctxMenu } from '../dom.js';
 import { icon } from '../icons.js';
@@ -158,6 +159,7 @@ export class CamCtl {
     opcmd('cam-op-wrapcontour', 'cam.cmd.wrapcontour', 'op-contour', 'wrapContour'); opcmd('cam-op-wrappocket', 'cam.cmd.wrappocket', 'op-pocket', 'wrapPocket'); opcmd('cam-op-wrapdrill', 'cam.cmd.wrapdrill', 'op-drill', 'wrapDrill');
     reg('cam-compute', 'cam.cmd.compute', 'cam-compute', () => this.ops.computeAll(), { off: needOps });
     reg('cam-sim', 'cam.cmd.sim', 'simulate', () => this.ops.simulate(), { off: needOps });
+    reg('cam-ncsim', 'cam.cmd.ncsim', 'simulate', () => { simulateNcFile(this.ops); }, { off: needSetup, tip: null }); // WP-22d
     reg('cam-post', 'cam.cmd.post', 'post', () => this.ops.post(), { off: needOps });
     reg('cam-nc', 'cam.cmd.nc', 'nc-code', () => this.ops.showNc(), { off: () => this.ops.nc ? null : t('cam.need_post') });
   }

@@ -135,4 +135,15 @@ for (const wf of ['ci.yml', 'release.yml']) {
 }
 ok(/NSIS_VERSION:\s*'\d+\.\d+(\.\d+)?'/.test(fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')), 'CI: NSIS sürümü sabit');
 if (skipped) console.log(`  not: ${skipped} denetim atlandı (dist/ yok; önce vite build)`);
+console.log("6. dosya türleri (WP-22d): 'ncread' yalnız okunur (kaynak denetimi)");
+{
+  const src = fs.readFileSync(path.join(ROOT, 'electron/main.cjs'), 'utf8');
+  const kinds = /const KINDS = (\{[^\n]*?\});/.exec(src)?.[1] || '';
+  ok(/ncread:\s*\['\.nc',\s*'\.tap',\s*'\.txt'\]/.test(kinds), 'ncread uzantıları .nc .tap .txt');
+  ok(/const OPEN_ONLY = new Set\(\[[^\]]*'ncread'/.test(src), 'ncread OPEN_ONLY: native:save reddeder');
+  ok(!/const SAVE_ONLY = new Set\(\[[^\]]*'ncread'/.test(src), 'ncread SAVE_ONLY değil: native:open açabilir');
+  ok(/SAVE_ONLY\.has\(kind\)\) throw new Error\('bad kind'\)/.test(src) && /OPEN_ONLY\.has\(kind\) \|\|/.test(src), 'open: SAVE_ONLY reddi; save: OPEN_ONLY reddi');
+  ok(/KINDS\[kind\]\.includes\(path\.extname\(p\)\.toLowerCase\(\)\)\) throw new Error\('bad extension'\)/.test(src), 'açılan dosyanın uzantısı tür listesiyle denetlenir');
+}
+
 console.log(`\n${pass} geçti, ${fail} kaldı`); process.exit(fail ? 1 : 0);

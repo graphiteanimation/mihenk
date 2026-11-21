@@ -10,5 +10,5 @@ export const CAM_RIBBON = [
   ['cam-flow', 'cam.grp.flow', ['cam-tpl', 'cam-holeseq', 'cam-parts', 'cam-units', 'cam-quote']], // WP-14 iş akışı; dar şeritte Kütüphane'den sonra taşar
   ['cam-wrap', 'cam.grp.wrap', ['cam-op-wrapcontour', 'cam-op-wrappocket', 'cam-op-wrapdrill']], // WP-16 4. eksen sarma; dar seritte Kutuphane'den sonra tasar
   ['cam-lib', 'cam.grp.library', ['cam-cutdata']],
-  ['cam-act', 'cam.grp.actions', ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'], { cls: 'end' }],
+  ['cam-act', 'cam.grp.actions', ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'], { cls: 'end', extra: ['cam-ncsim'] }] // WP-22d: NC dosyası simülasyonu yalnız taşma menüsünde (şerit taşmasın),
 ];
