@@ -18,7 +18,7 @@ Kabul: `test/wp22a.test.mjs` (test-all'a eklendi) + `security`, `resim`, `dxf`, 
 4. **Kopuk ölçüyü bağlama.** `dims.js`: `lostRefIdx(how)`, `relinkRef(eskiRef, ilkel, tık)` (tür uyumu: çizgi↔çizgi, daire/yay↔daire/yay; uç/orta/merkez seçimi korunur; uyumsuzsa `null`). Arayüz: kopuk ölçü seçilince panelde "Yeni kenara bağla"; araç kopuk her başvuru için sırayla yeni kenar/nokta ister, aynı görünüş zorunlu; Esc iptal. Bağ kenar anahtarıyla kalıcı (model değişince yeniden eşlenir).
 
 ## Testler (bu ortamda koşuldu)
-- `node test/wp22a.test.mjs`: **55/55** (DXF 9, ölçü bağlama 17, altlık çekirdeği/şema 14, pdf.js açma ve hatalar 10, işçi/CSP statik 5).
+- `node test/wp22a.test.mjs`: **55/55** (bölümler: DXF katmanları, ölçü bağlama, altlık çekirdeği/şema, pdf.js açma ve hatalar, işçi/CSP statik).
 - `python3 test/wp22a-ui.test.py` **46/46** (PNG ekle/gizle/geri al, ölçekle, oturt, özellik/kilit, kaydet/aç, eski biçim belge, vektör PDF 2 sayfa + sayfa seçimi, bozuk PDF, **gerçek CSP başlığıyla** pdf işçisi unsafe-eval'siz, kopuk ölçü bağlama).
 - `security` 82/82 (başlangıç 74; +8: pdf işçi adı/dist denetimi, dist'te eval/new Function yok), `resim` 111, `dxf` 40, `sketchops` 154, `i18n` 52, `wp14` 168 — hepsi 0 kalan.
 - `vite build` geçti; `sketcher.test.py` 299/299, `app.test.py` 411/411 (bir beklenti güncellendi: İngilizce sketch şeridi grupları artık "Underlay" içerir), `ui.test.py` 32/32.
