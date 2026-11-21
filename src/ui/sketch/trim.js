@@ -65,14 +65,15 @@ export function trimAt(sk, entId, pt) {
   }
   const hasLeft = !!lo, hasRight = !!hi;
   const ia = hasLeft ? pointForHit(sk, lo, selfPts) : null, ib = hasRight ? pointForHit(sk, hi, selfPts) : null;
+  let detached = 0;
   if (t === 'line') {
-    const oldA = e.a, oldB = e.b;
+    detached = detachExtent(sk, e.id); const oldB = e.b;
     if (hasLeft && hasRight) { // e = sol parça, yeni çizgi = sağ parça
       const nid = addEnt(sk, { type: 'line', a: ib.id, b: oldB, ...(e.cons ? { cons: true } : {}) });
       e.b = ia.id; copyConsToNew(sk, e.id, nid);
     } else if (hasLeft) e.b = ia.id; else e.a = ib.id;
   } else if (t === 'arc') {
-    const oldA = e.a, oldB = e.b;
+    const oldB = e.b;
     if (hasLeft && hasRight) { const nid = addEnt(sk, { type: 'arc', c: e.c, a: ib.id, b: oldB, ...(e.cons ? { cons: true } : {}) }); e.b = ia.id; addCon(sk, 'equal', e.id, nid); }
     else if (hasLeft) e.b = ia.id; else e.a = ib.id;
   } else if (t === 'ellarc') {
@@ -85,7 +86,7 @@ export function trimAt(sk, entId, pt) {
     if (hasRight) out.push({ seg: pieces[pieces.length - 1].seg, p0: ib.id, p1: null });
     replaceSpline(sk, e, out);
   } else return fail('sk.op.no_curve');
-  const removed = cleanup(sk) ;
+  const removed = cleanup(sk) + detached;
   return ok({ removedCons: removed, changed: true });
 }
 function removeWhole(sk, e) {
@@ -93,6 +94,37 @@ function removeWhole(sk, e) {
   sk.ents = sk.ents.filter((x) => x.id !== e.id);
   cleanup(sk);
   return ok({ deleted: true, removedCons: Math.max(0, before - sk.cons.length), changed: true });
+}
+// C-21: çizginin BOYUNA bağlı kısıtlar (orta nokta, eşit uzunluk) budama/bölmede kısalan parçaya kalırsa çözücü
+// başka geometriyi yeni boya/orta noktaya taşır (ör. kenarın orta noktasına yakalanmış daire merkezi kayar).
+// Budama yalnız siler: orta nokta → "çizgi üstünde" (taşıyıcı aynı, nokta yerinde kalır), çizgi–çizgi eşitliği kaldırılır.
+// Döner: kaldırılan/zayıflatılan kısıt sayısı.
+function detachExtent(sk, lineId) {
+  let n = 0;
+  sk.cons = sk.cons.filter((c) => {
+    if (c.type === 'midpoint' && c.b === lineId) { c.type = 'pointOn'; n++; return true; }
+    if (c.type === 'equal' && (c.a === lineId || c.b === lineId)) { const o = getEnt(sk, c.a === lineId ? c.b : c.a); if (!o || o.type === 'line') { n++; return false; } }
+    return true;
+  });
+  return n;
+}
+// C-21: kayma ölçümü. geomSnap: noktaların konumu + daire/yay yarıçapları; geomDrift: aynı kimlikler için en büyük yer değiştirme (mm).
+export function geomSnap(sk) {
+  const pts = {}, rad = {};
+  for (const [id, p] of Object.entries(sk.points)) pts[id] = [p.x, p.y];
+  for (const e of sk.ents) { const r = radOf(sk, e); if (r != null) rad[e.id] = r; }
+  return { pts, rad };
+}
+export function geomDrift(snap, sk) {
+  let d = 0;
+  for (const [id, q] of Object.entries(snap.pts)) { const p = sk.points[id]; if (p) d = Math.max(d, Math.hypot(p.x - q[0], p.y - q[1])); }
+  for (const [id, r0] of Object.entries(snap.rad)) { const e = getEnt(sk, id); const r = e && radOf(sk, e); if (r != null) d = Math.max(d, Math.abs(r - r0)); }
+  return d;
+}
+function radOf(sk, e) {
+  if (e.type === 'circle') return e.r;
+  if (e.type === 'arc') { const c = sk.points[e.c], a = sk.points[e.a]; return c && a ? Math.hypot(a.x - c.x, a.y - c.y) : null; }
+  return null;
 }
 function copyConsToNew(sk, oldId, newEntId) {
   const add = [];
@@ -175,8 +207,10 @@ export function breakAt(sk, entId, pt) {
   const selfPts = new Set(entPts(e));
   const pts = cuts.map((h) => pointForHit(sk, h, selfPts).id);
   const t = e.type;
+  let detached = 0;
   if (t === 'line') {
-    const oldB = e.b; const ids = [...pts, oldB]; let prev = e; e.b = pts[0];
+    detached = detachExtent(sk, e.id);
+    const oldB = e.b; const ids = [...pts, oldB]; e.b = pts[0];
     const made = [];
     for (let i = 0; i < pts.length; i++) { const nid = addEnt(sk, { type: 'line', a: pts[i], b: ids[i + 1], ...(e.cons ? { cons: true } : {}) }); copyConsToNew(sk, e.id, nid); made.push(nid); }
     for (const nid of made) addCon(sk, 'collinear', e.id, nid);
@@ -196,7 +230,7 @@ export function breakAt(sk, entId, pt) {
     const out = pieces.map((pc, i) => ({ seg: pc.seg, p0: i === 0 ? null : pts[i - 1], p1: i === pieces.length - 1 ? null : pts[i] }));
     replaceSpline(sk, e, out);
   }
-  return ok({ removedCons: cleanup(sk), changed: true });
+  return ok({ removedCons: cleanup(sk) + detached, changed: true });
 }
 
 // ------------------------------------------------------------------ BUDAMA ÖNİZLEMESİ

@@ -294,6 +294,26 @@ try:
     shot('sk-trim-k018.png')
     ev('sk.undo()'); idle(); ev('sk.undo()'); idle()
     check('iki geri alma: 3 bölgeye döner', regions() == 3, regions())
+    print('C-21: budama kalan geometriyi oynatmaz')
+    def circ_of(s):
+        e = next(x for x in s['ents'] if x['type'] in ('circle', 'arc') and not x.get('cons')); c = s['points'][e['c']]
+        r = e.get('r') if e['type'] == 'circle' else math.hypot(s['points'][e['a']]['x'] - c['x'], s['points'][e['a']]['y'] - c['y'])
+        return (c['x'], c['y'], r)
+    ev('begin("XY")'); page.wait_for_timeout(100); idle()
+    tool('rect'); click(0, -20); click(60, 20); tool('rect'); click(0, -10); click(40, 10)
+    tool('circle2'); click(28, 0); click(52, 0); b4 = circ_of(S())
+    tool('trim'); click(28, 0); page.wait_for_timeout(150); idle()
+    af = circ_of(S()); check('C-21: çapın ucundan budama daireyi kaydırmaz (eskiden merkez 40 → 46)', max(abs(af[i] - b4[i]) for i in range(3)) < 1e-6, (b4, af))
+    click(40, 12); page.wait_for_timeout(150); idle(); af = circ_of(S())
+    check('C-21: daire budanınca yay merkezi/yarıçapı aynı', any(e['type'] == 'arc' for e in S()['ents']) and max(abs(af[i] - b4[i]) for i in range(3)) < 1e-6, (b4, af))
+    check('C-21: budama sonrası çözüm tamam', ev('sk.lastSolve && sk.lastSolve.ok'))
+    # kayma bekçisi: "still" işlemi çözümde geometriyi oynatırsa geri alınır (yapay: işlem bir ölçüyü değiştirir)
+    n_undo = ev('sk._undo.length'); snap0 = ev('sk._snapStr()')
+    res = ev("""(async () => { const c = sk.sk.ents.find((e) => e.type === 'arc' && !e.cons);
+      return await sk._apply((s) => { s.cons.push({ id: 'dC21', type: 'radius', a: c.id, expr: '20' }); }, { kind: 'sk.kind.trim', still: true }); })()"""); idle()
+    check('C-21: kayan "still" işlemi geri alındı', res and not res['ok'] and ev('sk._snapStr()') == snap0 and ev('sk._undo.length') == n_undo, (res, status()))
+    check('C-21: geri alma iletisi', 'geri alındı' in (status() or '') and 'kaydıracaktı' in (status() or ''), status())
+
     # sürükleyerek çoklu budama
     ev('begin("XY")'); page.wait_for_timeout(100); idle()
     tool('rect'); click(-30, -20); click(30, 20)

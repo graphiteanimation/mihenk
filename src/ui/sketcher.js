@@ -12,7 +12,7 @@ import { TEXT_METHODS, pruneTexts } from './sketch/text.js';
 import { UNDERLAY_METHODS, UL_TOOLS, UL_HINT } from './sketch/underlay.js'; // WP-22a: eskiz altlığı
 import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
 import { alignTraceCons, hvSame, autoHvRedundantAfterFix, autoYield } from './sketch/autoalign.js';
-import { dropEditedLinks, syncRefs } from './sketch/ops.js';
+import { dropEditedLinks, syncRefs, geomSnap, geomDrift } from './sketch/ops.js';
 import { measureDim, DIM_TYPES as DIMS, deleteItems, entPts, seqOf } from './sketch/core.js';
 import { evalExpr } from '../shared/expr.js';
 import { dxfToSketch, sketchToDxf } from '../shared/dxf.js';
@@ -21,6 +21,7 @@ import { toErr } from '../shared/errors.js';
 import * as V from '../shared/vec.js';
 
 const SNAP_PX = 8, ANG_TOL = 3, TAU = Math.PI * 2, DEG = Math.PI / 180;
+const STILL_TOL = 1e-5; // mm: budama/bölmeden sonra kalan geometrinin izin verilen en büyük kayması (C-21)
 const DIM_TOOLS = ['dim', 'hdim', 'vdim', 'rdim', 'ddim'];
 const TOOLS = ['select', 'line', 'rect', 'circle', 'arc', 'point', ...DIM_TOOLS, ...DRAW_TOOLS, ...EDIT_TOOLS, ...UL_TOOLS];
 const DIM_TYPES = DIMS;
@@ -206,7 +207,9 @@ export class Sketcher {
   _badSet() { const r = this.lastSolve; return new Set([...((r && r.conflicting) || []), ...((r && r.redundant) || [])].map(normId)); }
 
   // Değişikliği hemen uygular, arkadan çözer; olmazsa geri alır. Sonuç: Promise<{ok,msg}>
-  _apply(mutate, { strict = false, kind = tk('sk.kind.op'), note = null } = {}) {
+  // still: işlem (budama/bölme) kalan geometriyi oynatmamalı (C-21): çözümden önceki ve sonraki konumlar karşılaştırılır,
+  // STILL_TOL'u aşan kayma olursa işlem geri alınır.
+  _apply(mutate, { strict = false, kind = tk('sk.kind.op'), note = null, still = false } = {}) {
     if (!this.active) return Promise.resolve({ ok: false, msg: t('sk.inactive') });
     const before = this._snapStr();
     const abort = mutate(this.sk);
@@ -220,7 +223,7 @@ export class Sketcher {
       if (this._sid !== sid || !this.active) return { ok: false };
       const prev = this._badSet(); let yielded = 0;
       for (let attempt = 0; ; attempt++) {
-      let r, mk = null, over = false;
+      let r, mk = null, over = false; const g0 = still ? geomSnap(this.sk) : null;
       try { r = await solveSketch(this.sk, this.getVars()); } catch (e) { r = { ok: false, errors: [toErr(e)] }; }
       if (this._sid !== sid || !this.active) return { ok: false };
       const newBad = [...(r.conflicting || []), ...(r.redundant || [])].map(normId).filter((id) => !prev.has(id));
@@ -233,6 +236,7 @@ export class Sketcher {
         const conflict = (r.conflicting || []).map(normId).some((id) => !prev.has(id));
         mk = conflict ? () => t('sk.conflict_strict', K()) + lst() : () => t('sk.redundant_con', K()) + lst();
       }
+      if (!mk && g0) { const d = geomDrift(g0, this.sk); if (d > STILL_TOL) mk = () => t('sk.op.moved_undone', { kind: t(kind), d: fmtNum(d, 6) }); }
       // WP-21 (7g): kullanıcının kısıtı/ölçüsü/Sabitle'si OTOMATİK yatay/dikey kısıtlarla çatışırsa (fazla kısıt) o otomatik kısıtlar
       // (yalnız ilgili noktalara dokunanlar) kaldırılıp bir kez yeniden çözülür; yine olmazsa eskisi gibi reddedilir.
       if (mk && over && attempt === 0) {

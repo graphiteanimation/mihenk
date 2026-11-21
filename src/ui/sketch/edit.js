@@ -26,7 +26,7 @@ export const EDIT_METHODS = {
   _runOp(fn, kind, extra = {}) {
     let res = null;
     const p = this._apply((sk) => { res = fn(sk); if (!res || !res.ok) return errOf(res || { err: { key: 'sk.op.nothing' } }); }, {
-      kind, note: () => (res && res.removedCons ? t('sk.op.cons_removed', { n: res.removedCons }) + (extra.note ? ' ' + extra.note(res) : '') : extra.note && res ? extra.note(res) : ''),
+      kind, still: !!extra.still, note: () => (res && res.removedCons ? t('sk.op.cons_removed', { n: res.removedCons }) + (extra.note ? ' ' + extra.note(res) : '') : extra.note && res ? extra.note(res) : ''),
     });
     return p.then((r) => { if (r.ok && extra.after) extra.after(res); return r; });
   },
@@ -143,7 +143,7 @@ export const EDIT_METHODS = {
     const tool = this.tool, ed = this._ed || (this._ed = { tool }); const hit = tool === 'trim' || tool === 'extend' || tool === 'break' ? this._hitEnt(loc) : this._hit(loc);
     if (tool === 'trim') { if (!hit || hit.kind !== 'ent') return this._status('sk.op.click_curve'); this._trimming = true; this._trimmed = new Set(); return this._trimOne(hit.id, loc); }
     if (tool === 'extend') { if (!hit || hit.kind !== 'ent') return this._status('sk.op.click_curve'); return this._runOp((sk) => extendAt(sk, hit.id, loc), tk('sk.kind.extend')); }
-    if (tool === 'break') { if (!hit || hit.kind !== 'ent') return this._status('sk.op.click_curve'); return this._runOp((sk) => breakAt(sk, hit.id, loc), tk('sk.kind.break')); }
+    if (tool === 'break') { if (!hit || hit.kind !== 'ent') return this._status('sk.op.click_curve'); return this._runOp((sk) => breakAt(sk, hit.id, loc), tk('sk.kind.break'), { still: true }); }
     if (tool === 'fillet' || tool === 'chamfer') return this._cornerClick(hit);
     if (tool === 'project') return;
     if (tool === 'mirror' && ed.phase === 1) return this._mirAxis(hit);
@@ -176,7 +176,7 @@ export const EDIT_METHODS = {
   _editUp() { this._trimming = false; this._trimmed = null; },
   async _trimOne(entId, loc) {
     const before = new Set(this.sk.ents.map((e) => e.id)); this._trimmed.add(entId);
-    const p = this._runOp((sk) => trimAt(sk, entId, [loc[0], loc[1]]), tk('sk.kind.trim'));
+    const p = this._runOp((sk) => trimAt(sk, entId, [loc[0], loc[1]]), tk('sk.kind.trim'), { still: true }); // C-21: budama kalan geometriyi oynatmaz
     for (const e of this.sk.ents) if (!before.has(e.id)) this._trimmed.add(e.id);
     const r = await p; if (this._ed) this._ed.span = null; return r;
   },
