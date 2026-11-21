@@ -1,4 +1,4 @@
-// WP-13: sim worker protokolu (ortamdan bagimsiz). Tarayici worker'i (worker.js) ve node worker_threads uyarlayicisi ayni cekirdegi kullanir.
+// WP-13: sim worker protokolu (ortamdan bagimsiz). Tarayici worker'i (simworker.js) ve node worker_threads uyarlayicisi ayni cekirdegi kullanir.
 // Gelen: {type:'run', id, input, opts, chunk?} | {type:'cancel', id}. Giden: {type:'progress', id, index, total, removedVolume} |
 // {type:'done', id, result} | {type:'error', id, code, params} | {type:'cancelled', id}. Sonuctaki haritalarin tamponlari aktarilir.
 import { createSim } from './index.js';

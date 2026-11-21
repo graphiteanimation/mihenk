@@ -1,7 +1,7 @@
 // WP-13: asenkron simulasyon (arayuz donmasin). simulateAsync(input, opts, ctl) -> Promise<result> (simulate() ile ayni sonuc).
 // ctl: { signal?: AbortSignal (iptal -> KErr cam.sim.cancelled), onProgress?({index,total,removedVolume}), chunk? (adim/dilim),
 //        worker?: 'auto' | false | () => Worker-benzeri }.
-//  'auto': tarayicida (Worker varsa) modul worker'i (worker.js); yoksa (node testleri) ayni is parcaciginda dilimli calisir ve her
+//  'auto': tarayicida (Worker varsa) modul worker'i (simworker.js); yoksa (node testleri) ayni is parcaciginda dilimli calisir ve her
 //  dilim arasinda olay dongusune doner (iptal ve ilerleme calisir). Worker-benzeri: {postMessage, onmessage, onerror?, terminate}.
 import { KErr } from '../../shared/errors.js';
 import { createSim } from './index.js';
@@ -9,7 +9,7 @@ import { unpackResult } from './worker-core.js';
 
 const cancelErr = () => new KErr('cam.sim.cancelled', {});
 let seq = 0;
-export function browserWorker() { return new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }); }
+export function browserWorker() { return new Worker(new URL('./simworker.js', import.meta.url), { type: 'module' }); }
 export const workerAvailable = () => typeof Worker !== 'undefined' && typeof window !== 'undefined';
 
 export function simulateAsync(input, opts = {}, ctl = {}) {
