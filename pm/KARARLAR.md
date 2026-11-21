@@ -62,6 +62,10 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-051** (2026-11-21) — "önce İE-001 deki cad testleri yapmak istiyorum. sonra ise en az şu belirlediğin 4 parça ile cad ve cam kıyaslaması yapmak istiyorum." Sıra: İE-001 (CAD testi T02–T10), ardından İE-004 (P1–P4 ile Fusion'a karşı CAD ve CAM kıyaslaması; "4 parça" = `test/compare` P1–P4 seti olarak yorumlandı, 3D, uyarlanır, sarma ve 3+2 işlemleri bu parçalar üzerinde kapsanır). G-4 bu kararla kapanır. Skill güncelleme kartları kullanıcı tarafından onaylandı (G-7 kapandı).
 
+- **K-052** (2026-11-21) — "G-10 onaylıyorum." Açılı yapı düzlemi (C-37) 1.0'a bırakılmaz, 0.6.1 düzeltme sürümüne girer. Uygulama: İE-007.
+
+- **K-053** (2026-11-21) — "şu an bilgisayarı kullanmam gerekiyor. arka planda çalışacak işleri başlatmak istiyorum." Kullanıcı bilgisayarı kullanırken ekran kontrolü isteyen emir yürütülmez: İE-004 Beklemede; kullanıcı "bilgisayar boş" deyince yönetim oturumu Hazır yapar. Ekransız emirler (İE-003, İE-007, sonra İE-006) sürer.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|

@@ -1,5 +1,5 @@
 # İş emirleri (iş oturumları buradan alır; yönetim oturumu yazar)
-Durumlar: Taslak (yönetim onayı yok) · Hazır · Sürüyor · Bitti · Takıldı.
+Durumlar: Taslak (yönetim onayı yok) · Beklemede (yönetim açana dek alınmaz) · Hazır · Sürüyor · Bitti · Takıldı.
 Sıra (K-051, O-054): emirler aşağıdaki sırayla alınır. "Ön koşul" satırı sağlanmayan emir atlanır, sıradaki Hazır emre bakılır. Ekran kullanan iki emir aynı anda yürümez.
 
 ## İE-001 — CAD testi T02–T10 · **Bitti** (2026-11-21c; GEÇTİ 6 · KISMEN 4 · KALDI 0, sonuç raporu `pm/test/CAD-TEST.md`)
@@ -12,7 +12,7 @@ Sıra (K-051, O-054): emirler aşağıdaki sırayla alınır. "Ön koşul" satı
 Mihenk: devam
 ```
 
-## İE-004 — P1–P4 ile Fusion'a karşı CAD ve CAM kıyaslaması · **Hazır** (K-051)
+## İE-004 — P1–P4 ile Fusion'a karşı CAD ve CAM kıyaslaması · **Beklemede** (K-053: ekran kullanıcıda; alınmaz. Yönetim oturumu Hazır yapınca alınır)
 - Ön koşul: İE-001 Bitti. Ekran kullanır.
 - Amaç: Mihenk 0.6'nın CAD ve CAM sonuçlarını dört parçada (P1 SK8 mil desteği, P2 NIST FTC-08, P3 NIST FTC-06, P4 NIST FTC-10) Fusion ile ölçerek kıyaslamak (K-046 ölçütü).
 - Girdi: STEP ve planlar `test/compare/Pn/in`; Fusion referansı bilgisayarda `Documents\Mihenk\Mihenk\test-fusion-karsilastirma` (`Pn-PLAN.md`, `sonuclar\Pn\Pn_fusion_rapor.json`: işlem başına strateji, takım, işleme süresi, kesme ve hızlı yol boyu; Fusion NC'leri; betik `fusion-betik\MihenkKarsilastirma`). P1 ve P2'nin Fusion raporu ile planı depoda yok: ilk adımda `test/compare/P1/in`, `P2/in` altına alınır (NC dosyaları alınmaz, büyük).
@@ -45,6 +45,16 @@ Mihenk: devam
 - C-39 (`pm/test/sonuc/T04.md`): Birleştir sonrası aynı düzlemdeki yüzler ayrı kalıyor, büyük yarıçaplı fillet dikişi geçemiyor (R3 oldu, R14/R16 olmadı). `ShapeUpgrade_UnifySameDomain` (`src/kernel/topo.js` `unify`) boolean sonrası çağrılmıyor; çağrılır, kalıcı adların (naming) bozulmadığı testle gösterilir.
 - C-42 (T04): yüzlere teğet temaslı gövdenin Join'i "geometry operation failed", Combine "result is empty". Yeniden üretme testi + düzeltme (bulanık tolerans / argüman sırası incelenir); çözülemezse neden yazılır, emir bu madde için Takıldı notu düşer.
 - Kabul: dört yeniden üretme testi önce kalır sonra geçer (C-42 için yukarıdaki istisna); T03 ve T04 referans modelleri çekirdek testinde fillet'lerle üretilir; hacimler referansa ±%0,1; `test:all` ve GitHub `ci` yeşil. Düzeltme 0.6.1'e girer (G-9); T03'ün arayüzden yeniden çizimi 0.6.1 sonrası regresyon turunda.
+- Açılış metni:
+```
+Mihenk: devam
+```
+
+## İE-007 — Açılı yapı düzlemi (C-37) · **Hazır** (K-052; ekransız, paralel açılabilir)
+- Ön koşul: yok. Ekran kullanmaz (arayüz testleri tarayıcı testleriyle bulutta koşar). Alan: yapı düzlemi tanımı (`src/kernel` özellik/eskiz düzlemi çözümü, `src/ui/features.js`, `panels.js`, görünüm seçimi); `naming.js` ve fillet/boolean koduna (İE-005, İE-006) dokunmaz. Aynı dosyada çakışma çıkarsa ana dala yeniden temellenir.
+- Amaç: eskiz ve özellikler için orijin düzlemi/düz yüz dışında yapı düzlemi. En az: (1) bir düzlem ya da düz yüzden, seçilen doğrusal kenar/eksen etrafında **açıyla** düzlem; (2) **üç noktadan** düzlem; (3) mevcut ofset düzlemi korunur. Düzlem geçmişte (ağaçta) bir özelliktir, parametriktir (açı düzenlenince bağlı eskiz ve özellikler güncellenir), eskiz düzlemi ve ayna düzlemi olarak seçilebilir, belgeye kaydedilir (şema sürümü + eski belge uyumu), TR + EN.
+- Kaynak: `pm/test/sonuc/T04.md` (45° destek Move/Copy ile dolanıldı). Kabul parçası: T04 (ppp0109 Corner Tie) 45° eskizi açılı düzleme çizilerek çekirdek testinde üretilir.
+- Kabul: çekirdek testi (açı ve üç nokta düzlemi, açı değişince güncelleme, kaydet/aç), arayüz testi (düzlem oluştur → üzerine eskiz → extrude), `test:all` ve GitHub `ci` yeşil; KILAVUZ/MANUAL'e kısa bölüm. Düzeltme 0.6.1'e girer.
 - Açılış metni:
 ```
 Mihenk: devam
