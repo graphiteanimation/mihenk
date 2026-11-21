@@ -63,7 +63,7 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | WP-19 | Modelleme ikinci tur: sweep, loft, draft, rib, değişken fillet, helis/diş, IGES | envanter §6–§7 | O · ☑ (bağımsız doğrulandı, bulgular düzeltildi) |
 | WP-22 | 0.6 devirleri. **22a ☑** (bağımsız doğrulandı): PDF altlık arayüzü + vektör PDF (O-049), DXF kesme çizgisi katmanı, kopuk resim ölçüsünü bağlama. **22b ☑** (bağımsız doğrulandı, bulgular düzeltildi; + **22d ☑** G-code sim arayüzü): tri-dexel kipinde oyma ve tutucu yan çarpışması + görünüm (WP-13), G87 yukarı kesimde oyma denetimi; WP-12 verimi: rest kipinde havada helis girişi, `rest_material` uyarısının abartılı alanı, dar halkada `no_entry_left` uyarısının kaybolması, temas açısı tepe aşımı (ızgara), paso sonu "çıkış" ilerleme düşürmesi, büyük ceplerde hesap süresi | WP-13/14/17 raporları | O, S |
 | WP-22c | 0.6 son devirler: arcFit sarma/döner eksenli hareketlerde atlanır (WP-15 bulgusu), WP-12 verim maddeleri (22b satırındaki liste), 3D kaba süresi, node aynı iş parçacığında iptal | WP-12/15 doğrulamaları | O · ☑ (bağımsız doğrulandı; 2d temas açısı tepe aşımı açık) |
-| — | **Sürüm 0.6** | | |
+| — | **Sürüm 0.6** ☑ `v0.6.0` (2026-11-21: test:all 42/42, 6991 denetim; altın set geçti; Windows kabulü geçti, SHA-256 427caa1d…3a85) | | |
 
 ## 1.0 ve sonrası
 - 1.0: kinematik tezgâh simülasyonu, kod imzası + güncelleme, performans, tam kılavuz, kabul.

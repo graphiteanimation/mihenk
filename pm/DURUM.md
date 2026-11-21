@@ -1,27 +1,25 @@
-# Mihenk — durum (2026-11-21 UTC, dördüncü oturum sonu) — DURDURULDU (K-044)
+# Mihenk — durum (2026-11-21 UTC, beşinci oturum sonu) — TAMAMLANDI (0.6.0 yayımlandı)
 
-Sürüm: bilgisayarda kurulu 0.6.0 (ilk aday, dikdörtgen hatalı) · `master` = 0.6'nın bütün iş paketleri + kabul düzeltmeleri. Etiketler `v0.4.0`, `v0.5.0` (yerel); `v0.6.0` düzeltilmiş kurulum kabulü geçince konacak.
-Depo: bulut çalışma alanı (GitHub itme yetkisi reddedildi, O-047); yedek `Documents\Fusion-Klon-Spec\Mihenk\mihenk.git` güncel.
-Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARARLAR.md` (K-043, K-044, O-047…O-050) · kabul: `pm/KABUL-WINDOWS.md`.
-**Kullanıcı durdurdu (K-044): yeni kurulum, kaldırma, yeni paket ve kendi kendini uyandırma yok. `Mihenk: devam` yazınca sürer.**
+Sürüm: `v0.6.0` (master), bilgisayarda kurulu (son kurulum SHA-256 `427caa1d…3a85`, `Mihenk\surumler\0.6.0\`). Önceki adaylar `Mihenk\arsiv\0.6.0-aday1`, `-aday2`.
+Depo: bulut çalışma alanı (GitHub itme yetkisi yok, O-047); yedek `Documents\Fusion-Klon-Spec\Mihenk\mihenk.git` güncel (etiketler v0.4.0, v0.5.0, v0.6.0).
+Düzen: `pm/CALISMA-DUZENI.md` · işler: `pm/BACKLOG.md` · kararlar: `pm/KARARLAR.md` (K-045, O-051) · kabul: `pm/KABUL-WINDOWS.md`.
+K-035 hedefi (0.6 dahil bitene kadar) tamamlandı: kendi kendini uyandırma kurulmaz. Yeni hedef kullanıcıdan gelir (`Mihenk: devam`).
 
-## Bu oturumda biten (hepsi bağımsız doğrulandı)
-- 0.4 (WP-21) → `v0.4.0`; 0.5 (WP-12/13/14) → `v0.5.0`.
-- 0.6: WP-15 3B işleme, WP-16 sarma, WP-17 teknik resim, WP-18 3+2, WP-19 sweep/loft/diş/IGES, WP-22a–d (PDF altlık, ayrıntılı sim, CAM verimi, G-code sim arayüzü), belgeler.
-- 0.6.0 aday kurulumu bilgisayarda: kabul listesinde 12 adım geçti; dikdörtgen hatası bulundu ve düzeltildi (`fix-rect`), 5 küçük bulgu düzeltildi (`fix-06`).
+## Bu oturumda biten
+- K-045: K-044 durdurması kalktı.
+- `fix-lnk` (O-051): Türkçe kaldırma kısayolu "/" yüzünden oluşmuyordu; artık "Mihenk Kaldır" / "Uninstall Mihenk", eski kısayollar temizlenir. Bağımsız doğrulandı (Sonnet, ONAY) ve ekranda görüldü.
+- Windows kabulü (ekran kontrolüyle): 0, 1, 2, 3, 3a, 10, 11, 12, 13, 15 geçti; ayrıntı `pm/KABUL-WINDOWS.md`.
 
 ## Test durumu
-- `npm run test:all` (affd531 + entegrasyon düzeltmesi): 42/42 adım, 6974 denetim geçti, 0 kaldı.
-- Düzeltmeler sonrası hedefli: sketcher 313, cam-ui 363, app 411, cam 602, post 282, i18n 52 — 0 kaldı. Tam zincir düzeltmeler sonrası yeniden koşulmadı.
+- `npm run test:all` (master 1191dd1): 42/42 adım, 6991 denetim geçti, 0 kaldı (altın set P1–P4 dahil). fix-lnk yalnız `build/installer.nsi` ve belgeleri değiştirir.
+- Bu çalışma alanında ilk koşuda Electron ikilisi indirilememişti (ortam); yeniden kurulunca geçti.
 
-## Sıradaki (kullanıcı devam deyince)
-1. `test:all` → `npm run dist` → yeni kurulum + SHA-256 `Mihenk\surumler\0.6.0\`.
-2. Kabul: adım 15 (eski kurulumu kaldır), yeniden kur, adım 10 (eskiz dikdörtgen + extrude), 12, 2. Geçerse `v0.6.0` ve DURUM ilk satırı `TAMAMLANDI`.
-
-## Açık (0.6'yı engellemez)
+## Açık (1.0 öncesi değerlendirilecek)
 - Tezgâhta doğrulanmayanlar: tüm NC (3+2 G68.2, sarma G93, G76/G87 dahil).
 - Uyarlanır kabada temas açısı tepe aşımı (WP-22c 2d); tri-dexel isteğe bağlı (O-050).
-- Kabul adımı 14 (günlük klasörü) — klasör erişimi otomatik reddedildi.
+- Kabul adımı 14 (günlük klasörü) yapılamadı: klasör erişimi otomatik reddedildi.
+- Bilgisayarda `%APPDATA%\AtolyeCAD` klasörü duruyor (eski adın kalıntısı; kullanıcı silmek isterse).
+- Sıradaki sürüm (1.0) için BACKLOG'da sıra onayı kullanıcıdan beklenir.
 
 ## Notlar
 - Fusion deneme lisansı 23 Kasım 2026'da bitiyor.
