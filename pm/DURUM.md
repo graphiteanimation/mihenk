@@ -34,7 +34,7 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - Kabul listesi tam: 14. adım da 2026-11-21'de geçti.
 - `%APPDATA%\AtolyeCAD` kullanıcı tarafından silindi; proje klasörü artık `Documents\Mihenk` (K-047).
 - Sıradaki sürüm (1.0) için BACKLOG'da sıra onayı kullanıcıdan beklenir.
-- Yedek `mihenk.git` GitHub'dan geride (yedekte `1909b15`, 75+ commit eksik); İE-006 kapanışında eşitlenemedi (bilgisayar bağlantısı oturum sonunda koptu). Sonraki oturumda eşitlenecek.
+- Yedek `mihenk.git` Y-02'de (16:20 UTC) GitHub `master` ile eşit doğrulandı.
 
 ## Notlar
 - Fusion deneme lisansı 23 Kasım 2026'da bitiyor.

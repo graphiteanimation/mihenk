@@ -76,6 +76,10 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-058** (2026-11-21) — "tornayı v2 ye bırakalım." Tornalama v2 hedefi (eşzamanlı 4 ve 5 eksenle birlikte). G-15 kapandı.
 
+- **K-059** (2026-11-21) — "Github olduğu gibi kalsın." Depo herkese açık (public) kalır; Actions ücretsiz, CI düzeni değişmez. O-031'deki "özel depo" ifadesinin yerine geçer. G-16 kapandı.
+
+- **K-060** (2026-11-21) — "Fusion kullanımı haricindeki diğer işleri başlatabilirim. Bilgisayar kullanımı gerekiyorsa şu an bilgisayar müsait." İE-004A (Fusion) kullanıcı açana dek Beklemede kalır; ekran isteyen başka emir şu an yok.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
