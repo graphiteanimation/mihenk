@@ -104,7 +104,11 @@ export function computeAdaptive(op, ctx) {
     const { region: Rv } = pocketRegion(face, 1.25 * r, stR);
     clearRegion({ Rv, S, r, stR, ae, thMax, levels, zTop: h.zTop, dir, stayDown, entry, ang, helixR, rest, restR, stockMap, b, cut, stats, nm });
   }
-  if (!stats.passes && !stats.entries) throw cerr('cam.adaptive.nothing');
+  if (!stats.passes && !stats.entries) { // WP-22c: hic yol yoksa nedeni (girissiz / erisilemeyen alan) kaybolmasin: hata metninde alan
+    if (stats.noEntry > 1e-3) throw cerr('cam.adaptive.no_entry_left', { area: r3(stats.noEntry) });
+    if (stats.restArea > 1e-3) throw cerr('cam.pocket.rest_material', { area: r3(stats.restArea) });
+    throw cerr('cam.adaptive.nothing');
+  }
   if (stats.restArea > 1e-3) warnings.push(warn('cam.pocket.rest_material', { area: r3(stats.restArea) }));
   if (stats.noEntry) warnings.push(warn('cam.adaptive.no_entry_left', { area: r3(stats.noEntry) }));
   return finishToolpath(op, tool, cut, { ...h, zBot }, b, { warnings, passDepth, rapidFeed: machine?.feed?.rapid ?? undefined,

@@ -14,6 +14,14 @@ const sec = (k) => !ONLY.length || ONLY.includes(String(k));
 const t0 = Date.now();
 const el = () => `${((Date.now() - t0) / 1000).toFixed(0)} sn`;
 
+// --- WP-12 ortak (2. bolum)
+const circ = (c, r, fwd) => [{ ...G.mkArc(c, r, 0, 2 * Math.PI), fwd, open: false }];
+const sq = (x0, y0, x1, y1) => [G.mkLine([x0, y0], [x1, y0]), G.mkLine([x1, y0], [x1, y1]), G.mkLine([x1, y1], [x0, y1]), G.mkLine([x0, y1], [x0, y0])].map((s) => ({ ...s, fwd: true, open: false }));
+const flat = (dia) => ({ id: 't' + dia, number: 5, lengthOffset: 5, diaOffset: 5, type: 'flat', dia, fluteLen: 25, bodyLen: 50, flutes: 3, centerCutting: true });
+const setupOf = (min, max) => ({ id: 's1', name: 'S1', workOffset: { kind: 'G55' }, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, stock: { kind: 'box' }, stockBox: { min, max }, modelBBox: { min, max }, clearance: 5, aAngle: null, stockTop: max[2], machinePos: null });
+const adBase = { id: 'a', name: 'AD', type: 'adaptive', rpm: 8000, feedCut: 800, feedPlunge: 300, coolant: 'flood', heights: { clearance: 10, retract: 2 }, geom: [{ kind: 'face' }], optimalLoad: 1.5, stepdown: 6, stockToLeave: 0, entry: { kind: 'helix', angle: 3, helixDia: 8 } };
+const errOf = (fn) => { try { fn(); return null; } catch (e) { return e; } };
+
 // ---------------------------------------------------------------- 1. yay uydurma + sarma
 if (sec(1)) {
   console.log('1. yay uydurma: sarma (A) yolunda atlanir');
@@ -42,6 +50,22 @@ if (sec(1)) {
     let nc = null; try { nc = postProgram(CAM.buildProgram({ name: 'W', number: 22, machine: M, sections: [{ setup: S, toolpaths: [b] }] }), M, { date: '2026-01-01', appVersion: '0.6.0', gates: [] }); } catch (e) { nc = e; }
     const txt = typeof nc === 'string' ? nc : nc?.text ?? nc?.nc; ok(typeof txt === 'string' && /A-?\d/.test(txt) && !/G0?[23][^0-9]/.test(txt.replace(/\(.*?\)/g, '')), 'post: sarma yolu NC (A kelimeli, G2/G3 yok): ' + (nc?.code || ''));
   }
+  console.log(`   (${el()})`);
+}
+
+// ---------------------------------------------------------------- 2c. dar halka: girissiz alan kaybolmaz
+if (sec('2c')) {
+  console.log('2c. dar halka: hic yol yoksa girissiz alan hata metninde');
+  const S0 = setupOf([0, 0, -30], [100, 100, 0]);
+  const ring = (W) => ({ z: -6, normalOk: true, outer: circ([50, 50], 20 + W, true), inners: [circ([50, 50], 20, false)] });
+  const A12 = Math.PI * (32 * 32 - 20 * 20);
+  const e = errOf(() => CAM.computeOp(adBase, { setup: S0, tool: flat(10), geom: { faces: [ring(12)] } }));
+  ok(e && e.code === 'cam.adaptive.no_entry_left', 'D10, helis 8, halka 12 mm: hata cam.adaptive.no_entry_left (eskiden cam.adaptive.nothing): ' + (e && e.code));
+  ok(e && e.params.area > 0.7 * A12 && e.params.area <= A12 + 1, `hata alani ${e?.params?.area} mm2 ~ halka alani ${A12.toFixed(0)}`);
+  const tp = CAM.computeOp({ ...adBase, entry: { kind: 'helix', angle: 3, helixDia: 1.5 } }, { setup: S0, tool: flat(10), geom: { faces: [ring(14)] } });
+  ok(tp.moves.length > 0 && validateToolpath(tp) === true, 'halka 14 mm, helis 1,5: yol uretilir');
+  const e2 = errOf(() => CAM.computeOp(adBase, { setup: S0, tool: flat(10), geom: { faces: [{ z: -6, normalOk: true, outer: sq(40, 40, 49, 70), inners: [] }] } }));
+  ok(e2 && e2.code === 'cam.pocket.rest_material' && e2.params.area > 200 && e2.params.area <= 271, 'takimdan dar cep (9x30, D10): hata cam.pocket.rest_material, alan ~270: ' + (e2 && e2.code + JSON.stringify(e2.params)));
   console.log(`   (${el()})`);
 }
 
