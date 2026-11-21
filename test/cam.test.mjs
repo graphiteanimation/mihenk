@@ -546,8 +546,10 @@ section('8. cekirdek + uctan uca (blok: cep + ada + delik)');
   // prizmatik olmayan govde (X eksenli silindir) -> silhouette acik hata
   const rbC = await K.rebuild({ params: [], features: [{ id: 'cy', type: 'primitive', kind: 'cylinder', x: '0', y: '30', z: '20', dia: '20', h: '100', axis: 'X', op: 'new' }] });
   const SC = CAM.resolveSetup({ ...cam.setups[0], bodies: [rbC.bodies[0].id] }, rbC, M);
-  try { await CAM.resolveGeom({ geom: [{ kind: 'silhouette', body: rbC.bodies[0].id }] }, SC, { rebuild: rbC, doc: null, query }); ok(false, 'silindir silhouette hata vermeliydi'); }
-  catch (e) { ok(e.code === 'cam.silhouette.not_prismatic', 'prizmatik olmayan govde: ' + e.code); }
+  // WP-15 (T-20): prizmatik olmayan govdede siluet artik yukseklik haritasindan (onceden cam.silhouette.not_prismatic hatasiydi)
+  try { const gS = await CAM.resolveGeom({ geom: [{ kind: 'silhouette', body: rbC.bodies[0].id }] }, SC, { rebuild: rbC, doc: null, query }); const bbS = P.loopBBox([kloop(gS.faces[0].outer)]); const mbS = SC.modelBBox;
+    ok(gS.faces.length === 1 && bbS[0] <= mbS.min[0] + 1e-6 && bbS[2] >= mbS.max[0] - 1e-6 && bbS[1] <= mbS.min[1] + 1e-6 && bbS[3] >= mbS.max[1] - 1e-6 && bbS[2] - bbS[0] < mbS.max[0] - mbS.min[0] + 0.5, 'prizmatik olmayan govde: yukseklik haritasi siluet (muhafazakar) ' + bbS.map((v) => v.toFixed(2))); }
+  catch (e) { ok(false, 'prizmatik olmayan govde siluet: ' + e.code); }
   await K.rebuild(doc);
   // eksik veri: genel makine sablonu -> block
   const r2b = await CAM.generateProgram(cam, { rebuild: rb, machine: builtinMachines()[0], query, name: 'O1' }); ok(r2b.blocked && r2b.gates.some((g) => g.code === 'cam.gate.missing'), 'sablon makine: eksik veri block');
