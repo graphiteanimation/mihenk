@@ -470,7 +470,8 @@ class App {
     const ctx = this.ctx();
     if (['extrude', 'revolve'].includes(type) && !ctx.sketches.length) { toast(t('msg.need_sketch'), true); return; }
     if (type === 'hole' && !ctx.sketches.length) { toast(t('msg.need_sketch_hole'), true); return; }
-    if (['fillet', 'chamfer', 'shell', 'combine', 'move', 'split', 'splitface', 'faceop'].includes(type) && !ctx.bodies.length) { toast(t('msg.need_body'), true); return; }
+    if (['sweep', 'loft'].includes(type) && !ctx.sketches.length) { toast(t('msg.need_sketch'), true); return; }
+    if (['fillet', 'chamfer', 'shell', 'combine', 'move', 'split', 'splitface', 'faceop', 'draft', 'vfillet', 'thread', 'rib'].includes(type) && !ctx.bodies.length) { toast(t('msg.need_body'), true); return; }
     if (type === 'combine' && ctx.bodies.length < 2) { toast(t('msg.need_two_bodies'), true); return; }
     const draft = { id: newId(this.doc, type, kind), type, name: autoName(this.doc, type, kind), ...defaults(type, kind, ctx) };
     new FeaturePanel(this, draft, null).open();
