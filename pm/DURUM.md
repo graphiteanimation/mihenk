@@ -11,6 +11,13 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - "Sol tuşla döndür" ayarı test sırasında açıldı, sonunda kapatıldı.
 - Sıradaki Hazır emir: İE-004 (Fusion kıyası). Fusion lisansı 23 Kasım'da bitiyor; Adım A önce yapılmalı.
 
+## İE-002 bitti (2026-11-21b)
+- Ana dal yeşil: master `ci` 44911498632 — 43/43 adım, 7088 denetim geçti, 0 kaldı (paket işi de geçti).
+- CI-1: Windows koşucusundaki pdftotext Git for Windows'un xpdf 4.06'sı; metin doğru, yalnız "Ø20" ile "H7" ayrı satırda. Denetim boşluk/satır farkına dayanıklı; araç yoksa "atlandı" yazar.
+- C-21 düzeltildi: kayma, budanan/bölünen çizgide kalan orta nokta (ve eşit uzunluk) kısıtından; artık orta nokta "çizgi üstünde"ye döner, budama sonrası kalan geometri 1e-5 mm'den fazla oynarsa işlem geri alınır. Yan bulgular WP-CAD1'e (G-2).
+- C-14 gerçek akışta yeniden üretilemedi (7 akış); savunmacı düzeltme: onaydan önce paneldeki görünen sayısal değerler taslağa yazılır. Soru `SORULAR`'da. Düzeltmeler 0.6.1 ile kuruluma gelir (G-9); kurulu 0.6.0 değişmedi.
+- GitHub'da geçici `tani-ie002` dalı silinemedi (G-12); `wp-ie002*` dalları da duruyor.
+
 ## Önceki oturumda biten
 - K-045: K-044 durdurması kalktı.
 - `fix-lnk` (O-051): Türkçe kaldırma kısayolu "/" yüzünden oluşmuyordu; artık "Mihenk Kaldır" / "Uninstall Mihenk", eski kısayollar temizlenir. Bağımsız doğrulandı (Sonnet, ONAY) ve ekranda görüldü.
@@ -26,7 +33,7 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - Kabul listesi tam: 14. adım da 2026-11-21'de geçti.
 - `%APPDATA%\AtolyeCAD` kullanıcı tarafından silindi; proje klasörü artık `Documents\Mihenk` (K-047).
 - Sıradaki sürüm (1.0) için BACKLOG'da sıra onayı kullanıcıdan beklenir.
-- Y-02 (2026-11-21): ana dal CI'ı yeşil değil: `e685ffc` koşusu 40/41, yalnız `resim.test` pdftotext denetimi Windows koşucusunda kaldı (İE-002 CI-1). CAD testi: T01, T02 GEÇTİ. yedek `mihenk.git` GitHub'dan geride, Y-02 kapanışında eşitlenecek.
+- Yedek `mihenk.git` GitHub'dan geride, Y-02 kapanışında eşitlenecek.
 
 ## Notlar
 - Fusion deneme lisansı 23 Kasım 2026'da bitiyor.
