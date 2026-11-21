@@ -149,7 +149,7 @@ console.log('5. PDF isci ve CSP');
   ok(!/blob:|data:/.test(fs.readFileSync(path.join(ROOT, 'src/shared/pdfworker.js'), 'utf8').replace(/\/\/.*$/gm, '')), 'isci girisi blob:/data: kullanmaz');
   ok(fs.existsSync(path.join(ROOT, 'public/pdfjs/standard_fonts/LiberationSans-Regular.ttf')) && fs.existsSync(path.join(ROOT, 'public/pdfjs/wasm/openjpeg.wasm')), 'yazi tipi ve wasm verisi public/pdfjs altinda (self kaynak)');
   const mc = fs.readFileSync(path.join(ROOT, 'electron/main.cjs'), 'utf8');
-  ok(/underlay: \['\.png', '\.jpg', '\.jpeg', '\.pdf'\]/.test(mc) && /OPEN_ONLY = new Set\(\['underlay'\]\)/.test(mc) && /OPEN_ONLY\.has\(kind\)/.test(mc), 'ana süreç: altlık türü yalnız okunur (png/jpg/jpeg/pdf), yazma reddedilir');
+  ok(/underlay: \['\.png', '\.jpg', '\.jpeg', '\.pdf'\]/.test(mc) && /OPEN_ONLY = new Set\(\[[^\]]*'underlay'/.test(mc) && /OPEN_ONLY\.has\(kind\)/.test(mc), 'ana süreç: altlık türü yalnız okunur (png/jpg/jpeg/pdf), yazma reddedilir');
   const pk = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')); ok(/^\d+\.\d+\.\d+$/.test(pk.dependencies['pdfjs-dist'] || ''), 'pdfjs-dist surumu sabit: ' + pk.dependencies['pdfjs-dist']);
 }
 

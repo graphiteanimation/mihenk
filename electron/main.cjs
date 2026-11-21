@@ -23,8 +23,8 @@ const MIME = {
 // Dosya türü → izinli uzantılar (yazma ve okuma ana süreçte bu listeyle sınırlanır)
 // 'doc' = Mihenk belgesi: okuma ve yazma .mhnk.
 const KINDS = { doc: ['.mhnk'], step: ['.step', '.stp'], stl: ['.stl'], iges: ['.igs', '.iges'], dxf: ['.dxf'], nc: ['.nc', '.txt'], json: ['.json'], html: ['.html'], pdf: ['.pdf'], csv: ['.csv'], underlay: ['.png', '.jpg', '.jpeg', '.pdf'], ncread: ['.nc', '.tap', '.txt'] }; // WP-17: teknik resim PDF, ilk parça formu CSV
-const SAVE_ONLY = new Set(['nc', 'html', 'pdf', 'csv']);
-const OPEN_ONLY = new Set(['underlay', 'ncread']);                   // WP-22a: eskiz altlığı (PNG/JPEG/PDF) yalnız okunur; yazma reddedilir   // NC çıktısı ve kurulum föyü (WP-07) yalnız yazılır; arayüz bu türde dosya açtıramaz
+const SAVE_ONLY = new Set(['nc', 'html', 'pdf', 'csv']);   // NC çıktısı, kurulum föyü, teknik resim PDF/CSV yalnız yazılır; arayüz bu türde dosya açtıramaz
+const OPEN_ONLY = new Set(['underlay', 'ncread']);                   // WP-22a/22d: eskiz altlığı (PNG/JPEG/PDF) ve NC okuma yalnız okunur; yazma reddedilir
 const DOC_EXT = '.mhnk';
 
 protocol.registerSchemesAsPrivileged([
