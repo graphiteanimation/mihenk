@@ -3,7 +3,7 @@
 import { h, toast } from '../dom.js';
 import { icon } from '../icons.js';
 import { t, tLang, errText } from '../../shared/i18n.js';
-import { resolveSetup, buildProgram, generateProgram, gatesAsync } from '../../cam/index.js';
+import { resolveSetup, buildProgram, generateProgram, gatesAsync, SURF3D_TYPES } from '../../cam/index.js';
 import { axisPlane } from '../../cam/program.js';
 import { blocked } from '../../cam/gates.js';
 import { postProgram, postPropsMissing } from '../../cam/post/index.js';
@@ -80,7 +80,11 @@ export class CamOps {
     let S = null;
     try { S = await this.resolveS(setup); } catch (e) { for (const o of ops) { const x = { key: this.keyOf(o, setup), error: errObj(e) }; this.cache.set(o.id, x); out.set(o.id, x); } return out; }
     const sub = { tools: this.cam.tools(), setups: [{ ...setup, ops: gen }] };
-    const r = await generateProgram(sub, { rebuild: this.app.result, machine: this.cam.machine(), query: (c, a) => this.app.query(c, a), doc: this.app.doc, name: 'PROG' });
+    // WP-15: 3D işlemler worker'da hesaplanır; süren hesap bildirimden iptal edilebilir
+    const s3 = ops.some((o) => SURF3D_TYPES.includes(o.type)); const ac = s3 ? new AbortController() : null; const el = s3 ? toast(t('cam.s3.computing'), { kind: 'info', ms: 0, action: { label: t('cam.sim.cancel'), run: () => ac.abort() } }) : null;
+    let r; try { r = await generateProgram(sub, { rebuild: this.app.result, machine: this.cam.machine(), query: (c, a) => this.app.query(c, a), doc: this.app.doc, name: 'PROG', signal: ac?.signal ?? null }); }
+    catch (e) { if (e?.code !== 'cam.op.cancelled') throw e; for (const o of ops) { const x = { key: this.keyOf(o, setup), error: errObj(e) }; this.cache.set(o.id, x); out.set(o.id, x); } return out; }
+    finally { if (el?.isConnected) el.querySelector('[data-testid="toast-close"]')?.click(); }
     for (const o of ops) {
       const q = r.ops.find((x) => x.opId === o.id);
       let So = S; if (Number.isFinite(o.aAngle) && o.aAngle !== setup.rotary?.aAngle) { try { So = await this.resolveS({ ...setup, rotary: { enabled: true, aAngle: o.aAngle } }); } catch (e) { So = S; } } // WP-07: islem basina A acisi

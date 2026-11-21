@@ -111,7 +111,9 @@ export function computeAdaptive(op, ctx) {
     meta: { belowStock: belowStockAllow(op, S, zBot), adaptive: { load: ae, thetaMax: r3((thMax * 180) / Math.PI), maxTheta: r3((stats.maxTheta * 180) / Math.PI), passes: stats.passes, links: stats.links, lifts: stats.lifts, entries: stats.entries, cell: r3(stats.g) } } });
 }
 
-function clearRegion(A) {
+// WP-15: A.surf (3D kaba) verilirse izinli merkez maskesi her seviyede yeniden kurulur: surf.allowAt(z, G, cx, cy) -> Uint8Array
+// (hucre merkezi izinli mi), surf.exact(x, y, z) -> bool (kesin denetim: model + bitirme payi). Bolge (Rv) yine dis sinirdir.
+export function clearRegion(A) {
   const { Rv, S, r, stR, ae, thMax, levels, zTop, dir, stayDown, entry, ang, helixR, rest, restR, stockMap, b, cut, stats } = A;
   const sgn = dir === 'climb' ? -1 : 1; // malzeme tarafi: tirmanmada sag (negatif phi)
   const walls = P.regionSegs(Rv); const dAllow = r + stR + 0.005;
@@ -125,13 +127,22 @@ function clearRegion(A) {
   const cellOf = (x, y) => { const i = Math.floor((x - G.x0) / g), j = Math.floor((y - G.y0) / g); return i < 0 || j < 0 || i >= nx || j >= ny ? -1 : j * nx + i; };
   const inRv = rasterize([Rv.outer, ...Rv.holes], G, Math.min(1e-3, g / 20));
   const sg = new SegGrid(walls, Math.max(r, g * 4));
-  const allowedExact = (x, y) => { const c = cellOf(x, y); if (c < 0 || !inRv[c]) return false; return sg.nearest([x, y], dAllow) >= dAllow; };
-  // izinli hucre (merkez) maskesi
-  const allowC = new Uint8Array(N);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = j * nx + i; if (inRv[c] && allowedExact(cx(i), cy(j))) allowC[c] = 1; }
-  const dAllowed = edt((c) => allowC[c] === 1, nx, ny, g); // hucreden en yakin izinli merkeze uzaklik
+  const surf = A.surf || null; let zNow = Infinity;
+  const rClr = surf ? r - 0.71 * g : r; // 3D: hucre ancak tamami takim icindeyse temiz sayilir (izgara arasi pim kalmasin)
+  const allowed2 = (x, y) => { const c = cellOf(x, y); if (c < 0 || !inRv[c]) return false; return sg.nearest([x, y], dAllow) >= dAllow; };
+  // 3D: izinli merkezlerden >= 3g icerdeki nokta kesin izinlidir (R - rc >= g iken: aradaki her temas komsu merkezlerden birinde de olurdu)
+  const allowedExact = surf ? (x, y) => { if (!allowed2(x, y)) return false; if (surf.flatR >= g) { const c = cellOf(x, y); if (c >= 0 && allowC[c] && dToWallNA[c] >= 3 * g) return true; } return surf.exact(x, y, zNow); } : allowed2;
+  // izinli hucre (merkez) maskesi (3D: seviyeye gore)
+  const allow0 = new Uint8Array(N);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = j * nx + i; if (inRv[c] && allowed2(cx(i), cy(j))) allow0[c] = 1; }
+  let allowC = allow0, dAllowed = null, dToWallNA = null;
+  const setMask = (z) => {
+    if (surf) { const m = surf.allowAt(z, G, cx, cy); allowC = new Uint8Array(N); for (let c = 0; c < N; c++) allowC[c] = allow0[c] & m[c]; }
+    dAllowed = edt((c) => allowC[c] === 1, nx, ny, g); // hucreden en yakin izinli merkeze uzaklik
+    dToWallNA = edt((c) => allowC[c] === 0, nx, ny, g); // izinli hucrenin izinsiz bolgeye uzakligi (giris yeri secimi)
+  };
+  if (!surf) setMask(Infinity);
   const reach = (c) => dAllowed[c] <= r - 0.75 * g;
-  const dToWallNA = edt((c) => allowC[c] === 0, nx, ny, g); // izinli hucrenin izinsiz bolgeye uzakligi (giris yeri secimi)
   // malzeme ust z (hg): stok haritasi (rest) ya da kurulum stogu; bolge disi -inf
   const smap = rest?.source === 'stock' ? stockMap : stockHeightmap(S.stockBox, Math.min(0.5, Math.max(g, 0.1)), S.stockCyl ?? null);
   const hg = new Float32Array(N).fill(-Infinity);
@@ -231,7 +242,7 @@ function clearRegion(A) {
   // kuru kosu: st'den en cok kmax adim (degisiklikler geri alinir); donus: adim sayisi
   const dryRun = (st, kmax, z) => {
     undo = []; const rem0 = removed; let p = st.p, head = st.head, n = 0;
-    for (let k = 0; n < kmax && k < kmax + 25; k++) { const stp = bestStep(p, head); if (!stp) break; const rb = removed; clearCapsule(p, stp.q, r, z); p = stp.q; head = stp.a; if (removed > rb) n++; }
+    for (let k = 0; n < kmax && k < kmax + 25; k++) { const stp = bestStep(p, head); if (!stp) break; const rb = removed; clearCapsule(p, stp.q, rClr, z); p = stp.q; head = stp.a; if (removed > rb) n++; }
     for (let k = undo.length - 3; k >= 0; k -= 3) { hg[undo[k]] = undo[k + 1]; mat[undo[k]] = undo[k + 2] & 1; rch[undo[k]] = undo[k + 2] >> 1; }
     undo = null; removed = rem0; return n;
   };
@@ -289,10 +300,13 @@ function clearRegion(A) {
   let pos = null; let guard = 0;
   for (let li = 0; li < levels.length; li++) {
     const z = levels[li];
+    if (surf) { zNow = z; setMask(z); if (A.onLevel) A.onLevel(li, z); }
     let left = 0, unreach = 0;
     // mat: 1 = malzeme (temas olcumu ve bosluk icin HEPSI), rch: takimin erisebildigi malzeme (ilerleme/cephe/giris icin)
-    for (let c = 0; c < N; c++) { mat[c] = 0; rch[c] = 0; bad[c] = 0; if (inRv[c] && hg[c] > z + EPSZ) { mat[c] = 1; if (reach(c)) { rch[c] = 1; left++; } else unreach++; } }
-    if (li === levels.length - 1) stats.restArea += unreach * g * g;
+    const pt = surf ? surf.partTop(G, cx, cy) : null; // 3D: parcanin kendisi malzeme sayilmaz (duvar gibi)
+    for (let c = 0; c < N; c++) { mat[c] = 0; rch[c] = 0; bad[c] = 0; if (inRv[c] && hg[c] > z + EPSZ && !(pt && pt[c] > z + EPSZ)) { mat[c] = 1; if (reach(c)) { rch[c] = 1; left++; } else unreach++; } }
+    if (li === levels.length - 1 && !surf) stats.restArea += unreach * g * g;
+    const pend = []; // 3D: temizlenecek kucuk artik hucreleri
     let down = false; // takim bu seviyede asagida mi
     let forced = null; // giristen hemen sonra: paso takimin bulundugu yerden baslar
     for (;;) {
@@ -302,7 +316,7 @@ function clearRegion(A) {
       if (!st) st = findStart(pos, z);
       if (!st) {
         let leftNow = 0; for (let c = 0; c < N; c++) leftNow += rch[c];
-        if (leftNow * g * g < Math.max(0.05 * r * r, 4 * g * g)) { stats.restArea += leftNow * g * g; break; }
+        if (leftNow * g * g < Math.max(0.05 * r * r, 4 * g * g)) { if (surf) { for (let c = 0; c < N; c++) if (rch[c]) pend.push(c); } else stats.restArea += leftNow * g * g; break; }
         // giris: helis yeri = malzemeli, duvardan en uzak izinli hucre
         let bc = -1;
         for (let c = 0; c < N; c++) if (allowC[c] && dmR[c] < r && dToWallNA[c] >= helixR + g && (bc < 0 || dToWallNA[c] > dToWallNA[bc])) bc = c;
@@ -314,7 +328,8 @@ function clearRegion(A) {
         for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (rch[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) near++; }
         if (near * g * g < 0.5 * ae * r) {
           for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (rch[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) rch[c] = 0; }
-          stats.restArea += near * g * g; continue;
+          if (surf) { for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (hg[c] > z + EPSZ && mat[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) pend.push(c); } }
+          else stats.restArea += near * g * g; continue;
         }
         const zs = maxIn(c0, helixR + r); const top = Math.max(zs, z);
         const s0p = [c0[0] + helixR, c0[1]];
@@ -339,7 +354,7 @@ function clearRegion(A) {
       const r0 = removed; let pts = [st.p]; let p = st.p, head = st.head; let nStep = 0; let lastProd = 0; undo = [];
       for (;;) {
         const stp = bestStep(p, head); if (!stp) break;
-        const rb = removed; clearCapsule(p, stp.q, r, z); if (stp.th > stats.maxTheta) stats.maxTheta = stp.th;
+        const rb = removed; clearCapsule(p, stp.q, rClr, z); if (stp.th > stats.maxTheta) stats.maxTheta = stp.th;
         if (removed > rb) { lastProd = pts.length; undo = []; } else if (pts.length - lastProd > 25) break; // erisilemeyen serit boyunca bos yuruyus: paso biter
         pts.push(stp.q); p = stp.q; head = stp.a;
         if (++nStep > 20000) break;
@@ -349,5 +364,18 @@ function clearRegion(A) {
       if (removed === r0) { if (st.c != null) bad[st.c] = 1; if (pts.length === 1) { pos = st.p; continue; } }
       emit(simplify(pts), z); stats.passes++; pos = p;
     }
+    // 3D: kucuk artiklar (ince pim, serit) birakilmaz: yakindaki izinli merkezden dik inisle (malzeme takim alanindan kucuk) temizlenir
+    if (surf && pend.length) {
+      const w = Math.ceil(r / g);
+      for (const c of pend) {
+        if (!(hg[c] > z + EPSZ)) continue; const ci = c % nx, cj = (c / nx) | 0; let best = null, bd = Infinity;
+        for (let dj = -w; dj <= w; dj++) for (let di = -w; di <= w; di++) { const ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue; const k = jj * nx + ii; if (!allowC[k]) continue; const d = Math.hypot(di, dj) * g; if (d > r - 0.75 * g || d >= bd) continue; const q = [cx(ii), cy(jj)]; if (!allowedExact(q[0], q[1])) continue; bd = d; best = q; }
+        if (!best) { stats.restArea += g * g; continue; }
+        b.linkTo(best[0], best[1], z, cut.feedPlunge); clearCapsule(best, best, rClr, z); stats.zaps = (stats.zaps || 0) + 1; pos = best;
+      }
+      pend.length = 0;
+    }
+    if (surf && A.afterLevel) { A.afterLevel({ z, hg, G, cx, cy, N, inRv }); pos = b.pos ? b.pos.slice(0, 2) : pos; }
   }
+  return { hg, G };
 }
