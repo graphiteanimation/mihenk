@@ -26,7 +26,7 @@ Mihenk: devam
 Mihenk: devam
 ```
 
-## İE-002 — CI'yı yeşile çıkarma + C-14 ve C-21 düzeltmesi · **Hazır** (O-054; ekransız, İE-001 ya da İE-004 sürerken ayrı oturumda açılabilir)
+## İE-002 — CI'yı yeşile çıkarma + C-14 ve C-21 düzeltmesi · **Sürüyor** (oturum 2026-11-21b) (O-054; ekransız, İE-001 ya da İE-004 sürerken ayrı oturumda açılabilir)
 - Ön koşul: yok. Ekran kullanmaz. Kurulu sürüme dokunmaz; düzeltme 0.6.1 ile çıkar (G-9).
 - CI-1 (önce bu; ana dal yeşil değil): GitHub Actions koşusu 44901932629 (`e685ffc`, Windows) 41 adımdan 40'ını geçti, yalnız `test/resim.test.mjs` "pdftotext metni okur (O20 H7, antet)" kaldı (109 geçti, 1 kaldı). Windows koşucusunda bir `pdftotext` bulunuyor (büyük olasılıkla Git for Windows'la gelen eski sürüm; doğrulanmadı) ve çıktısında `Ø20 H7` ya da antet başlığı eşleşmiyor; Linux'ta geçiyor. Neden bulunur: PDF metni gerçekten bozuksa ürün hatasıdır ve düzeltilir; yalnız araç/kodlama farkıysa denetim araca dayanıklı yapılır (ör. PDF içerik akışını doğrudan okuyan kendi denetimi), sessizce atlanmaz.
 - C-14: Extrude panelinde görünen mesafe ile uygulanan mesafe farkı; yeniden üret, düzelt, test.
