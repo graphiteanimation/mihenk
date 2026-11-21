@@ -1,5 +1,6 @@
 # Eski sohbetler dizini (2026-11-21'e kadar; K-050)
 Bu sohbetlerin içeriği depoya işlenmiştir (`pm/arsiv/DEVAM-2026-11-20-oncesi.md`, `pm/OTURUMLAR.md`, `pm/KARARLAR.md`). Silinmeleri projeye veri kaybettirmez; dizin, gerekirse geri bakmak içindir. Liste son 20 sohbeti kapsar; daha eskileri alınmadı.
+Not (2026-11-21, Y-02): kullanıcı bu sohbetleri Claude'da eskiden yeniye `Arşiv 1: …` … `Arşiv 25: …` diye yeniden adlandırdı (toplam 25); aşağıdaki başlıklar eski adlardır. Kuruluş yönetim sohbeti: `Mihenk Y-01 yönetim kuruluş`.
 
 | Son güncelleme (UTC) | Başlık | İlk mesaj | Bağlantı |
 |---|---|---|---|

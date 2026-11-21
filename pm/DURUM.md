@@ -20,7 +20,7 @@ Yönetim düzeni (K-049): karar ve iş emirleri `Mihenk: yönetim` oturumunda, i
 - Kabul listesi tam: 14. adım da 2026-11-21'de geçti.
 - `%APPDATA%\AtolyeCAD` kullanıcı tarafından silindi; proje klasörü artık `Documents\Mihenk` (K-047).
 - Sıradaki sürüm (1.0) için BACKLOG'da sıra onayı kullanıcıdan beklenir.
-- Y-02 (2026-11-21): ana dalda henüz yeşil CI sonucu yok (`e685ffc` koşusu sürüyordu); yedek `mihenk.git` GitHub'dan geride, Y-02 kapanışında eşitlenecek.
+- Y-02 (2026-11-21): ana dal CI'ı yeşil değil: `e685ffc` koşusu 40/41, yalnız `resim.test` pdftotext denetimi Windows koşucusunda kaldı (İE-002 CI-1). CAD testi: T01, T02 GEÇTİ. yedek `mihenk.git` GitHub'dan geride, Y-02 kapanışında eşitlenecek.
 
 ## Notlar
 - Fusion deneme lisansı 23 Kasım 2026'da bitiyor.

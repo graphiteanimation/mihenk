@@ -35,7 +35,7 @@
 - Yönetim oturumları sırayla numaralanır: **Y-01, Y-02, …** (bu düzenin kurulduğu oturum Y-01). İş oturumları aldıkları emrin adını taşır: **İE-001**; aynı emir ikinci bir oturuma taşarsa **İE-001/2**.
 - Sohbet başlığı biçimi: `Mihenk Y-02 · yönetim · 2026-11-22` ve `Mihenk İE-001 · CAD testi T02–T10`. Claude sohbetin adını değiştiremez: her oturum ilk yanıtının ilk satırında önerilen başlığı verir, kullanıcı sohbeti öyle adlandırır.
 - Açılış mesajları sade kalır (`Mihenk: yönetim`, `Mihenk: devam`); numarayı oturum `OTURUMLAR.md`'den kendisi bulur ve kaydına yazar.
-- 2026-11-21 öncesinin sohbetleri: içerikleri depoya işlendi; dizin `pm/arsiv/SOHBETLER.md`. Silinmeleri veri kaybettirmez.
+- 2026-11-21 öncesinin sohbetleri: içerikleri depoya işlendi; dizin `pm/arsiv/SOHBETLER.md`. Silinmeleri veri kaybettirmez. Kullanıcı 2026-11-21'de bu 25 sohbeti eskiden yeniye `Arşiv 1: …` … `Arşiv 25: …` diye adlandırdı; kuruluş yönetim sohbetinin adı `Mihenk Y-01 yönetim kuruluş`.
 
 ## Çalışma ilkeleri (Y-01 gözden geçirmesi, O-053)
 1. **Ana dal yeşil kalır.** Kod değişikliği içeren iş emri, GitHub'daki test sonucu yeşil görülmeden Bitti sayılmaz. Yönetim oturumu her açılışta son sonucu kontrol eder.
@@ -54,7 +54,7 @@
 | G-2 | CAD düzeltmeleri (WP-CAD1): C-14 ve C-21 İE-002 olarak Hazır (O-054, ekransız, paralel açılabilir); kalanlar test bitince | İE-002 İE-001 sürerken ayrı oturumda açılsın | Açık (oturumu kullanıcı açar) |
 | G-3 | 1.0 yapım sırası (BACKLOG "1.0 ve sonrası") | CAD testi ve WP-CAD1 bitince planlansın | Karar bekliyor |
 | G-4 | Fusion karşılaştırması: K-051 ile İE-004 (P1–P4, CAD + CAM), İE-001'den sonra. P1–P4'ün Fusion çıktıları bilgisayarda hazır; lisans yalnız sarma ve 3+2 referansı için gerekli (23 Kasım 2026) | İE-001 22 Kasım akşamına dek bitmezse araya yalnız İE-004 Adım A alınsın (kısa) | İzleniyor |
-| G-5 | Ana dal testleri belge değişikliklerinde iptal ediliyordu | CI'da `pm/**`, `*.md`, `docs/**` yolları test başlatmaz (bu oturumda yapıldı); ilk yeşil sonuç kontrol edilecek | İzleniyor |
+| G-5 | Ana dal testi: belge gönderimleri artık koşuyu iptal etmiyor (O-052 çalışıyor). İlk tam koşu (`e685ffc`) KALDI: 40/41, yalnız `resim.test` pdftotext denetimi (Windows koşucusu) | İE-002'nin ilk maddesi (CI-1); yeşil görülene dek kod emri Bitti sayılmaz | Açık |
 | G-6 | Bazı iş oturumları GitHub'a gönderemedi (O-047), iş yedek depoda kaldı | İş oturumu kapanışta GitHub'a gönderimi doğrular; gönderemezse `DURUM`'un ilk satırına yazar; yönetim oturumu eşitler | İzleniyor |
 | G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kapandı (Y-02: kullanıcı onayladı) |
 | G-8 | Test parçalarının otomatik regresyona alınması (İE-003 taslak) | T04 ara raporundan sonra Hazır yapılsın | Karar bekliyor |
