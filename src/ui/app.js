@@ -842,7 +842,7 @@ class App {
   }
   async importFile(format) {
     if (this.guard()) return;
-    const f = await this.pickFile(format === 'step' ? '.step,.stp' : '.stl', format); if (!f) return;
+    const f = await this.pickFile(format === 'step' ? '.step,.stp' : format === 'iges' ? '.igs,.iges' : '.stl', format); if (!f) return;
     // benzersiz kimlik + içerik özeti: önbellek, belge değişse de başka verinin geometrisini göstermez (S-02)
     const id = importId(this.doc); const nm = f.name.replace(/\.[^.]+$/, ''); const hash = await sha256Hex(f.data);
     const at = this.doc.rollback ?? this.doc.features.length;

@@ -82,7 +82,7 @@ try:
     # ---- draft
     print('draft')
     load([box('b', 20, 20, 20, -10, -10, 0)])
-    dd('more', 'draft')
+    dd('form', 'draft')
     k = pick('faces', 'b', lambda d: d['geom'] == 'PLANE' and abs(d['normal'][2]) < 1e-9)
     fill('angle', 5); ok()
     f = last(); check('draft 4 yüz, geçmişte', f['type'] == 'draft' and len(f['faces']) == 4 and status(f['id'])['ok'], [k, status(f['id'])])
@@ -98,7 +98,7 @@ try:
     # ---- değişken yuvarlatma
     print('vfillet')
     load([box('b', 50, 40, 30)])
-    dd('more', 'vfillet'); page.click('#panel input[data-k="chain"]') if ev('document.querySelector("#panel input[data-k=chain]").checked') else None
+    dd('form', 'vfillet'); page.click('#panel input[data-k="chain"]') if ev('document.querySelector("#panel input[data-k=chain]").checked') else None
     pick('edges', 'b', lambda d: d['geom'] == 'LINE' and abs(d['length'] - 50) < 1e-6 and d['start'][1] < 1e-9 and d['end'][1] < 1e-9 and d['start'][2] > 29)
     fill('r1', 2); fill('r2', 5); ok()
     check('değişken yuvarlatma', status(last()['id'])['ok'] and rel(60000 - vol(), 50 * (1 - math.pi / 4) * 13, 0.03), [status(last()['id']), vol()])
@@ -108,7 +108,7 @@ try:
     # ---- diş
     print('thread')
     load([{'id': 'cy', 'type': 'primitive', 'kind': 'cylinder', 'name': 'cy', 'x': '0', 'y': '0', 'z': '0', 'dia': '10', 'h': '12', 'axis': 'Z', 'op': 'new'}])
-    v0 = vol(); dd('more', 'thread')
+    v0 = vol(); dd('form', 'thread')
     pick('face', 'cy', lambda d: d['geom'] == 'CYLINDRE')
     check('diş ölçüsü varsayılan M10', ev('document.querySelector("#panel select[data-k=thread]").value') == 'M10')
     ok(); page.wait_for_function('() => app.result && app.result.status[app.doc.features[app.doc.features.length-1].id]', timeout=120000); idle()

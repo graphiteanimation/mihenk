@@ -72,5 +72,9 @@ export default {
   "err.coil.failed": "The coil body could not be created",
   "err.import.iges_parse": "The IGES file could not be read (corrupt or unsupported format)",
   "err.import.iges_empty": "The IGES file contains no supported surfaces",
+  "err.import.iges_unsupported": "Unsupported IGES entity type ({type})",
+  "err.import.iges_face": "An IGES face could not be built",
+  "err.import.iges_open": "The IGES surfaces do not form a closed body",
+  "err.import.iges_unbounded": "The IGES file contains an unbounded plane (no trimming curve)",
   "menu.import_iges": "Import IGES…", "menu.export_iges": "Export IGES…",
 };

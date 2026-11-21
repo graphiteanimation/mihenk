@@ -72,5 +72,9 @@ export default {
   "err.coil.failed": "Helis gövdesi oluşturulamadı",
   "err.import.iges_parse": "IGES dosyası okunamadı (bozuk ya da desteklenmeyen biçim)",
   "err.import.iges_empty": "IGES dosyasında desteklenen yüzey yok",
+  "err.import.iges_unsupported": "IGES varlık türü desteklenmiyor ({type})",
+  "err.import.iges_face": "IGES yüzü kurulamadı",
+  "err.import.iges_open": "IGES yüzeyleri kapalı bir gövde oluşturmuyor",
+  "err.import.iges_unbounded": "IGES dosyasında sınırsız düzlem var (kırpma eğrisi yok)",
   "menu.import_iges": "IGES İçe Aktar…", "menu.export_iges": "IGES Dışa Aktar…",
 };

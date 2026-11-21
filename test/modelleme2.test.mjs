@@ -261,5 +261,54 @@ section('rib');
   doc.features[2] = circle('rs', base('XZ', '20'), 50, 50, 5); out = await K.rebuild(doc); ok(errOf(out, 'rb') === 'rib.lines_only', 'daire kaburga hatası');
 }
 
+
+// ------------------------------------------------------------------ IGES
+section('iges');
+{
+  // elle yazılmış küçük IGES: 10×20×30 kutu, 6 × (108 düzlem + 110 çizgiler + 102 bileşik + 142 + 144). Testteki bağımsız yazıcı
+  // (src/kernel/iges.js kullanılmaz), birim inç (bayrak 1) → mm'ye ölçek de sınanır.
+  const handIges = (W, H, D, unitFlag) => {
+    const P = [[0, 0, 0], [W, 0, 0], [W, H, 0], [0, H, 0], [0, 0, D], [W, 0, D], [W, H, D], [0, H, D]];
+    const faces = [[[0, 3, 2, 1], [0, 0, -1, 0]], [[4, 5, 6, 7], [0, 0, 1, D]], [[0, 1, 5, 4], [0, -1, 0, 0]], [[2, 3, 7, 6], [0, 1, 0, H]], [[1, 2, 6, 5], [1, 0, 0, W]], [[0, 4, 7, 3], [-1, 0, 0, 0]]];
+    const ents = []; const add = (type, params, sub = '00010000') => { ents.push({ type, params, sub }); return 2 * ents.length - 1; };
+    for (const [loop, pl] of faces) {
+      const s = add(108, [...pl, 0, 0, 0, 0]);
+      const ls = loop.map((a, k) => add(110, [...P[a], ...P[loop[(k + 1) % 4]]]));
+      const c = add(102, [4, ...ls]); const b = add(142, [0, s, 0, c, 2]); add(144, [s, 1, 0, b], '00000000');
+    }
+    const pad = (x, n) => (x + ' '.repeat(n)).slice(0, n), rp = (x, n) => (' '.repeat(n) + x).slice(-n);
+    const G = `1H,,1H;,4Htest,6Ht1.igs,4Htest,4Htest,32,38,6,308,15,4Htest,1,${unitFlag},2HIN,1,0.01,15H20260101.000000,0.0001,100,0H,0H,11,0,15H20260101.000000;`;
+    const out = [pad('elle yazilmis kutu', 72) + 'S      1'];
+    const gl = G.match(/.{1,72}/g); gl.forEach((l, i) => out.push(pad(l, 72) + 'G' + rp(String(i + 1), 7)));
+    const Dl = [], Pl = [];
+    ents.forEach((e, k) => { const de = 2 * k + 1; const txt = [e.type, ...e.params].join(',') + ';'; const parts = txt.match(/.{1,64}(,|;|$)/g).filter(Boolean); const p0 = Pl.length + 1;
+      parts.forEach((x) => Pl.push(pad(x, 64) + ' ' + rp(String(de), 7) + 'P' + rp(String(Pl.length + 1), 7)));
+      const f = (x) => rp(String(x), 8); Dl.push(f(e.type) + f(p0) + f(0) + f(0) + f(0) + f(0) + f(0) + f(0) + e.sub + 'D' + rp(String(de), 7)); Dl.push(f(e.type) + f(0) + f(0) + f(parts.length) + f(0) + ' '.repeat(24) + f(0) + 'D' + rp(String(de + 1), 7)); });
+    out.push(...Dl, ...Pl, pad(`S      1G${rp(String(gl.length), 7)}D${rp(String(Dl.length), 7)}P${rp(String(Pl.length), 7)}`, 72) + 'T      1');
+    return out.join('\n') + '\n';
+  };
+  const b64 = (txt) => Buffer.from(txt, 'latin1').toString('base64');
+  const imp = (txt) => ({ features: [{ id: 'ig', type: 'import', format: 'iges', name: 'kutu', data: b64(txt) }] });
+  let out = await K.rebuild(imp(handIges(10, 20, 30, 2)));
+  ok(out.status.ig.ok, 'IGES içe (mm): ' + errOf(out, 'ig') + ' ' + JSON.stringify(out.status.ig.error?.params || ''));
+  rel(vol(out), 6000, 1e-9, 'IGES kutu hacmi');
+  ok(out.bodies[0]?.nFaces === 6 && TP.validity(K.last.bodies.get(out.bodies[0].id).shape) === null, 'IGES gövdesi geçerli, 6 yüz');
+  out = await K.rebuild(imp(handIges(1, 2, 3, 1)));
+  ok(out.status.ig.ok, 'IGES içe (inç)'); rel(vol(out), 6 * 25.4 ** 3, 1e-9, 'inç → mm ölçeği');
+  // içe alınan gövdede sonraki işlem (yüzü delik) ve kaydet/aç
+  const d = imp(handIges(10, 20, 30, 2)); d.features.push({ id: 'cc', type: 'primitive', kind: 'cylinder', x: '5', y: '10', z: '-1', dia: '4', h: '40', axis: 'Z', op: 'cut' });
+  out = await K.rebuild(d); ok(out.status.cc.ok, 'IGES gövdesinde kesme'); rel(vol(out), 6000 - Math.PI * 4 * 30, 1e-6, 'kesme sonrası hacim');
+  const d2 = roundTrip(d); ok(d2.features[0].format === 'iges', 'IGES içe aktarma belgeyle saklanır');
+  // bozuk dosya: açık hata
+  out = await K.rebuild(imp('bu bir IGES dosyasi degil\n')); ok(!out.status.ig.ok && out.status.ig.error.code === 'import.load_failed', 'bozuk IGES açık hata: ' + errOf(out, 'ig'));
+  // dışa → içe gidiş-dönüş (yazıcı: düzlem 108 tam, diğer yüzeyler 128 yaklaşımı)
+  const doc = { features: [box('bx', 30, 20, 10), { id: 'cy', type: 'primitive', kind: 'cylinder', x: '15', y: '10', z: '-5', dia: '8', h: '30', axis: 'Z', op: 'cut' }] };
+  out = await K.rebuild(doc); const v0 = vol(out);
+  const bytes = await K.exportFile('iges', null, null);
+  ok(bytes.length > 1000 && new TextDecoder().decode(bytes.subarray(72, 73)) === 'S', 'IGES dışa aktarıldı (80 sütun)');
+  out = await K.rebuild(imp(new TextDecoder().decode(bytes))); ok(out.status.ig.ok, 'dışa aktarılan IGES geri okunur: ' + errOf(out, 'ig'));
+  rel(vol(out), v0, 1e-4, 'IGES gidiş-dönüş hacmi (delikli blok)');
+}
+
 console.log(`modelleme2: ${pass} geçti, ${fail} kaldı`);
 process.exit(fail ? 1 : 0);

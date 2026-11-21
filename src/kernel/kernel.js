@@ -11,7 +11,8 @@ import { sketchFaces, matchSeg, MAX_COORD } from './sketch.js';
 import * as CAM from './cam.js';
 import { recognizeBody, recognizedHoles } from './holes.js';
 import * as DE from './direct.js';
-import { runModel2 } from './model2.js'; // WP-19: sweep, loft, draft, rib, değişken yuvarlatma, diş, helis
+import { runModel2 } from './model2.js';
+import { igesToShape, shapesToIges } from './iges.js'; // WP-19: IGES // WP-19: sweep, loft, draft, rib, değişken yuvarlatma, diş, helis
 import { reprojectLinked, matchEdge, edgeSig } from '../ui/sketch/ops.js'; // saf eskiz işlevleri (DOM yok)
 
 export { KErr };
@@ -842,6 +843,7 @@ export class Kernel {
       const tol = fine ? Math.min(0.01, Math.max(0.001, Math.hypot(bb.width, bb.height, bb.depth) * 2e-5)) : 0.01;
       blob = comp.blobSTL({ tolerance: tol, angularTolerance: fine ? 0.04 : 0.1, binary: true });
     }
+    else if (format === 'iges') return new TextEncoder().encode(shapesToIges(shapes.map(([, b]) => ({ shape: b.shape }))));
     else throw new KErr('export.format_unknown');
     return new Uint8Array(await blob.arrayBuffer());
   }
@@ -921,11 +923,11 @@ async function importKeyAsync(f, hashes) {
 }
 async function loadImport(f) {
   try {
-    if (f.format !== 'step' && f.format !== 'stl') return { error: 'format' };
+    if (f.format !== 'step' && f.format !== 'stl' && f.format !== 'iges') return { error: 'format' };
     let bin;
     try { bin = Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0)); } catch (e) { return { error: 'base64' }; }
     if (!bin.length) return { error: 'empty' };
-    const shape = f.format === 'stl' ? stlToSolid(bin) : await R.importSTEP(new Blob([bin]));
+    const shape = f.format === 'stl' ? stlToSolid(bin) : f.format === 'iges' ? igesToShape(new TextDecoder('latin1').decode(bin)) : await R.importSTEP(new Blob([bin]));
     const solids = TP.solidsOf(shape);
     if (!solids.length) return { error: 'no_solid' };
     for (const s of solids) { const why = TP.validity(s); if (why) return { error: 'invalid:' + why }; } // F-18
