@@ -15,8 +15,8 @@ let t0 = Date.now(); const M = await surfaceForSetup(S, { rebuild: rb, query });
 const T = (type, dia, cornerR) => ({ id: type + dia, number: 1, lengthOffset: 1, type, dia, ...(cornerR != null ? { cornerR } : {}), fluteLen: 60, bodyLen: 90, flutes: 2, centerCutting: true });
 const base = { rpm: 9000, feedCut: 1500, feedPlunge: 500, coolant: 'flood', heights: { clearance: 10, retract: 2 } };
 const OPS = {
-  adaptive3d: [{ type: 'adaptive3d', optimalLoad: 4, stepdown: 10, fillStepdown: 2.5, stockToLeave: 0.3, entry: { kind: 'helix', angle: 3, helixDia: 14 }, boundary: { kind: 'stock' } }, T('flat', 16)],
-  zlevel: [{ type: 'zlevel', stepdown: 1, slope: { min: 30, max: 90 }, arcFit: { tol: 0.005 } }, T('ball', 10)],
+  adaptive3d: [{ type: 'adaptive3d', optimalLoad: 4, stepdown: 10, fillStepdown: Number(process.env.AD_FILL ?? 2.5), stockToLeave: 0.3, entry: { kind: 'helix', angle: 3, helixDia: 14 }, boundary: { kind: 'stock' } }, T('flat', 16)],
+  zlevel: [{ type: 'zlevel', stepdown: Number(process.env.ZL_SD || 1), slope: { min: 30, max: 90 }, arcFit: { tol: 0.005 } }, T('ball', 10)],
   parallel: [{ type: 'parallel', stepover: 1, slope: { min: 0, max: 40 }, arcFit: { tol: 0.005 } }, T('ball', 6)],
   scallop: [{ type: 'scallop', scallopHeight: 0.02, arcFit: { tol: 0.005 } }, T('ball', 10)],
   pencil: [{ type: 'pencil', arcFit: { tol: 0.005 } }, T('ball', 6)],

@@ -52,7 +52,7 @@ export function fitPoints(pts, tol, tmpl, arcs = true) {
     let best = null;
     if (arcs && n - i >= 4) {
       let fails = 0;
-      for (let j = i + 3; j < n; j++) { const A = tryArc(pts, i, j, tol); if (A) { best = { j, A }; fails = 0; } else if (++fails > 3) break; }
+      for (let j = i + 3; j < n && j - i <= 256; j++) { /* yay basina en cok 256 nokta (sure siniri) */ const A = tryArc(pts, i, j, tol); if (A) { best = { j, A }; fails = 0; } else if (++fails > 3) break; }
     }
     if (best && Math.hypot(pts[best.j][0] - pts[i][0], pts[best.j][1] - pts[i][1]) >= ARC_MIN_CHORD) {
       const p = pts[best.j]; const s = pts[i];

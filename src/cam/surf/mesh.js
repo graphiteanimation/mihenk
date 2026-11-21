@@ -89,6 +89,8 @@ export class TriIndex {
     const start = new Uint32Array(this.nx * this.ny + 1); for (let k = 0; k < counts.length; k++) start[k + 1] = start[k] + counts[k];
     const list = new Uint32Array(start[start.length - 1]); const fill = start.slice(0, -1);
     for (let t = 0; t < nt; t++) { const [i0, i1, j0, j1] = span(t); for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) list[fill[j * this.nx + i]++] = t; }
+    // kova ici ucgenler en ust z'ye gore azalan: drop-cutter eldeki en iyinin altina inince kovayi birakir
+    for (let k = 0; k < counts.length; k++) { const seg = Array.from(list.subarray(start[k], start[k + 1])); seg.sort((a, b) => D[b * 8 + 4] - D[a * 8 + 4]); list.set(seg, start[k]); }
     this.start = start; this.list = list; this.D = D; this.Dd = Dd; this.nt = nt;
     this.stamp = new Uint32Array(nt); this.estamp = new Uint32Array(M.E.length / 2); this.q = 0;
     // kenar verisi: a(x,y,z), birim XY yon, XY boy, egim, en ust z

@@ -15,7 +15,7 @@ import { cerr } from '../geom/err.js';
 import * as P from '../geom/path2d.js';
 import { need, opt, posNum, nonNeg, cutting, heights, depthLevels, Builder, finishToolpath, warn, r3, stockToLeave, belowStockAllow } from './common.js';
 import { modelFromGeom, TriIndex } from '../surf/mesh.js';
-import { makeCutter, makeDropper, clGrid, slopeDeg, SURF_TOOLS } from '../surf/drop.js';
+import { makeCutter, makeDropper, clGrid, SURF_TOOLS } from '../surf/drop.js';
 import { isoLines } from '../surf/iso.js';
 import { clearRegion, engageAngle } from './adaptive.js';
 
@@ -202,18 +202,19 @@ function contoursAt(E, Gd, z, tolR) {
   const xy = (k) => [x0 + (k % nx) * g, y0 + ((k / nx) | 0) * g];
   const cross = (ka, kb) => { // ka serbest (<= z), kb yasak
     let a = xy(ka), bq = xy(kb);
-    for (let it = 0; it < 18; it++) { const m = [(a[0] + bq[0]) / 2, (a[1] + bq[1]) / 2]; if (drop(m[0], m[1]) > z) bq = m; else a = m; }
+    for (let it = 0; it < 13; it++) { const m = [(a[0] + bq[0]) / 2, (a[1] + bq[1]) / 2]; if (drop(m[0], m[1]) > z) bq = m; else a = m; } // g/8192
     return a;
   };
   const lines = isoLines(H, Gd.nx, Gd.ny, z, cross, (i, j) => drop(x0 + (i + 0.5) * g, y0 + (j + 0.5) * g));
   // kiris oyma duzeltmesi: orta nokta yasaksa egriye (serbest tarafa, sol) izdusur
   const fix = (p, q, out, depth) => {
     const m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; const L = Math.hypot(q[0] - p[0], q[1] - p[1]);
-    if (depth > 10 || L < 0.002 || drop(m[0], m[1]) <= z + tolR) { out.push(q); return; }
+    if (depth > 8 || L < 0.005 || drop(m[0], m[1]) <= z + tolR) { out.push(q); return; }
     const nxl = -(q[1] - p[1]) / L, nyl = (q[0] - p[0]) / L; let t = g / 8; let f = null;
     for (let k = 0; k < 8; k++, t *= 2) { const c = [m[0] + nxl * t, m[1] + nyl * t]; if (drop(c[0], c[1]) <= z) { f = c; break; } }
     if (!f) { out.push(q); return; }
-    let a = f, bq = m; for (let it = 0; it < 16; it++) { const c = [(a[0] + bq[0]) / 2, (a[1] + bq[1]) / 2]; if (drop(c[0], c[1]) > z) bq = c; else a = c; }
+    let a = f, bq = m; for (let it = 0; it < 14; it++) { const c = [(a[0] + bq[0]) / 2, (a[1] + bq[1]) / 2]; if (drop(c[0], c[1]) > z) bq = c; else a = c; }
+    if (Math.hypot(a[0] - m[0], a[1] - m[1]) <= tolR) { out.push(q); return; } // yanal sapma tolerans icinde (dik duvarda dusey fark anlamsiz)
     fix(p, a, out, depth + 1); fix(a, q, out, depth + 1);
   };
   return lines.map((Lr) => {
@@ -225,9 +226,9 @@ function contoursAt(E, Gd, z, tolR) {
   }).filter(Boolean);
 }
 // egim araligindaki kosuya bol
-function splitBySlope(E, L, hs) {
+function splitBySlope(E, L, Gd, SG) {
   if (E.smin <= 0 && E.smax >= 90) return [L];
-  const ok = L.pts.map((p) => { const s = slopeDeg(E.drop, p[0], p[1], hs); return s >= E.smin - 1e-9 && s <= E.smax + 1e-9; });
+  const ok = L.pts.map((p) => { const s = sampleNode(Gd, SG, p[0], p[1]); return s >= E.smin - 1e-9 && s <= E.smax + 1e-9; }); // egim: CL izgarasindan (en yakin dugum)
   if (ok.every(Boolean)) return [L];
   const n = L.pts.length; let s0 = 0; if (L.closed) { s0 = ok.indexOf(false); }
   const out = []; let cur = [];
@@ -245,13 +246,13 @@ export function computeZLevel(op, ctx) {
   const zTop = Math.min(E.h.zTop, hmax); const levels = [];
   for (let k = 1; ; k++) { const z = zTop - k * sd; if (z <= E.zFloor + 1e-6) break; levels.push(z); }
   if (!levels.length) throw cerr('cam.surf.nothing', { op: E.nm });
-  const RM = op.rest ? restMask(E, op, Gd) : null;
+  const RM = op.rest ? restMask(E, op, Gd) : null; const SG = E.smin > 0 || E.smax < 90 ? slopeGrid(Gd) : null;
   const all = []; let nCont = 0;
   for (const z of levels) {
     E.shouldStop();
     const cs = contoursAt(E, Gd, z, tol / 4);
     for (const L of cs) {
-      for (const piece of splitBySlope(E, L, Math.min(0.05, Gd.g / 4))) {
+      for (const piece of splitBySlope(E, L, Gd, SG)) {
         let parts = [piece];
         if (RM) { parts = []; let cur = []; for (const p of piece.pts) { if (sampleNode(Gd, RM, p[0], p[1])) cur.push(p); else { if (cur.length > 1) parts.push({ pts: cur, closed: false }); cur = []; } } if (cur.length > 1) parts.push({ pts: cur, closed: piece.closed && cur.length === piece.pts.length }); }
         for (const pc of parts) { const pts = dir === 'conv' ? pc.pts.slice().reverse() : pc.pts; nCont++; all.push({ z, pts, closed: pc.closed }); }
@@ -420,13 +421,14 @@ export function computeAdaptive3d(op, ctx) {
   const cs = [[bx.min[0] - W, bx.min[1] - W], [bx.max[0] + W, bx.min[1] - W], [bx.max[0] + W, bx.max[1] + W], [bx.min[0] - W, bx.max[1] + W]];
   const Rv = { outer: cs.map((c, i) => P.line(c, cs[(i + 1) % 4])), holes: [] };
   // CL ve parca ust haritalari (hucre merkezleri; izgara clearRegion'dan)
-  let Hc = null, Pt = null;
+  let Hc = null, Pt = null; const memo = new Map();
   const surf = {
     allowAt: (z, G, cx, cy) => {
       if (!Hc) { Hc = new Float64Array(G.nx * G.ny); for (let j = 0; j < G.ny; j++) { E.shouldStop(); for (let i = 0; i < G.nx; i++) Hc[j * G.nx + i] = drop(cx(i), cy(j)); } }
       const m = new Uint8Array(G.nx * G.ny); for (let c = 0; c < m.length; c++) m[c] = Hc[c] <= z + 1e-9 ? 1 : 0; return m;
     },
-    exact: (x, y, z) => drop(x, y) <= z + 1e-9,
+    exact: (x, y, z) => { // ayni noktalar kuru kosu ve asil pasoda tekrar sorulur: nokta basi onbellek (CL z'den bagimsiz)
+      const k = Math.round(x * 1e4) * 1e9 + Math.round(y * 1e4); let v = memo.get(k); if (v === undefined) { v = drop(x, y); if (memo.size > 4e6) memo.clear(); memo.set(k, v); } return v <= z + 1e-9; },
     flatR: E.C.R - E.C.rc, // hizli izin kosulu (clearRegion: flatR >= hucre)
     partTop: (G, cx, cy) => {
       if (!Pt) { const nd = makeDropper(E.IX, makeCutter({ type: 'flat', dia: G.g }, 0)); Pt = new Float64Array(G.nx * G.ny); for (let j = 0; j < G.ny; j++) { E.shouldStop(); for (let i = 0; i < G.nx; i++) Pt[j * G.nx + i] = nd(cx(i), cy(j), -Infinity); } }

@@ -102,8 +102,8 @@ export function makeDropper(IX, C) {
       if (bb[a] <= S[2]) break;
       const k = bk[a];
       for (let p = start[k], pe = start[k + 1]; p < pe; p++) {
-        const t = list[p]; if (st[t] === q) continue; st[t] = q;
-        const o = t * 8; const zm = D[o + 4]; if (zm <= S[2]) continue;
+        const t = list[p]; const o = t * 8; const zm = D[o + 4]; if (zm <= S[2]) break; // kova azalan sirali
+        if (st[t] === q) continue; st[t] = q;
         const ddx = qx < D[o] ? D[o] - qx : qx > D[o + 2] ? qx - D[o + 2] : 0, ddy = qy < D[o + 1] ? D[o + 1] - qy : qy > D[o + 3] ? qy - D[o + 3] : 0;
         const d2 = ddx * ddx + ddy * ddy; if (d2 >= R2) continue;
         if (zm - prof(Math.sqrt(d2)) <= S[2]) continue;
