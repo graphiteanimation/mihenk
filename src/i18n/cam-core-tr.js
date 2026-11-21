@@ -220,4 +220,15 @@ export default {
   "err.cam.pocket.predrill_unverified": "Ön delik (X{x} Y{y}) stok haritasından doğrulanamadı; merkezden kesmeyen takımla dalış yapılmaz. Önce delen işlemi aynı kurulumda ekleyin.",
   "err.cam.pocket.predrill_closed": "Ön delik açık değil (X{x} Y{y}, Z{z} civarında takımın gireceği yerde malzeme var). Önce deliği delin.",
   "err.cam.setup.edge_axis_not_line": "Eksen için seçilen kenar düz bir doğru değil (yay/eğri kenar eksen veremez). Düz bir kenar ya da düzlemsel yüz seçin.",
+  // WP-12
+  "err.cam.adaptive.load_too_big": "Optimum yük ({load} mm) takım çapından ({dia} mm) küçük olmalı.",
+  "err.cam.adaptive.helix_big": "Uyarlanır kabada helis çapı (Ø{helix}) takım çapını (Ø{dia}) aşamaz.",
+  "err.cam.adaptive.rest_tool_small": "Kalan malzeme için önceki takım çapı (Ø{prev}) bu takımdan (Ø{dia}) büyük olmalı.",
+  "err.cam.adaptive.rest_no_stock": "Kalan stok hesaplanamadı (önceki işlemlerin simülasyonu yok ya da hatalı). Önce önceki işlemleri hesaplayın ya da \"önceki takım\" seçeneğini kullanın.",
+  "err.cam.adaptive.region_too_large": "Bölge uyarlanır kaba için çok büyük (hücre {cell} mm). Bölgeyi bölün ya da daha büyük takım kullanın.",
+  "err.cam.adaptive.no_progress": "Uyarlanır kaba yolu ilerlemiyor (iç sınır aşıldı). Optimum yükü ya da bölgeyi değiştirin.",
+  "err.cam.adaptive.nothing": "Bu bölgede işlenecek malzeme yok.",
+  "err.cam.adaptive.no_entry_left": "Yaklaşık {area} mm² malzemeye giriş bulunamadı (helis sığmıyor ve havadan ulaşılamıyor). Helis çapını küçültün ya da bölgeyi önce başka işlemle açın.",
+  "err.cam.flat.nothing": "Seçili yüzlerin üstünde alınacak malzeme yok (yüz stok üstünde).",
+  "err.cam.flat.face_at_top": "{n} yüz stok üstüyle aynı yükseklikte; atlandı.",
 };

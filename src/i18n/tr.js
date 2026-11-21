@@ -5,6 +5,7 @@ import camUi from './cam-ui-tr.js';
 import camUi2 from './cam-ui2-tr.js';
 import hist from './hist-tr.js';
 import drawing from './drawing-tr.js'; // WP-17
+import camWp12 from './cam-wp12-tr.js';
 
 const base = {
   // Ortak
@@ -1040,4 +1041,5 @@ import model from './model-tr.js';
 Object.assign(base, sketchCf); Object.assign(base, model); // WP-09: çizim konforu metinleri
 
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
+Object.assign(base, camWp12); // WP-12
 export default { ...base, ...camCore, ...camPost, ...camUi, ...camUi2, ...hist, ...drawing };

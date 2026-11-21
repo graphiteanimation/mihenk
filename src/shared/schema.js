@@ -97,7 +97,7 @@ const camTool = obj({
 const axisSpec = obj({ kind: oneOf(['base', 'face', 'edge']), dir: oneOf(['+X', '-X', '+Y', '-Y', '+Z', '-Z']), ref: obj(), flip: bool(), auto: bool() });
 const heightRef = obj({ from: oneOf(['stockTop', 'stockBottom', 'modelTop', 'modelBottom', 'selection', 'abs']), off: camNum() });
 const camOp = obj({
-  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer', 'circular', 'threadmill', 'slot', 'trace']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
+  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer', 'circular', 'threadmill', 'slot', 'trace', 'adaptive', 'flat']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
   rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), coolant: oneOf(COOL), suppressed: bool(),
   heights: obj({ clearance: camNum(), retract: camNum(), top: heightRef, bottom: heightRef }),
   geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr, ents: strArr(), reverse: bool() }), CAM_LIMITS.geom),
@@ -117,6 +117,11 @@ const camOp = obj({
   // WP-07: dairesel frezeleme (circular) ve dis frezeleme (threadmill)
   dia: camNum(0), diaAdjust: camNum(), predrillDia: camNum(0), external: bool(), hand: oneOf(['right', 'left']), designation: str(40), major: camNum(0), pitch: camNum(0, 100),
   radialPasses: posInt(20), springPasses: camNum(0, 5), radialAdjust: camNum(-0.2, 0.2), feedAtEdge: bool(), length: camNum(0),
+  // WP-12: uyarlanir kaba, kalan malzeme, yatay temizleme, asagida kal, ilerleme iyilestirme, ince duvar
+  optimalLoad: camNum(0), stayDown: bool(), flatTop: camNum(0),
+  rest: obj({ source: oneOf(['stock', 'tool']), toolDia: camNum(0) }),
+  feedOpt: obj({ corner: obj({ angle: camNum(0, 180), dist: camNum(0), factor: camNum(0, 1), maxR: camNum(0) }), exit: obj({ dist: camNum(0), factor: camNum(0, 1) }) }),
+  thinWall: obj({ enabled: bool(), axialStep: camNum(0) }),
 });
 const camSetup = obj({
   id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),

@@ -140,6 +140,8 @@ const OP = (id, type, name, toolId, rest) => ({ id, type, name, toolId, ...rest 
 S1.ops.push(OP('o1', 'face', '1 Yuzey T20', 'T20', { ...cutd(4500, 2250, 750), heights: hts(T('stockTop'), T('modelTop')), stepover: 40, stepdown: 1, stockToLeave: 0, direction: 0, extend: 2 }));
 ASSUME('o1 face stepover/direction/extend', '40 / 0 / 2', 'Plan: paso 1 mm (2 paso); stepover/yon/extend planda yok');
 S1.ops.push(OP('o2', 'pocket', '2 Dis bosaltma (adaptive karsiligi) T21', 'T21', { ...cutd(8000, 1800, 600), heights: hts(T('modelTop'), T('abs', -16.2)), geom: [sketchSel('sPocket', 'ring')], stepover: 1.2, stepdown: 7.1, stockToLeave: { radial: 0.3, axial: 0 }, entry: { kind: 'ramp', angle: 3 } }));
+// WP-12 kabul (c): P1_ADAPTIF=1 -> o2 gercek uyarlanir kaba (optimum yuk 1,2 = Fusion plani; helis yalniz hava yoksa). Varsayilan (altin taban) degismez.
+if (process.env.P1_ADAPTIF) { const o2 = S1.ops.find((o) => o.id === 'o2'); Object.assign(o2, { type: 'adaptive', name: '2 Dis bosaltma (uyarlanir) T21', optimalLoad: 1.2, entry: { kind: 'helix', angle: 3, helixDia: 10 } }); delete o2.stepover; ASSUME('o2 uyarlanir (P1_ADAPTIF)', 'optimalLoad 1,2; helis D10 3 derece (gerekirse)', 'WP-12 kabul (c)'); }
 ASSUME('o2 pocket entry', 'rampa 3 derece', 'Mihenk pocket giris: helix icin alan yok (dar bant); Fusion adaptive helisel/rampa; aci planda yok');
 ASSUME('o2 pocket dis duvar', 'stok dikdortgeni + 11 mm (sketch sPocket)', 'Mihenk\'te "stok disinda serbest/acik kenar" yok; ada = parca silueti');
 S1.ops.push(OP('o3', 'contour', '3 Kontur bitirme T22', 'T22', { ...cutd(8000, 960, 320), heights: hts(T('modelTop'), T('abs', -16.2)), geom: [sketchSel('sOut', 'all', 'outer')], side: 'outside', dir: 'climb', stepdown: 7.1, stockToLeave: { radial: 0, axial: 0 }, leadIn: { kind: 'arc', r: 3 }, leadOut: { kind: 'arc', r: 3 } }));
@@ -187,7 +189,7 @@ for (const setup of cam.setups) {
     try {
       const tool = tools.find((t) => t.id === op.toolId); const geom = {}; let opx = op;
       if (op.type === 'drill') geom.holes = holesX;
-      if (op.type === 'contour' || op.type === 'pocket') {
+      if (op.type === 'contour' || op.type === 'pocket' || op.type === 'adaptive') {
         if (op.geom?.[0]?.kind === 'chain') { // generateProgram/resolveGeom 'chain' desteklemez: once onu dene ve kaydet
           try { await CAM.resolveGeom(op, S, { rebuild: rbX, doc, query }); o.chain_resolveGeom = 'kabul'; } catch (e) { o.chain_resolveGeom = 'REDDETTI ' + (e.code || e.message); }
           geom.items = [chainItem(S)];

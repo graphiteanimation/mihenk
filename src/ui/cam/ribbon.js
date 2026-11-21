@@ -3,7 +3,7 @@
 // gider (fitRibbon sağdan sola gizler): 1440 piksel genişlikte delik grubu görünür kalır, kesme verisi » menüsünden açılır.
 export const CAM_RIBBON = [
   ['cam-setup', 'cam.grp.setup', ['cam-setup', 'cam-stock', 'cam-machine', 'cam-tools']],
-  ['cam-2d', 'cam.grp.2d', ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive']],
+  ['cam-2d', 'cam.grp.2d', ['cam-op-face', 'cam-op-contour', 'cam-op-pocket', 'cam-op-chamfer', 'cam-op-slot', 'cam-op-trace', 'cam-op-adaptive'], { extra: ['cam-op-flat'] }], // WP-12: Yatay yalnız taşma menüsünde (şerit taşmasın)
   ['cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill']],
   ['cam-3d', 'cam.grp.3d', ['cam-op-surface']],
   ['cam-flow', 'cam.grp.flow', ['cam-tpl', 'cam-holeseq', 'cam-parts', 'cam-units', 'cam-quote']], // WP-14 iş akışı; dar şeritte Kütüphane'den sonra taşar
