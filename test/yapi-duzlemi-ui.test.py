@@ -41,13 +41,18 @@ try:
     def feat(fid): return ev('(id) => app.doc.features.find((f) => f.id === id) || null', fid)
     def status(fid): return ev('(id) => app.result.status[id]', fid)
     def plane_of(fid): return ev('(id) => (app.result.planes && app.result.planes[id]) ? app.result.planes[id].plane : null', fid)
-    def tool(cmd): page.click(f'#toolbar button[data-cmd="{cmd}"]'); page.wait_for_selector('#panel:not(.hidden) #p-ok'); idle()
+    def tool(cmd):
+        if cmd == 'cplane': page.click('#toolbar button[data-cmd="dd-form"]'); page.click('#ddpop [data-cmd="cplane"]')
+        else: page.click(f'#toolbar button[data-cmd="{cmd}"]')
+        page.wait_for_selector('#panel:not(.hidden) #p-ok'); idle()
     def add_feats(feats): ev('async (fs) => { await app.commit((d) => { for (const f of fs) d.features.push(f); }); }', feats); idle()
 
     # ---- araç ve panel
     print('araç ve panel')
     load([])
-    check('Oluştur grubunda "Yapı düzlemi" aracı var', ev('!!document.querySelector("#toolbar button[data-cmd=cplane]")'))
+    page.click('#toolbar button[data-cmd="dd-form"]')
+    check('Oluştur grubunda (Form menüsünde) "Yapı düzlemi" aracı var', ev('!!document.querySelector("#ddpop [data-cmd=cplane]")'))
+    page.click('#toolbar button[data-cmd="dd-form"]')
     tool('cplane')
     check('panel başlığı Yapı düzlemi', 'Yapı düzlemi' in ev('document.querySelector("#panel h3").textContent'), ev('document.querySelector("#panel h3").textContent'))
     check('kip seçenekleri Açıyla / Üç noktadan / Ofset', ev('[...document.querySelectorAll("#panel select[data-k=mode] option")].map((o) => o.textContent)') == ['Açıyla düzlem', 'Üç noktadan düzlem', 'Ofset düzlem'])

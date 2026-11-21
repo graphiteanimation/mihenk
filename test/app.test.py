@@ -496,7 +496,7 @@ try:
         fc.value.set_files(pth); page.wait_for_timeout(500); idle()
         check(f'şema: "{nm}" reddedildi, uyarı gösterildi, mevcut belge aynen korundu', ev('JSON.stringify(app.doc)') == snap and 'açılamadı' in toast_text() and not page.is_visible('#modal:not(.hidden)'), toast_text())
     # daha yeni sürüm: uyarı penceresi; vazgeç = yüklenmez, "Yine de Aç" = yüklenir
-    pth = os.path.join(TMP, 'sec_new.mhnk'); json.dump({'app': 'Mihenk', 'version': 2, 'doc': {'params': [], 'features': [dict(box0, id='nb1', w='77')]}}, open(pth, 'w'))
+    pth = os.path.join(TMP, 'sec_new.mhnk'); json.dump({'app': 'Mihenk', 'version': 3, 'doc': {'params': [], 'features': [dict(box0, id='nb1', w='77')]}}, open(pth, 'w'))
     ev('app.markDirty(false)')
     with page.expect_file_chooser() as fc: menu('Dosya', 'Aç…')
     fc.value.set_files(pth); page.wait_for_selector('#modal:not(.hidden)')
