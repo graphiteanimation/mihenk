@@ -140,5 +140,34 @@ console.log('4. sarma: modele oyma (silindirik izgarada model yaricap isinlari) 
   globalThis.__wrap = { S, tp, P };
 }
 
+console.log('5. G-code sim: eszamanli A (sarma, G93/G94) -- IR sim ile hacim');
+{
+  const { S, tp, P } = globalThis.__wrap;
+  const tools = { 4: normalizeTool(tool10) };
+  const R = resolveRotary(FANUC4), props = resolveProps(getPost(FANUC4.control), FANUC4);
+  const nc = postProgram(P, FANUC4, { date: '2026-01-01', appVersion: '0.6.0', gates: [] }).text;
+  const g = gcodeToProgram(nc, { tools, setups: P.sections.map((s) => s.setup), aMode: wrapAMode(props, R) });
+  const sec = g.program.sections;
+  ok(sec.length === 1 && sec[0].toolpath.wrap?.axis === 'X' && sec[0].setup.id === 'w', 'G-code: tek sarma bolumu, sarma setup\'i: ' + sec.map((s) => s.setup.id).join(','));
+  const ir = simulate(P, { res: 0.2 }), gs = simulate(g.program, { res: 0.2 });
+  ok(ir.removedVolume > 100 && pct(ir.removedVolume, gs.removedVolume) < 1 && !errs(gs).length, `sarma G-code sim hacmi ${gs.removedVolume.toFixed(1)} ~ IR ${ir.removedVolume.toFixed(1)} (< %1): ` + codes(gs));
+  const cutsI = splitWrapMoves(tp, 90).moves.filter((m) => m.t === 'feed'), cutsG = sec[0].toolpath.moves.filter((m) => m.t === 'feed');
+  ok(cutsI.length === cutsG.length && cutsI.every((m, k) => Math.abs(m.a - cutsG[k].a) < 1e-3 && Math.abs(m.f - cutsG[k].f) < 0.05 * m.f + 0.5), 'G93 F -> ilerleme ve surekli A IR ile ayni: ' + cutsG.map((m) => m.a.toFixed(2) + '@' + m.f.toFixed(1)).join(' '));
+  // surekli A kelimesi (kisa yol olmayan makine)
+  const Mc = JSON.parse(JSON.stringify(FANUC4)); Mc.axes.A.shortest = false;
+  const Sc = CAM.resolveSetup(setupDef(), { bodies: [boxBody(17)] }, Mc), Pc = prog1(Sc, [groove(chain([50, -50], [50, 50]), Sc, Mc)], Mc);
+  const gc = gcodeToProgram(postProgram(Pc, Mc, { date: '2026-01-01', appVersion: '0.6.0', gates: [] }).text, { tools, setups: Pc.sections.map((s) => s.setup), aMode: wrapAMode(resolveProps(getPost(Mc.control), Mc), resolveRotary(Mc)) });
+  ok(pct(simulate(gc.program, { res: 0.2 }).removedVolume, simulate(Pc, { res: 0.2 }).removedVolume) < 1, 'surekli A kelimesi: G-code sim = IR sim');
+  // sarma + 3 eksen karisik program (farkli is koordinati)
+  const SM5 = SM.surfaceSample(); const mix = { ...P, sections: [SM5.program.sections[0], ...P.sections] };
+  const ncm = postProgram(mix, FANUC4, { date: '2026-01-01', appVersion: '0.6.0', gates: [] }).text;
+  const toolsM = { ...tools }; for (const s0 of SM5.program.sections) toolsM[s0.toolpath.tool.number] = s0.toolpath.tool;
+  let gm = null; try { gm = gcodeToProgram(ncm, { tools: toolsM, setups: mix.sections.map((s) => s.setup), aMode: wrapAMode(props, R) }); } catch (e) { ok(false, 'karisik G-code okunamadi: ' + e.code + ' ' + JSON.stringify(e.params)); }
+  if (gm) ok(gm.program.sections.length === 2 && !gm.program.sections[0].toolpath.wrap && gm.program.sections[1].toolpath.wrap, 'karisik: ilk bolum duz, ikinci sarma');
+  // sarma setup'i olmadan eszamanli A: eskisi gibi hata
+  let th = null; try { gcodeToProgram(nc, { tools }); } catch (e) { th = e; } ok(th?.code === 'cam.gcode.a_simultaneous', 'sarma setup\'i yok: a_simultaneous hatasi (' + th?.code + ')');
+  th = null; try { gcodeToProgram('T4 M6\nS1000 M3\nG0 G90 G54 X0 Y0\nZ30.\nG93\nG2 X10. Y0. R5. F2.\nM30', { tools, setups: P.sections.map((s) => s.setup) }); } catch (e) { th = e; } ok(th?.code === 'cam.gcode.inverse_arc', 'G93 yay: hata (' + th?.code + ')');
+}
+
 console.log(`\n${pass} gecti, ${fail} kaldi`);
 process.exit(fail ? 1 : 0);
