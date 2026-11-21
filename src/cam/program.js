@@ -11,7 +11,7 @@ export function buildProgram({ name, number = null, machine, sections }) {
   const out = [];
   for (const sec of sections || []) for (const tp of sec.toolpaths || []) {
     const S = sec.setup;
-    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, ...(S.wrap ? { wrap: S.wrap } : {}), stockBox: S.stockBox, stockCyl: S.stockCyl ?? null, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous', ...(S.fixtures?.length ? { fixtures: S.fixtures } : {}) }, toolpath: tp }); // WP-13: baglama govdeleri (setup cercevesinde)
+    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, ...(S.wrap ? { wrap: S.wrap } : {}), stockBox: S.stockBox, stockCyl: S.stockCyl ?? null, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous', ...(S.fixtures?.length ? { fixtures: S.fixtures } : {}), ...(S.toolAxis ? { toolAxis: S.toolAxis } : {}), ...(S.tilt ? { rot: S.rot, tilt: S.tilt } : {}) }, toolpath: tp }); // WP-18: takim ekseni, 3+2 egim // WP-13: baglama govdeleri (setup cercevesinde)
   }
   if (!out.length) throw cerr('cam.program.empty');
   const p = { name, number, machine: machine ? { id: machine.id, name: machine.name, rev: machine.rev ?? null, control: machine.control } : null, units: 'mm', sections: out };
@@ -208,6 +208,7 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
     try {
       const planes = {};
       for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = setup.frame?.[f]; if (ax?.kind === 'face' || ax?.kind === 'edge') planes[k] = await axisPlane(query, ax); }
+      if (setup.tilt?.enabled && setup.tilt.kind === 'face') planes.tilt = await axisPlane(query, { kind: 'face', ref: setup.tilt.ref }); // WP-18
       S = resolveSetup(setup, rebuild, machine, { planes });
       // T-04: setup.stockFrom 'previous' (varsayilan) | 'blank' (zincir yok, ham stok). Gecersiz deger: muhafazakar 'blank'.
       S = { ...S, stockFrom: setup.stockFrom == null ? 'previous' : setup.stockFrom === 'previous' ? 'previous' : 'blank' };

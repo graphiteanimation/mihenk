@@ -5,6 +5,7 @@ import { icon } from '../icons.js';
 import { t, errText, fmtNum } from '../../shared/i18n.js';
 import { checkMachine, copyMachine, builtinMachines, GENERIC_3AXIS_ID } from '../../cam/machines/builtin.js';
 import { exportMachines, importMachines } from '../../cam/machines/io.js';
+import { normalizeMachine, rotaryNames } from '../../cam/kinematics.js';
 import { listPosts, getPost } from '../../cam/post/index.js';
 import { resolveProps, CONDITIONAL_PROPS } from '../../cam/post/engine.js';
 import { PP, PP_ORDER } from './postopts.js';
@@ -46,7 +47,7 @@ export function newMachineTemplate() {
 export async function editMachine(machine, { isNew = false } = {}) {
   const d = clone(machine); if (!d.post) d.post = { props: {} }; if (!d.post.props) d.post.props = {};
   let tab = 'general'; const body = h('div', { class: 'mc-ed', 'data-testid': 'machine-editor' }); const errBox = h('div', { class: 'mc-err' });
-  const TABS = [['general', 'cam.mc.tab_general'], ['axes', 'cam.mc.tab_axes'], ['spindle', 'cam.mc.tab_spindle'], ['protected', 'cam.mc.tab_protected'], ['post', 'cam.mc.tab_post']];
+  const TABS = [['general', 'cam.mc.tab_general'], ['axes', 'cam.mc.tab_axes'], ['spindle', 'cam.mc.tab_spindle'], ['kin', 'cam.mk.tab'], ['protected', 'cam.mc.tab_protected'], ['post', 'cam.mc.tab_post']];
   const segEl = h('div', { class: 'seg', role: 'group', 'aria-label': t('cam.mc.sections') });
   const refreshErr = () => {
     const r = checkMachine(d); errBox.replaceChildren();
@@ -72,7 +73,7 @@ export async function editMachine(machine, { isNew = false } = {}) {
         num(t('cam.mc.max'), () => a.max ?? null, (v) => { a.max = v; }, { unit: 'mm', min: -1e6, f: 'ax-' + k + '-max' }));
     }
     rows.push(sec(t('cam.mc.axis', { axis: 'A' })));
-    rows.push(checkField({ label: t('cam.mc.a_enabled'), value: !!d.axes.A, f: 'ax-A-on', set: (on) => { if (on) d.axes.A = { kind: 'rotary', about: 'X', dir: [-1, 0, 0], limits: null, shortest: true, wrap: null, rapid: null, feedMax: null, centerHeight: null, clamp: { lock: 'M10', unlock: 'M11', output: false } }; else delete d.axes.A; draw(); refreshErr(); } }));
+    rows.push(checkField({ label: t('cam.mc.a_enabled'), value: !!d.axes.A, f: 'ax-A-on', set: (on) => { if (on) d.axes.A = { kind: 'rotary', about: 'X', dir: [-1, 0, 0], limits: null, shortest: true, wrap: null, rapid: null, feedMax: null, centerHeight: null, clamp: { lock: 'M10', unlock: 'M11', output: false } }; else delete d.axes.A; if (d.kinematics) syncKin(); draw(); refreshErr(); } }));
     const A = d.axes.A;
     if (A) {
       rows.push(selField({ label: t('cam.mc.a_dir'), value: A.dir[0] < 0 ? '-' : '+', f: 'ax-A-dir', opts: [['-', t('cam.mc.a_dir_neg')], ['+', t('cam.mc.a_dir_pos')]], hint: t('cam.mc.a_dir_hint'), set: (v) => { A.dir = [v === '-' ? -1 : 1, 0, 0]; refreshErr(); } }));
@@ -87,6 +88,44 @@ export async function editMachine(machine, { isNew = false } = {}) {
       rows.push(checkField({ label: t('cam.mc.a_clamp'), value: !!A.clamp.output, f: 'ax-A-clamp', hint: t('cam.mc.a_clamp_hint'), set: (v) => { A.clamp.output = v; draw(); refreshErr(); } }));
       if (A.clamp.output) rows.push(textField({ label: t('cam.mc.a_lock'), value: A.clamp.lock, f: 'ax-A-lock', max: 8, set: (v) => { A.clamp.lock = v; refreshErr(); } }), textField({ label: t('cam.mc.a_unlock'), value: A.clamp.unlock, f: 'ax-A-unlock', max: 8, set: (v) => { A.clamp.unlock = v; refreshErr(); } }));
     }
+    return rows;
+  };
+  // WP-18: kinematik zincir (doner eksenlerin konumu tabla/kafa, yon, sinir, merkez; zincir sirasi, cozum tercihi, egik cikis bicimi)
+  const syncKin = () => { const k0 = d.kinematics || {}; const n = normalizeMachine({ ...d, kinematics: { ...k0, chain: null, order: null } }); d.kinematics = { ...n.kinematics, order: Array.isArray(k0.order) && k0.order.length === n.kinematics.order.length && n.kinematics.order.every((x) => k0.order.includes(x)) && !checkOrder(k0.order) ? k0.order : n.kinematics.order, prefer: k0.prefer ?? null, tiltOutput: k0.tiltOutput ?? 'plane' }; d.kinematics.chain = normalizeMachine({ ...d, kinematics: { ...d.kinematics, chain: null } }).kinematics.chain; };
+  const checkOrder = (o) => { const on = o.map((x) => d.axes[x]?.on || 'table'); return on.indexOf('head') >= 0 && on.lastIndexOf('table') > on.indexOf('head'); };
+  const drawKin = () => {
+    if (d.kinematics) syncKin();
+    const rows = [h('div', { class: 'help', text: t('cam.mk.intro') })];
+    const names = rotaryNames(d);
+    const ABOUT = { B: ['Y', [0, 1, 0]], C: ['Z', [0, 0, 1]] };
+    for (const k of ['B', 'C']) {
+      const full = !d.axes[k] && names.length >= 2; // en cok iki doner eksen (3+2)
+      rows.push(checkField({ label: t('cam.mk.axis_on', { axis: k }), value: !!d.axes[k], f: 'mk-' + k + '-on', hint: full ? t('cam.mk.max2') : null, set: (on) => {
+        if (on) d.axes[k] = { kind: 'rotary', about: ABOUT[k][0], dir: ABOUT[k][1].slice(), on: 'table', center: null, limits: null, shortest: false, wrap: null, rapid: null, feedMax: null, clamp: { lock: null, unlock: null, output: false } }; else delete d.axes[k];
+        syncKin(); draw(); refreshErr(); } }));
+      if (full) rows.at(-1).input.disabled = true;
+    }
+    if (!names.length) { rows.push(h('div', { class: 'note', 'data-testid': 'mk-none', text: t('cam.mk.none') })); return rows; }
+    for (const k of names) {
+      const a = d.axes[k]; const idx = { X: 0, Y: 1, Z: 2 }[a.about];
+      rows.push(sec(t('cam.mk.rot_axis', { axis: k, about: a.about })),
+        selField({ label: t('cam.mk.on'), value: a.on || 'table', f: 'mk-' + k + '-place', opts: [['table', t('cam.mk.on_table')], ['head', t('cam.mk.on_head')]], set: (v) => { a.on = v; syncKin(); draw(); refreshErr(); } }));
+      if (k !== 'A') { // A yonu ve sinirlari Eksenler sekmesinde
+        rows.push(selField({ label: t('cam.mk.dir'), value: a.dir[idx] < 0 ? '-' : '+', f: 'mk-' + k + '-dir', opts: [['+', t('cam.mk.dir_pos', { about: a.about })], ['-', t('cam.mk.dir_neg', { about: a.about })]], set: (v) => { a.dir = [0, 0, 0]; a.dir[idx] = v === '-' ? -1 : 1; refreshErr(); } }));
+        rows.push(checkField({ label: t('cam.mc.a_unlimited'), value: a.limits == null, f: 'mk-' + k + '-unl', set: (on) => { a.limits = on ? null : [-360, 360]; draw(); refreshErr(); } }));
+        if (a.limits) rows.push(num(t('cam.mc.a_lim_min'), () => a.limits[0], (v) => { if (v !== null) a.limits[0] = v; }, { unit: '°', nullable: false, min: -1e5, f: 'mk-' + k + '-lmin' }), num(t('cam.mc.a_lim_max'), () => a.limits[1], (v) => { if (v !== null) a.limits[1] = v; }, { unit: '°', nullable: false, min: -1e5, f: 'mk-' + k + '-lmax' }));
+      }
+      ['X', 'Y', 'Z'].forEach((c, i) => rows.push(num(t('cam.mk.center', { c }), () => a.center?.[i] ?? null, (v) => { if (v === null) a.center = null; else { a.center = Array.isArray(a.center) ? a.center : [0, 0, 0]; a.center[i] = v; } }, { unit: 'mm', min: -1e6, f: `mk-${k}-c${c}` })));
+    }
+    if (!d.kinematics) syncKin();
+    const K = d.kinematics;
+    rows.push(sec(t('cam.mk.chain_sec')), fld(t('cam.mk.chain'), h('span', { 'data-testid': 'mk-chain', text: t({ table: 'cam.mk.chain_table', head: 'cam.mk.chain_head', 'table-table': 'cam.mk.chain_table-table', 'head-table': 'cam.mk.chain_head-table', 'head-head': 'cam.mk.chain_head-head' }[K.chain] || 'cam.mk.chain_null') })));
+    if (names.length === 2) {
+      const opts = [names, names.slice().reverse()].filter((o) => !checkOrder(o)).map((o) => [o.join(','), o.join(' → ')]);
+      rows.push(selField({ label: t('cam.mk.order'), value: K.order.join(','), f: 'mk-order', hint: t('cam.mk.order_hint'), opts, set: (v) => { K.order = v.split(','); refreshErr(); } }));
+      rows.push(selField({ label: t('cam.mk.prefer'), value: K.prefer ?? '', f: 'mk-prefer', hint: t('cam.mk.prefer_hint'), opts: [['', t('cam.mk.prefer_none')], ['positive', t('cam.mk.prefer_pos')], ['negative', t('cam.mk.prefer_neg')]], set: (v) => { K.prefer = v || null; refreshErr(); } }));
+    }
+    rows.push(selField({ label: t('cam.mk.output'), value: K.tiltOutput, f: 'mk-output', hint: t('cam.mk.output_hint'), opts: [['plane', t('cam.mk.out_plane')], ['unwound', t('cam.mk.out_unwound')]], set: (v) => { K.tiltOutput = v; refreshErr(); } }));
     return rows;
   };
   const drawSpindle = () => [
@@ -143,7 +182,7 @@ export async function editMachine(machine, { isNew = false } = {}) {
     }
     return rows;
   };
-  const DRAW = { general: drawGeneral, axes: drawAxes, spindle: drawSpindle, protected: drawProtected, post: drawPost };
+  const DRAW = { general: drawGeneral, axes: drawAxes, spindle: drawSpindle, kin: drawKin, protected: drawProtected, post: drawPost };
   function draw() {
     segEl.replaceChildren(...TABS.map(([id, key]) => h('button', { type: 'button', 'aria-pressed': String(id === tab), 'data-testid': 'mc-tab-' + id, onclick: () => { tab = id; draw(); } }, t(key))));
     body.replaceChildren(...DRAW[tab]());

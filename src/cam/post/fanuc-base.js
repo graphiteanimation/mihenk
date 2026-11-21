@@ -5,6 +5,7 @@ import { createFormat, createVariable, createModal, sanitizeComment, perr, isEmp
 import { wrapMoveLen, wrapSteps } from '../ir.js';
 import { describeIssue } from './describe.js';
 import { expandCyclePoint } from '../cycles.js';
+import { kinOf, fmtAng } from '../kinematics.js';
 
 export const FANUC_DEFAULT_PROPS = {
   lineNumbers: false, lineNumberStart: 10, lineNumberStep: 10,
@@ -112,7 +113,7 @@ export function createFanucPost(over = {}) {
       prog.sections.forEach((sec) => {
         const st = sec.setup, id = st.id ?? st.name ?? ''; if (seen.has(id)) return; seen.add(id);
         const stock = size(st.stockBox), part = size(st.modelBBox);
-        cm(`SETUP ${seen.size} ${st.name ?? id}${st.workOffset?.kind ? ' WCS ' + st.workOffset.kind : ''}${stock ? ' STOCK ' + stock : ''}${part ? ' PART ' + part : ''}${st.aAngle != null ? ' A ' + f1(st.aAngle) : ''}`);
+        cm(`SETUP ${seen.size} ${st.name ?? id}${st.workOffset?.kind ? ' WCS ' + st.workOffset.kind : ''}${stock ? ' STOCK ' + stock : ''}${part ? ' PART ' + part : ''}${st.aAngle != null ? ' A ' + f1(st.aAngle) : ''}${st.rot ? ' ' + fmtAng(st.rot) : ''}`);
       });
       cm(`GENERATED ${o.generatedAt || o.date || new Date().toISOString()}`);
     },
@@ -141,6 +142,9 @@ export function createFanucPost(over = {}) {
       }
       // 3+1: A isareti (machine.axes.A.dir) tezgahta isaretli parcayla teyit edilmeden NC'ye guvenilmez (V-01)
       if (this.rotary && prog.sections.some((s) => s.setup.aAngle != null || s.toolpath.wrap)) this.writeComment('WARNING A AXIS DIRECTION NOT VERIFIED - CONFIRM ON MACHINE WITH A MARKED PART BEFORE CUTTING');
+      // WP-18: 3+2 egik setup varsa coklu doner eksen yolu (yoksa eski 3+1 yolu birebir)
+      this.tiltProg = prog.sections.some((s) => s.setup.rot);
+      if (this.tiltProg) { this.kin = kinOf(this.machine); this.writeComment('WARNING 3+2 TILTED SETUP - TEST OUTPUT - ROTARY KINEMATICS NOT VERIFIED ON MACHINE'); }
       const gates = o.gates || [];
       const nb = gates.filter((g) => g.level === 'block').length, nw = gates.filter((g) => g.level === 'warn').length;
       this.writeComment(`GATES ${nb} BLOCK ${nw} WARN`);
@@ -165,7 +169,8 @@ export function createFanucPost(over = {}) {
         if (this.inch) this.fail('cam.post.wrap_inch');
         post._wrapMode.call(this); // bicim hatasi erken
       }
-      const wo = st.workOffset, key = `${wo?.kind}|${wo?.p ?? ''}|${wrap ? 'W' : ''}${a0}`;
+      if (wrap && this.tiltProg) this.fail('cam.post.wrap_tilt_mix');
+      const wo = st.workOffset, key = `${wo?.kind}|${wo?.p ?? ''}|${wrap ? 'W' : ''}${a0}${st.rot ? '|' + fmtAng(st.rot) : ''}`;
       // program durdurma (M00/M01) varsa sadelestirme YOK: durmadan once M5/M9, sonra S M3 ve sogutma yeniden (mil/sogutma acikken durma yok)
       const keep = !p.optionalStop && S.tool === tp.tool.number && S.setupKey === key && !!S.spindle;
       const dirSame = keep && S.spindle.dir === tp.spindleDir;
@@ -175,7 +180,7 @@ export function createFanucPost(over = {}) {
       if (S.coolant !== 'off' && !coolSame) { this.writeBlock(post._coolantCode.call(this, 'off')); S.coolant = 'off'; }
       if (p.optionalStop) this.writeBlock('M01');
       if (S.tool !== tp.tool.number) { this.writeBlock('T' + tp.tool.number, p.toolChangeCode); S.tool = tp.tool.number; }
-      post._indexRotary.call(this, wrap ? post._wrapNorm.call(this, a0) : a0);
+      if (this.tiltProg) post._tiltSection.call(this, st); else post._indexRotary.call(this, wrap ? post._wrapNorm.call(this, a0) : a0);
       if (wrap) { S.aCont = a0; S.aWord = S.aCur; }
       if (!rpmSame) {
         if (dirSame) { const sv = Math.round(tp.rpm); if (!(sv >= 1)) this.fail('cam.post.bad_rpm', { rpm: tp.rpm }); this.writeBlock('S' + sv); S.spindle = { rpm: tp.rpm, dir: tp.spindleDir }; }
@@ -273,6 +278,44 @@ export function createFanucPost(over = {}) {
       if (!this.section?.toolpath?.wrap || a == null || !this.state.positioned) this.fail('cam.post.wrap_move');
       post._wrapMove.call(this, 1, x, y, z, a, f);
     },
+    // WP-18: 3+2. Hedef acilar: egik setup'ta st.rot, digerlerinde 0 (A: aAngle). 'plane': G68.2 (Euler ZXZ) + G53.1 (kontrol doner
+    // eksenleri kendi kinematik parametresiyle konumlar); 'unwound': G0 ile doner acilar, XYZ onceden makineye cevrilmis (runPost).
+    _tiltSection(st) {
+      const K = this.kin, S = this.state;
+      if (this.props.rotaryMode !== '6a') this.fail('cam.post.tilt_needs_nc_rotary', {});
+      const target = {}; for (const k of K.names) target[k] = st.rot ? (st.rot[k] ?? 0) : k === 'A' && st.aAngle != null ? st.aAngle : 0;
+      if (st.rot && st.tilt?.mode === 'plane') {
+        const w = st.workOffset; let wcs = w.kind;
+        if (w.kind === 'G54.1') { const [lo, hi] = this.need('g541Range'); if (w.p < lo || w.p > hi) this.fail('cam.post.wcs_range', { p: w.p, min: lo, max: hi }); wcs = 'G54.1 P' + w.p; }
+        const e = st.tilt.euler, A3 = (pre, v) => createFormat({ prefix: pre, decimals: 3 }).format(v);
+        this.writeComment(`TILTED PLANE ${fmtAng(target)} - CONTROL SELECTS ROTARY SOLUTION`);
+        post._clamp.call(this, 'COMMAND_UNLOCK_MULTI_AXIS');
+        this.writeBlock('G90', wcs);
+        this.writeBlock('G68.2', 'X0.', 'Y0.', 'Z0.', A3('I', e[0]), A3('J', e[1]), A3('K', e[2]));
+        this.writeBlock('G53.1');
+        post._clamp.call(this, 'COMMAND_LOCK_MULTI_AXIS');
+        S.tiltOn = true; S.rotCur = { ...target }; this.g.motion.reset();
+        return;
+      }
+      post._indexRotaries.call(this, target);
+    },
+    _clamp(cmd) { const K = this.kin, seen = new Set(); for (const k of K.names) { const c = this.machine.axes[k].clamp; if (!c?.output) continue; const code = cmd === 'COMMAND_UNLOCK_MULTI_AXIS' ? c.unlock : c.lock; if (code == null) throw perr('cam.post.prop_missing', { prop: `machine.axes.${k}.clamp`, post: this.post.id }); if (!seen.has(code)) { seen.add(code); this.writeBlock(code); } } },
+    _indexRotaries(target) {
+      const S = this.state, cur = S.rotCur || null; const words = [];
+      for (const k of this.kin.names) {
+        let v = target[k]; const ax = this.machine.axes[k];
+        if (ax.wrap === '0-360') v = ((v % 360) + 360) % 360;
+        if (Array.isArray(ax.limits) && (v < ax.limits[0] - 1e-9 || v > ax.limits[1] + 1e-9)) this.fail('cam.post.a_out_of_limits', { angle: v, min: ax.limits[0], max: ax.limits[1] });
+        if (cur && Math.abs((cur[k] ?? NaN) - v) < 1e-6) continue;
+        words.push(createFormat({ prefix: k, decimals: 3 }).format(Math.abs(v) < 1e-9 ? 0 : v));
+      }
+      if (!words.length) return;
+      post._clamp.call(this, 'COMMAND_UNLOCK_MULTI_AXIS');
+      this.writeBlock('G0', ...words);
+      post._clamp.call(this, 'COMMAND_LOCK_MULTI_AXIS');
+      S.rotCur = { ...(cur || {}), ...target }; if (target.A != null) S.aCur = target.A;
+      this.g.motion.reset();
+    },
 
     onSpindleSpeed(rpm, dir) {
       const s = Math.round(rpm);
@@ -307,7 +350,7 @@ export function createFanucPost(over = {}) {
           if (w.p < lo || w.p > hi) this.fail('cam.post.wcs_range', { p: w.p, min: lo, max: hi });
           wcs = 'G54.1 P' + w.p;
         } else wcs = w.kind;
-        this.writeBlock('G0', 'G90', wcs, this.v.x.formatForced(x), this.v.y.formatForced(y));
+        this.writeBlock('G0', 'G90', st.tiltOn ? '' : wcs, this.v.x.formatForced(x), this.v.y.formatForced(y)); // WP-18: G68.2 etkinken WCS yeniden secilmez
         this.g.motion.format(0);
         this.writeBlock('G43', 'H' + tp.tool.H, this.v.z.formatForced(z));
         const cc = tp.coolant;
@@ -447,13 +490,15 @@ export function createFanucPost(over = {}) {
     onSectionEnd() {
       if (this.state.cycle) this.writeBlock('G80');
       post._g94.call(this);
+      if (this.state.tiltOn) { this.writeBlock('G69'); this.state.tiltOn = false; post._resetPos.call(this); this.g.motion.reset(); this.state.positioned = false; } // WP-18: egik duzlem iptali (takim yerel guvenli yukseklikte)
     },
 
     onClose() {
       const p = this.props, st = this.state;
       this.writeComment('END OF PROGRAM');
       post._safeRetract.call(this);
-      if (p.rotaryMode === '6a' && this.rotary && p.aReturnZero) post._indexRotary.call(this, 0);
+      if (this.tiltProg) { if (p.aReturnZero) post._indexRotaries.call(this, Object.fromEntries(this.kin.names.map((k) => [k, 0]))); }
+      else if (p.rotaryMode === '6a' && this.rotary && p.aReturnZero) post._indexRotary.call(this, 0);
       else if (p.rotaryMode === '6b' && (st.aShown ?? 0) !== 0) this.writeComment('RESET INDEXER TO ZERO');
       if (st.spindle) this.writeBlock('M5');
       if (st.coolant !== 'off') this.writeBlock(post._coolantCode.call(this, 'off'));

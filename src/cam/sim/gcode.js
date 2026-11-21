@@ -16,9 +16,10 @@
 // Donus: { program, events: [{line, ev, ...}], lineMap: [{section, move} | null] (satir basina) }.
 import { KErr } from '../../shared/errors.js';
 import { computeStats, ARC_MIN_CHORD } from '../ir.js';
+import { eulerMat, matT, matVec } from '../kinematics.js';
 
 const gerr = (code, params = {}) => new KErr(code, params);
-const LETTERS = 'NOGMXYZAIJKRQPFSTHDL';
+const LETTERS = 'NOGMXYZABCIJKRQPFSTHDL'; // WP-18: B/C doner indeksleme
 const CYC = { 81: 'drill', 82: 'drill', 83: 'peck', 73: 'chipbreak', 84: 'tap', 74: 'tap', 85: 'ream', 86: 'bore', 88: 'bore', 89: 'bore', 76: 'fineBore', 87: 'backBore' }; // WP-14 IR: fineBore (G76), backBore (G87)
 const IGNORED_G = new Set([5, 5.1, 8, 9, 15, 61, 61.1, 64, 94, 17.1]);
 
@@ -43,12 +44,28 @@ export function gcodeToProgram(text, opts = {}) {
   const lines = String(text).split(/\r?\n/);
   const events = []; const lineMap = lines.map(() => null); const sections = [];
   const S = { motion: null, plane: 17, inc: false, scale: 1, x: null, y: null, z: null, f: null, rpm: null, dir: 'cw', T: null, pendT: null, H: null, D: null,
-    wcs: { kind: 'G54' }, a: 0, comp: null, cyc: null, retMode: 98, end: false };
+    wcs: { kind: 'G54' }, a: 0, comp: null, cyc: null, retMode: 98, end: false, rot: { B: 0, C: 0 }, tilt: null };
   let cur = null;
   const near = (a, b) => Math.abs(a - b) < 1e-6;
   const fail = (code, ln, p = {}) => { throw gerr(code, { line: ln, ...p }); };
   const wcsKey = (w) => (w.kind === 'G54.1' ? 'G54.1P' + w.p : w.kind);
+  // WP-18: egik duzlem (G68.2) ve B/C acilari. Eslesen setup'in yerel koordinatina gecis otelemesi (off): G68.2'de W^T o,
+  // acilmis cikista -shift (kurulum setup.tilt.shift tasir). Eslesmeyen egik bolumde cerceve yok (oteleme 0).
+  const sameW = (A, B) => A && B && A.every((r, i) => r.every((v, j) => Math.abs(v - B[i][j]) < 2e-4));
+  const rotNow = () => ({ A: S.a, B: S.rot.B, C: S.rot.C });
+  const tiltSetup = () => {
+    if (S.tilt) { const hit = (opts.setups || []).find((s) => s.workOffset && wcsKey(s.workOffset) === wcsKey(S.wcs) && s.tilt?.mode === 'plane' && sameW(s.tilt.W, S.tilt.W)); return { hit, off: matVec(matT(S.tilt.W), S.tilt.o) }; }
+    const r = rotNow(); const hit = (opts.setups || []).find((s) => s.workOffset && wcsKey(s.workOffset) === wcsKey(S.wcs) && s.rot && s.tilt?.mode === 'unwound' && ['A', 'B', 'C'].every((k) => near360(s.rot[k] ?? 0, r[k] ?? 0)));
+    return { hit, off: hit?.tilt?.shift ? hit.tilt.shift.map((v) => -v) : null };
+  };
+  const near360 = (a, b) => { const d = (((a - b) % 360) + 540) % 360 - 180; return Math.abs(d) < 1e-3; };
   const setupFor = () => {
+    if (S.tilt || Math.abs(S.rot.B) > 1e-9 || Math.abs(S.rot.C) > 1e-9 || (opts.setups || []).some((s) => s.rot && s.tilt?.mode === 'unwound' && near360(s.rot.A ?? 0, S.a))) {
+      const { hit, off } = tiltSetup();
+      if (hit) return { ...hit, _off: off };
+      if (S.tilt) return { id: wcsKey(S.wcs) + '@G68.2', name: wcsKey(S.wcs), workOffset: { ...S.wcs }, aAngle: null, _off: off };
+      if (Math.abs(S.rot.B) > 1e-9 || Math.abs(S.rot.C) > 1e-9) return { id: wcsKey(S.wcs) + '@' + JSON.stringify(rotNow()), name: wcsKey(S.wcs), workOffset: { ...S.wcs }, aAngle: null, rot: rotNow() };
+    }
     const a = S.a; const hit = (opts.setups || []).find((s) => s.workOffset && wcsKey(s.workOffset) === wcsKey(S.wcs) && near(((s.aAngle ?? 0) % 360 + 360) % 360, ((a % 360) + 360) % 360));
     if (hit) return hit;
     return { id: wcsKey(S.wcs) + (near(a, 0) ? '' : '@A' + a), name: wcsKey(S.wcs), workOffset: { ...S.wcs }, aAngle: near(a, 0) ? null : a };
@@ -64,6 +81,11 @@ export function gcodeToProgram(text, opts = {}) {
   const emit = (mv, ln) => { const c = open(ln); c.moves.push(mv); c.lines.push(ln); lineMap[ln - 1] = { section: sections.length, move: c.moves.length - 1 }; };
   const close = () => {
     if (!cur) return; const c = cur; cur = null; if (!c.moves.length) return;
+    const off = c.setup._off; delete c.setup._off;
+    if (off && off.some((v) => Math.abs(v) > 1e-12)) for (const m of c.moves) { // WP-18: NC koordinati -> setup yerel
+      if (m.x != null) m.x += off[0]; if (m.y != null) m.y += off[1]; if (m.z != null) m.z += off[2];
+      if (m.t === 'cycle') { m.points = m.points.map((p) => [p[0] + off[0], p[1] + off[1]]); for (const k of ['top', 'bottom', 'retract', 'clearance', 'cutTo']) if (m[k] != null) m[k] += off[2]; }
+    }
     if (S.comp) throw gerr('cam.gcode.comp_left_on', { line: c.lines[c.lines.length - 1] });
     let zmax = -Infinity; for (const m of c.moves) { if (m.z != null && m.z > zmax) zmax = m.z; if (m.t === 'cycle' && m.clearance > zmax) zmax = m.clearance; }
     const home = Number.isFinite(opts.homeZ) ? Math.max(opts.homeZ, zmax) : zmax;
@@ -95,8 +117,11 @@ export function gcodeToProgram(text, opts = {}) {
     const W = (l) => { const ws = words.filter((w) => w.l === l); if (ws.length > 1 && l !== 'G' && l !== 'M') fail('cam.gcode.bad_word', ln, { text: l + ' x2' }); return ws[0]; };
     const Gs = words.filter((w) => w.l === 'G').map((w) => w.v), Ms = words.filter((w) => w.l === 'M').map((w) => w.v);
     if (W('O')) fail('cam.gcode.bad_word', ln, { text: 'O' });
-    let newMotion = null, retract = false, machineCoord = false, compReq, wantCyc = null, dwell = false;
+    let newMotion = null, retract = false, machineCoord = false, compReq, wantCyc = null, dwell = false, tiltReq = false;
     for (const g of Gs) {
+      if (g === 68.2) { tiltReq = true; continue; } // WP-18: egik duzlem (X Y Z = orijin, I J K = Euler ZXZ)
+      if (g === 53.1) { events.push({ line: ln, ev: 'toolAxis' }); continue; } // takim yonlendirme: doner eksenler kontrolce (sim: cerceve G68.2'den)
+      if (g === 69) { if (S.tilt) { close(); finishCycle(); S.tilt = null; } continue; }
       if (g === 0 || g === 1 || g === 2 || g === 3) newMotion = g;
       else if (g === 17 || g === 18 || g === 19) S.plane = g;
       else if (g === 90) S.inc = false; else if (g === 91) S.inc = true;
@@ -132,6 +157,11 @@ export function gcodeToProgram(text, opts = {}) {
     const fw = W('F'); if (fw && wantCyc == null) S.f = fw.v * S.scale;
     const hasXYZ = X != null || Y != null || Z != null;
     if (endProg) { close(); S.end = true; return; }
+    if (tiltReq) {
+      if (S.cyc || S.comp) fail('cam.gcode.unsupported', ln, { what: 'G68.2' });
+      const ang = ['I', 'J', 'K'].map((l) => W(l)?.v ?? 0); const o = [X ?? 0, Y ?? 0, Z ?? 0];
+      close(); S.tilt = { o, W: eulerMat(...ang), e: ang }; S.x = S.y = S.z = null; events.push({ line: ln, ev: 'tiltPlane', euler: ang, origin: o }); return;
+    }
     if (retract || machineCoord) { // guvenli geri cekilme: Z eve; XY verilirse konum bilinmez olur
       if (A) fail('cam.gcode.unsupported', ln, { what: 'A' });
       if (retract && !S.inc && Z != null && cur && !cur.first) { ensureStart(ln); emit({ t: 'rapid', x: S.x, y: S.y, z: Z }, ln); } // G90 G28: ara nokta
@@ -139,9 +169,12 @@ export function gcodeToProgram(text, opts = {}) {
       events.push({ line: ln, ev: 'retract', method: retract ? 'G28' : 'G53' }); return;
     }
     if (dwell) return; // bekleme: hareketsiz
-    if (A) {
+    const Bw = W('B'), Cw = W('C');
+    if (A || Bw || Cw) {
       if (hasXYZ || newMotion === 1 || newMotion === 2 || newMotion === 3 || (newMotion == null && S.motion !== 0 && S.motion != null)) fail('cam.gcode.a_simultaneous', ln);
-      const na = S.inc ? S.a + A.v : A.v; if (!near(na, S.a)) { close(); S.a = na; } events.push({ line: ln, ev: 'aIndex', a: na });
+      if (S.tilt && (A || Bw || Cw)) fail('cam.gcode.unsupported', ln, { what: 'G68.2 + rotary' });
+      if (A) { const na = S.inc ? S.a + A.v : A.v; if (!near(na, S.a)) { close(); S.a = na; } events.push({ line: ln, ev: 'aIndex', a: na }); }
+      for (const [k, w] of [['B', Bw], ['C', Cw]]) if (w) { const nv = S.inc ? S.rot[k] + w.v : w.v; if (!near(nv, S.rot[k])) { close(); S.rot[k] = nv; } events.push({ line: ln, ev: 'rotIndex', axis: k, value: nv }); }
       if (newMotion != null) S.motion = newMotion; return;
     }
     // ---- delik cevrimi

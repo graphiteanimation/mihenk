@@ -3,6 +3,8 @@ export default {
   "err.cam.ir.a_without_wrap": "Takım yolu hareketi {move}: A değeri yalnız sarma (eşzamanlı X/A) yolunda olabilir.",
   "err.cam.ir.wrap_move": "Takım yolu hareketi {move}: sarma yolunda '{t}' hareketi olamaz (yaylar doğruya bölünür, telafi yok).",
   "err.cam.post.wrap_a_format": "Sarma için A kelimesi biçimi seçilemedi: makine profilinde A biçimi '{wrap}'. Post özelliği wrapAWord'ü 'continuous' ya da 'shortest' yapın.",
+  "err.cam.wrap.tilt_conflict": "Sarma kipi ve 3+2 eğim aynı setup'ta kullanılamaz.",
+  "err.cam.post.wrap_tilt_mix": "Sarma bölümleri ile 3+2 eğik setup'lar aynı NC programında birleştirilemez; ayrı programlarda çıkarın.",
   "err.cam.post.wrap_needs_nc_a": "Sarma (eşzamanlı X/A) NC'de A ekseni ister: makine profilinde A yok ya da döner eksen kipi '6b' (elle indeks).",
   "err.cam.post.wrap_inch": "Sarma işlemi inç (G20) çıkışında desteklenmiyor; mm seçin.",
   "err.cam.post.wrap_move": "Post iç hatası: sarma hareketi beklenmedik yerde.",

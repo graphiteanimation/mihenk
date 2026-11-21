@@ -18,6 +18,7 @@ export const irErr = (code, params = {}) => new KErr(code, params);
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isInt = (v) => Number.isInteger(v);
+const isUnit = (v) => Array.isArray(v) && v.length === 3 && v.every(isNum) && Math.abs(Math.hypot(...v) - 1) < 1e-6;
 
 // ---------------------------------------------------------------- uretim yardimcilari
 export const mk = {
@@ -218,6 +219,7 @@ export function toolpathErrors(tp, firstOnly = false) {
     if (m.t === 'rapid' || m.t === 'feed' || m.t === 'arc') {
       for (const a of ['x', 'y', 'z']) if (!isNum(m[a])) { if (bad('cam.ir.field', { ...at, field: a })) return errs; }
       if (!isNum(m.x) || !isNum(m.y) || !isNum(m.z)) continue;
+      if (m.toolAxis != null && !isUnit(m.toolAxis)) { if (bad('cam.ir.field', { ...at, field: 'toolAxis' })) return errs; } // WP-18: istege bagli, setup cercevesinde (yoksa [0,0,1])
     }
     if (m.a != null) { if (!W) { if (bad('cam.ir.a_without_wrap', at)) return errs; } else if (!isNum(m.a) || (m.t !== 'rapid' && m.t !== 'feed')) { if (bad('cam.ir.field', { ...at, field: 'a' })) return errs; } }
     if (W && (m.t === 'arc' || m.t === 'comp')) { if (bad('cam.ir.wrap_move', { ...at, t: m.t })) return errs; }
@@ -306,6 +308,8 @@ export function validateProgram(p) {
     if (!w || !WCS.includes(w.kind)) throw irErr('cam.ir.field', { section: n, field: 'workOffset' });
     if (w.kind === 'G54.1' && !(isInt(w.p) && w.p >= 1)) throw irErr('cam.ir.field', { section: n, field: 'workOffset.p' });
     if (st.aAngle != null && !isNum(st.aAngle)) throw irErr('cam.ir.field', { section: n, field: 'aAngle' });
+    if (st.toolAxis != null && !isUnit(st.toolAxis)) throw irErr('cam.ir.field', { section: n, field: 'toolAxis' }); // WP-18: tabla koord. takim ekseni (3 eksen [0,0,1])
+    if (st.rot != null && (typeof st.rot !== 'object' || !Object.values(st.rot).every(isNum))) throw irErr('cam.ir.field', { section: n, field: 'rot' });
     try { validateToolpath(s.toolpath); } catch (e) { if (e instanceof KErr) throw irErr(e.code, { ...e.params, section: n }); throw e; }
   });
   return true;
