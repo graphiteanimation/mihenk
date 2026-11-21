@@ -23,7 +23,7 @@ import { CAM_RIBBON } from './ribbon.js';
 import { CamView } from './view.js';
 import { CamOps } from './ops.js';
 
-const OP_ICON = { face: 'op-face', contour: 'op-contour', pocket: 'op-pocket', drill: 'op-drill', chamfer: 'chamfer', circular: 'op-drill', threadmill: 'op-thread', slot: 'op-contour', trace: 'op-contour' };
+const OP_ICON = { face: 'op-face', contour: 'op-contour', pocket: 'op-pocket', drill: 'op-drill', chamfer: 'chamfer', circular: 'op-drill', threadmill: 'op-thread', slot: 'op-contour', trace: 'op-contour', adaptive: 'op-adaptive', flat: 'op-face' };
 
 export function hashStr(s) { let x = 2166136261; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 16777619); return (x >>> 0).toString(36); }
 function hashArr(a, seed = 2166136261) { let x = seed; for (let i = 0; i < a.length; i++) x = Math.imul(x ^ ((a[i] * 1000) | 0), 16777619); return x >>> 0; }
@@ -149,7 +149,7 @@ export class CamCtl {
     reg('cam-holeseq', 'cam.cmd.holeseq', 'op-drill', () => openHoleSequence(this), { off: needSetup, tip: null });
     const opcmd = (id, nm, ic, type, cycle) => reg(id, nm, ic, () => this.ops.create(type, cycle), { off: needSetup });
     opcmd('cam-op-face', 'cam.cmd.face', 'op-face', 'face'); opcmd('cam-op-contour', 'cam.cmd.contour', 'op-contour', 'contour'); opcmd('cam-op-pocket', 'cam.cmd.pocket', 'op-pocket', 'pocket'); opcmd('cam-op-chamfer', 'cam.cmd.chamfer', 'chamfer', 'chamfer');
-    reg('cam-op-adaptive', 'cam.cmd.adaptive', 'op-adaptive', () => {}, { off: () => t('cam.soon_op') });
+    opcmd('cam-op-adaptive', 'cam.cmd.adaptive', 'op-adaptive', 'adaptive'); opcmd('cam-op-flat', 'cam.cmd.flat', 'op-face', 'flat'); // WP-12
     opcmd('cam-op-drill', 'cam.cmd.drill', 'op-drill', 'drill', 'drill'); opcmd('cam-op-thread', 'cam.cmd.thread', 'op-thread', 'drill', 'tap'); opcmd('cam-op-circular', 'cam.cmd.circular', 'op-pocket', 'circular'); opcmd('cam-op-threadmill', 'cam.cmd.threadmill', 'op-thread', 'threadmill');
     opcmd('cam-op-slot', 'cam.cmd.slot', 'op-contour', 'slot'); opcmd('cam-op-trace', 'cam.cmd.trace', 'op-contour', 'trace');
     reg('cam-op-surface', 'cam.cmd.surface', 'op-surface', () => {}, { off: () => t('cam.soon_op') });
@@ -160,7 +160,7 @@ export class CamCtl {
   }
   ribbon(R) {
     const { group, toolBtn } = R; const b = (id) => toolBtn(id);
-    return CAM_RIBBON.map(([id, key, items, o = {}]) => group(id, key, items.map(b), { ...o, items }));
+    return CAM_RIBBON.map(([id, key, items, o = {}]) => { const { extra = [], ...rest } = o; return group(id, key, items.map(b), { ...rest, items: [...items, ...extra] }); }); // extra: yalnız » menüsünde
   }
 
   // ---------------------------------------------------------------- tarayıcı

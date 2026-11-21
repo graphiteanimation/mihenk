@@ -35,7 +35,7 @@ export default {
   "cam.tip.op-face": "Stok üstünü yüzey frezeleme ile düzeltir.",
   "cam.tip.op-contour": "Bir profili dışından, içinden ya da üstünden keser.",
   "cam.tip.op-pocket": "Kapalı bir bölgeyi boşaltır.",
-  "cam.tip.op-adaptive": "Uyarlanır boşaltma bu sürümde yok.",
+  "cam.tip.op-adaptive": "Takım temas açısını sınırlayarak boşaltır (sabit yük); açık kenar ve kalan malzeme destekli.",
   "cam.tip.op-drill": "Seçilen deliklere delme çevrimi uygular.",
   "cam.tip.op-thread": "Seçilen deliklere kılavuz çekme çevrimi uygular.",
   "cam.tip.op-surface": "3B yüzey işleme bu sürümde yok.",

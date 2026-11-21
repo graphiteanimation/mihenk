@@ -26,7 +26,7 @@ const HOOK = WIN ? ['--import', pathToFileURL(path.join(ROOT, 'scripts', 'win-es
 const node = (f) => ({ name: f, cmd: process.execPath, args: [...HOOK, path.join(ROOT, f)] });
 const py = (f, extra = {}) => ({ name: f, cmd: PY, args: [path.join(ROOT, f)], ...extra });
 const STEPS = [
-  ...['test/i18n.test.mjs', 'test/security.test.mjs', 'test/kernel.test.mjs', 'test/solver.test.mjs', 'test/geom2d.test.mjs', 'test/profiles.test.mjs', 'test/sketchops.test.mjs', 'test/dxf.test.mjs', 'test/resim.test.mjs', 'test/stability.test.mjs', 'test/models/run-all.mjs', 'test/cam.test.mjs', 'test/post.test.mjs', 'test/wp04-devir.test.mjs', 'test/sim.test.mjs', 'test/sim3d.test.mjs', 'test/wp14.test.mjs', 'test/altin.test.mjs', 'test/ornekler.test.mjs', 'test/nc-baslik.test.mjs', 'test/wp21.test.mjs', 'test/altin/kos.mjs'].map(node),
+  ...['test/i18n.test.mjs', 'test/security.test.mjs', 'test/kernel.test.mjs', 'test/solver.test.mjs', 'test/geom2d.test.mjs', 'test/profiles.test.mjs', 'test/sketchops.test.mjs', 'test/dxf.test.mjs', 'test/resim.test.mjs', 'test/stability.test.mjs', 'test/models/run-all.mjs', 'test/cam.test.mjs', 'test/post.test.mjs', 'test/wp04-devir.test.mjs', 'test/sim.test.mjs', 'test/wp12.test.mjs', 'test/sim3d.test.mjs', 'test/wp14.test.mjs', 'test/altin.test.mjs', 'test/ornekler.test.mjs', 'test/nc-baslik.test.mjs', 'test/wp21.test.mjs', 'test/altin/kos.mjs'].map(node),
   { name: 'vite build', cmd: process.execPath, args: [path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), 'build'], build: true },
   py('test/sketcher.test.py', { needsBuild: true }),
   // WP-04 dilim 1: "konsolda sayfa hatası yok" kararsızlığı giderildi (testin kendi CSP sınaması ayrı listeye alınıyor); yeniden deneme kaldırıldı.

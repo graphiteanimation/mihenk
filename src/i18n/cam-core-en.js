@@ -219,4 +219,15 @@ export default {
   "err.cam.pocket.predrill_unverified": "The pre-drilled hole (X{x} Y{y}) could not be verified from the stock map; a non-center-cutting tool will not plunge. Add the drilling operation first in the same setup.",
   "err.cam.pocket.predrill_closed": "The pre-drilled hole is not open (X{x} Y{y}, material where the tool would enter near Z{z}). Drill the hole first.",
   "err.cam.setup.edge_axis_not_line": "The edge selected for the axis is not a straight line (an arc or curve cannot define an axis). Pick a straight edge or a planar face.",
+  // WP-12
+  "err.cam.adaptive.load_too_big": "The optimal load ({load} mm) must be smaller than the tool diameter ({dia} mm).",
+  "err.cam.adaptive.helix_big": "In adaptive clearing the helix diameter (Ø{helix}) cannot exceed the tool diameter (Ø{dia}).",
+  "err.cam.adaptive.rest_tool_small": "For rest machining the previous tool diameter (Ø{prev}) must be larger than this tool (Ø{dia}).",
+  "err.cam.adaptive.rest_no_stock": "The remaining stock could not be computed (previous operations have no or a failed simulation). Compute the previous operations first or use the \"previous tool\" option.",
+  "err.cam.adaptive.region_too_large": "The region is too large for adaptive clearing (cell {cell} mm). Split the region or use a larger tool.",
+  "err.cam.adaptive.no_progress": "The adaptive path is not progressing (internal limit exceeded). Change the optimal load or the region.",
+  "err.cam.adaptive.nothing": "There is no material to machine in this region.",
+  "err.cam.adaptive.no_entry_left": "No entry found for about {area} mm² of material (the helix does not fit and it cannot be reached from the air). Reduce the helix diameter or open the area with another operation first.",
+  "err.cam.flat.nothing": "There is no material above the selected faces (face is at the stock top).",
+  "err.cam.flat.face_at_top": "{n} face(s) at the same height as the stock top; skipped.",
 };

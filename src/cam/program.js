@@ -156,6 +156,13 @@ export function chainStock(recs, idx, res) {
   try { rec.stk.hm = stockFromPrevious(src, { frame: rec.S.frame, box: rec.S.stockBox }, res); } catch (e) { rec.stk.hm = null; }
 }
 
+// WP-12: kalan malzeme (rest) icin islem basi stok haritasi: setup zinciri (O-039) + bu setup'in onceki islemleri. Bilinmiyorsa (sim
+// hatasi) harita yok -> islem 'cam.adaptive.rest_no_stock' hatasi verir (sessizce tam stok varsayilmaz).
+export function restStockMap(recs, ri, res) {
+  const rec = recs[ri]; chainStock(recs, ri, res);
+  const hm = advanceStock(rec.stk, rec.tps, rec.S, res) || (rec.stk.failed ? null : stockHeightmap(rec.S.stockBox, res, rec.S.stockCyl ?? null));
+  return hm ? { stockMap: hm } : {};
+}
 // WP-06: serbest parca bulgusu seviyesi setup'a gore: engel yalniz freePieceBlock'lu setup'ta, digerlerinde uyari.
 export const freePiecePolicy = (gates, blockSetups) => gates.map((x) => (String(x.code).endsWith('.free_piece') && x.level === 'block' && !blockSetups.has(x.params?.setup) ? { ...x, level: 'warn' } : x));
 // generateProgram(cam, {rebuild, machine, query, doc?, name, number?, sim?, onlyOps?})
@@ -215,11 +222,12 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         const holeOp = op.type === 'drill' || op.type === 'circular' || op.type === 'threadmill'; // WP-07: delik secimi kullanan islemler
         if (holeOp) { if (op.holes?.kind === 'points') geom.points = sketchPoints(op.holes, { rebuild, doc }); else { if (!holesX) holesX = await annotateHoleExits(rebuild?.holes || [], query, S.bodies); geom.holes = holesX; } }
         let opx = op;
-        if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer' || op.type === 'slot' || op.type === 'trace') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
+        if (op.type === 'contour' || op.type === 'pocket' || op.type === 'chamfer' || op.type === 'slot' || op.type === 'trace' || op.type === 'adaptive' || op.type === 'flat') { const r = await resolveGeom(op, S, { rebuild, doc, query }); geom.faces = r.faces; opx = { ...op, geom: r.sels }; }
         const preOp = op.type === 'pocket' && op.entry?.kind === 'predrill'; // on delik girisi: stok haritasiyla dogrulanir
         if (holeOp || preOp) chainStock(recs, ri, mres);
         let maps = holeOp || preOp ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
         if (op.type === 'chamfer') maps = await chamferMap(op, S, query);
+        if (op.type === 'adaptive' && op.rest?.source === 'stock') maps = restStockMap(recs, ri, mres); // WP-12: islem basi stok (O-039 zinciri + onceki islemler)
         const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
       } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }
