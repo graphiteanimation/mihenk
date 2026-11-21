@@ -7,6 +7,8 @@ import { validateToolpath } from '../src/cam/ir.js';
 import { builtinMachines, copyMachine } from '../src/cam/machines/builtin.js';
 import { postProgram } from '../src/cam/post/index.js';
 import { simulate, sampleHeightmap } from '../src/cam/sim/index.js';
+import { computeOpAsync } from '../src/cam/surf/async.js';
+import { KErr } from '../src/shared/errors.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL:', m); } };
@@ -87,6 +89,30 @@ if (sec('2a')) {
   const corners = [[21.5, 16.5], [78.5, 16.5], [21.5, 43.5], [78.5, 43.5]].map(([x, y]) => sampleHeightmap(s2.remainHeightmap, x, y));
   ok(corners.every((v) => v <= -8 + 0.01), 'dort kose tabanda: ' + corners.map((v) => v.toFixed(2)).join(' '));
   console.log(`   kesme ${rs.stats.cutLen.toFixed(0)} mm, paso ${rs.meta.adaptive.passes}, kalkis ${rs.meta.adaptive.lifts} (${el()})`);
+}
+
+// ---------------------------------------------------------------- 4. node: ayni is parcaciginda iptal (belgelenen davranis)
+if (sec(4)) {
+  console.log('4. computeOpAsync, worker yok (node): iptal hesaptan once / sonra; ctx.shouldStop suren hesabi keser');
+  const S0 = setupOf([0, 0, -30], [100, 60, 0]);
+  const face1 = { z: -10, normalOk: true, outer: sq(20, 10, 55, 35), inners: [] };
+  const op = { ...adBase, stepdown: 10, stockToLeave: { radial: 0.3, axial: 0 } };
+  const ctx = { setup: S0, tool: flat(10), geom: { faces: [face1] } };
+  const codeOf = async (p) => { try { await p; return 'ok'; } catch (e) { return e.code; } };
+  const ac0 = new AbortController(); ac0.abort();
+  ok(await codeOf(computeOpAsync(op, ctx, { signal: ac0.signal, worker: false })) === 'cam.op.cancelled', 'onceden iptal');
+  // cagridan hemen sonra (ayni senkron blokta) iptal: hesaba baslamadan once bir olay dongusu turu verilir -> hesap yapilmaz
+  { const ac = new AbortController(); const t1 = Date.now(); const pr = computeOpAsync(op, ctx, { signal: ac.signal, worker: false }); ac.abort();
+    const c = await codeOf(pr); ok(c === 'cam.op.cancelled' && Date.now() - t1 < 1000, `cagridan hemen sonra iptal: hesap baslamaz (${c}, ${Date.now() - t1} ms)`); }
+  // hesap surerken zamanlanan abort: hesap kesilmez (senkron), bitince sonuc atilir -> cam.op.cancelled
+  { const ac = new AbortController(); const t1 = Date.now(); const pr = computeOpAsync(op, ctx, { signal: ac.signal, worker: false }); setTimeout(() => ac.abort(), 50);
+    const c = await codeOf(pr); const ms = Date.now() - t1; ok(c === 'cam.op.cancelled', `suren hesapta abort: sonuc atilir (${c}, ${ms} ms; hesap kesilmeden bitti)`); }
+  // ctx.shouldStop (sure siniri) suren hesabi keser: uyarlanir motor paso arasinda denetler
+  { const t1 = Date.now(); const dl = t1 + 300; const c = await codeOf(computeOpAsync(op, { ...ctx, shouldStop: () => { if (Date.now() > dl) throw new KErr('cam.op.cancelled', {}); } }, { worker: false }));
+    const ms = Date.now() - t1; ok(c === 'cam.op.cancelled' && ms < 3000, `ctx.shouldStop sure siniri (300 ms) hesabi kesti: ${c}, ${ms} ms`); }
+  // iptalsiz: sonuc ayni
+  { const a = CAM.computeOp(op, ctx); const b = await computeOpAsync(op, ctx, { worker: false }); ok(a.moves.length === b.moves.length, 'iptalsiz sonuc satir ici ile ayni'); }
+  console.log(`   (${el()})`);
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi (${el()})`);

@@ -102,7 +102,7 @@ export function computeAdaptive(op, ctx) {
     if (faces.length > 1 && Math.abs(face.z - zSel) > 1e-6) throw cerr('cam.pocket.faces_differ_z');
     // acik kenar: sanal bant takim capindan genis (bos baslangic seridi icin): W = 2(1,25 r) + yanal pay
     const { region: Rv } = pocketRegion(face, 1.25 * r, stR);
-    clearRegion({ Rv, S, r, stR, ae, thMax, levels, zTop: h.zTop, dir, stayDown, entry, ang, helixR, rest, restR, stockMap, b, cut, stats, nm });
+    clearRegion({ Rv, S, r, stR, ae, thMax, levels, zTop: h.zTop, dir, stayDown, entry, ang, helixR, rest, restR, stockMap, b, cut, stats, nm, shouldStop: ctx.shouldStop || null });
   }
   if (!stats.passes && !stats.entries) { // WP-22c: hic yol yoksa nedeni (girissiz / erisilemeyen alan) kaybolmasin: hata metninde alan
     if (stats.noEntry > 1e-3) throw cerr('cam.adaptive.no_entry_left', { area: r3(stats.noEntry) });
@@ -317,6 +317,7 @@ export function clearRegion(A) {
     let forced = null; // giristen hemen sonra: paso takimin bulundugu yerden baslar
     for (;;) {
       if (++guard > 200000) throw cerr('cam.adaptive.no_progress');
+      if (A.shouldStop && (guard & 15) === 0) A.shouldStop(); // WP-22c: iptal / sure siniri denetimi (paso arasi)
       refreshDm();
       let st = forced; forced = null;
       if (!st) st = findStart(pos, z);

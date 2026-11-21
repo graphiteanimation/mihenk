@@ -436,7 +436,7 @@ export function computeAdaptive3d(op, ctx) {
     },
   };
   const b = E.b; const stats = { maxTheta: 0, passes: 0, links: 0, lifts: 0, entries: 0, restArea: 0 };
-  clearRegion({ Rv, S, r, stR: 0, ae, thMax: engageAngle(ae, r), levels, zTop, dir, stayDown: op.stayDown !== false, entry, ang, helixR, rest, restR: 0, stockMap, b, cut: E.cut, stats, nm, surf });
+  clearRegion({ Rv, S, r, stR: 0, ae, thMax: engageAngle(ae, r), levels, zTop, dir, stayDown: op.stayDown !== false, entry, ang, helixR, rest, restR: 0, stockMap, b, cut: E.cut, stats, nm, surf, shouldStop: E.shouldStop });
   if (!stats.passes && !stats.entries) { // WP-22c: hic yol yoksa nedeni (girissiz / erisilemeyen alan) kaybolmasin: hata metninde alan
     if (stats.noEntry > 1e-3) throw cerr('cam.adaptive.no_entry_left', { area: r3(stats.noEntry) });
     if (stats.restArea > 1e-3) throw cerr('cam.pocket.rest_material', { area: r3(stats.restArea) });
