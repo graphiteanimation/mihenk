@@ -43,10 +43,17 @@ Kapsam (bu WP'de): (1) tri-dexel kipinde (`opts.dexel:'tri'`) modele oyma deneti
 - Koşulamayan: `ui`, `app`, `sketcher`, `iptal` Python testleri, Electron (bu WP arayüze dokunmadı); `npm run test:all` tek seferde koşulmadı.
 
 ## Açıklar
-- **Arayüz bağlı değil**: uygulama `modelMeshes` ve tri kipi geçmez (sim çubuğu ve kapılar eskisi gibi harita; `sim_lateral_tol`, `wrap_sim_limits` uyarıları arayüzde sürer). Bağlamak için `ui/cam/ops.js` simOpts'a `bodiesMeshInFrame(rebuild gövdeleri, S.frame)` ve isteğe bağlı `dexel:'tri'`; tri sonucunun görünümü (WP-13 açığı) yapılmadı. Worker (structured clone) yolunda ağ seçeneği denenmedi.
+- Arayüz (O-050 dilimi, aşağıda) yalnız kapı simülasyonunu ayrıntılı kipte koşar; oynatıcı (sim çubuğu) yükseklik haritasıyla kalır, tri sonucunun görünümü (WP-13 açığı) yapılmadı. Model ağı görüntü ağıdır (tolerans max(0,005, köşegen/2000) mm, oyma toleransına `err` olarak eklenir): ince toleranslı iç bükey yüzeylerde kaba olabilir.
 - Tri'de eğik hareketlerde kapsül yarıçapı iki ucun küçüğü (eski sınır); bant geçişinde (bir uç bant dışında) kapsül atlanır → yanal temas biraz geç görülebilir.
 - Tri oyma Z ışınları hâlâ hücre merkezinde (taban yönünde yatay çözünürlük res); model ağı iç bükey yüzeyde gerçek yüzeyin dışında kalır → `err` verilmezse sıkı tolerans yalancı oyma verebilir (testlerde düzlemsel ağ).
 - G87 takım modeli hâlâ eksenel simetrik (R − shift); yukarı kesimde barın sapı modellenmez.
 - Sarma bağlama: zarfın tamamen içinde kalan küçük gövde görülmez; noktalama payı nedeniyle en çok 0,75·max(res, 0,25) mm erken uyarı. Sarma oyma derinliği ışın açısına bağlı yaklaşık.
 - G-code sim: A kelimesi yorumu (`aMode`) tezgâh parametresidir; tezgâhta doğrulanmadı. Okuyucu açılmış (unwound) çıkışı yerel çerçeveye geri çevirmez.
 - Hiçbir NC tezgâhta doğrulanmadı (test çıktısı).
+
+## Ek dilim (O-050): arayüzde ayrıntılı simülasyon
+- Belge alanı `doc.cam.sim = { detail: boolean }` (şema `validateCam`); yoksa kapalı (altın taban korunur).
+- Arayüz: CAM tarayıcısında yeni "Simülasyon" bölümü, "Ayrıntılı simülasyon — 3 yönlü dexel, modele 3B oyma denetimi" onay satırı (`cam-sim-detail`); geri alınabilir, bildirim balonu. i18n TR/EN (`wrap-*.js`).
+- `ui/cam/ops.js simOpts`: açıkken `dexel:'tri'` ve her setup için (sarma dahil) `bodiesMeshInFrame(rebuild gövdeleri, S.frame, err)` ile `modelMeshes`. Ağ tamponları worker'a **aktarılır** (`simulateAsync` yeni `ctl.transfer`; aktarılamazsa kopyalanır); kapı kararları ağın varlığına bakar (aktarılan tampon boşalır). İptal worker'da çalışır.
+- `cam-ui.test.py` WP-22b bölümü (8 denetim): kapalıyken `sim_lateral_tol` var, seçenek açılır, sim tamamlanır ve `sim_lateral_tol`/`sim_failed`/`sim_no_model` yok, engeller aynı, ayrıntılı sim iptal edilir, kapatılır, sayfa hatası yok. Tarayıcı bölüm sayısı denetimi 3 → 4.
+- `master` (WP-15) birleştirildi (çakışma yalnız `scripts/test-all.mjs` listesi). Birleşme sonrası: `wp22b` 54/0, `cam` 602/0, `sim` 138/0, `i18n` 52/0, `npx vite build` geçer, `cam-ui.test.py` 353/0.
