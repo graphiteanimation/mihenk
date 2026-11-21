@@ -42,6 +42,9 @@ console.log('1. setup sarma kipi');
   ok(S.stockCyl.yc === 0 && S.stockCyl.zc === 0, 'silindir ekseni orijinde');
   ok(resolve(FANUC4, { wrap: { enabled: true, dia: 40 } }).wrap.r === 20, 'sarma capi elle (Ø40)');
   ok(resolve(TESTM).wrap.sign === -1, 'A.dir -1 -> isaret -1');
+  { const v = []; for (const x of [0, 100]) for (let k = 0; k < 64; k++) v.push(x, 25 * Math.cos(k * Math.PI / 32), 25 * Math.sin(k * Math.PI / 32));
+    ok(CAM.resolveSetup(setupDef(), { bodies: [{ id: 'b', vertices: new Float32Array(v) }] }, FANUC4).wrap.R === 25, 'silindir model Ø50 stokta (kutu koseleri degil ag koseleri)');
+    throwsCode(() => CAM.resolveSetup(setupDef({ stock: { kind: 'cyl', dia: 49, len: 120 } }), { bodies: [{ id: 'b', vertices: new Float32Array(v) }] }, FANUC4), 'cam.setup.stock_small', 'Ø49 stok Ø50 modelden kucuk'); }
   throwsCode(() => resolve(FANUC4, { stock: { kind: 'boxOffset', side: 1, top: 1, bottom: 1 } }), 'cam.wrap.needs_cyl', 'kutu stokta sarma yok');
   throwsCode(() => resolve(FANUC4, { rotary: { enabled: true, aAngle: 90 } }), 'cam.wrap.rotary_conflict', 'sarma + 3+1 birlikte olmaz');
   throwsCode(() => resolve(SM.fanucMachine()), 'cam.setup.no_rotary', 'A ekseni olmayan makinede sarma yok');

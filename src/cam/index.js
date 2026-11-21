@@ -75,7 +75,8 @@ export function resolveSetup(setup, rebuild, machine, opts = {}) {
     const o = org.kind === 'point' ? F0.map((a) => dot(a, org.p)) : [0, 0, 0]; const R = st.dia / 2; const cx = (mb.min[0] + mb.max[0]) / 2;
     sb = { min: [cx - st.len / 2, o[1] - R, o[2] - R], max: [cx + st.len / 2, o[1] + R, o[2] + R] }; stock = { kind: 'cyl', dia: st.dia, len: st.len };
     // model silindirin icinde mi (yonlu kutu koseleri, muhafazakar)
-    for (const yy of [mb.min[1], mb.max[1]]) for (const zz of [mb.min[2], mb.max[2]]) if (Math.hypot(yy - o[1], zz - o[2]) > R + 1e-6) throw cerr('cam.setup.stock_small');
+    // WP-16: kutu koseleri yerine goruntu agi koseleri (silindirik model kutu koselerinde yanlis "stok kucuk" verirdi); ag kirisleri yuzeyin icinde
+    for (const b of bodies) { const v = b.vertices; for (let i = 0; i < v.length; i += 3) { const yy = v[i] * F0[1][0] + v[i + 1] * F0[1][1] + v[i + 2] * F0[1][2], zz = v[i] * F0[2][0] + v[i + 1] * F0[2][1] + v[i + 2] * F0[2][2]; if (Math.hypot(yy - o[1], zz - o[2]) > R + 1e-6) throw cerr('cam.setup.stock_small'); } }
     if (mb.min[0] < sb.min[0] - 1e-6 || mb.max[0] > sb.max[0] + 1e-6) throw cerr('cam.setup.stock_small');
   } else throw cerr('cam.setup.bad_field', { field: 'stock.kind' });
   // orijin (yonlu koordinatlarda)
