@@ -45,6 +45,7 @@ Kaynak: Too Tall Toby "Party Pack" ve yarışma çizimleri; build123d belgelerin
 | T06 | GEÇTİ | 0 | C-46 | loft (ekle + kes); `pm/test/sonuc/T06.md` |
 | T07 | GEÇTİ | 0 | C-47…C-49 | revolve + ayna + R8 fillet zinciri; teğet/ofset hesapla verildi; `pm/test/sonuc/T07.md` |
 | T08 | GEÇTİ | +0,00001 % | — (C-14 yeniden) | zarf, iki yönlü (simetrik) extrude, delik; teğetler hesapla verildi; `pm/test/sonuc/T08.md` |
+| T09 | KISMEN | +0,107 % | C-50, C-51 | 0,5 pah yapılamadı (C-50: kabuk sonrası kalıcı ad çakışması); pah dışında birebir; `pm/test/sonuc/T09.md` |
 
 ## Ara rapor (prizmatik faz, T01–T04, 2026-11-21)
 - Puan: GEÇTİ 2 (T01, T02) · KISMEN 2 (T03, T04) · KALDI 0. Dört parçada da son geometri referansla aynı (hacim farkı ≤ %0,0001, kutu aynı) — eksikler ancak dolanarak kapatılabildi.
