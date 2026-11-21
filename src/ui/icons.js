@@ -129,6 +129,7 @@ const P = {
   "vfillet": "<path d=\"M4 20V12a8 8 0 0 1 8-8h8\"/><path d=\"M4 20h3M17 4v3\"/>",
   "thread": "<path d=\"M8 3v18M16 3v18\"/><path d=\"M8 6l8 2M8 10l8 2M8 14l8 2M8 18l8 2\"/>",
   "coil": "<path d=\"M6 5c0-2 12-2 12 0s-12 2-12 4 12 2 12 4-12 2-12 4 12 2 12 4\"/>",
+  "cplane": "<path d=\"M3 20l3-6h14l-3 6z\"/><path d=\"M8.5 14L12 4h9l-3.5 10\"/><path d=\"M6 14l1.5 3\" stroke-dasharray=\"1.5 1.5\"/>",
   "split": "<path d=\"M3.5 20l6-6M14.5 10l6-6\"/><circle cx=\"12\" cy=\"12\" r=\"1.9\" fill=\"currentColor\" stroke=\"none\"/>",
   "step-back": "<path d=\"M18 5v14M13.5 5l-9 7 9 7z\"/>",
   "step-forward": "<path d=\"M6 5v14M10.5 5l9 7-9 7z\"/>",
@@ -161,7 +162,7 @@ const LEGACY = {
   collinear: "<path d=\"M3 12h7M14 12h7\"/><path d=\"M3 8v8M21 8v8\" stroke-dasharray=\"1.5 2\"/>",
   ddim: "<circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"M5.5 17L18.5 7\"/><path d=\"M5.5 17l.8-3M5.5 17l3-.5M18.5 7l-.8 3M18.5 7l-3 .5\"/>",
 };
-const ALIAS = { props: 'properties', interf: 'interference', param: 'parameters', construct: 'construction', rectc: 'rect-center', circle2: 'circle', circle3: 'circle-3pt', arc3: 'arc-3pt', arct: 'arc-tangent',
+const ALIAS = { plane: 'cplane', props: 'properties', interf: 'interference', param: 'parameters', construct: 'construction', rectc: 'rect-center', circle2: 'circle', circle3: 'circle-3pt', arc3: 'arc-3pt', arct: 'arc-tangent',
   break: 'split', patrect: 'pattern-rect', patcirc: 'pattern-circ', copy: 'sk-copy', rotate: 'sk-rotate', scale: 'sk-scale', rdim: 'dim-radius', sk_fillet: 'sketch-fillet', sk_chamfer: 'sketch-chamfer', sk_mirror: 'sketch-mirror', sk_move: 'sk-move',
   redo: 'redo', error: 'error', danger: 'error' };
 

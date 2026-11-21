@@ -1045,7 +1045,8 @@ const base = {
 import sketchCf from './sketch-en.js';
 import model from './model-en.js';
 import model2 from './model2-en.js'; // WP-19
-Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); // WP-09: çizim konforu metinleri
+import plane from './plane-en.js'; // IE-007
+Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); Object.assign(base, plane); // WP-09: çizim konforu metinleri
 
 Object.assign(base, camWp12); // WP-12
 Object.assign(base, camWp15); // WP-15

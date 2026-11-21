@@ -1044,7 +1044,8 @@ const base = {
 import sketchCf from './sketch-tr.js';
 import model from './model-tr.js';
 import model2 from './model2-tr.js'; // WP-19
-Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); // WP-09: çizim konforu metinleri
+import plane from './plane-tr.js'; // IE-007
+Object.assign(base, sketchCf); Object.assign(base, model); Object.assign(base, model2); Object.assign(base, plane); // WP-09: çizim konforu metinleri
 
 // CAM: post/simülasyon (cam-post-*), arayüz (cam-ui-*) metinleri tek sözlükte birleşir.
 Object.assign(base, camWp12); // WP-12

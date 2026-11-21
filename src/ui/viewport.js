@@ -50,7 +50,8 @@ export class Viewport {
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a3, 1.15));
     const dl = new THREE.DirectionalLight(0xffffff, 1.4); dl.position.set(1, -1.5, 2); this.camera.add(dl); this.scene.add(this.camera);
     this.bodyGroup = new THREE.Group(); this.sketchGroup = new THREE.Group(); this.helperGroup = new THREE.Group(); this.hlGroup = new THREE.Group(); this.editGroup = new THREE.Group(); this.regionGroup = new THREE.Group();
-    this.scene.add(this.helperGroup, this.bodyGroup, this.sketchGroup, this.regionGroup, this.hlGroup, this.editGroup);
+    this.cplaneGroup = new THREE.Group(); this.markGroup = new THREE.Group(); this.cplanes = []; // İE-007: yapı düzlemleri ve seçilen nokta işaretleri
+    this.scene.add(this.helperGroup, this.cplaneGroup, this.bodyGroup, this.sketchGroup, this.regionGroup, this.hlGroup, this.editGroup, this.markGroup);
     this.bodies = new Map(); this.filter = { face: true, edge: true, body: false };
     this.selection = []; this.hover = null; this.clip = null; this.planesVisible = true; this.pickPlanes = false;
     this.ray = new THREE.Raycaster();
@@ -80,11 +81,37 @@ export class Viewport {
   applyTheme() {
     readTheme();
     for (const o of [...this.helperGroup.children]) { this.helperGroup.remove(o); o.traverse((c) => { c.geometry && c.geometry.dispose(); c.material && c.material.dispose(); }); }
-    this._helpers(); this.setPlanesVisible(this.planesVisible);
+    this._helpers(); this.setPlanesVisible(this.planesVisible); this.setCPlanes(this.cplanes);
     for (const b of this.bodies.values()) { b.mesh.material.color.setHex(COL.body); b.lines.material.color.setHex(COL.edge); }
     this._drawHL(); this.dirty = true;
   }
-  setPlanesVisible(v) { this.planesVisible = v; this.planeMeshes.forEach((m) => (m.visible = v)); this.dirty = true; }
+  setPlanesVisible(v) { this.planesVisible = v; this.planeMeshes.forEach((m) => (m.visible = v)); this.cplaneGroup.visible = v; this.dirty = true; }
+  // İE-007: yapı düzlemleri (sonuçtaki result.planes). list: [{id, name, plane:{o,x,y,n}}]. Kenar uzunluğu modelin sınır kutusuna göre (en az 60 mm); düzlemin başlangıcı ortada.
+  setCPlanes(list) {
+    for (const o of [...this.cplaneGroup.children]) { this.cplaneGroup.remove(o); o.traverse((c) => { c.geometry && c.geometry.dispose(); c.material && c.material.dispose(); }); }
+    this.cplanes = (list || []).filter((c) => c && c.plane);
+    const box = new THREE.Box3();
+    for (const b of this.bodies.values()) { box.expandByPoint(new THREE.Vector3(...b.data.bbox[0])); box.expandByPoint(new THREE.Vector3(...b.data.bbox[1])); }
+    const S = Math.max(60, box.isEmpty() ? 0 : box.getSize(new THREE.Vector3()).length() * 1.1);
+    this.cplaneSize = S;
+    for (const c of this.cplanes) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(S, S), new THREE.MeshBasicMaterial({ color: COL.cons, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+      m.applyMatrix4(planeMatrix(c.plane)); m.userData = { cplane: c.id }; m.renderOrder = 1;
+      m.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: COL.cons, transparent: true, opacity: 0.7 })));
+      this.cplaneGroup.add(m);
+    }
+    this.cplaneGroup.visible = this.planesVisible; this.dirty = true;
+  }
+  // İE-007: üç noktadan düzlem için seçilen noktaların işareti (dünya koordinatları)
+  setMarks(points) {
+    for (const o of [...this.markGroup.children]) { this.markGroup.remove(o); o.geometry?.dispose(); o.material?.dispose(); }
+    const pts = (points || []).filter((p) => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite));
+    if (pts.length) {
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts.flat(), 3));
+      const p = new THREE.Points(g, new THREE.PointsMaterial({ color: COL.cons, size: 9, sizeAttenuation: false, depthTest: false })); p.renderOrder = 12; this.markGroup.add(p);
+    }
+    this.dirty = true;
+  }
 
   resize() {
     const w = this.el.clientWidth || 800, h = this.el.clientHeight || 600;
@@ -247,8 +274,8 @@ export class Viewport {
       return null;
     }
     if (this.pickPlanes && this.planesVisible) {
-      const hits = this.ray.intersectObjects(this.planeMeshes, false);
-      if (hits.length) return { kind: 'plane', name: hits[0].object.userData.basePlane };
+      const hits = this.ray.intersectObjects([...this.planeMeshes, ...this.cplaneGroup.children], false);
+      if (hits.length) { const u = hits[0].object.userData; return u.cplane != null ? { kind: 'cplane', id: u.cplane } : { kind: 'plane', name: u.basePlane }; }
     }
     return null;
   }
@@ -268,7 +295,7 @@ export class Viewport {
       if (this.onPointer && this.onPointer('move', e) === true) return;
       if (e.buttons) return;
       if (this._hoverRaf) return;
-      this._hoverRaf = requestAnimationFrame(() => { this._hoverRaf = 0; const h = this.pickAt(e); const hv = h && h.kind !== 'region' && h.kind !== 'plane' ? h : null; if (!same(hv, this.hover)) { this.hover = hv; this._drawHL(); } dom.style.cursor = h ? 'pointer' : 'default'; });
+      this._hoverRaf = requestAnimationFrame(() => { this._hoverRaf = 0; const h = this.pickAt(e); const hv = h && h.kind !== 'region' && h.kind !== 'plane' && h.kind !== 'cplane' ? h : null; if (!same(hv, this.hover)) { this.hover = hv; this._drawHL(); } dom.style.cursor = h ? 'pointer' : 'default'; });
     });
     dom.addEventListener('pointerup', (e) => {
       const d = down; down = null; if (!d) return;

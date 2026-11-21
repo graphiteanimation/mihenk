@@ -24,7 +24,7 @@ const SK_CONS = [['horizontal', tk('con.horizontal')], ['vertical', tk('con.vert
 const SK_CONS_MORE = [['coincident', tk('con.coincident')], ['midpoint', tk('con.midpoint')], ['concentric', tk('con.concentric')], ['symmetric', tk('con.symmetric')], ['collinear', tk('con.collinear')]];
 // kısayol göstergesi (araç ipucuna eklenir; gerçek tuşlar sketcher.handleKey'de)
 const SHORT = { line: 'L', rect: 'R', circle: 'C', arc: 'A', point: 'P', dim: 'D', trim: 'T', extend: 'X', break: 'K', offset: 'O', fillet: 'Q', chamfer: 'W', mirror: 'M', polygon: 'G', slot: 'U', ellipse: 'Y', spline: 'B', project: 'J', rectc: 'Shift+R', circle3: 'Shift+C', arc3: 'Shift+A' };
-const FEATURE_CMDS = ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section', 'split', 'splitface', 'faceop', 'sweep', 'loft', 'rib', 'coil', 'draft', 'vfillet', 'thread'];
+const FEATURE_CMDS = ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'measure', 'props', 'interf', 'section', 'split', 'splitface', 'faceop', 'sweep', 'loft', 'rib', 'coil', 'draft', 'vfillet', 'thread', 'cplane'];
 const DEFAULT_RECENT = ['extrude', 'fillet', 'hole', 'measure'];
 const LANG_KEY = { tr: tk('lang.tr'), en: tk('lang.en') };
 
@@ -102,6 +102,7 @@ export function initChrome(app) {
   feat('loft', tk('tb.loft'), 'loft', 'loft', null, needSketch);
   feat('rib', tk('tb.rib'), 'rib', 'rib', null, needBody);
   feat('coil', tk('tb.coil'), 'coil', 'coil');
+  feat('cplane', tk('tb.plane'), 'cplane', 'plane'); // İE-007: yapı düzlemi (Oluştur grubu)
   feat('draft', tk('tb.draft'), 'draft', 'draft', null, needBody);
   feat('vfillet', tk('tb.vfillet'), 'vfillet', 'vfillet', null, needBody);
   feat('thread', tk('tb.thread'), 'thread', 'thread', null, needBody);
@@ -320,7 +321,7 @@ export function initChrome(app) {
     const t1 = (id) => toolBtn(id, { on: on(id) });
     const recent = recentList();
     bar.replaceChildren(
-      group('create', tk('grp.create'), [t1('sketch'), t1('extrude'), t1('revolve'), t1('hole'), ddBtn('prim', tk('tb.prim'), 'box'), ddBtn('form', tk('tb.form'), 'sweep')], { items: ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'sweep', 'loft', 'rib', 'coil', 'draft', 'vfillet', 'thread'] }),
+      group('create', tk('grp.create'), [t1('sketch'), t1('extrude'), t1('revolve'), t1('hole'), ddBtn('prim', tk('tb.prim'), 'box'), ddBtn('form', tk('tb.form'), 'sweep'), t1('cplane')], { items: ['sketch', 'extrude', 'revolve', 'hole', 'box', 'cylinder', 'sphere', 'sweep', 'loft', 'rib', 'coil', 'draft', 'vfillet', 'thread', 'cplane'] }),
       group('modify', tk('grp.modify'), [...['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror'].map(t1), ddBtn('direct', tk('tb.direct'), 'faceop')], { items: ['fillet', 'chamfer', 'shell', 'combine', 'move', 'pattern', 'mirror', 'split', 'splitface', 'faceop'] }),
       group('inspect', tk('grp.inspect'), ['measure', 'props', 'interf', 'section'].map(t1), { items: ['measure', 'props', 'interf', 'section'] }),
       group('recent', tk('ui.recent'), [h('div', { class: 'tool-stack', 'data-testid': 'recent' }, recent.map((id) => { const c = cmds[id]; const b = h('button', { class: 'tool sm', 'data-cmd': id, 'data-recent': '1', onclick: () => C.run(id) }, h('span', { html: icon(c.icon, 'sm') }), h('span', { class: 'l', text: label(c) })); tipOf(c, b); return dis(c, b); }))], { cls: 'end recent', items: recent }));

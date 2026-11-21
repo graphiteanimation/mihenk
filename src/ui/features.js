@@ -8,9 +8,10 @@ export const TYPE_KEY = {
   combine: tk('feat.combine'), move: tk('feat.move'), pattern: tk('feat.pattern'), mirror: tk('feat.mirror'), import: tk('feat.import'),
   split: tk('feat.split'), splitface: tk('feat.splitface'), faceop: tk('feat.faceop'),
   sweep: tk('feat.sweep'), loft: tk('feat.loft'), draft: tk('feat.draft'), rib: tk('feat.rib'), vfillet: tk('feat.vfillet'), thread: tk('feat.thread'), coil: tk('feat.coil'), // WP-19
+  plane: tk('feat.plane'), // İE-007
 };
 export const KIND_KEY = { box: tk('feat.box'), cylinder: tk('feat.cylinder'), sphere: tk('feat.sphere') };
-const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', split: 'spl', splitface: 'sfc', faceop: 'fop', sweep: 'swp', loft: 'loft', draft: 'dft', rib: 'rib', vfillet: 'vfil', thread: 'thr', coil: 'coil', box: 'box', cylinder: 'cyl', sphere: 'sph' };
+const ID_PREFIX = { sketch: 'sk', extrude: 'ext', revolve: 'rev', hole: 'hole', fillet: 'fil', chamfer: 'cham', shell: 'shell', combine: 'comb', move: 'mov', pattern: 'pat', mirror: 'mir', import: 'imp', split: 'spl', splitface: 'sfc', faceop: 'fop', sweep: 'swp', loft: 'loft', draft: 'dft', rib: 'rib', vfillet: 'vfil', thread: 'thr', coil: 'coil', plane: 'plane', box: 'box', cylinder: 'cyl', sphere: 'sph' };
 
 export const featLabel = (f) => (f.type === 'primitive' ? t(KIND_KEY[f.kind] || KIND_KEY.box) : TYPE_KEY[f.type] ? t(TYPE_KEY[f.type]) : f.type);
 
@@ -57,6 +58,18 @@ export const THREAD_TABLES = {
 export const THREAD_FAMILIES = [['iso', tk('thr.iso')], ['iso_fine', tk('thr.iso_fine')], ['g', tk('thr.g')], ['npt', tk('thr.npt')]];
 export const threadFamily = (th) => th?.family || (th ? 'iso' : 'iso');
 
+// İE-007: yapı düzlemi. Kipe göre yalnız o kipin alanları tutulur (belge şeması gereksiz alan görmez).
+export const PLANE_MODES = [['angle', tk('pl.mode_angle')], ['three', tk('pl.mode_three')], ['offset', tk('pl.mode_offset')]];
+export const planeFeatures = (doc) => (doc?.features || []).filter((f) => f.type === 'plane' && !f.suppressed);
+export function planeSetMode(d, mode) {
+  d.mode = mode;
+  const base = () => (d.base && d.base.kind ? d.base : { kind: 'base', name: 'XY', offset: '0' });
+  if (mode === 'angle') { d.base = base(); d.axis = d.axis || { kind: 'axis', name: 'X' }; d.angle = d.angle ?? '45'; delete d.offset; delete d.points; }
+  else if (mode === 'offset') { d.base = base(); d.offset = d.offset ?? '10'; delete d.axis; delete d.angle; delete d.points; }
+  else { d.points = Array.isArray(d.points) ? d.points : []; delete d.base; delete d.axis; delete d.angle; delete d.offset; }
+  return d;
+}
+
 // Yeni özellik: varsayılan alanlar. ctx = {doc, bodies:[], sketches:[feature], sketchOnFace?:bool, lastFree?:id}
 export function defaults(type, kind, ctx) {
   const hasBody = ctx.bodies.length > 0;
@@ -93,6 +106,7 @@ export function defaults(type, kind, ctx) {
     case 'thread': return { face: '', thread: { designation: 'M10', pitch: 1.5, major: 10, family: 'iso' }, length: '', hand: 'right', flip: false };
     case 'coil': return { plane: 'XY', offset: '0', cx: '0', cy: '0', dia: '20', pitch: '5', turns: '5', sdia: '2', hand: 'right', flip: false, op: hasBody ? 'join' : 'new' };
     case 'mirror': { const src = patternSources(ctx.doc).slice(-1)[0]; return { source: src ? { kind: 'feature', id: src.id } : { kind: 'body', bodies: [] }, plane: 'YZ', offset: '0' }; }
+    case 'plane': return planeSetMode({ flip: false }, 'angle'); // İE-007
   }
   return {};
 }
@@ -204,10 +218,22 @@ export function fieldsFor(f, ctx) {
         { t: 'check', k: 'flip', label: tk('fld.coil_flip') }, opField());
       break;
     case 'mirror':
-      F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')], ['face', tk('fld.plane_face')]] });
+      F.push({ t: 'source', k: 'source', label: tk('fld.source') }, { t: 'select', k: 'plane', label: tk('fld.mirror_plane'), opts: [['XY', tk('plane.xy')], ['XZ', tk('plane.xz')], ['YZ', tk('plane.yz')], ['face', tk('fld.plane_face')], ...(planeFeatures(ctx?.doc).length || f.plane === 'plane' ? [['plane', tk('fld.plane_cplane')]] : [])] });
       // WP-08: aynalama düzlemi düzlemsel bir yüzden
       if (f.plane === 'face') F.push({ t: 'sel', k: 'planeRef', label: tk('fld.mirror_face'), kind: 'face', single: true });
+      else if (f.plane === 'plane') F.push({ t: 'cplane', k: 'planeId', label: tk('fld.plane_cplane') }); // İE-007
       else F.push({ t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' });
+      break;
+    // İE-007: yapı düzlemi
+    case 'plane':
+      F.push({ t: 'select', k: 'mode', label: tk('fld.pl_mode'), opts: PLANE_MODES });
+      if (f.mode === 'three') F.push({ t: 'sel', k: 'pt0', label: tk('fld.pl_point_1'), kind: 'point', single: true }, { t: 'sel', k: 'pt1', label: tk('fld.pl_point_2'), kind: 'point', single: true }, { t: 'sel', k: 'pt2', label: tk('fld.pl_point_3'), kind: 'point', single: true });
+      else {
+        F.push({ t: 'planeref', k: 'base', label: tk('fld.pl_base') });
+        if (f.mode === 'offset') F.push({ t: 'expr', k: 'offset', label: tk('fld.offset'), unit: 'mm' });
+        else F.push({ t: 'planeaxis', k: 'axis', label: tk('fld.pl_axis') }, { t: 'expr', k: 'angle', label: tk('fld.angle'), unit: '°' });
+      }
+      F.push({ t: 'check', k: 'flip', label: tk('fld.flip') });
       break;
   }
   return F;
@@ -223,7 +249,7 @@ export function dependsOn(f, id) {
     if (typeof v === 'object') return Object.entries(v).some(([k, x]) => walk(x, k));
     return false;
   };
-  if (f.type === 'sketch') return f.plane?.kind === 'face' && walk(f.plane.ref, 'ref');
+  if (f.type === 'sketch') return (f.plane?.kind === 'face' && walk(f.plane.ref, 'ref')) || (f.plane?.kind === 'plane' && hit(f.plane.id)); // İE-007: yapı düzlemi üzerindeki eskiz
   const { id: _i, name: _n, type: _t, data: _d, ...rest } = f;
   return walk(rest, '');
 }
@@ -282,7 +308,7 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
   const cnt = (k, a) => tn(k, Array.isArray(a) ? a.length : 0);
   const parts = [];
   switch (f.type) {
-    case 'sketch': parts.push(f.plane?.kind === 'face' ? t('hs.on_face') : String(f.plane?.name || '')); parts.push(tn('hs.n_ents', (f.ents || []).length)); break;
+    case 'sketch': parts.push(f.plane?.kind === 'face' ? t('hs.on_face') : f.plane?.kind === 'plane' ? t('hs.on_cplane') : String(f.plane?.name || '')); parts.push(tn('hs.n_ents', (f.ents || []).length)); break;
     case 'extrude': parts.push(f.extent === 'all' ? t('hs.all') : f.extent === 'face' ? t('hs.to_face') : f.extent === 'body' ? t('hs.to_body') : mm(f.dist)); if (f.dir === 'sym') parts.push(t('hs.sym')); if (f.taper && n(f.taper) !== fmt(0)) parts.push('∠' + n(f.taper) + '°'); parts.push(op(f.op)); break;
     case 'revolve': parts.push(n(f.angle) + '°'); parts.push(op(f.op)); break;
     case 'hole': parts.push(f.thread?.designation ? f.thread.designation + (f.thread.family && f.thread.family !== 'iso' ? ' (Ø' + fmt(f.thread.drill) + ')' : '') : 'Ø' + n(f.dia)); parts.push(f.extent === 'all' ? t('hs.all') : mm(f.depth)); break;
@@ -297,9 +323,9 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
     case 'combine': parts.push(t(f.op === 'cut' ? 'op.cut' : f.op === 'intersect' ? 'op.intersect' : 'op.combine_join')); parts.push(cnt('hs.n_tools', f.tools)); break;
     case 'move': parts.push([n(f.dx ?? 0), n(f.dy ?? 0), n(f.dz ?? 0)].join(', ') + ' mm'); if (f.angle && n(f.angle) !== fmt(0)) parts.push(n(f.angle) + '°'); break;
     case 'pattern': parts.push(f.kind === 'circ' ? '×' + n(f.count) : '×' + n(f.count1) + (f.count2 ? ' × ' + n(f.count2) : '')); if (f.kind === 'circ' && f.axis === 'edge') parts.push(t('hs.axis_edge')); break;
-    case 'mirror': parts.push(f.plane === 'face' ? t('hs.on_face') : String(f.plane || '')); break;
+    case 'mirror': parts.push(f.plane === 'face' ? t('hs.on_face') : f.plane === 'plane' ? t('hs.on_cplane') : String(f.plane || '')); break;
     case 'import': parts.push(String(f.format || '').toUpperCase()); break;
-    case 'split': case 'splitface': parts.push(f.tool?.kind === 'face' ? t('hs.on_face') : String(f.tool?.name || '') + (f.tool?.offset && n(f.tool.offset) !== fmt(0) ? ' ' + mm(f.tool.offset) : '')); if (f.type === 'splitface') parts.push(cnt('hs.n_faces', f.faces)); break;
+    case 'split': case 'splitface': parts.push(f.tool?.kind === 'face' ? t('hs.on_face') : f.tool?.kind === 'plane' ? t('hs.on_cplane') : String(f.tool?.name || '') + (f.tool?.offset && n(f.tool.offset) !== fmt(0) ? ' ' + mm(f.tool.offset) : '')); if (f.type === 'splitface') parts.push(cnt('hs.n_faces', f.faces)); break;
     case 'faceop': parts.push(t(f.mode === 'move' ? 'faceop.move' : f.mode === 'delete' ? 'faceop.delete' : 'faceop.offset')); if ((f.mode ?? 'offset') === 'offset') parts.push(mm(f.dist)); parts.push(cnt('hs.n_faces', f.faces)); break;
     // WP-19
     case 'sweep': parts.push(t(f.orient === 'fixed' ? 'orient.fixed' : f.orient === 'frenet' ? 'orient.frenet' : 'orient.path')); parts.push(op(f.op)); break;
@@ -308,6 +334,12 @@ export function featSummary(f, vars = {}, fmt = (v) => String(v)) {
     case 'rib': parts.push(mm(f.t)); break;
     case 'vfillet': parts.push('R' + n(f.r1) + '→R' + n(f.r2)); parts.push(cnt('hs.n_edges', f.edges)); break;
     case 'thread': parts.push(String(f.thread?.designation || '?')); if (f.length != null && String(f.length).trim() !== '') parts.push(mm(f.length)); if (f.hand === 'left') parts.push(t('hand.left')); break;
+    case 'plane':
+      if (f.mode === 'three') parts.push(t('hs.pl_three'));
+      else if (f.mode === 'offset') { parts.push(t('hs.pl_offset')); parts.push(mm(f.offset)); }
+      else { parts.push(t('hs.pl_angle')); parts.push(n(f.angle) + '°'); if (f.axis?.kind === 'axis') parts.push(String(f.axis.name)); else if (f.axis?.kind === 'edge') parts.push(t('hs.axis_edge')); }
+      if (f.flip) parts.push(t('hs.pl_flip'));
+      break;
     case 'coil': parts.push('Ø' + n(f.dia) + ' × ' + n(f.turns)); parts.push(op(f.op)); break;
     default: break;
   }
@@ -329,7 +361,7 @@ export function hardRefs(f, ids, status = {}) {
     if (Array.isArray(v)) { v.forEach(walk); return; }
     if (typeof v === 'object') for (const [k, x] of Object.entries(v)) if (!SKIP_IN.has(k)) walk(x);
   };
-  if (f.type === 'sketch') { if (f.plane?.kind === 'face') walk(f.plane.ref); }
+  if (f.type === 'sketch') { if (f.plane?.kind === 'face') walk(f.plane.ref); else if (f.plane?.kind === 'plane' && typeof f.plane.id === 'string') hit(f.plane.id); }
   else for (const [k, x] of Object.entries(f)) if (!SKIP_TOP.has(k) && !SKIP_IN.has(k)) walk(x);
   const st = status[f.id];
   if (st && st.ok && Array.isArray(st.bodies)) for (const b of st.bodies) hit(String(b));
