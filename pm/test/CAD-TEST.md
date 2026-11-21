@@ -39,3 +39,13 @@ Kaynak: Too Tall Toby "Party Pack" ve yarışma çizimleri; build123d belgelerin
 |---|---|---|---|---|
 | T01 | GEÇTİ | 0 | C-13…C-19 | `pm/test/sonuc/T01.md` |
 | T02 | GEÇTİ | +0,00007 % | C-22…C-30 | `pm/test/sonuc/T02.md` |
+| T03 | KISMEN | 0 | C-31…C-36 | R4 fillet aracı yapamadı (C-31, C-33), revolve ile dolanıldı; `pm/test/sonuc/T03.md` |
+| T04 | KISMEN | −0,00003 % | C-37…C-44 | eğik düzlem yok, R16 fillet ve birleştirme olmadı (iki gövde); `pm/test/sonuc/T04.md` |
+| T05 | KISMEN | −0,054 % | C-45 (+C-31) | R1 sap fillet'i yapılamadı (C-31); `pm/test/sonuc/T05.md` |
+| T06 | GEÇTİ | 0 | C-46 | loft (ekle + kes); `pm/test/sonuc/T06.md` |
+
+## Ara rapor (prizmatik faz, T01–T04, 2026-11-21)
+- Puan: GEÇTİ 2 (T01, T02) · KISMEN 2 (T03, T04) · KALDI 0. Dört parçada da son geometri referansla aynı (hacim farkı ≤ %0,0001, kutu aynı) — eksikler ancak dolanarak kapatılabildi.
+- Düzeltme paketi WP-CAD1 için öncelik (Engel/Hata, yüksek): C-39 boolean sonrası aynı düzlemli yüzleri birleştir (UnifySameDomain) · C-31 aynı yüz çifti arasındaki birden çok kenarın kalıcı adı · C-33 kenarı köşede biten fillet brepcheck hatası · C-42 teğet temaslı Join/Combine · C-14 Extrude mesafesi · C-21 budamada daire kayması · C-37 açılı yapı düzlemi.
+- Orta: C-23 kanal aracı iç kısıtları · C-40 koordinat girişi uç noktayı birleştirmiyor · C-25/C-38 eskiz fillet paneli ve köşe seçimi · C-15 son dosyalar · C-32 fillet önizlemesi.
+- Konfor (toplu): C-13, C-16, C-17, C-19, C-22, C-26, C-28, C-29, C-30, C-34, C-35, C-36, C-41, C-43, C-44.

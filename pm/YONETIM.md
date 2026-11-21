@@ -58,5 +58,7 @@
 | G-6 | Bazı iş oturumları GitHub'a gönderemedi (O-047), iş yedek depoda kaldı | İş oturumu kapanışta GitHub'a gönderimi doğrular; gönderemezse `DURUM`'un ilk satırına yazar; yönetim oturumu eşitler | İzleniyor |
 | G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kapandı (Y-02: kullanıcı onayladı) |
 | G-8 | Test parçalarının otomatik regresyona alınması (İE-003 taslak) | T04 ara raporundan sonra Hazır yapılsın | Karar bekliyor |
+| G-10 | CAD testi ara raporu (T01–T06: 3 GEÇTİ, 3 KISMEN). Yüksek çekirdek hataları C-31, C-33, C-39, C-42 → İE-005 Hazır. C-37 (açılı yapı düzlemi yok) özellik eksiği: WP-CAD1'de, 0.6.1 kapsamına alınıp alınmayacağı test bitince | İE-005 hemen açılsın | Açık |
+| G-11 | İE-001 ilk oturumu T06'dan sonra kapandı (bağlam, kural 7); emir Hazır, T07'den devam | Yeni sohbette `Mihenk: devam` | Açık (oturumu kullanıcı açar) |
 | G-9 | 0.6.1 düzeltme sürümü (WP-CAD1 bulguları) ve kullanıcı deneme listesi | İE-002 bitince | Karar bekliyor |
 | G-10 | GitHub'da geçici tanı dalı `tani-ie002` kaldı (oturum proxy'si dal silmeye izin vermedi) | Kullanıcı GitHub'da silsin (Branches → tani-ie002 → sil) | Açık |
