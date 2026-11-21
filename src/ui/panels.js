@@ -133,6 +133,7 @@ export class FeaturePanel {
         upd();
         inp.addEventListener('input', () => { const was = d[fd.k]; d[fd.k] = inp.value; upd(); this.setActive(null); if (fd.optional && !String(was ?? '').trim() !== !inp.value.trim()) { this.fieldChanged(fd.k); const ni = document.querySelector('#panel input[data-k="' + fd.k + '"]'); if (ni) { ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); } return; } this.changed(); });
         inp.addEventListener('focus', () => this.setActive(null));
+        inp.addEventListener('change', () => { if (d[fd.k] !== inp.value) { d[fd.k] = inp.value; upd(); this.changed(); } });
         return this.row(fd.label, h('div', {}, box, hint, msg));
       }
       case 'select': {
@@ -377,8 +378,20 @@ export class FeaturePanel {
     this.setSelList(k, list); this.refreshSels(); this.updateViewport(); this.changed();
   }
 
+  // C-14: panelde görünen değer = uygulanacak değer (tek kaynak). Metin alanı değeri input/change olayı olmadan değiştiyse
+  // (tarayıcı geri yükleme/otomatik doldurma) taslak eski kalır; onaydan önce görünen değerler taslağa işlenir.
+  syncFromDom() {
+    let any = false;
+    for (const el of document.querySelectorAll('#panel input.expr[data-k]')) {
+      const k = el.getAttribute('data-k'); if (!k || k.includes('.')) continue;
+      if (el.value !== String(this.draft[k] ?? '')) { if (el.value === '' && this.draft[k] == null) continue; this.draft[k] = el.value; any = true; }
+    }
+    if (any) this.app.previewSoon(0);
+    return any;
+  }
   async ok() {
     if (this.closed) return;
+    this.syncFromDom();
     const err = this.validate();
     if (err) { this.setStatus({ ok: false, error: err }); toast(errText(err), true); return; }
     await this.app.flushPreview();
