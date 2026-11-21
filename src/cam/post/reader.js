@@ -182,9 +182,10 @@ export function readNC(text, opts = {}) {
     if (W('K')) fail('cam.post.read_unknown_word', ln, { text: 'K' });
     // ---- WP-22b: B/C doner indeks (tek basina; A ile birlikte olabilir)
     if (Bw || Cw) {
+      for (const [k, w] of [['B', Bw], ['C', Cw]]) if (w && opts.machine?.axes?.[k]?.kind !== 'rotary') fail('cam.post.read_unknown_word', ln, { text: w.raw }); // profilde eksen yok: eskisi gibi tanimsiz kelime
       if (hasXYZ || S.cycle) fail('cam.post.read_a_with_xyz', ln);
       if (S.tilt) fail('cam.post.read_tilt', ln);
-      for (const [k, w] of [['B', Bw], ['C', Cw]]) if (w) { if (opts.machine?.axes?.[k]?.kind !== 'rotary') fail('cam.post.read_no_rotary', ln, { axis: k }); S.rot[k] = w.v; events.push({ line: ln, ev: 'rotIndex', axis: k, value: w.v }); }
+      for (const [k, w] of [['B', Bw], ['C', Cw]]) if (w) { S.rot[k] = w.v; events.push({ line: ln, ev: 'rotIndex', axis: k, value: w.v }); }
       if (A) { if (!R) fail('cam.post.read_no_a_axis', ln); S.aCur = A.v; S.aCont = A.v; S.aWord = A.v; events.push({ line: ln, ev: 'aIndex', a: A.v }); }
       if (cur && cur.moves.length) fail('cam.post.read_a_inside_section', ln);
       return;

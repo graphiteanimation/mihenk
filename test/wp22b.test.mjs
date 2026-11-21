@@ -203,7 +203,7 @@ console.log('6. post okuyucusu: G68.2 / G53.1 / G69 ve B/C indeks geri okuma');
   const su = rdu.program.sections[0].setup;
   ok(rdu.program.sections.length === 1 && su.tilt?.mode === 'unwound' && Math.abs(su.rot.A - 45) < 1e-9 && Math.abs(su.rot.C - 45) < 1e-9, 'acilmis: A45 C45 indeksi okunur, setup rot ' + JSON.stringify(su.rot));
   // hatalar: B kelimesi olmayan makine; egik duzlemde doner kelime
-  let th = null; try { readNC('G90 G54\nG0 B10.\nM30', { machine: AC }); } catch (e) { th = e; } ok(th?.code === 'cam.post.read_no_rotary', 'B ekseni yok -> hata (' + th?.code + ')');
+  let th = null; try { readNC('G90 G54\nG0 B10.\nM30', { machine: AC }); } catch (e) { th = e; } ok(th?.code === 'cam.post.read_unknown_word', 'B ekseni yok -> tanimsiz kelime (eskisi gibi) (' + th?.code + ')');
   th = null; try { readNC('G68.2 X0. Y0. Z0. I0. J45. K0.\nG0 A10.\nM30', { machine: AC }); } catch (e) { th = e; } ok(th?.code === 'cam.post.read_tilt', 'G68.2 icinde A -> hata (' + th?.code + ')');
 }
 
