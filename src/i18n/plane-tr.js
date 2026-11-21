@@ -2,7 +2,7 @@
 export default {
   "feat.plane": "Yapı düzlemi",
   "tb.plane": "Yapı düzlemi",
-  "tip.plane": "Açıyla, üç noktadan ya da ofsetle yapı düzlemi oluşturur; eskiz, ayna ve bölme için kullanılır.",
+  "tip.cplane": "Açıyla, üç noktadan ya da ofsetle yapı düzlemi oluşturur; eskiz, ayna ve bölme için kullanılır.",
   "fld.pl_mode": "Kip",
   "pl.mode_angle": "Açıyla düzlem",
   "pl.mode_three": "Üç noktadan düzlem",

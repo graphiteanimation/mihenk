@@ -157,7 +157,10 @@ try:
     check('açınca düzlem, eskiz ve extrude duruyor', [f['type'] for f in ev('app.doc.features')] == ['plane', 'sketch', 'extrude'], ev('app.doc.features.map((f) => f.type)'))
     check('açınca düzlem hesaplandı ve çiziliyor', plane_of(pid) is not None and ev('app.viewport.cplaneGroup.children.length') == 1)
     check('açınca gövde hacmi aynı', rel(body()['v'], v0, 1e-6), [body(), v0])
-    check('açınca belge aynı', ev('JSON.stringify(app.doc)') == json.dumps(doc0, separators=(',', ':')) or ev('app.doc.features.length') == 3)
+    d1 = json.loads(ev('JSON.stringify(app.doc)'))  # açılış eskize sabit 'O' noktasını ekler (eski davranış); onun dışında belge aynı olmalı
+    for f in d1['features']:
+        if f['type'] == 'sketch' and 'O' not in doc0['features'][d1['features'].index(f)].get('points', {}): f['points'].pop('O', None)
+    check('açınca belge aynı (düzlem özelliği ve eskiz düzlemi dahil)', d1 == doc0)
 
     # ---- görünümde düzleme tıklayarak eskiz
     print('düzlemde eskiz seçimi')

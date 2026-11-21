@@ -2,7 +2,7 @@
 export default {
   "feat.plane": "Construction Plane",
   "tb.plane": "Construction plane",
-  "tip.plane": "Creates a construction plane at an angle, through three points or at an offset; use it for sketches, mirror and split.",
+  "tip.cplane": "Creates a construction plane at an angle, through three points or at an offset; use it for sketches, mirror and split.",
   "fld.pl_mode": "Mode",
   "pl.mode_angle": "Plane at Angle",
   "pl.mode_three": "Plane Through Three Points",
