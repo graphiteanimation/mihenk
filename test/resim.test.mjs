@@ -187,7 +187,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mihenk-resim-'));
   const f = path.join(tmp, 'r.pdf'); fs.writeFileSync(f, pdf);
   const q = spawnSync('qpdf', ['--check', f], { encoding: 'utf8' });
   if (q.error) console.log('   (qpdf yok: harici PDF denetimi atlandi)'); else ok(q.status === 0, 'qpdf --check: ' + (q.stdout + q.stderr).split('\n').slice(-3).join(' '));
-  const pt = spawnSync('pdftotext', [f, '-'], { encoding: 'utf8' });
+  const pt = spawnSync('pdftotext', ['-enc', 'UTF-8', f, '-'], { encoding: 'utf8' });
   if (!pt.error) ok(/Ø20 H7/.test(pt.stdout) && pt.stdout.includes(t('drw.tb.title')), 'pdftotext metni okur (O20 H7, antet)');
 }
 {
