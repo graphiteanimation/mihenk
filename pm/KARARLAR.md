@@ -47,6 +47,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-043** (2026-11-21) — "Durmadan çalış: bir iş paketi bitince turu kapatma, aynı turda sıradakini al. Tur herhangi bir nedenle biterse, bitmeden önce send_later ile kendine 1 dakika sonrasına \"Mihenk: devam\" kur ve uyanınca beni beklemeden sürdür. 0.6 bilgisayarıma kurulup denenene kadar böyle devam et." Anlam: K-040 sona erdi (yerine geçer: K-040); K-035/K-039 yeniden yürürlükte. Sıra: WP-21 → 0.4 kapısı → 0.5 (WP-12‖13‖14) → 0.6 (WP-15…19) → yerel kurulum ve kabul. Durma koşulu yalnız §8 (a).
 
+- **K-044** (2026-11-21) — "Şu an devam eden işler bitince bir dur" Anlam: süren işler (dikdörtgen hatası düzeltmesi, kabul bulguları düzeltmesi, `test:all`) bitirilip birleştirilir; yeni kurulum dosyası, yeniden kurulum, kaldırma adımı ve yeni paket başlatılmaz; kendi kendini uyandırma kurulmaz. Kullanıcı `Mihenk: devam` yazınca sürer (K-043 askıda).
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
