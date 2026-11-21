@@ -1000,7 +1000,8 @@ const fastYield = () => (typeof MessageChannel === 'function' && typeof setImmed
   : new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0))));
 const yieldTask = () => new Promise((res) => (typeof setImmediate === 'function' ? setImmediate(res) : setTimeout(res, 0)));
 // özellik önbellek anahtarı: içe aktarma verisi tam içerik özetiyle (F-02)
-function featKey(f, hashes) { return JSON.stringify(f, (k, v) => (k === 'name' ? undefined : k === 'data' && typeof v === 'string' ? 'sha:' + (hashes.get(v) || '?') : v)); }
+// İE-007: yalnız özelliğin kendi adı anahtardan atılır; iç içe `name` (base.name, axis.name, plane.name) geometriyi belirler
+function featKey(f, hashes) { return JSON.stringify(f, function (k, v) { return (k === 'name' && this === f ? undefined : k === 'data' && typeof v === 'string' ? 'sha:' + (hashes.get(v) || '?') : v); }); }
 function importKey(f, hashes) { return typeof f.data === 'string' && f.data.length ? `${f.format}:${hashes.get(f.data)}` : null; }
 async function sha256(s) {
   const bytes = new TextEncoder().encode(s);

@@ -321,5 +321,15 @@ section('T04 ppp0109: 45° destek açılı yapı düzleminde');
   ok(Math.abs(ui.v - M.v) <= 1e-6 * M.v, `açılı düzlem = Move/Copy sonucu: ${M.v} / ${ui.v}`);
 }
 
+section('önbellek: eksen/taban adı değişince düzlem yeniden hesaplanır (arayüz testinin bulgusu)');
+{
+  const mk = (ax, bn) => ({ features: [{ id: 'pl1', type: 'plane', name: 'P', mode: 'angle', base: base(bn), axis: { kind: 'axis', name: ax }, angle: '45' }, rect('s1', pref('pl1'), 10, 10), ext('e1', 's1', 5)] });
+  let out = await K.rebuild(mk('X', 'XY')); vnear(PL(out, 'pl1').x, [1, 0, 0], 'eksen X');
+  out = await K.rebuild(mk('Y', 'XY')); vnear(PL(out, 'pl1').x, [0, 1, 0], 'eksen X→Y sonrası x = Y');
+  const nXY = PL(out, 'pl1').n;
+  out = await K.rebuild(mk('Y', 'YZ')); ok(!near3(PL(out, 'pl1').n, nXY), 'taban XY→YZ sonrası normal değişir');
+  ok(Object.values(out.status).every((s) => s.ok), 'hatasız');
+}
+
 console.log(`yapi-duzlemi: ${pass} geçti, ${fail} kaldı`);
 process.exit(fail ? 1 : 0);

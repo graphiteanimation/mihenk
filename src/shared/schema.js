@@ -54,6 +54,7 @@ const planeRefChk = (v, p) => {
 const planePointChk = (v, p) => {
   obj({ kind: oneOf(['vertex', 'sketch', 'xyz']), edge: obj(), hint: arrOf(num(), 3), sketch: str(LIMITS.shortStr), point: str(LIMITS.shortStr), x: expr(), y: expr(), z: expr() })(v, p);
   if (v.kind === 'vertex' && !isObj(v.edge)) fail('schema.bad_field', { path: p + '.edge', expect: 'object' });
+  if (v.hint !== undefined && v.hint.length !== 3) fail('schema.bad_field', { path: p + '.hint', expect: '3' });
   if (v.kind === 'sketch') for (const k of ['sketch', 'point']) if (typeof v[k] !== 'string' || !v[k]) fail('schema.bad_field', { path: p + '.' + k, expect: 'text' });
 };
 const planeAxisChk = (v, p) => {
@@ -278,6 +279,7 @@ export function validateDoc(doc, { byteLength } = {}) {
     if (f.bodyName !== undefined) str(LIMITS.str)(f.bodyName, p + '.bodyName');
     if (f.suppressed !== undefined) bool()(f.suppressed, p + '.suppressed');
     for (const [k, chk] of Object.entries(TYPES[f.type])) if (f[k] !== undefined) chk(f[k], p + '.' + k);
+    if (f.type === 'plane' && f.mode === undefined) fail('schema.bad_field', { path: p + '.mode', expect: 'angle/three/offset' });
     if (f.type === 'mirror' && f.plane === 'plane' && (typeof f.planeId !== 'string' || !f.planeId)) fail('schema.bad_field', { path: p + '.planeId', expect: 'text' });
   });
   // desen adedi üst sınırı (ifade çözülebiliyorsa; çözülemeyen ifadeyi çekirdek özellik hatası olarak bildirir)
