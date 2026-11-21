@@ -5,3 +5,4 @@ test/shots/
 test/tmp/
 test/verify-ui/shots/
 __pycache__/
+node_modules
