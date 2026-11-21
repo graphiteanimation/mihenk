@@ -35,8 +35,9 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_LANGUAGE "English"
 LangString SEC_PROGRAM ${LANG_TURKISH} "Program"
 LangString SEC_PROGRAM ${LANG_ENGLISH} "Program"
-LangString LNK_UNINSTALL ${LANG_TURKISH} "${APPFULL} Kaldır"
-LangString LNK_UNINSTALL ${LANG_ENGLISH} "Uninstall ${APPFULL}"
+; Kısayol adı dosya adıdır: "/" içeremez (APPFULL "CAD/CAM" içerir; kısayol hiç oluşmuyordu). O-051
+LangString LNK_UNINSTALL ${LANG_TURKISH} "${APP} Kaldır"
+LangString LNK_UNINSTALL ${LANG_ENGLISH} "Uninstall ${APP}"
 
 ; $INSTDIR "\Mihenk" ile bitmiyorsa ekler (sondaki "\" atılır)
 Function EnsureSubdir
@@ -86,6 +87,9 @@ Section "$(SEC_PROGRAM)"
   CreateShortCut "$DESKTOP\${APP}.lnk" "$INSTDIR\${APP}.exe"
   CreateDirectory "$SMPROGRAMS\${APP}"
   CreateShortCut "$SMPROGRAMS\${APP}\${APP}.lnk" "$INSTDIR\${APP}.exe"
+  ; eski sürümlerden kalan kaldırma kısayolları (O-051)
+  Delete "$SMPROGRAMS\${APP}\Uninstall Mihenk CADCAM.lnk"
+  Delete "$SMPROGRAMS\${APP}\Mihenk CADCAM Kaldır.lnk"
   CreateShortCut "$SMPROGRAMS\${APP}\$(LNK_UNINSTALL).lnk" "$INSTDIR\Kaldir.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayName" "${APPFULL}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}" "DisplayVersion" "${VERSION}"
@@ -117,6 +121,9 @@ Section "Uninstall"
   Delete "$DESKTOP\${APP}.lnk"
   Delete "$SMPROGRAMS\${APP}\${APP}.lnk"
   Delete "$SMPROGRAMS\${APP}\$(LNK_UNINSTALL).lnk"
+  ; eski sürümlerden kalan kaldırma kısayolları (O-051)
+  Delete "$SMPROGRAMS\${APP}\Uninstall Mihenk CADCAM.lnk"
+  Delete "$SMPROGRAMS\${APP}\Mihenk CADCAM Kaldır.lnk"
   RMDir "$SMPROGRAMS\${APP}"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}"
   ReadRegStr $2 HKCU "Software\Classes\.mhnk" ""
