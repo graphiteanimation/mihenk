@@ -175,5 +175,6 @@ export function triCut(T, rho, p0, p1, zTop) { sweepRays(T, rho, p0, p1, zTop, (
 // WP-22b: genel supurme (fn(ray, lo, hi, eksen 'x'|'y', isin dik koordinati, z)); uMin: uctan bu yuksekligin altindaki katmanlar atlanir
 export function triSweep(T, rho, p0, p1, zTop, fn, uMin = 0) { sweepRays(T, rho, p0, p1, zTop, fn, uMin); }
 // WP-22b: [u0, u1] bandinda (uctan yukseklik) X/Y isinlarinda en buyuk yanal ortusme; rho(u) bant disinda 0 dondurmeli
-export function triBandHit(T, rho, p0, p1, u0, zTop) { let best = 0; sweepRays(T, rho, p0, p1, zTop, (ray, lo, hi) => { const o = rayOverlap(ray, lo, hi); if (o > best) best = o; }, u0); return best; }
+// Derinlik = ortusmesi olan eksenlerin (X, Y) en buyuk ortusmelerinin KUCUGU (hareket yonundeki isinlarda kiris boyu yanal girisi abartir)
+export function triBandHit(T, rho, p0, p1, u0, zTop) { const m = { x: 0, y: 0 }; sweepRays(T, rho, p0, p1, zTop, (ray, lo, hi, ax) => { const o = rayOverlap(ray, lo, hi); if (o > m[ax]) m[ax] = o; }, u0); return m.x > 0 && m.y > 0 ? Math.min(m.x, m.y) : Math.max(m.x, m.y); }
 export function triHit(T, rho, p0, p1, zTop) { let best = 0; sweepRays(T, rho, p0, p1, zTop, (ray, lo, hi) => { const o = rayOverlap(ray, lo, hi); if (o > best) best = o; }); return best; }

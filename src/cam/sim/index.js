@@ -189,6 +189,9 @@ export function createSim(input, opts = {}) {
     const j0 = Math.max(0, Math.floor((py - Rmax - hm.y0) / rs)), j1 = Math.min(ny - 1, Math.floor((py + Rmax - hm.y0) / rs));
     const zFlute = pz + g.fluteLen + tol, zBody = pz + g.bodyLen + tol, mh = cur.mhCh || S.mh, gtol = gtolBase + (mh?.err ?? 0);
     const gtolT = gtolBase + (cur.mt?.err ?? 0), tg = { z: 0, x: 0, y: 0 }; // WP-22b: tri model oymasi (Z, X, Y isinlarinda en buyuk ortusme)
+    // WP-22b: tri kipte kesici yalniz [uc profili, flut ustu] (oyma bu aralikta; ustundeki model sap/tutucu carpmasidir). Boyunlu takim
+    // (sap < kesici, T-yuva): flut ustunde yalniz sap; sap yan temasi X/Y bantlarinda (shaft_collision), Z sutunu sonsuz sayilmaz.
+    const neck = !!S.tri && shaftR < R - 1e-9, zCutTop = neck ? zFlute : Infinity;
     for (let j = j0; j <= j1; j++) {
       const cy = hm.y0 + (j + 0.5) * rs, dy = cy - py;
       for (let i = i0; i <= i1; i++) {
@@ -205,6 +208,14 @@ export function createSim(input, opts = {}) {
             const cl = pz + g.bodyLen + u - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
           }
         }
+        if (neck) { // T-yuva/boyunlu takim (tri): Z isininda yalniz kesici dilimi; flut ustu sap denetimi X/Y bantlarinda
+          if (r > R || (mode === 1 && r > g.cutR)) continue;
+          const zb = pz + g.profile(r), zr = S.tri.zr[idx2];
+          if (mode === 0) { const o = overlapIv(zr, zb, zFlute); if (o && o.ov > tol) note('rapid_in_stock', o.ov, px, py, pz); continue; }
+          if (cur.mt) { const o = overlapIv(cur.mt.zr[idx2], zb, zFlute); if (o && o.ov > gtolT && o.ov > tg.z) tg.z = o.ov; }
+          const rem = subRay(zr, zb < S.zFloor ? S.zFloor : zb, zFlute); if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; } d[idx2] = rayTop(zr, S.zFloor);
+          continue;
+        }
         if (cur.zones && r <= R && inZone(cur.zones, cx, cy, pz)) { // WP-07: dis halkasi, yalniz KESICI (flut) boyu icinde kasitli kesimdir; flut boyunu asan malzeme sap yaricapinda engel (flute_exceeded)
           if (h > zFlute && r <= shaftR) note('flute_exceeded', h - zFlute + tol, px, py, pz);
           continue;
@@ -216,7 +227,7 @@ export function createSim(input, opts = {}) {
         const zb = pz + g.profile(r);
         if (mode === 0) { if (h > zb + tol) note('rapid_in_stock', h - zb, px, py, pz); continue; }
         if (h > zb) {
-          if (cur.mt) { const zr = cur.mt.zr[idx2]; if (zr.length) { const o = overlapIv(zr, zb, Infinity); if (o && o.ov > gtolT && o.ov > tg.z) tg.z = o.ov; } }
+          if (cur.mt) { const zr = cur.mt.zr[idx2]; if (zr.length) { const o = overlapIv(zr, zb, zFlute); if (o && o.ov > gtolT && o.ov > tg.z) tg.z = o.ov; } } // WP-22b: kesici dilimi
           else if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) noteGouge(g, r, m, zb, pz, px, py, cx, cy); }
           const nz = zb < S.zFloor ? S.zFloor : zb;
           if (S.tri) { const zr = S.tri.zr[idx2]; const rem = subRay(zr, nz, Infinity); if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; } d[idx2] = rayTop(zr, S.zFloor); }
@@ -227,8 +238,9 @@ export function createSim(input, opts = {}) {
     if (gc) finishGouge();
     if (S.tri) { // WP-13: X/Y isinlari (ardisik ornek cifti kapsulu): kesmede cikar, hizlida yanal giris
       const p1 = { x: px, y: py, z: pz };
-      if (mode === 1 && cur.mt) { // WP-22b: model X/Y araliklarina yanal oyma (dis bolgesi kasitli)
-        triSweep(cur.mt, g.rho, prev, p1, cur.mt.zTop, (ray, lo, hi, ax, c) => {
+      const fL = g.fluteLen, rhoCut = (u) => (u <= fL ? g.rho(u) : 0);
+      if (mode === 1 && cur.mt) { // WP-22b: model X/Y araliklarina yanal oyma, yalniz kesici dilimi (dis bolgesi kasitli)
+        triSweep(cur.mt, rhoCut, prev, p1, cur.mt.zTop, (ray, lo, hi, ax, c) => {
           const o = overlapIv(ray, lo, hi); if (!o || o.ov <= gtolT || o.ov <= tg[ax]) return;
           if (cur.zones) { const m = (o.a + o.b) / 2; if (inZone(cur.zones, ax === 'x' ? m : c, ax === 'x' ? c : m, pz)) return; }
           tg[ax] = o.ov;
@@ -236,8 +248,8 @@ export function createSim(input, opts = {}) {
       }
       if (cur.mt && (tg.z > 0 || tg.x > 0 || tg.y > 0)) noteTriGouge(tg, px, py, pz);
       lateralBands(S.tri, g, prev, p1, S.hmax, px, py, pz); // WP-22b: sap/tutucu yanal carpmasi (kesimden ONCE: malzeme henuz yerinde)
-      if (mode === 1) triCut(S.tri, g.rho, prev, p1, S.hmax);
-      else { const o = triHit(S.tri, g.rhoEnv, prev, p1, S.hmax); if (o > latTol) note('rapid_in_stock', o, px, py, pz); }
+      if (mode === 1) triCut(S.tri, neck ? rhoCut : g.rho, prev, p1, S.hmax);
+      else { const o = triHit(S.tri, neck ? (u) => (u <= fL ? g.rhoEnv(u) : 0) : g.rhoEnv, prev, p1, S.hmax); if (o > latTol) note('rapid_in_stock', o, px, py, pz); }
     }
   }
   // WP-22b: tri model oymasi. Derinlik = ortusmesi olan eksenlerin en buyuk ortusmelerinin EN KUCUGU (yuzeye dik girmenin
@@ -253,13 +265,14 @@ export function createSim(input, opts = {}) {
   function bandsOf(g) {
     if (bandCache.has(g)) return bandCache.get(g);
     const fL = g.fluteLen, bL = g.bodyLen, hs = g.holderSegs;
-    const b = { flute: (u) => (u >= fL && u <= bL ? g.R : 0), shaft: g.shaftR > g.R + 1e-9 ? (u) => (u >= fL && u <= bL ? g.shaftR : 0) : null, holder: null };
+    const neck = g.shaftR < g.R - 1e-9; // boyunlu takim: flut ustunde yalniz sap (shaftR) -> shaft_collision
+    const b = { flute: neck ? null : (u) => (u >= fL && u <= bL ? g.R : 0), shaft: g.shaftR > g.R + 1e-9 || neck ? (u) => (u >= fL && u <= bL ? g.shaftR : 0) : null, holder: null };
     if (hs && g.holderR > 0) b.holder = (u) => { const q = u - bL; if (q < 0) return 0; for (const sg of hs) if (q >= sg.u0 && q <= sg.u1) return sg.r0 + (sg.u1 > sg.u0 ? (q - sg.u0) / (sg.u1 - sg.u0) : 0) * (sg.r1 - sg.r0); return 0; };
     bandCache.set(g, b); return b;
   }
   function lateralBands(T, g, prev, p1, zTop, px, py, pz) {
     const b = bandsOf(g); if (Math.min(p1.z, prev ? prev.z : p1.z) + g.fluteLen >= zTop) return;
-    const of = triBandHit(T, b.flute, prev, p1, g.fluteLen, zTop);
+    const of = b.flute ? triBandHit(T, b.flute, prev, p1, g.fluteLen, zTop) : 0;
     if (of > latTol) note('flute_exceeded', of, px, py, pz);
     if (b.shaft) { const os = triBandHit(T, b.shaft, prev, p1, g.fluteLen, zTop); if (os > of + latTol) note('shaft_collision', os, px, py, pz); }
     if (b.holder && Math.min(p1.z, prev ? prev.z : p1.z) + g.bodyLen < zTop) { const oh = triBandHit(T, b.holder, prev, p1, g.bodyLen, zTop); if (oh > latTol) { note('holder_collision', oh, px, py, pz); cur.hadHolderHit = true; } }

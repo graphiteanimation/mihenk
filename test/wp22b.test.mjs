@@ -4,6 +4,8 @@
 import * as CAM from '../src/cam/index.js';
 import * as G from '../src/shared/geom2d.js';
 import { mk, compareToolpaths, splitWrapMoves } from '../src/cam/ir.js';
+import { wrapTouch } from '../src/cam/sim/wrap.js';
+import { toolGeom } from '../src/cam/sim/index.js';
 import { simulate, heightmapFromFn, boxMesh, mergeMeshes, triFromMesh, meshRadialRays, createWrapStock, triFromBox, stockHeightmap } from '../src/cam/sim/index.js';
 import { gcodeToProgram } from '../src/cam/sim/gcode.js';
 import { gates } from '../src/cam/gates.js';
@@ -263,6 +265,35 @@ console.log('8. kapilar: tri + model agi -> sim_lateral_tol kalkar; bellek olcum
   const mb = (x) => (x / 1048576).toFixed(1);
   console.log(`  bellek (heapUsed${global.gc ? ', gc' : ', gc yok: cop dahil'}): tri stok ${mb(m1 - m0)} MB, model isinlari ${mb(m2 - m1)} MB, ${Date.now() - t0} ms (izgara ${Tb.nx}x${Tb.ny}x${Tb.nz})`);
   ok(Mb.zr.length === Tb.nx * Tb.ny && Mb.xr.length === Tb.ny * Tb.nz, 'buyuk izgarada model isinlari kuruldu');
+}
+
+console.log('9. T-yuva (boyunlu) takim: kesici dilimi disindaki model oyma degil; sap yan temasi shaft_collision');
+{
+  const ts = { number: 7, H: 7, type: 'flat', dia: 12, shaftDia: 4, fluteLen: 3, bodyLen: 30 }; // O12 kafa, O4 sap
+  const plate = { min: [0, -10, -10], max: [24, 10, 0] }; const pm = boxMesh(plate.min, plate.max);
+  const pth = (x) => TP(ts, [mk.rapid(x, -20, 10), mk.rapid(x, -20, -15), mk.feed(x, 20, -15, 300), mk.rapid(x, 20, 10)], { meta: { belowStock: 6 } });
+  const o = { stockBox: plate, res: 0.25, dexel: 'tri', modelMeshes: { default: pm }, freePieces: false };
+  const ok29 = simulate(pth(29), o);
+  ok(!errs(ok29).length, 'T-yuva plaka altinda (kafa x 23..35, z -15..-12): engel yok: ' + codes(ok29));
+  const rub = simulate(pth(25.8), o); const sq = rub.issues.find((i) => i.code === 'cam.sim.shaft_collision');
+  ok(sq && sq.level === 'error' && Math.abs(sq.params.depth - 0.2) < 0.03 && !has(rub, 'cam.sim.gouge'), 'sap plakaya 0,2 mm surtunur: shaft_collision derinlik ' + sq?.params?.depth + ', oyma yok: ' + codes(rub));
+  // normal takim (sap = kesici): kesici dilimi ustundeki model flut asimi (oyma derinligi kesici diliminde)
+  const f20 = { number: 8, H: 8, type: 'flat', dia: 6, fluteLen: 5, bodyLen: 30 };
+  const deep = TP(f20, [mk.rapid(22, -20, 10), mk.rapid(22, -20, -8), mk.feed(22, 20, -8, 300), mk.rapid(22, 20, 10)]);
+  const rd = simulate(deep, o); const gq = rd.issues.find((i) => i.code === 'cam.sim.gouge');
+  ok(has(rd, 'cam.sim.flute_exceeded') && gq && gq.params.vertical <= 5 + 0.02, 'normal takim plakaya: flut asimi + oyma (dikey <= flut boyu 5): ' + gq?.params?.vertical);
+}
+
+console.log('10. sarma: modele hizli giris (stok kalkmis olsa da) carpma');
+{
+  const { S } = globalThis.__wrap; const W = createWrapStock(S, 0.2); W.model = meshRadialRays(boxMesh([0, -15, -15], [100, 15, 15]), W);
+  W.top.fill(0); // stok tamamen kalkmis (yalniz model)
+  const notes = []; const g = toolGeom({ type: 'flat', dia: 10, fluteLen: 20, bodyLen: 45 });
+  wrapTouch(W, g, 50, 14, 0, 0, (c, d) => notes.push([c, d]), 0.001, { gtol: 0.01 });
+  const hit = notes.filter((n) => n[0] === 'rapid_in_stock').reduce((m, n) => (!m || n[1] > m[1] ? n : m), null);
+  ok(hit && Math.abs(hit[1] - 1) < 0.05, 'hizli uc r 14 < model 15: rapid_in_stock ~1 mm: ' + JSON.stringify(hit));
+  const n2 = []; wrapTouch(W, g, 50, 16, 0, 0, (c, d) => n2.push([c, d]), 0.001, { gtol: 0.01 });
+  ok(!n2.length, 'hizli uc r 16 > model: temiz');
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi`);

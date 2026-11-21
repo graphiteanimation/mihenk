@@ -39,7 +39,7 @@ function sub(W, k, lo, hi) {
 // g = toolGeom(tool). Donus: kaldirilan hacim (mm3).
 // ext (WP-22b): { gtol } modele oyma toleransi (W.model varsa).
 export function wrapTouch(W, g, x, rho, phi, mode, note, tol = 0.001, ext = null) {
-  const MR = mode === 1 && W.model ? W.model.rays : null, gtol = ext?.gtol ?? 0.01;
+  const MR = W.model ? W.model.rays : null, gtol = ext?.gtol ?? 0.01;
   const R = g.R, Rmax = Math.max(R, g.shaftR, g.holderR);
   const i0 = Math.max(0, Math.floor((x - Rmax - W.x0) / W.res)), i1 = Math.min(W.nx - 1, Math.floor((x + Rmax - W.x0) / W.res));
   if (i1 < i0) return 0;
@@ -52,8 +52,8 @@ export function wrapTouch(W, g, x, rho, phi, mode, note, tol = 0.001, ext = null
     const c = Math.cos(D), sn = Math.abs(Math.sin(D)); if (c <= 1e-9) continue;
     const sLo0 = rho / c;
     for (let i = i0; i <= i1; i++) {
-      const k = j * W.nx + i, top = W.top[k];
-      if (sLo0 >= top - tol) continue; // isin malzemesi takim ucunun altinda
+      const k = j * W.nx + i, top = W.top[k], mr = MR ? MR[k] : null, eTop = mr && mr.length ? Math.max(top, mr[mr.length - 1]) : top;
+      if (sLo0 >= eTop - tol) continue; // isin malzemesi (stok ve model) takim ucunun altinda
       const dx = W.x0 + (i + 0.5) * W.res - x;
       // sap / tutucu (kesmeyen kisim): isinin dis noktasina kadar dolu sayilir
       const sF = (rho + L) / c;
@@ -74,12 +74,13 @@ export function wrapTouch(W, g, x, rho, phi, mode, note, tol = 0.001, ext = null
         if (f(sHi) < 0) continue;
         let a = sLo0, b = sHi; for (let it = 0; it < 40; it++) { const m = (a + b) / 2; if (f(m) >= 0) b = m; else a = m; } sLo = b;
       }
-      if (sLo >= top - tol) continue;
-      if (MR) { // WP-22b: kesici [sLo, sLat] ile model araliklari. Derinlik: takim ekseni boyunca ortusme ya da yanal sinira
-        // degiyorsa yanal giris (R - giris noktasinin eksenden uzakligi); kucuk olani (isin acisi yanal girisi buyutmesin)
-        const o = overlapIv(MR[k], sLo, sLat);
-        if (o) { let dep = (o.b - o.a) * c; if (o.b >= sLat - 1e-9) dep = Math.min(dep, R - Math.hypot(dx, o.a * sn)); if (dep > gtol) note('gouge', dep); }
+      if (mr && mr.length) { // WP-22b: kesici [sLo, min(sLat, flut ustu)] ile model araliklari (stok kalkmis olsa da). Derinlik: takim
+        // ekseni boyunca ortusme ya da yanal sinira degiyorsa yanal giris (R - giris noktasinin eksenden uzakligi); kucuk olani.
+        // Kesmede oyma, hizlida modele giris = carpma (rapid_in_stock, engel).
+        const o = overlapIv(mr, sLo, sHi);
+        if (o) { let dep = (o.b - o.a) * c; if (o.b >= sLat - 1e-9) dep = Math.min(dep, R - Math.hypot(dx, o.a * sn)); if (dep > gtol) note(mode === 1 ? 'gouge' : 'rapid_in_stock', dep); }
       }
+      if (sLo >= top - tol) continue;
       if (mode === 0) { const o = rayOverlap(wrapRay(W, k), sLo, sHi); if (o > 0.01) note('rapid_in_stock', o); continue; }
       vol += sub(W, k, sLo, sHi) * W.res * W.dt;
     }
