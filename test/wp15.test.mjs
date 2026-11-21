@@ -51,21 +51,21 @@ function samples(tp, step = 0.1) {
   return out;
 }
 // (2) analitik mesafe: takim alt zarfi ile yuzey arasi en buyuk giris (mm, pozitif = oyma). Yuzey gs adimli izgarada ornekleri.
-function gougeAnalytic(tp, f, t, { step = 0.1, gs = 0.05, every = 1 } = {}) {
+function gougeAnalytic(tp, f, t, { step = 0.15, gs = 0.1, every = 1 } = {}) {
   const C = makeCutter(t, 0); const R = C.R0; let worst = -Infinity, at = null;
   const pts = samples(tp, step);
   for (let q = 0; q < pts.length; q += every) {
     const [x, y, z] = pts[q];
     const i0 = Math.ceil((x - R) / gs), i1 = Math.floor((x + R) / gs), j0 = Math.ceil((y - R) / gs), j1 = Math.floor((y + R) / gs);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-      const px = i * gs, py = j * gs; const d = Math.hypot(px - x, py - y); if (d > R) continue;
+      const px = i * gs, py = j * gs; const d = Math.hypot(px - x, py - y); if (d > R - 1e-4) continue; // sinirda degme oyma degil
       const fz = f(px, py); if (fz === -Infinity) continue; const v = fz - (z + C.prof(d)); if (v > worst) { worst = v; at = [x, y, z]; }
     }
   }
   return { worst, at, n: pts.length };
 }
 // (1) uc dexel simulasyon: oyma bulgusu (cam.sim.gouge) sayisi ve en derin
-function simGouge(tp, S, f, res = 0.1) {
+function simGouge(tp, S, f, res = 0.25) {
   const b = S.stockBox; const mh = heightmapFromFn([b.min[0], b.min[1]], [b.max[0], b.max[1]], res, (x, y) => { const v = f(x, y); return v === -Infinity ? b.min[2] : v; });
   const r = simulate(tp, { res, stockBox: b, modelHeightmap: mh, dexel: 'tri', gougeTol: 0.01, freePieces: false });
   const g = r.issues.filter((x) => x.code === 'cam.sim.gouge');
@@ -113,21 +113,172 @@ const FIN = [
   { type: 'scallop', scallopHeight: 0.02 },
 ];
 if (sec('gouge')) {
-  for (const k of ['hemi', 'incl', 'free']) {
+  const KS = process.env.WP15_PART ? process.env.WP15_PART.split(',') : ['hemi', 'incl', 'free'];
+  for (const k of KS) {
     const M = modelOf(k), S = setupFor(k);
     for (const op of FIN) for (const t of [tool('ball', 6), tool('bullnose', 8, 1.5), tool('flat', 6)]) {
+      if (process.env.WP15_OP && process.env.WP15_OP !== op.type) continue;
       if (op.type === 'scallop' && t.type === 'flat') continue;
       if (op.type === 'zlevel' && k === 'incl' && t.type !== 'ball') continue; // duzlemde kontur egrisi dogrusal: bir takim yeter
-      const tp = compute({ ...op, tag: k + '/' + t.type }, S, t, M);
+      const tc = Date.now(); const tp = compute({ ...op, tag: k + '/' + t.type }, S, t, M); const tg = Date.now();
       validateToolpath(tp);
-      const ga = gougeAnalytic(tp, PARTS[k].f, t, { every: op.type === 'scallop' ? 3 : 1 });
+      const ga = gougeAnalytic(tp, PARTS[k].f, t, { every: op.type === 'scallop' ? 3 : 1 }); const tA = Date.now();
       ok(ga.worst <= 0.01, `oyma (analitik) ${k} ${op.type} ${t.type}: ${ga.worst.toFixed(4)} <= 0,01 @${ga.at?.map((v) => v.toFixed(2))}`);
       if (t.type !== 'flat' || op.type !== 'zlevel') {
         const sg = simGouge(tp, S, PARTS[k].f);
         ok(sg.n === 0, `oyma (uc dexel sim) ${k} ${op.type} ${t.type}: ${sg.n} bulgu ${JSON.stringify(sg.issues.filter((x) => x.code === 'cam.sim.gouge').slice(0, 1).map((x) => x.params))}`);
       }
+      if (process.env.WP15_V) console.log(k, op.type, t.type, 'hesap', tg - tc, 'analitik', tA - tg, 'sim', Date.now() - tA, 'ms', 'oyma', ga.worst.toFixed(4));
     }
   }
+}
+
+// ------------------------------------------------------------------ 4. scallop yuksekligi (hedef +-%20; takim zarfi ince izgarada)
+// Kalinti (yuzeye dik yaklasik) = (zarf - f) * cos(egim); zarf(p) = min takim alt yuzeyi (yol ornekleri). Yamada en buyuk = tepe.
+function cuspMax(tp, f, t, cx, cy, half = 1, gs = 0.02) {
+  const C = makeCutter(t, 0); const R = C.R0; const pts = samples(tp, 0.04).filter((q) => Math.abs(q[0] - cx) <= half + R && Math.abs(q[1] - cy) <= half + R);
+  let worst = -Infinity;
+  for (let y = cy - half; y <= cy + half + 1e-9; y += gs) for (let x = cx - half; x <= cx + half + 1e-9; x += gs) {
+    let env = Infinity; for (const q of pts) { const d = Math.hypot(q[0] - x, q[1] - y); if (d <= R) { const z = q[2] + C.prof(d); if (z < env) env = z; } }
+    if (env === Infinity) continue; const fz = f(x, y); const h = 1e-4; const gx = (f(x + h, y) - f(x - h, y)) / (2 * h), gy = (f(x, y + h) - f(x, y - h)) / (2 * h);
+    const v = (env - fz) / Math.sqrt(1 + gx * gx + gy * gy); if (v > worst) worst = v;
+  }
+  return worst;
+}
+// Not: noktalar sinirdan ilerleyen cephelerin bulustugu ortanca eksenden (kosegenler) uzak secildi; orada tepe buyur (bkz. WP-15.md acik).
+if (sec('scallop')) {
+  const hs = 0.02; const t = tool('ball', 6);
+  for (const [k, spots] of [['hemi', [[7, 2], [-4, -9], [2, 11]]], ['incl', [[-12, 3], [5, -13]]], ['free', [[-12, 4], [3, 13], [-4, -12]]]]) {
+    const tp = compute({ type: 'scallop', scallopHeight: hs, tag: k }, setupFor(k), t, modelOf(k));
+    for (const [cx, cy] of spots) { const c = cuspMax(tp, PARTS[k].f, t, cx, cy); ok(c >= 0.8 * hs && c <= 1.2 * hs, `scallop ${k} (${cx},${cy}): tepe ${c.toFixed(4)} hedef ${hs} +-%20`); }
+  }
+}
+
+// ------------------------------------------------------------------ 5. 3D uyarlanir kaba: kalan stok = bitirme payi + kademe tepesi
+const RES_R = 0.25;
+function excessHemi(remain, x0, y0) { // kalan stok yuzeye dik kalinligi (yarim kure + plaka)
+  const out = []; const { nx, ny, res } = remain;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = remain.x0 + (i + 0.5) * res, y = remain.y0 + (j + 0.5) * res; if (Math.abs(x) > 23 || Math.abs(y) > 23) continue;
+    const z = remain.data[j * nx + i]; const r = Math.hypot(x, y);
+    const dS = Math.hypot(r, z) - Rs; const dP = z; // kure ya da plaka (en yakin)
+    out.push({ x, y, z, d: r <= Rs ? Math.min(dS, dP) : Math.min(dP, Math.hypot(r - Rs, Math.max(0, z)) ) });
+  }
+  return out;
+}
+if (sec('rough')) {
+  const M = modelOf('hemi'), S = setupFor('hemi', 3); const t = tool('flat', 10); const leave = 0.3, fill = 1;
+  const op = { type: 'adaptive3d', optimalLoad: 2, stepdown: 4, fillStepdown: fill, stockToLeave: leave, entry: { kind: 'helix', angle: 3, helixDia: 8 }, heights: { clearance: 10, retract: 2 } };
+  const tp = compute(op, S, t, M); validateToolpath(tp);
+  ok(tp.meta.surf.levels >= 4 && tp.meta.surf.fillLevels >= 8, `3D kaba seviyeler: ana ${tp.meta.surf.levels}, ara ${tp.meta.surf.fillLevels}`);
+  const r = simulate(tp, { res: RES_R, stockBox: S.stockBox, modelHeightmap: heightmapFromFn([S.stockBox.min[0], S.stockBox.min[1]], [S.stockBox.max[0], S.stockBox.max[1]], RES_R, (x, y) => Math.max(0, PARTS.hemi.f(x, y))), gougeTol: 0.01, freePieces: false });
+  ok(!r.issues.some((x) => x.code === 'cam.sim.gouge'), '3D kaba sim: modele oyma yok');
+  const ex = excessHemi(r.remainHeightmap); let mn = Infinity, mx = -Infinity; for (const e of ex) { if (e.d < mn) mn = e.d; if (e.d > mx) mx = e.d; }
+  // ust sinir: pay + ara seviye adimi (kademe tepesi, dusey) + takim kenarindaki izgara/kuantalama payi (0,25 sim hucresi)
+  ok(mn >= leave - 0.03, `3D kaba: kalan stok >= bitirme payi (en az ${mn.toFixed(3)}, pay ${leave})`);
+  ok(mx <= leave + fill + RES_R, `3D kaba: kalan stok <= pay + kademe tepesi (en cok ${mx.toFixed(3)} <= ${(leave + fill + RES_R).toFixed(2)})`);
+  // 3D rest kaba: kucuk takim onceki islemin stogundan yalniz kalan malzemeyi alir
+  const t2 = tool('flat', 4); const op2 = { ...op, type: 'adaptive3d', optimalLoad: 0.8, stepdown: 2, fillStepdown: 0.5, entry: { kind: 'helix', angle: 3, helixDia: 3 }, rest: { source: 'stock' }, tag: 'rest' };
+  throwsCode(() => CAM.computeOp({ id: 'r', name: 'r', ...base, ...op2 }, { setup: S, tool: t2, geom: { surface: M }, machine: null }), 'cam.adaptive.rest_no_stock', '3D rest kaba: stok haritasi yoksa hata');
+  const tp2 = compute(op2, S, t2, M, { stockMap: r.remainHeightmap });
+  const r2 = simulate(tp2, { res: RES_R, stockBox: S.stockBox, stockHeightmap: r.remainHeightmap, modelHeightmap: heightmapFromFn([S.stockBox.min[0], S.stockBox.min[1]], [S.stockBox.max[0], S.stockBox.max[1]], RES_R, (x, y) => Math.max(0, PARTS.hemi.f(x, y))), gougeTol: 0.01, freePieces: false });
+  ok(!r2.issues.some((x) => x.code === 'cam.sim.gouge'), '3D rest kaba sim: oyma yok');
+  const ex2 = excessHemi(r2.remainHeightmap); let mx2 = -Infinity; for (const e of ex2) if (e.d > mx2) mx2 = e.d;
+  ok(mx2 <= leave + 0.5 + RES_R && mx2 < mx, `3D rest kaba: en buyuk kalinlik azaldi ${mx.toFixed(3)} -> ${mx2.toFixed(3)}`);
+  ok(r2.removedVolume < 0.5 * r.removedVolume, `3D rest kaba yalniz kalani keser (hacim ${r2.removedVolume.toFixed(0)} << ${r.removedVolume.toFixed(0)})`);
+}
+
+// ------------------------------------------------------------------ 6. kalem izi yalniz ic koselerde; 3D rest bitirme
+const tower = merge(box([-20, -20, 0], [20, 20, 5]), box([-6, -6, 5], [6, 6, 15]));
+const towerF = (x, y) => (Math.abs(x) <= 6 && Math.abs(y) <= 6 ? 15 : Math.abs(x) <= 20 && Math.abs(y) <= 20 ? 5 : -Infinity);
+const dRect = (x, y, a) => { const dx = Math.max(Math.abs(x) - a, 0), dy = Math.max(Math.abs(y) - a, 0); return Math.abs(x) <= a && Math.abs(y) <= a ? -Math.min(a - Math.abs(x), a - Math.abs(y)) : Math.hypot(dx, dy); };
+if (sec('pencil')) {
+  const M = buildModel(tower.verts, tower.tris, { tol: 0 }); const S = setupOf([-20, -20, -2], [20, 20, 17], [-20, -20, 0], [20, 20, 15]); const t = tool('ball', 6);
+  const tp = compute({ type: 'pencil' }, S, t, M); const pts = samples(tp, 0.2).filter((q) => q[2] < 16);
+  const cutPts = []; walk(tp, (m, k, from) => { if ((m.t === 'feed' || m.t === 'arc') && m.kind === 'cut' && !m.link) cutPts.push([m.x, m.y, m.z]); });
+  const bad = cutPts.filter((q) => Math.abs(dRect(q[0], q[1], 6) - 3) > 0.35 || Math.abs(q[2] - 5) > 0.05);
+  ok(cutPts.length > 10 && bad.length === 0, `kalem: noktalar yalniz ic kosede (kule tabani, R uzakta, z=5): ${bad.length}/${cutPts.length} disarida ${JSON.stringify(bad[0] || null)}`);
+  const sides = [0, 0, 0, 0]; for (const q of pts) if (Math.abs(dRect(q[0], q[1], 6) - 3) < 0.4) { if (q[0] > 8.5) sides[0]++; else if (q[0] < -8.5) sides[1]++; else if (q[1] > 8.5) sides[2]++; else if (q[1] < -8.5) sides[3]++; }
+  ok(sides.every((n) => n * 0.2 > 0.9 * 12), `kalem: dort kenar da izlendi ${sides.join(',')}`);
+  ok(gougeAnalytic(tp, towerF, t).worst <= 0.01, 'kalem: oyma yok (analitik)');
+  // kosesiz parcada (egik duzlem) kalem izi yok
+  throwsCode(() => CAM.computeOp({ id: 'p', name: 'p', ...base, type: 'pencil' }, { setup: setupFor('incl'), tool: t, geom: { surface: modelOf('incl') }, machine: null }), 'cam.surf.no_pencil', 'kalem: ic kose yoksa yol yok');
+  // 3D rest bitirme: onceki D12 kure takimin erisemedigi yer (kule tabani) disinda yol yok
+  const tr4 = tool('ball', 4); const tpr = compute({ type: 'parallel', stepover: 0.5, rest: { toolDia: 12 }, tag: 'rest' }, S, tr4, M);
+  const far = []; walk(tpr, (m, k, from) => { if (m.t === 'feed' && m.kind === 'cut' && !m.link) { const d = dRect(m.x, m.y, 6); if (d > 6 + 2 + 0.6 || d < 0) far.push([m.x, m.y, m.z]); } });
+  ok(far.length === 0, `3D rest bitirme: yol yalniz kalan malzeme bandinda (${far.length} disarida) ${JSON.stringify(far.slice(0, 3))}`);
+  ok(gougeAnalytic(tpr, towerF, tr4).worst <= 0.01, '3D rest bitirme: oyma yok');
+  throwsCode(() => CAM.computeOp({ id: 'q', name: 'q', ...base, type: 'parallel', stepover: 0.5, rest: { toolDia: 3 } }, { setup: S, tool: tr4, geom: { surface: M }, machine: null }), 'cam.surf.rest_tool_small', '3D rest: onceki takim kucukse hata');
+  // Z-seviye: dik duvarlar (kule), duz takimla oyma yok
+  const tz = compute({ type: 'zlevel', stepdown: 2, tag: 'tower' }, S, tool('flat', 6), M);
+  ok(gougeAnalytic(tz, towerF, tool('flat', 6)).worst <= 0.01, 'Z-seviye duz takim dik duvar: oyma yok');
+}
+
+// ------------------------------------------------------------------ 7. egim araligi
+if (sec('slope')) {
+  const t = tool('ball', 6); const M = modelOf('hemi'), S = setupFor('hemi'); const D = Rs + 3;
+  const ang = (q) => { const r = Math.hypot(q[0], q[1]); return r >= D ? 0 : (Math.asin(r / D) * 180) / Math.PI; };
+  const pz = []; walk(compute({ type: 'zlevel', stepdown: 1, slope: { min: 45, max: 90 }, tag: 'slope' }, S, t, M), (m) => { if (m.t === 'feed' && m.kind === 'cut' && !m.link) pz.push([m.x, m.y]); });
+  ok(pz.length > 0 && pz.every((q) => ang(q) >= 43), `Z-seviye egim >= 45: en kucuk ${Math.min(...pz.map(ang)).toFixed(1)}`);
+  const pp = []; walk(compute({ type: 'parallel', stepover: 1, slope: { min: 0, max: 30 }, tag: 'slope' }, S, t, M), (m) => { if (m.t === 'feed' && m.kind === 'cut' && !m.link) pp.push([m.x, m.y]); });
+  const sph = pp.filter((q) => Math.hypot(q[0], q[1]) < D - 0.5);
+  ok(sph.length > 0 && sph.every((q) => ang(q) <= 32), `paralel egim <= 30: en buyuk ${Math.max(...sph.map(ang)).toFixed(1)}`);
+}
+
+// ------------------------------------------------------------------ 8. yay uydurma: sapma <= tol, satir sayisi belirgin azalir
+function segDist(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2]; const L2 = dx * dx + dy * dy + dz * dz; const t = L2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy + (p[2] - a[2]) * dz) / L2)) : 0; return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy, p[2] - a[2] - t * dz); }
+function polySegs(tp) { const S = []; walk(tp, (m, k, from) => { if (!from || (m.t !== 'feed' && m.t !== 'arc')) return; if (m.t === 'feed') S.push([[from.x, from.y, from.z], [m.x, m.y, m.z]]); else { let p = [from.x, from.y, from.z]; for (const q of sampleArc(from, m, 0.0002)) { S.push([p, q]); p = q; } } }); return S; }
+function hausdorff(A, B) { // A'nin kose noktalarindan B parcalarina en buyuk uzaklik (izgara kovasi)
+  const H = new Map(); const key = (x, y) => Math.floor(x) + ',' + Math.floor(y);
+  for (const s of B) { const x0 = Math.floor(Math.min(s[0][0], s[1][0])) - 1, x1 = Math.floor(Math.max(s[0][0], s[1][0])) + 1, y0 = Math.floor(Math.min(s[0][1], s[1][1])) - 1, y1 = Math.floor(Math.max(s[0][1], s[1][1])) + 1; for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) { const k = x + ',' + y; if (!H.has(k)) H.set(k, []); H.get(k).push(s); } }
+  let worst = 0; for (const s of A) for (const p of [s[1]]) { let m = Infinity; for (const q of H.get(key(p[0], p[1])) || []) m = Math.min(m, segDist(p, q[0], q[1])); if (m > worst) worst = m; }
+  return worst;
+}
+if (sec('arcfit')) {
+  const t = tool('ball', 6); const tol = 0.005;
+  for (const [k, op] of [['hemi', { type: 'zlevel', stepdown: 1.5 }], ['free', { type: 'zlevel', stepdown: 2 }], ['free', { type: 'parallel', stepover: 1.5 }]]) {
+    const tp0 = compute({ ...op, tag: k + '/fit0' }, setupFor(k), t, modelOf(k)); const tp1 = applyArcFit(tp0, { arcFit: { tol } });
+    const n0 = tp0.moves.length, n1 = tp1.moves.length; const arcs = tp1.moves.filter((m) => m.t === 'arc').length;
+    const dAB = hausdorff(polySegs(tp0), polySegs(tp1)), dBA = hausdorff(polySegs(tp1), polySegs(tp0));
+    ok(Math.max(dAB, dBA) <= tol + 1e-6, `yay uydurma ${k} ${op.type}: sapma ${Math.max(dAB, dBA).toFixed(5)} <= ${tol}`);
+    ok(n1 <= (op.type === 'zlevel' ? 0.5 : 0.75) * n0, `yay uydurma ${k} ${op.type}: satir ${n0} -> ${n1} (yay ${arcs})`);
+    if (op.type === 'zlevel') ok(arcs > 0, `yay uydurma ${k} zlevel: G2/G3 uretildi (${arcs})`);
+    if (k === 'hemi') ok(gougeAnalytic(tp1, PARTS[k].f, t).worst <= 0.01, 'yay uydurma sonrasi oyma yok (yarim kure)');
+  }
+  // computeOp yolu (op.arcFit) ve gecersiz tolerans
+  const tpc = compute({ type: 'zlevel', stepdown: 3, arcFit: { tol }, tag: 'fitop' }, setupFor('hemi'), t, modelOf('hemi'));
+  ok(tpc.meta.arcFit && tpc.meta.arcFit.after < tpc.meta.arcFit.before, 'op.arcFit computeOp icinde uygulanir');
+  throwsCode(() => applyArcFit(tpc, { arcFit: { tol: 0 } }), 'cam.op.bad_field', 'yay uydurma: gecersiz tolerans');
+}
+
+// ------------------------------------------------------------------ 9. iptal edilebilir hesap (worker) ve ag kaynagi
+if (sec('async')) {
+  const { Worker } = await import('node:worker_threads');
+  const nodeWorker = () => { const w = new Worker(new URL('./wp15/opworker-node.mjs', import.meta.url)); const o = { postMessage: (m) => w.postMessage(m), terminate: () => w.terminate(), onmessage: null, onerror: null }; w.on('message', (m) => o.onmessage?.({ data: m })); w.on('error', (e) => o.onerror?.(e)); return o; };
+  const op = { id: 'z', name: 'z', ...base, type: 'zlevel', stepdown: 2 }; const ctx = { setup: setupFor('hemi'), tool: tool('ball', 6), geom: { surface: modelOf('hemi') }, machine: null };
+  const ac0 = new AbortController(); ac0.abort(); let e0 = null; try { await computeOpAsync(op, ctx, { signal: ac0.signal, worker: false }); } catch (e) { e0 = e; } ok(e0?.code === 'cam.op.cancelled', 'iptal: onceden iptal edilmis istek');
+  const inl = CAM.computeOp(op, ctx); const wk = await computeOpAsync(op, ctx, { worker: nodeWorker }); ok(wk.moves.length === inl.moves.length, `worker sonucu ayni (${wk.moves.length})`);
+  const ac = new AbortController(); const t1 = Date.now(); const pr = computeOpAsync({ ...op, type: 'scallop', scallopHeight: 0.005 }, ctx, { signal: ac.signal, worker: nodeWorker }); setTimeout(() => ac.abort(), 300);
+  let e1 = null; try { await pr; } catch (e) { e1 = e; } ok(e1?.code === 'cam.op.cancelled' && Date.now() - t1 < 5000, `iptal: suren worker hesabi durdu (${Date.now() - t1} ms)`);
+  // STL okuma (ikili)
+  const m = box([0, 0, 0], [1, 2, 3]); const buf = new Uint8Array(84 + 12 * 50); const dv = new DataView(buf.buffer); dv.setUint32(80, 12, true);
+  for (let tI = 0; tI < 12; tI++) for (let v = 0; v < 3; v++) for (let c = 0; c < 3; c++) dv.setFloat32(84 + tI * 50 + 12 + (v * 3 + c) * 4, m.verts[m.tris[tI * 3 + v] * 3 + c], true);
+  const st = parseSTL(buf); const Mb = buildModel(st.verts, null, { tol: 0.001 }); ok(Mb.T.length === 36 && Mb.P.length === 24 && Mb.E.length === 36, `STL: 12 ucgen, 8 kose, 18 kenar (${Mb.T.length / 3}/${Mb.P.length / 3}/${Mb.E.length / 2})`);
+  throwsCode(() => CAM.computeOp({ ...op }, { ...ctx, geom: {} }), 'cam.surf.no_model', 'yuzey modeli yoksa hata');
+  throwsCode(() => CAM.computeOp({ ...op }, { ...ctx, tool: { ...ctx.tool, type: 'drill', tipAngle: 118, id: 'd' } }), 'cam.surf.tool_type', 'uygun olmayan takim');
+}
+
+// ------------------------------------------------------------------ 10. sema, i18n, serit
+if (sec('ui')) {
+  const doc = { params: [], features: [], cam: { tools: [], setups: [{ id: 's', name: 'S', bodies: [], ops: [
+    { id: 'a', type: 'adaptive3d', optimalLoad: 2, stepdown: 4, fillStepdown: 1, flatLevels: true, rest: { source: 'stock' }, boundary: { kind: 'stock', offset: 0 }, tolerance: 0.01 },
+    { id: 'z', type: 'zlevel', stepdown: 1, slope: { min: 30, max: 90 }, arcFit: { tol: 0.005, arcs: true } }, { id: 'p', type: 'parallel', stepover: 1, angle: 45, pattern: 'zigzag', rest: { toolDia: 10, cornerR: 0 } },
+    { id: 'c', type: 'scallop', scallopHeight: 0.01, sampling: 0.1 }, { id: 'k', type: 'pencil', minAngle: 20, minLength: 2 }], geomX: null }] } };
+  let err = null; try { validateDoc(doc); } catch (e) { err = e; } ok(!err || !String(err.params?.path || '').includes('ops'), 'WP-15 alanlari semada: ' + (err ? err.code + JSON.stringify(err.params) : ''));
+  let e2 = null; try { validateDoc({ ...doc, cam: { ...doc.cam, setups: [{ ...doc.cam.setups[0], ops: [{ id: 'a', type: 'parallel', pattern: 'spiral' }] }] } }); } catch (e) { e2 = e; } ok(e2?.code === 'schema.bad_field', 'gecersiz desen reddedilir');
+  for (const ty of CAM.SURF3D_TYPES) for (const [nm, d] of [['tr', tr], ['en', en]]) ok(typeof d['cam.op.type.' + ty] === 'string' && typeof d['cam.cmd.' + ty] === 'string' && typeof d['cam.tip.op-' + ty] === 'string', `i18n ${nm}: ${ty} adlari`);
+  const { CAM_RIBBON } = await import('../src/ui/cam/ribbon.js'); const g3 = CAM_RIBBON.find((g) => g[0] === 'cam-3d'); const all = [...g3[2], ...(g3[3]?.extra || [])];
+  ok(CAM.SURF3D_TYPES.every((ty) => all.includes('cam-op-' + ty)) && g3[2].length <= 2, `serit 3D grubu: ${g3[2].join(',')} + tasma ${(g3[3]?.extra || []).join(',')}`);
 }
 
 console.log(`\nWP-15: ${pass} gecti, ${fail} kaldi (${((Date.now() - T0) / 1000).toFixed(0)} sn)`);

@@ -22,14 +22,14 @@ function tryArc(pts, i, j, tol) {
   const [ux, uy, r] = C; if (!(r >= RMIN && r <= RMAX)) return null;
   const ang = (p) => Math.atan2(p[1] - uy, p[0] - ux);
   const cr = (pts[m][0] - pts[i][0]) * (pts[j][1] - pts[i][1]) - (pts[m][1] - pts[i][1]) * (pts[j][0] - pts[i][0]);
-  const sgn = cr < 0 ? 1 : -1; // ccw: orta nokta kirisin solunda
+  const sgn = cr > 0 ? 1 : -1; // ccw: yay kirisin sagina siskin (merkez solda)
   let th = 0; let prev = ang(pts[i]); const ths = [0];
   for (let k = i + 1; k <= j; k++) {
     const a = ang(pts[k]); let d = a - prev; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
     if (d * sgn <= 1e-12) return null; // geri donus / durma
     th += d; prev = a; ths.push(th);
-    const p = pts[k]; if (Math.abs(Math.hypot(p[0] - ux, p[1] - uy) - r) > tol) return null;
-    const c = Math.hypot(p[0] - pts[k - 1][0], p[1] - pts[k - 1][1]); if ((c * c) / (8 * r) > tol) return null; // kiris sehimi
+    const p = pts[k]; if (Math.abs(Math.hypot(p[0] - ux, p[1] - uy) - r) > 0.95 * tol) return null; // %5 pay: ornekleme/yuvarlama
+    const q = pts[k - 1]; for (const s of [0.25, 0.5, 0.75]) { const mx = q[0] + (p[0] - q[0]) * s - ux, my = q[1] + (p[1] - q[1]) * s - uy; if (Math.abs(Math.hypot(mx, my) - r) > 0.9 * tol) return null; } // eski kiris yaya <= tol (ara noktalar icin %10 pay)
   }
   if (Math.abs(th) > Math.PI) return null;
   const z0 = pts[i][2], z1 = pts[j][2];

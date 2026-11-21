@@ -51,7 +51,7 @@ function prep(op, ctx, { tools = SURF_TOOLS, bottomDef = 'modelBottom' } = {}) {
   if (smin > smax) throw cerr('cam.op.bad_field', { field: 'slope', expect: 'min <= max', op: nm });
   const shouldStop = ctx.shouldStop || noStop;
   const b = new Builder({ zClr: h.zClr, zRet: h.zRet, feed: cut.feedCut, tool });
-  return { S, tool, nm, cut, M, IX, C, st, tol, h, drop, dropRaw: drop0, R, rect, smin, smax, zFloor, dAx, b, shouldStop, mtol };
+  return { S, tool, nm, cut, M, IX, C, st, tol, h, drop, dropRaw: drop0, R, R0: R, rect, smin, smax, zFloor, dAx, b, shouldStop, mtol };
 }
 
 // [a..b] arasi oyma guvenli noktalar (a haric, b dahil). tolR: CL ile kiris farki siniri.
@@ -114,9 +114,10 @@ function restMask(E, op, Gd) {
   };
   const e1 = env(H1, C1), e0 = env(Gd.H, E.C);
   const on = new Uint8Array(nx * ny); for (let k = 0; k < on.length; k++) if (e1[k] - e0[k] > thr) on[k] = 1;
-  // takim yaricapi kadar genislet
-  const w = Math.ceil(E.R / g); const out = new Uint8Array(nx * ny);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { if (!on[j * nx + i]) continue; for (let dj = -w; dj <= w; dj++) for (let di = -w; di <= w; di++) { if (di * di + dj * dj > w * w) continue; const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < nx && jj < ny) out[jj * nx + ii] = 1; } }
+  // takim konumu c secilir: diskindeki bir rest dugumunde p takim alt yuzeyi onceki zarfin altina iner (kalan malzemeye degiyor)
+  const w = Math.ceil(E.R0 / g); const offs = []; for (let dj = -w; dj <= w; dj++) for (let di = -w; di <= w; di++) { const d = Math.hypot(di, dj) * g; if (d <= E.R0) offs.push(di, dj, E.C.prof(d)); }
+  const out = new Uint8Array(nx * ny); const H = Gd.H;
+  for (let j = 0; j < ny; j++) { E.shouldStop(); for (let i = 0; i < nx; i++) { const hc = H[j * nx + i]; for (let q = 0; q < offs.length; q += 3) { const ii = i + offs[q], jj = j + offs[q + 1]; if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue; const k = jj * nx + ii; if (on[k] && hc + offs[q + 2] < e1[k] - thr / 2) { out[j * nx + i] = 1; break; } } } }
   return out;
 }
 
