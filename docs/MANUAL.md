@@ -1,6 +1,6 @@
 # Mihenk CAD/CAM User Manual
 
-Version 0.3.0 · English · Turkish counterpart: `docs/KILAVUZ.md` (same content)
+Version 0.6.0 · English · Turkish counterpart: `docs/KILAVUZ.md` (same content)
 
 This manual is for CNC job shops that machine aluminium and steel parts. Mihenk is machine-independent: you add the profile of your own machine (5.2). It assumes you know CAD/CAM but are not a programmer. Command names match the names in the program exactly (English interface).
 
@@ -9,7 +9,7 @@ This manual is for CNC job shops that machine aluminium and steel parts. Mihenk 
 > The NC code Mihenk writes carries the heading **UNVERIFIED (DOĞRULANMADI)**. No NC file should be trusted until it has been proven on the machine.
 > The program is a helper. Control of the machine and responsibility stay with you.
 > The first-run procedure on the machine is not the job of this program; it is done in the machine project.
-> Do not run a 4th-axis (3+1) NC until the A direction has been **confirmed with a marked part**.
+> Do not run a 4th-axis NC (3+1, 3+2 or wrap) until the A direction has been **confirmed with a marked part**.
 > The simulation cannot see everything. Read **Section 7** to learn what it misses.
 
 ## Contents
@@ -33,20 +33,20 @@ This manual is for CNC job shops that machine aluminium and steel parts. Mihenk 
 
 Two files come with a release:
 
-- `Mihenk-Kurulum-0.3.0.exe` (the installer)
+- `Mihenk-Kurulum-0.6.0.exe` (the installer)
 - `SHA256SUMS.txt` (the SHA-256 checksum of the installer; each line is `checksum  file name`)
 
 Compare the checksum before installing:
 
 1. Open Windows PowerShell in the folder that holds the files.
-2. Type: `Get-FileHash .\Mihenk-Kurulum-0.3.0.exe -Algorithm SHA256`
-   (Alternative: `certutil -hashfile Mihenk-Kurulum-0.3.0.exe SHA256`)
+2. Type: `Get-FileHash .\Mihenk-Kurulum-0.6.0.exe -Algorithm SHA256`
+   (Alternative: `certutil -hashfile Mihenk-Kurulum-0.6.0.exe SHA256`)
 3. Compare the long string of letters and digits with the line in `SHA256SUMS.txt`.
 4. It must match character for character. **If even one character differs, do not install**; get the file again.
 
 ### 1.2 Installation
 
-1. Run `Mihenk-Kurulum-0.3.0.exe`.
+1. Run `Mihenk-Kurulum-0.6.0.exe`.
 2. It does not ask for administrator rights. The program installs into `%LOCALAPPDATA%\Programs\Mihenk`.
 3. Shortcuts are added to the desktop and the Start menu. To remove the program use the uninstaller (`Kaldir.exe`) in the Start menu.
 4. The installer is unsigned, so Windows SmartScreen may say "Windows protected your PC". Click **More info** → **Run anyway**. Do this only if the checksum in 1.1 matched.
@@ -88,7 +88,7 @@ The program makes no network connections. It works offline; your files stay on t
 From top to bottom the screen has:
 
 1. **Title bar**: logo, **File** menu, Undo / Redo / Save, document name (with an unsaved-changes marker), **Search commands** (Ctrl+K), the label of the selected **machine** in manufacturing mode, Settings, Help.
-2. **Workspace tabs**: **Design**, **Manufacture**, **Drawing** (Drawing is "Coming soon", not available yet).
+2. **Workspace tabs**: **Design**, **Manufacture**, **Drawing**.
 3. **Ribbon**: command groups. Commands that do not fit are in the » menu, in the ▾ list of their group, or in the Ctrl+K search. "Recent commands" appear as shortcuts.
 4. **Browser** (left): Parameters, Origin, Bodies, Sketches. In the Manufacture tab: Machines, Tools, Setups and operations.
 5. **3D view** (center) and **view cube**: Front, Top, Right, Iso, Fit.
@@ -309,9 +309,11 @@ Switch to the **Manufacture** tab. The ribbon groups are:
 | Group | Commands |
 |---|---|
 | Setup | **New setup**, **Stock**, **Machine**, **Tools** |
-| 2D | **Face**, **Contour**, **Pocket**, **Adaptive** (not available, "This operation type is coming in a later version") |
+| 2D | **Face**, **Contour**, **Pocket**, **Adaptive**, **Flat** (Flat in the overflow menu) |
 | Drilling and threading | **Drill**, **Thread** |
-| 3D | **3D surfacing** (not available, coming later) |
+| 3D | **3D rough**, **Z-level** (**Parallel**, **Scallop**, **Pencil** in the overflow menu) |
+| Wrap (4th axis) | **Wrapped contour**, **Wrapped pocket**, **Radial drill** |
+| Workflow | **Templates**, **Hole sequence**, **Multi-part**, **Units (mm/inch)**, **Quote** |
 | Actions | **Compute toolpath**, **Simulate**, **Post process**, **NC code** |
 
 ### 5.1 General flow
@@ -563,7 +565,7 @@ A pocket corner cannot be sharper than the tool radius: **material remains in th
 
 Holes whose axis is not parallel to the tool axis are skipped in that setup (warning). If the hole diameter differs from the tool diameter you get a warning. Holes with the same top/bottom height are written in one cycle.
 
-On a hole that goes all the way through, the tool goes below the model bottom. Because the program **does not model the table or fixture**, putting a sacrificial plate (or a gap) underneath is your responsibility (Section 7.4).
+On a hole that goes all the way through, the tool goes below the model bottom. Because the program **does not model the table**, putting a sacrificial plate (or a gap) underneath is your responsibility (Section 7.4).
 
 #### Thread
 
@@ -571,7 +573,7 @@ Tapping cycle: the **Thread** command opens the same panel as Drill with the "Ta
 
 #### Not available
 
-**Adaptive** clearing and **3D surfacing** do not exist in this version; they are greyed out in the ribbon.
+Simultaneous 4- and 5-axis machining does not exist in this version. 3+1, 3+2 and 4th-axis wrap do exist (see section 10).
 
 ### 5.7 Generating toolpaths
 
@@ -728,22 +730,22 @@ Confirmation (short summary; the detailed procedure is in the machine project):
 1. Mark one face of a part (for example with paint or a clear notch).
 2. Clamp the part, and with the tool clear, give a small positive A move by hand and watch which way the marked face turns.
 3. Compare with the **Rotation direction** setting in Mihenk. If they differ, fix the profile and produce the NC again.
-4. Always try a 3+1 NC the first time with the marked part and as a dry run.
+4. Always try a 4th-axis NC (3+1, 3+2 or wrap) the first time with the marked part and as a dry run.
 
 Also: your WCS zero must be **on the A axis** on the machine (Section 5.5). The program does not check this.
 
 ### 7.4 What the simulation cannot see
 
-The simulation is a single-valued height map seen **only from above (Z)**. It **does not see**, or sees only to a limit:
+By default the simulation is a single-valued height map seen **only from above (Z)**; the optional detailed three-direction simulation is off by default. It **does not see**, or sees only to a limit:
 
 | Topic | Status |
 |---|---|
 | **Sub-resolution side gouging** | Side gouges smaller than half the cell spacing are not seen (at 0.5 mm resolution 0.05–0.2 mm, at 1.3 mm resolution up to 1 mm were missed). This notice is written on every simulation. Wall accuracy comes from the toolpath calculation, not from the simulation. This limit is **deferred**, not closed. |
 | **Undercuts / cutting from the side** | None. Parts with undercuts and slanted walls are not shown correctly. |
 | **Side cutting with A≠0 inside the same setup** | None. |
-| **Fixture, vise, table, tailstock** | **Not modeled.** The simulation cannot see the tool hitting them. Going below the stock bottom is treated as a block, but objects outside the stock, such as vise jaws or clamping feet, do not exist. |
-| **Holder** | Modeled only as a cylinder. |
-| **Cylinder stock** | Approximated as a box in the simulation. |
+| **Clamping bodies and holder** | Boxes, cylinders and imported STEP vise bodies are checked for collisions; the holder profile (stepped cylinder or cone) is checked. **Table, tailstock and the spindle-nose hardware are not modeled.** A table-mounted fixture is assumed to turn with A. |
+| **Holder top** | The spindle-nose part above the holder is not modeled. |
+| **Cylinder stock** | Simulated as a cylinder in wrap operations; approximated as a box elsewhere. |
 | **Rapid moves** | Checked by cell-center sampling. |
 | **Stock display** | Only the top surface is shown (no side walls). |
 | **Tool length / flute length** | Known only as far as the values you enter; if they are wrong, the check is wrong too. |
@@ -767,30 +769,30 @@ The following cannot be tested by software; they must be confirmed in the machin
 - The G05 P10000 output
 - Coolant codes: mist, air, through-spindle
 - Whether D holds the radius or only the wear value under wear compensation
+- 3+2 tilted-setup output (G68.2 with G53.1, and unwound output), and wrap output (G93 inverse-time feed and the A word).
 
 ### 7.6 Known limits and gaps
 
 An honest list. What is **missing or incomplete** in this version:
 
 **CAM**
-- No adaptive clearing and no 3D surfacing (shown as "coming soon" in the ribbon).
-- No 4th / 5th axis machines ("coming soon"). Only **3+1** exists; there is **no simultaneous 4-axis**, no TCP/G68.2/G07.1.
-- No "select from face" for the axis direction in the setup panel (only the main axes ±X, ±Y, ±Z); the core supports it.
+- 3D roughing on a large part can take over a minute (87 s in a test); the calculation can be cancelled. Adaptive paths may not enter gaps close to the tool diameter; a warning is shown.
+- **No simultaneous 4- and 5-axis machining.** 3+1, 3+2 (tilted setup, G68.2 with G53.1) and 4th-axis wrap exist; there is no RTCP and no G07.1. Wrap works only on a cylinder parallel to X.
+- On a non-tilted setup the axis direction is only the main axes (±X, ±Y, ±Z); face-based direction exists only in the 3+2 tilt setup.
 - Giving drill points from a sketch (`points`) and selecting an open-chain contour are not in the interface. (Holes come only from the Hole feature.)
-- No helix plunge for contours; no "pre-drill" entry for pockets.
 - An open-chain contour works only "On the line"; no lead-in/out, tabs or wear. Under wear compensation there are no radial roughing passes, ramps or split contours.
 - Body outline works only on prismatic bodies.
 - Sketch profiles may use only lines/arcs/circles. An ellipse or spline profile gives an error in the toolpath ("This curve type … cannot be used in the toolpath").
 - A sketch selection must be on a plane perpendicular to the tool axis.
 - Absolute travel cannot be checked because the part position on the machine is not entered.
-- No fixture/vise/table collision.
+- No table, tailstock or spindle-nose collision check; clamping bodies and the holder profile are checked.
 - The stock mesh shows only the top surface.
-- The simulation runs in the main thread; with a big program the interface may freeze for a moment (not measured).
+- The simulation runs in a separate worker and can be cancelled. The worker was not tested in the packaged Electron app.
 - Saving NC from a real Electron window was not tried by hand.
-- No drawings, no assembly.
 
 **CAD**
-- No sweep, loft, draft or modeled threads. No assembly.
+- Ribs follow straight lines only; draft has no parting line; threads have flat roots and are not sent to CAM; threading is slow. IGES: B-rep solids (type 186) and types 141/143 are not read; not tested with real CAD exports. Drawings: no GD&T; sections only on flat planes; PDF fonts are not embedded (non-Latin letters appear as "?").
+- No assembly.
 - Shell can fail on a body with filleted edges.
 - Chamfer (Sketch) adds no dimension constraint. No spline tangency and no ellipse–circle tangency.
 - Imported STEP/STL cannot be edited.
@@ -1018,3 +1020,8 @@ This section covers the basic use of the features added in 0.6. The limits of ea
 - In the sketch ribbon, the **Underlay** menu: **Add underlay** (PNG, JPEG or PDF; a multi-page PDF asks for the page), **Scale** (click two points on the underlay and type the real distance), **Fit to 2 points** (two underlay points and two sketch points), and the underlay properties (opacity, visible, lock, remove).
 - A locked underlay cannot be changed. Each change can be undone.
 - An encrypted PDF cannot be opened; no password is asked for.
+
+### 10.11 Multi-part
+- Manufacture, **Workflow** group: **Multi-part** (command id `cam-parts`).
+- Choose the count and the order: each operation is written for all parts together (fewer tool changes), or each part is written in turn. Each copy is shifted to its own work zero (G54–G59 or G54.1 Pn).
+- A protected work zero, a part overlap, passing G59, and mixing G54 with G54.1 are errors. Copies are applied when the NC is generated; the simulation and the safety gates see a single part.

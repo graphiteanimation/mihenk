@@ -48,7 +48,6 @@ Adım adım kullanım, örnek parça, güvenlik kapıları ve sorun giderme:
 - Eşzamanlı 4 ve 5 eksen yok. 3+1 ve 3+2 konumlu işleme vardır; 4. eksen sarma yalnız X'e paralel silindirde çalışır.
 - 3B kaba büyük parçada uzun sürebilir (ölçümde 87 sn); işlem iptal edilebilir. Adaptif yol dar geçitlere girmeyebilir; uyarı verir.
 - Benzetim varsayılanda yalnız üstten bakan yükseklik haritasıdır; yan yüzeydeki küçük oyulmaları görmez. Üç yönlü ayrıntılı simülasyon isteğe bağlıdır ve varsayılan kapalıdır. Tezgâh tablası ve tutucunun fener mili modellenmez.
-- G-code metninden simülasyon çekirdekte vardır ama arayüzde bağlı değildir; yalnız geliştirici betikleriyle sınandı.
 - 3+2 eğik düzlem (G68.2) ve sarma çıktıları hiçbir tezgâhta doğrulanmadı. Açılmış çıkış kafa eksenlerinde yoktur. Sarma simülasyonunda modele oyma ve bağlama denetimi yoktur; G76/G87 sarmada desteklenmez.
 - Takım düzenleyicide eğim açısı alanı yok: merkez kesmeyen takımla rampa/helis yolu engellenir.
 - Teklifteki süreler simülasyon tahminidir, ölçülmüş değildir. Varsayılan fiyat yoktur.
