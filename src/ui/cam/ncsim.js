@@ -28,7 +28,7 @@ async function failList(ops, e) {
 
 // text: NC metni; label: dosya adı ya da üretim adı (ileti için). Başarıda sim çubuğu açılır.
 export async function simulateNcText(ops, text, label = '') {
-  if (ops.busy) return false;
+  if (ops.busy) { toast(t('cam.run.busy'), { kind: 'info' }); return false; }
   if (!ops.cam.machine()) { toast(t('cam.br.machine_missing'), { kind: 'warn' }); return false; }
   ops.busy = true;
   try {
@@ -49,7 +49,7 @@ export async function simulateNcText(ops, text, label = '') {
     return true;
   } catch (e) {
     if (e?.code === 'cam.sim.cancelled') toast(errText(e), { kind: 'info' });
-    else { ops.sim = null; await failList(ops, e); }
+    else { ops.stopSim(true); ops.cam.view?.hideMove?.(); await failList(ops, e); }
     return false;
   } finally { ops.busy = false; }
 }
