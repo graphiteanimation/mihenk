@@ -231,7 +231,7 @@ function clearRegion(A) {
   // kuru kosu: st'den en cok kmax adim (degisiklikler geri alinir); donus: adim sayisi
   const dryRun = (st, kmax, z) => {
     undo = []; const rem0 = removed; let p = st.p, head = st.head, n = 0;
-    for (; n < kmax; n++) { const stp = bestStep(p, head); if (!stp) break; clearCapsule(p, stp.q, r, z); p = stp.q; head = stp.a; }
+    for (let k = 0; n < kmax && k < kmax + 25; k++) { const stp = bestStep(p, head); if (!stp) break; const rb = removed; clearCapsule(p, stp.q, r, z); p = stp.q; head = stp.a; if (removed > rb) n++; }
     for (let k = undo.length - 3; k >= 0; k -= 3) { hg[undo[k]] = undo[k + 1]; mat[undo[k]] = undo[k + 2] & 1; rch[undo[k]] = undo[k + 2] >> 1; }
     undo = null; removed = rem0; return n;
   };
@@ -253,7 +253,7 @@ function clearRegion(A) {
       const st = startAt(p); if (!st) { bad[c] = 1; continue; }
       tried++; const n = dryRun(st, KMAX, z);
       if (n >= KMAX) return { ...st, c };
-      if (!best || n > best.n) best = { ...st, c, n, d2: dd(c) };
+      if (n > 0 && (!best || n > best.n)) best = { ...st, c, n, d2: dd(c) }; else if (!n) bad[c] = 1;
     }
     return best;
   };
@@ -297,6 +297,7 @@ function clearRegion(A) {
     let forced = null; // giristen hemen sonra: paso takimin bulundugu yerden baslar
     for (;;) {
       if (++guard > 200000) throw cerr('cam.adaptive.no_progress');
+      if (globalThis.__AD_DBG && guard % 20 === 0) console.log('guard', guard, 'li', li, 'passes', stats.passes, 'entries', stats.entries, 'removed', removed);
       refreshDm();
       let st = forced; forced = null;
       if (!st) st = findStart(pos, z);
@@ -336,14 +337,17 @@ function clearRegion(A) {
         else { b.linkTo(st.p[0], st.p[1], z, cut.feedPlunge, { clear: true }); stats.lifts++; }
       } else { b.linkTo(st.p[0], st.p[1], z, cut.feedPlunge, { clear: true }); stats.lifts++; down = true; }
       // paso
-      const r0 = removed; const pts = [st.p]; let p = st.p, head = st.head; let nStep = 0;
+      const r0 = removed; let pts = [st.p]; let p = st.p, head = st.head; let nStep = 0; let lastProd = 0; undo = [];
       for (;;) {
         const stp = bestStep(p, head); if (!stp) break;
-        clearCapsule(p, stp.q, r, z); if (stp.th > stats.maxTheta) stats.maxTheta = stp.th;
+        const rb = removed; clearCapsule(p, stp.q, r, z); if (stp.th > stats.maxTheta) stats.maxTheta = stp.th;
+        if (removed > rb) { lastProd = pts.length; undo = []; } else if (pts.length - lastProd > 25) break; // erisilemeyen serit boyunca bos yuruyus: paso biter
         if (globalThis.__AD_DBG) (globalThis.__thlog = globalThis.__thlog || []).push(Math.round(stp.th * 180 / Math.PI) + '@' + Math.round(stp.a * 180 / Math.PI) + '/' + stp.q[1].toFixed(1));
         pts.push(stp.q); p = stp.q; head = stp.a;
         if (++nStep > 20000) break;
       }
+      if (pts.length - 1 > lastProd) { pts = pts.slice(0, lastProd + 1); p = pts[pts.length - 1]; for (let k = undo.length - 3; k >= 0; k -= 3) { hg[undo[k]] = undo[k + 1]; mat[undo[k]] = undo[k + 2] & 1; rch[undo[k]] = undo[k + 2] >> 1; } } // sondaki verimsiz adimlar atilir (izgara geri alinir)
+      undo = null;
       if (removed === r0) { if (st.c != null) bad[st.c] = 1; if (pts.length === 1) { pos = st.p; continue; } }
       if (globalThis.__AD_DBG && stats.passes < globalThis.__AD_DBG) console.log('pass', stats.passes, 'z', z, 'start', st.p.map((v) => v.toFixed(2)).join(','), 'head', (st.head * 180 / Math.PI).toFixed(0), 'n', pts.length, 'rem', removed - r0, 'end', p.map((v) => v.toFixed(2)).join(','), 'ths', (globalThis.__thlog || []).join(' ')); globalThis.__thlog = [];
       emit(simplify(pts), z); stats.passes++; pos = p;
