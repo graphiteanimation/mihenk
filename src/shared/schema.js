@@ -122,6 +122,7 @@ const camSetup = obj({
   id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),
   frame: obj({ origin: obj({ kind: oneOf(['model', 'stockCorner', 'stockTopCenter', 'point']), corner: str(16), p: arrOf(camNum(), 3) }), zAxis: axisSpec, xAxis: axisSpec }),
   rotary: obj({ enabled: bool(), aAngle: camNum(-36000, 36000) }),
+  tilt: obj({ enabled: bool(), kind: oneOf(['face', 'vector', 'angles']), ref: obj(), flip: bool(), v: arrOf(camNum(), 3), angles: obj({ A: camNum(-36000, 36000), B: camNum(-36000, 36000), C: camNum(-36000, 36000) }) }), machinePos: arrOf(camNum(), 3), // WP-18: 3+2 egim, is sifirinin makine konumu
   workOffset: obj({ kind: oneOf(['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1']), p: posInt(9999) }),
   stock: obj({ kind: oneOf(['boxOffset', 'box', 'cyl']), side: camNum(0), top: camNum(0), bottom: camNum(0), min: arrOf(camNum(), 3), max: arrOf(camNum(), 3), dia: camNum(0), len: camNum(0), axis: oneOf(['X']) }),
   clearanceZ: camNum(0), stockFrom: oneOf(['previous', 'blank']), freePieceBlock: bool(), ops: arrOf(camOp, CAM_LIMITS.ops),

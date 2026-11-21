@@ -3,6 +3,7 @@ import { h } from '../dom.js';
 import { t, errText, fmtNum } from '../../shared/i18n.js';
 import { resolveSetup } from '../../cam/index.js';
 import { axisPlane } from '../../cam/program.js';
+import { kinOf, fmtAng } from '../../cam/kinematics.js';
 import { clone, numField, textField, selField, checkField, sec, callout, fld, unitBox, panelShell, okCancel, panelKeys, parseNum } from './util.js';
 
 const DIRS = ['+Z', '-Z', '+X', '-X', '+Y', '-Y'];
@@ -31,7 +32,7 @@ export class SetupPanel {
   ok() {
     const bad = this.problems(); if (bad) { this.cam.app.toastInfo(bad); return; }
     const d = clone(this.draft); this.endPick(); this.close();
-    this.cam.mut((c) => { const i = c.setups.findIndex((s) => s.id === d.id); if (i >= 0) { const nx = { ...c.setups[i], ...d, ops: c.setups[i].ops }; for (const k of ['stockFrom', 'freePieceBlock', 'fixtures']) if (!(k in d)) delete nx[k]; c.setups[i] = nx; } });
+    this.cam.mut((c) => { const i = c.setups.findIndex((s) => s.id === d.id); if (i >= 0) { const nx = { ...c.setups[i], ...d, ops: c.setups[i].ops }; for (const k of ['stockFrom', 'freePieceBlock', 'fixtures', 'tilt', 'machinePos']) if (!(k in d)) delete nx[k]; c.setups[i] = nx; } });
   }
   problems() {
     if (!this.draft.bodies.length) return t('cam.su.no_bodies');
@@ -43,6 +44,7 @@ export class SetupPanel {
   async resolve() {
     try {
       const planes = {}; for (const [k, f] of [['z', 'zAxis'], ['x', 'xAxis']]) { const ax = this.draft.frame?.[f]; if (ax?.kind === 'face' || ax?.kind === 'edge') planes[k] = await axisPlane((c, a) => this.app.query(c, a), ax); }
+      const tl = this.draft.tilt; if (tl?.enabled && tl.kind === 'face' && tl.ref) planes.tilt = await axisPlane((c, a) => this.app.query(c, a), { kind: 'face', ref: tl.ref }); // WP-18
       return { S: resolveSetup(this.draft, this.app.result, this.cam.machine(), { planes }) };
     } catch (e) { return { err: e }; }
   }
@@ -53,11 +55,15 @@ export class SetupPanel {
     for (const b of this.app.result?.bodies || []) { if (!this.draft.bodies.includes(b.id)) continue; const v = b.vertices || []; for (let i = 0; i < v.length; i += 3) { R = Math.max(R, Math.hypot(v[i + 1], v[i + 2])); x0 = Math.min(x0, v[i]); x1 = Math.max(x1, v[i]); } }
     return R > 0 && x1 > x0 ? { dia: Math.ceil(2 * R + 2), len: Math.ceil(x1 - x0 + 2) } : { dia: 50, len: 100 };
   }
-  startPick(which) { this.pickAxis = which; const vp = this.app.viewport; vp.setFilter({ face: true, edge: true }); vp.setSelection([]); this.app.setHint(t('cam.su.pick_axis_hint')); this.render(); this.check(); }
+  startPick(which) { this.pickAxis = which; const vp = this.app.viewport; vp.setFilter(which === 'tilt' ? { face: true } : { face: true, edge: true }); vp.setSelection([]); this.app.setHint(t('cam.su.pick_axis_hint')); this.render(); this.check(); }
   endPick() { this.pickAxis = null; const vp = this.app.viewport; vp.setFilter({}); vp.setSelection([]); this.app.setHint(''); }
   async onPick(hit) {
     if (!this.pickAxis || !hit || (hit.kind !== 'face' && hit.kind !== 'edge')) return;
     const which = this.pickAxis; const key = which === 'z' ? 'zAxis' : 'xAxis'; const d = this.draft;
+    if (which === 'tilt') { // WP-18: 3+2 takim ekseni = duzlemsel yuz normali
+      try { if (hit.kind !== 'face') throw { code: 'cam.su.tilt_need_face', params: {} }; const ref = await this.app.describe(hit, 'face'); await axisPlane((c, a) => this.app.query(c, a), { kind: 'face', ref }); d.tilt = { ...d.tilt, enabled: true, kind: 'face', ref }; } catch (e) { this.app.toastInfo(errText(e)); }
+      this.endPick(); this.render(); this.check(); return;
+    }
     try {
       const ref = await this.app.describe(hit, hit.kind); const spec = { kind: hit.kind, ref };
       const pl = await axisPlane((c, a) => this.app.query(c, a), spec); // yuz duz degilse / kenar dogru degilse hata
@@ -77,6 +83,7 @@ export class SetupPanel {
     if (err) { body.append(callout('err', t('cam.su.unresolved'), errText(err))); this.cam.view?.showSetup(null); return; }
     const sz = S.stockBox.max.map((v, i) => v - S.stockBox.min[i]);
     body.append(callout('info', t('cam.su.resolved'), t('cam.su.summary', { stock: sz.map((v) => fmtNum(v, 3)).join(' × '), top: fmtNum(S.stockTop, 3) })));
+    if (S.rot) body.append(callout('info', t('cam.su.tilt_result'), t('cam.su.tilt_angles', { angles: fmtAng(Object.fromEntries(Object.entries(S.rot).map(([k, v]) => [k, Math.round(v * 1000) / 1000]))), n: S.tilt.solutions, mode: t(S.tilt.mode === 'unwound' ? 'cam.mk.out_unwound' : 'cam.mk.out_plane') }) + (S.tilt.mode === 'unwound' && !S.tilt.shift ? ' ' + t('cam.su.tilt_unwound_missing', { field: S.tilt.missing }) : '')));
     this.lastS = S; this.cam.view?.showSetup(S);
   }
   render() {
@@ -140,10 +147,30 @@ export class SetupPanel {
     rows.push(sec(t('cam.su.rotary')));
     if (!A) rows.push(h('div', { class: 'note', text: t('cam.su.no_a_axis') }));
     else {
-      rows.push(checkField({ label: t('cam.su.a_on'), value: !!d.rotary.enabled, f: 'su-a-on', hint: t('cam.su.a_hint'), set: (v) => { d.rotary.enabled = v; this.render(); upd(); } }));
+      rows.push(checkField({ label: t('cam.su.a_on'), value: !!d.rotary.enabled, f: 'su-a-on', hint: t('cam.su.a_hint'), set: (v) => { d.rotary.enabled = v; if (v && d.tilt) d.tilt.enabled = false; this.render(); upd(); } }));
       // M-02: 3+1'de orijin A=0 çerçevesinde tanımlıdır; döndürülen stok üstü Z=0 olmaz, Mutlak Z buna göre girilir
       if (d.rotary.enabled) rows.push(h('div', { class: 'help', 'data-testid': 'su-a-origin-note', text: t('cam.su.a_origin_note') }));
       if (d.rotary.enabled) rows.push(numField({ label: t('cam.su.a_angle'), value: d.rotary.aAngle, unit: '°', nullable: false, min: -1e5, f: 'su-a-angle', warn: (v) => (v !== null && A.limits && (v < A.limits[0] || v > A.limits[1]) ? t('cam.su.a_limits', { min: A.limits[0], max: A.limits[1] }) : null), set: (v) => { d.rotary.aAngle = v; upd(); } }));
+    }
+    // WP-18: 3+2 konumlu işleme: takım ekseni yüz normalinden ya da elle (vektör / döner eksen açıları)
+    const kin = m ? kinOf(m) : null;
+    rows.push(sec(t('cam.su.tilt')));
+    if (!kin?.names.length) rows.push(h('div', { class: 'note', 'data-testid': 'su-tilt-none', text: t('cam.su.tilt_none') }));
+    else {
+      const tl = d.tilt || { enabled: false, kind: 'vector', v: [0, 0, 1] };
+      rows.push(checkField({ label: t('cam.su.tilt_on'), value: !!tl.enabled, f: 'su-tilt-on', hint: t('cam.su.tilt_hint'), set: (v) => { d.tilt = { ...tl, enabled: v }; if (v && d.rotary) d.rotary.enabled = false; this.render(); upd(); } }));
+      if (tl.enabled) {
+        rows.push(selField({ label: t('cam.su.tilt_kind'), value: tl.kind, f: 'su-tilt-kind', opts: [['face', t('cam.su.tilt_k_face')], ['vector', t('cam.su.tilt_k_vector')], ['angles', t('cam.su.tilt_k_angles')]], set: (v) => {
+          d.tilt = v === 'vector' ? { enabled: true, kind: v, v: [0, 0, 1] } : v === 'angles' ? { enabled: true, kind: v, angles: Object.fromEntries(kin.names.map((k) => [k, 0])) } : { enabled: true, kind: v, ...(tl.ref ? { ref: tl.ref } : {}) }; this.render(); upd(); } }));
+        if (tl.kind === 'face') {
+          const items = [h('button', { class: 'btn ghost sm', type: 'button', 'data-testid': 'su-tilt-pick', 'aria-pressed': String(this.pickAxis === 'tilt'), onclick: () => (this.pickAxis === 'tilt' ? (this.endPick(), this.render()) : this.startPick('tilt')) }, t(this.pickAxis === 'tilt' ? 'cam.su.pick_axis_cancel' : 'cam.su.tilt_pick'))];
+          const c = h('input', { type: 'checkbox', 'data-f': 'su-tilt-flip', checked: !!tl.flip }); c.addEventListener('change', () => { tl.flip = c.checked; upd(); }); items.push(h('label', { class: 'chk' }, c, h('span', { class: 'nm', text: t('cam.su.axis_flip') })));
+          if (!tl.ref) items.push(h('span', { class: 'note', text: t('cam.su.tilt_no_face') }));
+          rows.push(h('div', { class: 'op-grow', 'data-testid': 'su-tilt-row' }, ...items));
+        } else if (tl.kind === 'vector') ['X', 'Y', 'Z'].forEach((ax, i) => rows.push(numField({ label: t('cam.su.tilt_v', { axis: ax }), value: tl.v?.[i] ?? 0, nullable: false, min: -1e6, f: 'su-tilt-v' + ax, set: (v) => { tl.v = tl.v || [0, 0, 1]; tl.v[i] = v; upd(); } })));
+        else kin.names.forEach((k) => rows.push(numField({ label: t('cam.su.tilt_a', { axis: k }), value: tl.angles?.[k] ?? 0, unit: '°', nullable: false, min: -1e5, f: 'su-tilt-a' + k, set: (v) => { tl.angles = tl.angles || {}; tl.angles[k] = v; upd(); } })));
+        if (kin.tiltOutput === 'unwound') ['X', 'Y', 'Z'].forEach((ax, i) => rows.push(numField({ label: t('cam.su.machine_pos', { axis: ax }), value: d.machinePos?.[i] ?? null, unit: 'mm', nullable: true, min: -1e6, f: 'su-mpos' + ax, set: (v) => { if (v === null) delete d.machinePos; else { d.machinePos = d.machinePos || [0, 0, 0]; d.machinePos[i] = v; } upd(); } })));
+      }
     }
     // WP-13: bağlama gövdeleri (mengene, fikstür, divizör aynası): taban setup çerçevesinde kutu/silindir ya da işlenmeyen belge gövdesi
     rows.push(sec(t('cam.su.fixtures')), h('div', { class: 'help', text: t('cam.su.fx_hint') }));
