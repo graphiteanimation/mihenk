@@ -18,7 +18,7 @@ K-035 hedefi (0.6 dahil bitene kadar) tamamlandı: kendi kendini uyandırma kuru
 - Tezgâhta doğrulanmayanlar: tüm NC (3+2 G68.2, sarma G93, G76/G87 dahil).
 - Uyarlanır kabada temas açısı tepe aşımı (WP-22c 2d); tri-dexel isteğe bağlı (O-050).
 - Kabul listesi tam: 14. adım da 2026-11-21'de geçti.
-- Bilgisayarda `%APPDATA%\AtolyeCAD` klasörü duruyor (eski adın kalıntısı; boş, alt klasör yok; kullanıcı Dosya Gezgini'nden silebilir).
+- Bilgisayarda `%APPDATA%\AtolyeCAD` klasörü duruyor (eski adın kalıntısı; alt klasörü yok, dosyaları görülmedi; kullanıcı Dosya Gezgini'nden silebilir).
 - Sıradaki sürüm (1.0) için BACKLOG'da sıra onayı kullanıcıdan beklenir.
 
 ## Notlar
