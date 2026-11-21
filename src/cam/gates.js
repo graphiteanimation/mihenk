@@ -109,7 +109,7 @@ export function gates(program, machine, opts = {}) {
       const A = machine?.axes?.A; let aMin = Infinity, aMax = -Infinity; for (const m of tp.moves) if (isNum(m.a)) { aMin = Math.min(aMin, m.a); aMax = Math.max(aMax, m.a); }
       if (!A || A.kind !== 'rotary' || A.about !== 'X') out.push(G('block', 'cam.gate.no_rotary', { op: tp.opName }, X));
       else if (Array.isArray(A.limits) && (aMin < A.limits[0] - 1e-9 || aMax > A.limits[1] + 1e-9)) out.push(G('block', 'cam.gate.a_limit', { a: Math.round((aMin < A.limits[0] ? aMin : aMax) * 1000) / 1000, min: A.limits[0], max: A.limits[1], op: tp.opName }, X));
-      if (opts.sim) out.push(G('warn', 'cam.gate.wrap_sim_limits', { op: tp.opName }, X));
+      if (opts.sim && !opts.sim.modelMeshes?.[s.setup?.id]) out.push(G('warn', 'cam.gate.wrap_sim_limits', { op: tp.opName }, X)); // WP-22b: model agi varsa oyma denetlenir
     }
     // ---- 6b (WP-18): 3+2 egik setup -- doner eksen sinirlari ve acilmis cikis icin eksik kinematik verisi
     if (s.setup?.rot) out.push(...tiltGates(s.setup, machine, tp.opName, X));
@@ -124,7 +124,11 @@ export function gates(program, machine, opts = {}) {
   else if (secs.length) {
     const stockBoxes = {}; for (const s of secs) if (s.setup?.stockBox) stockBoxes[s.setup.id] = s.setup.stockBox;
     // V-06: model haritasi yoksa oyma denetlenemez -> engel (sessizce kapali denetim yok)
-    const hasModel = (id) => !!(opts.sim.modelHeightmaps?.[id]?.data || opts.sim.modelHeightmap?.data);
+    // WP-22b: model agi (modelMeshes) tri kipte ve sarma setup'inda gercek 3B oyma denetimi yapar -> model sayilir
+    const mesh = (id) => !!opts.sim.modelMeshes?.[id]?.v, // varlik (worker'a aktarilan tampon ayrilmis olabilir: uzunluk 0)
+      tri = opts.sim.dexel === 'tri';
+    const isWrap = (id) => secs.some((s) => s.setup?.id === id && s.toolpath?.wrap);
+    const hasModel = (id) => !!(opts.sim.modelHeightmaps?.[id]?.data || opts.sim.modelHeightmap?.data || (mesh(id) && (tri || isWrap(id))));
     const seenS = new Set();
     secs.forEach((s, si) => { const id = s.setup?.id; if (seenS.has(id)) return; seenS.add(id); if (!hasModel(id)) out.push(G('block', 'cam.gate.sim_no_model', { setup: s.setup?.name ?? id }, { section: si })); });
     // V-11: hucre merkezi takim diskine dusmezse hizli/carpma gorulmez -> cozunurluk en kucuk takim yaricapindan buyuk olamaz
@@ -133,7 +137,9 @@ export function gates(program, machine, opts = {}) {
       let rMin = Infinity, tMin = null; for (const s of secs) { const T = s.toolpath?.tool; if (T && isNum(T.dia) && T.dia / 2 < rMin) { rMin = T.dia / 2; tMin = T.number; } }
       if (res > rMin + 1e-9) out.push(G('block', 'cam.gate.sim_res_coarse', { res, r: rMin, tool: tMin }));
       // V-24: duvar hucre sinirina hizaliyken res/2'ye kadar yanal oyma haritada gorunmez -> denetimin siniri acikca yazilir
-      out.push(G('warn', 'cam.gate.sim_lateral_tol', { tol: Math.round((res / 2) * 1000) / 1000 }));
+      // WP-22b: tri kip + her (sarma olmayan) setup'ta model agi: yanal oyma X/Y isinlarinda surekli olculur -> uyari gereksiz
+      const flatIds = [...new Set(secs.filter((s) => !s.toolpath?.wrap).map((s) => s.setup?.id))];
+      if (!(tri && flatIds.length && flatIds.every(mesh))) out.push(G('warn', 'cam.gate.sim_lateral_tol', { tol: Math.round((res / 2) * 1000) / 1000 }));
     }
     try {
       if (opts.simError) throw opts.simError; // WP-13: gatesAsync worker sonucu

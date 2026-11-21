@@ -212,8 +212,13 @@ export class CamCtl {
       const hit = protectedHits(prot, tl);
       kids.push(row({ id: tl.id, testid: 'cam-tool-row', err: hit.length > 0, click: () => openToolManager(this, 'doc'), kids: [h('span', { class: 'tw' }), h('span', { html: icon('cam-tool', 'sm') }), nm(toolLabel(tl), tl.name || ''), hit.length ? h('span', { class: 'badge warn', title: t('cam.tl.prot_body', { list: hit.map((q) => q.kind + q.n).join(', ') }), html: icon('warning', 'sm') }) : null] }));
     }
+    // WP-22b (O-050): simülasyon seçeneği (belge alanı doc.cam.sim.detail; varsayılan kapalı)
+    kids.push(sec(t('cam.br.sim')));
+    const det = !!data.sim?.detail;
+    kids.push(row({ testid: 'cam-sim-detail', two: true, click: () => this.toggleSimDetail(), kids: [h('span', { class: 'tw' }), h('input', { type: 'checkbox', checked: det, tabindex: -1, 'aria-label': t('cam.sim.detail'), 'data-testid': 'cam-sim-detail-cb', onclick: (e) => { e.stopPropagation(); this.toggleSimDetail(); } }), nm(t('cam.sim.detail'), t('cam.sim.detail_sub'))] }));
     br.replaceChildren(...kids);
   }
+  toggleSimDetail() { const on = !this.data().sim?.detail; this.mut((c) => { c.sim = { ...(c.sim || {}), detail: on }; }); this.app.C.renderBrowser(); toast(t(on ? 'cam.sim.detail_on' : 'cam.sim.detail_off')); }
   opRow(op, s, row, nm) {
     const tool = this.tools().find((x) => x.id === op.toolId); const st = this.ops.state(op, s);
     const badge = { ok: ['ok', 'check', 'cam.st.ok'], stale: ['warn', 'warning', 'cam.st.stale'], err: ['err', 'error', 'cam.st.err'], none: ['info', 'info', 'cam.st.none'], sup: ['info', 'suppress', 'cam.st.sup'] }[st.state];

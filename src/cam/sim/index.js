@@ -15,14 +15,16 @@ import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './
 import { freePieces } from './free.js';
 import { lowerForChamfer } from './chamfer.js';
 import { fixtureGrid, fixtureHit } from './fixtures.js';
-import { triFromBox, triFromHeightmap, triFromSources, triHeightmap, triCut, triHit, subRay, rayTop } from './tridexel.js';
-import { createWrapStock, wrapTouch } from './wrap.js';
+import { triFromBox, triFromHeightmap, triFromSources, triHeightmap, triCut, triHit, triSweep, triBandHit, subRay, rayTop } from './tridexel.js';
+import { createWrapStock, wrapTouch, wrapFixtureHit } from './wrap.js';
+import { triFromMesh, meshZGrid, meshRadialRays, overlapIv } from './model3d.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, stockHeightmap, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
 export { toolGeom, holderSegments } from './tool.js';
 export { fixtureGrid, fixtureHit, normalizeFixtures, resolveFixtures, normalizeSolids } from './fixtures.js';
 export { triFromBox, triFromHeightmap, triHeightmap, triVolume, triContains, subRay } from './tridexel.js';
-export { createWrapStock, wrapRay, wrapRadiiAt, wrapTheta } from './wrap.js';
+export { createWrapStock, wrapRay, wrapRadiiAt, wrapTheta, wrapFixtureHit } from './wrap.js';
+export { triFromMesh, meshZGrid, meshRadialRays, boxMesh, mergeMeshes, bodiesMeshInFrame } from './model3d.js';
 
 const err = (code, params = {}) => new KErr(code, params);
 // below_stock: islemin bildirdigi bilincli pay (toolpath.meta.belowStock, mm; boydan boya delik/kontur) icindeyse 'warn', disindaysa 'error' (V-12)
@@ -73,7 +75,10 @@ export function createSim(input, opts = {}) {
     // WP-13: baglama govdeleri (setup.fixtures ya da opts.fixtures[setupId]; opts.fixtures === false kapatir)
     const fxl = opts.fixtures === false ? null : (sset?.fixtures?.length ? sset.fixtures : opts.fixtures?.[id] ?? null);
     const fix = fxl?.length ? fixtureGrid(fxl, res) : null;
-    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies, fix, tri };
+    // WP-22b: model agi (setup cercevesi). Tri kipte stok izgarasinda X/Y/Z model araliklari (gercek 3B oyma denetimi)
+    const mesh = opts.modelMeshes?.[id] ?? null;
+    const mt = TRI && tri && mesh ? triFromMesh(mesh, tri) : null;
+    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies, fix, tri, mesh, mt, mz: null };
     setups.set(id, s); return s;
   }
 
@@ -87,7 +92,12 @@ export function createSim(input, opts = {}) {
         const st = sec.setup || {}; const box = opts.stockBoxes?.[id] ?? st.stockBox ?? opts.stockBox, cyl = st.stockCyl;
         if (!box || !cyl) throw err('cam.sim.wrap_no_cyl', { setup: id });
         if (Math.hypot(cyl.yc, cyl.zc) > 1e-6) throw err('cam.sim.wrap_off_axis', { setup: id });
-        wraps.set(id, createWrapStock({ ...st, stockBox: box }, res));
+        const W = createWrapStock({ ...st, stockBox: box }, res);
+        // WP-22b: model yaricap isinlari (silindirik izgara) ve baglama govdeleri (parca ile A'da doner)
+        const mesh = opts.modelMeshes?.[id]; if (mesh) W.model = meshRadialRays(mesh, W);
+        const fxl = opts.fixtures === false ? null : (st.fixtures?.length ? st.fixtures : opts.fixtures?.[id] ?? null);
+        if (fxl?.length) W.fix = fixtureGrid(fxl, res);
+        wraps.set(id, W);
       }
       cur = { si, tp, wrap: wraps.get(id), geom: toolGeom(tool), pos: null, acc: null, move: 0, clr: Infinity, marked: 0, allow: 0, cycAllow: 0, allowNow: 0, pre: null, mask: null };
       return;
@@ -102,7 +112,9 @@ export function createSim(input, opts = {}) {
     const mhCh = tp.meta?.chamferSharp && S.mh ? lowerForChamfer(S.mh, tp.meta.chamferSharp) : null; // WP-07: keskin kenar pahi - bildirilen hacim
     // WP-07: model hucresi beyan edilen pah genisliginin 1/10'undan buyukse fazla kesim (hucre capraz toleransi 0,71*res) gizlenebilir -> acik uyari
     if (mhCh && mhCh.res > tp.meta.chamferSharp.width / 10 + 1e-12) issues.push({ level: 'warn', code: CODE('chamfer_tolerance_coarse'), params: { tol: Math.round(0.71 * mhCh.res * 1000) / 1000, res: mhCh.res, width: tp.meta.chamferSharp.width, op: tp.opName } });
-    cur = { si, tp, mhCh, allow, cycAllow, allowNow: allow, zones: Array.isArray(tp.meta?.threadZones) && tp.meta.threadZones.length ? tp.meta.threadZones : null, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
+    // WP-22b: tri kip + model agi: oyma modele karsi 3B (keskin kenar pahi islemi yukseklik haritasi varsa onu kullanir: bildirilen pah hacmi)
+    const mt = S.mt && !(mhCh) ? S.mt : null;
+    cur = { si, tp, mhCh, mt, allow, cycAllow, allowNow: allow, zones: Array.isArray(tp.meta?.threadZones) && tp.meta.threadZones.length ? tp.meta.threadZones : null, setup: S, geom, pos: null, prog: null, acc: null, move: 0, compOn: false, compPend: null,
       pre: new Float32Array(S.hm.data), preMax, mask: new Uint8Array(S.hm.data.length), marked: 0, clr: Infinity, clrAt: null };
   }
   // T-08: islemin yol bandi (takim merkezinin stok yuksekliginin altindaki izi, en buyuk zarf yaricapi kadar kare genisletme:
@@ -176,6 +188,10 @@ export function createSim(input, opts = {}) {
     const i0 = Math.max(0, Math.floor((px - Rmax - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((px + Rmax - hm.x0) / rs));
     const j0 = Math.max(0, Math.floor((py - Rmax - hm.y0) / rs)), j1 = Math.min(ny - 1, Math.floor((py + Rmax - hm.y0) / rs));
     const zFlute = pz + g.fluteLen + tol, zBody = pz + g.bodyLen + tol, mh = cur.mhCh || S.mh, gtol = gtolBase + (mh?.err ?? 0);
+    const gtolT = gtolBase + (cur.mt?.err ?? 0), tg = { z: 0, x: 0, y: 0 }; // WP-22b: tri model oymasi (Z, X, Y isinlarinda en buyuk ortusme)
+    // WP-22b: tri kipte kesici yalniz [uc profili, flut ustu] (oyma bu aralikta; ustundeki model sap/tutucu carpmasidir). Boyunlu takim
+    // (sap < kesici, T-yuva): flut ustunde yalniz sap; sap yan temasi X/Y bantlarinda (shaft_collision), Z sutunu sonsuz sayilmaz.
+    const neck = !!S.tri && shaftR < R - 1e-9, zCutTop = neck ? zFlute : Infinity;
     for (let j = j0; j <= j1; j++) {
       const cy = hm.y0 + (j + 0.5) * rs, dy = cy - py;
       for (let i = i0; i <= i1; i++) {
@@ -192,6 +208,14 @@ export function createSim(input, opts = {}) {
             const cl = pz + g.bodyLen + u - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
           }
         }
+        if (neck) { // T-yuva/boyunlu takim (tri): Z isininda yalniz kesici dilimi; flut ustu sap denetimi X/Y bantlarinda
+          if (r > R || (mode === 1 && r > g.cutR)) continue;
+          const zb = pz + g.profile(r), zr = S.tri.zr[idx2];
+          if (mode === 0) { const o = overlapIv(zr, zb, zFlute); if (o && o.ov > tol) note('rapid_in_stock', o.ov, px, py, pz); continue; }
+          if (cur.mt) { const o = overlapIv(cur.mt.zr[idx2], zb, zFlute); if (o && o.ov > gtolT && o.ov > tg.z) tg.z = o.ov; }
+          const rem = subRay(zr, zb < S.zFloor ? S.zFloor : zb, zFlute); if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; } d[idx2] = rayTop(zr, S.zFloor);
+          continue;
+        }
         if (cur.zones && r <= R && inZone(cur.zones, cx, cy, pz)) { // WP-07: dis halkasi, yalniz KESICI (flut) boyu icinde kasitli kesimdir; flut boyunu asan malzeme sap yaricapinda engel (flute_exceeded)
           if (h > zFlute && r <= shaftR) note('flute_exceeded', h - zFlute + tol, px, py, pz);
           continue;
@@ -203,7 +227,8 @@ export function createSim(input, opts = {}) {
         const zb = pz + g.profile(r);
         if (mode === 0) { if (h > zb + tol) note('rapid_in_stock', h - zb, px, py, pz); continue; }
         if (h > zb) {
-          if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) noteGouge(g, r, m, zb, pz, px, py, cx, cy); }
+          if (cur.mt) { const zr = cur.mt.zr[idx2]; if (zr.length) { const o = overlapIv(zr, zb, zFlute); if (o && o.ov > gtolT && o.ov > tg.z) tg.z = o.ov; } } // WP-22b: kesici dilimi
+          else if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) noteGouge(g, r, m, zb, pz, px, py, cx, cy); }
           const nz = zb < S.zFloor ? S.zFloor : zb;
           if (S.tri) { const zr = S.tri.zr[idx2]; const rem = subRay(zr, nz, Infinity); if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; } d[idx2] = rayTop(zr, S.zFloor); }
           else if (nz < h) { const dv = (h - nz) * rs * rs; S.removed += dv; removedTotal += dv; d[idx2] = nz; }
@@ -213,9 +238,44 @@ export function createSim(input, opts = {}) {
     if (gc) finishGouge();
     if (S.tri) { // WP-13: X/Y isinlari (ardisik ornek cifti kapsulu): kesmede cikar, hizlida yanal giris
       const p1 = { x: px, y: py, z: pz };
-      if (mode === 1) triCut(S.tri, g.rho, prev, p1, S.hmax);
-      else { const o = triHit(S.tri, g.rhoEnv, prev, p1, S.hmax); if (o > latTol) note('rapid_in_stock', o, px, py, pz); }
+      const fL = g.fluteLen, rhoCut = (u) => (u <= fL ? g.rho(u) : 0);
+      if (mode === 1 && cur.mt) { // WP-22b: model X/Y araliklarina yanal oyma, yalniz kesici dilimi (dis bolgesi kasitli)
+        triSweep(cur.mt, rhoCut, prev, p1, cur.mt.zTop, (ray, lo, hi, ax, c) => {
+          const o = overlapIv(ray, lo, hi); if (!o || o.ov <= gtolT || o.ov <= tg[ax]) return;
+          if (cur.zones) { const m = (o.a + o.b) / 2; if (inZone(cur.zones, ax === 'x' ? m : c, ax === 'x' ? c : m, pz)) return; }
+          tg[ax] = o.ov;
+        });
+      }
+      if (cur.mt && (tg.z > 0 || tg.x > 0 || tg.y > 0)) noteTriGouge(tg, px, py, pz);
+      lateralBands(S.tri, g, prev, p1, S.hmax, px, py, pz); // WP-22b: sap/tutucu yanal carpmasi (kesimden ONCE: malzeme henuz yerinde)
+      if (mode === 1) triCut(S.tri, neck ? rhoCut : g.rho, prev, p1, S.hmax);
+      else { const o = triHit(S.tri, neck ? (u) => (u <= fL ? g.rhoEnv(u) : 0) : g.rhoEnv, prev, p1, S.hmax); if (o > latTol) note('rapid_in_stock', o, px, py, pz); }
     }
+  }
+  // WP-22b: tri model oymasi. Derinlik = ortusmesi olan eksenlerin en buyuk ortusmelerinin EN KUCUGU (yuzeye dik girmenin
+  // yaklasigi: tabanda Z kisa / X-Y uzun, duvarda X ya da Y kisa). 'vertical' = Z ortusmesi.
+  function noteTriGouge(tg, px, py, pz) {
+    let d = Infinity; for (const k of ['z', 'x', 'y']) if (tg[k] > 0 && tg[k] < d) d = tg[k];
+    const a = cur.acc.gouge || (cur.acc.gouge = { n: 0, depth: -Infinity, x: 0, y: 0, z: 0, vertical: -Infinity });
+    a.n++; if (tg.z > a.vertical) a.vertical = tg.z;
+    if (d > a.depth) { a.depth = d; a.x = px; a.y = py; a.z = pz; }
+  }
+  // WP-22b: kesici boyu ustu (flut), sap ve tutucu bantlari X/Y isinlarinda (hucre merkezine yuvarlanmayan yanal temas)
+  const bandCache = new WeakMap(); // geom nesnesi basina (oriented() yeni nesne uretir)
+  function bandsOf(g) {
+    if (bandCache.has(g)) return bandCache.get(g);
+    const fL = g.fluteLen, bL = g.bodyLen, hs = g.holderSegs;
+    const neck = g.shaftR < g.R - 1e-9; // boyunlu takim: flut ustunde yalniz sap (shaftR) -> shaft_collision
+    const b = { flute: neck ? null : (u) => (u >= fL && u <= bL ? g.R : 0), shaft: g.shaftR > g.R + 1e-9 || neck ? (u) => (u >= fL && u <= bL ? g.shaftR : 0) : null, holder: null };
+    if (hs && g.holderR > 0) b.holder = (u) => { const q = u - bL; if (q < 0) return 0; for (const sg of hs) if (q >= sg.u0 && q <= sg.u1) return sg.r0 + (sg.u1 > sg.u0 ? (q - sg.u0) / (sg.u1 - sg.u0) : 0) * (sg.r1 - sg.r0); return 0; };
+    bandCache.set(g, b); return b;
+  }
+  function lateralBands(T, g, prev, p1, zTop, px, py, pz) {
+    const b = bandsOf(g); if (Math.min(p1.z, prev ? prev.z : p1.z) + g.fluteLen >= zTop) return;
+    const of = b.flute ? triBandHit(T, b.flute, prev, p1, g.fluteLen, zTop) : 0;
+    if (of > latTol) note('flute_exceeded', of, px, py, pz);
+    if (b.shaft) { const os = triBandHit(T, b.shaft, prev, p1, g.fluteLen, zTop); if (os > of + latTol) note('shaft_collision', os, px, py, pz); }
+    if (b.holder && Math.min(p1.z, prev ? prev.z : p1.z) + g.bodyLen < zTop) { const oh = triBandHit(T, b.holder, prev, p1, g.bodyLen, zTop); if (oh > latTol) { note('holder_collision', oh, px, py, pz); cur.hadHolderHit = true; } }
   }
   // T-17: oyma miktari = model malzemesinin takim zarfina YUZEYE DIK girme derinligi (yan yuzeye R-r, uca normal uzaklik);
   // dusey fark (m - zb) ayrica 'vertical' olarak tutulur. Engel olcutu degismez (dusey fark > tolerans = oyma).
@@ -300,7 +360,15 @@ export function createSim(input, opts = {}) {
   // WP-16: sarma hareketi (X, Z = uc yaricapi, A). Ornek araligi en buyuk yaricapta (stok ya da uc) yay boyu <= step.
   function wrapSweep(a, b, mode) {
     const W = cur.wrap, k = Math.PI / 180 * W.sign;
-    const at = (q) => { if (Math.abs(q.y) > 1e-6) throw err('cam.sim.wrap_y', { y: q.y }); samples++; removedTotal += wrapTouch(W, cur.geom, q.x, q.z, q.a * k, mode, (code, depth) => note(code, depth, q.x, 0, q.z), tol); };
+    const ext = { gtol: gtolBase + (W.model?.err ?? 0) };
+    const at = (q) => {
+      if (Math.abs(q.y) > 1e-6) throw err('cam.sim.wrap_y', { y: q.y }); samples++;
+      removedTotal += wrapTouch(W, cur.geom, q.x, q.z, q.a * k, mode, (code, depth) => note(code, depth, q.x, 0, q.z), tol, ext);
+      if (W.fix) { // WP-22b: baglama govdesi (parca cercevesinde, A ile doner)
+        const fh = wrapFixtureHit(W.fix, cur.geom, q.x, q.z, q.a * k, fixTol);
+        if (fh) { const key = fh.part === 'tool' ? 'fixture_collision' : 'fixture_' + fh.part; const a = cur.acc[key] || (cur.acc[key] = { n: 0, depth: -Infinity, x: 0, y: 0, z: 0 }); a.n++; if (mode === 0) a.rapid = true; if (fh.depth > a.depth) { a.depth = fh.depth; a.x = q.x; a.y = 0; a.z = q.z; a.part = fh.part; a.fixture = fh.fixture; } }
+      }
+    };
     if (!a) { at(b); return; }
     const aa = a.a ?? b.a, ba = b.a ?? aa;
     const len = Math.hypot(b.x - a.x, b.z - a.z, Math.max(W.R, Math.abs(a.z), Math.abs(b.z)) * (ba - aa) * Math.PI / 180);
@@ -392,13 +460,19 @@ export function createSim(input, opts = {}) {
     }
     const i0 = Math.max(0, Math.floor((x - R - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((x + R - hm.x0) / rs));
     const j0 = Math.max(0, Math.floor((y - R - hm.y0) / rs)), j1 = Math.min(hm.ny - 1, Math.floor((y + R - hm.y0) / rs));
+    // WP-22b: yukari kesimde modele oyma. Tri kip + model agi: Z ve X/Y isinlari; yukseklik haritasi kipinde model agi verilmisse
+    // yalniz Z isinlari (model haritasi alttan acilan havsayi gostermez; ag gosterir). Ag yoksa denetim yok (eskisi gibi).
+    const MZ = cur.mt ?? (S.mesh ? (S.mz ??= meshZGrid(S.mesh, hm)) : null), gtolB = gtolBase + (MZ?.err ?? 0), tg = { z: 0, x: 0, y: 0 };
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const cx = hm.x0 + (i + 0.5) * rs, cy = hm.y0 + (j + 0.5) * rs; if (Math.hypot(cx - x, cy - y) > R) continue;
       const k = j * nx + i; let rem = 0;
+      if (MZ) { const o = overlapIv(MZ.zr[k], z0, z1); if (o && o.ov > gtolB && o.ov > tg.z) tg.z = o.ov; }
       if (S.tri) { rem = subRay(S.tri.zr[k], z0, z1); d[k] = rayTop(S.tri.zr[k], S.zFloor); }
       else { const h = d[k], lo = Math.max(z0, S.zFloor); if (h > lo && h <= z1 + tol) { rem = h - lo; d[k] = lo; } }
       if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; }
     }
+    if (cur.mt) triSweep(cur.mt, (u) => (u <= z1 - z0 ? R : 0), null, { x, y, z: z0 }, z1, (ray, lo, hi, ax) => { const o = overlapIv(ray, lo, hi); if (o && o.ov > gtolB && o.ov > tg[ax]) tg[ax] = o.ov; });
+    if (MZ && (tg.z > 0 || tg.x > 0 || tg.y > 0)) noteTriGouge(tg, x, y, z1);
     if (S.tri) triCut(S.tri, g.rho, null, { x, y, z: z0 }, z1);
   }
 

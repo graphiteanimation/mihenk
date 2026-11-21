@@ -52,7 +52,7 @@ try:
     check('sekme: mod cam, sekme seçili', pg.evaluate('app.mode') == 'cam' and pg.evaluate("document.querySelector('[data-testid=tab-manufacture]').getAttribute('aria-selected')") == 'true')
     ribbon_cam = pg.evaluate("[...document.querySelectorAll('#toolbar [data-cmd]')].map(e => e.dataset.cmd).join(',')")
     check('şerit değişti (Yeni setup, Yüzey, Cep, Post işle var)', ribbon_cam != ribbon_design and all(c in ribbon_cam for c in ['cam-setup', 'cam-op-face', 'cam-op-pocket', 'cam-post']), ribbon_cam)
-    check('tarayıcı: Tezgâhlar / Setup ve işlemler / Takımlar bölümleri', count(pg, '#browser .bsec') == 3, count(pg, '#browser .bsec'))
+    check('tarayıcı: Tezgâhlar / Setup ve işlemler / Takımlar / Simülasyon bölümleri', count(pg, '#browser .bsec') == 4, count(pg, '#browser .bsec'))  # WP-22b: + Simülasyon
     check('alt çubuk simülasyon çubuğu', pg.evaluate("document.querySelector('#timeline').classList.contains('sim')"))
     check('durum çubuğu: İmalat kipi + DOĞRULANMADI düğmesi', 'İmalat' in txt(pg, '[data-testid=st-mode]') and 'DOĞRULANMADI' in txt(pg, '[data-testid=st-post]'))
     check('belge ve görünüm korundu (gövde, kamera)', pg.evaluate('app.result.bodies.length') == nb and pg.evaluate('JSON.stringify(app.viewport.camera.position.toArray())') == cam0)
@@ -1200,6 +1200,25 @@ try:
     tl = pg.evaluate('app.doc.cam.setups[0].tilt')
     check('eğim belgeye yazıldı (vektör)', tl and tl.get('enabled') and tl.get('kind') == 'vector' and tl.get('v') == [1, 0, 1], json.dumps(tl))
     check('şerit etiketleri kırpılmaz (WP-18 şeride komut eklemez)', pg.evaluate("[...document.querySelectorAll('#toolbar .tool span.l')].filter((l) => l.scrollWidth > l.clientWidth + 1).length") == 0)
+    ctx.close()
+
+    print('WP-22b: ayrıntılı simülasyon seçeneği (tri-dexel + model ağı, worker)')
+    ctx, pg = prep(DOC4)
+    pg.evaluate("""() => { const c = app.cam; c.ops.create('contour'); c.closePanel(); c.mut((x) => { x.setups[0].ops[0].geom = [{ kind: 'silhouette', body: app.result.bodies[0].id }]; }); }""")
+    q = "async () => { const r = await app.cam.ops.prepare(); return r && { codes: r.gates.map(g => g.code), blocks: r.gates.filter(g => g.level === 'block').map(g => g.code) }; }"
+    r0 = pg.evaluate(q)
+    check('WP-22b varsayılan kapalı: belgede sim alanı yok, sim_lateral_tol uyarısı var', pg.evaluate('!app.doc.cam.sim') and r0 and 'cam.gate.sim_lateral_tol' in r0['codes'], json.dumps(r0)[:300])
+    check('WP-22b tarayıcıda Simülasyon bölümü ve seçenek satırı', count(pg, '[data-testid=cam-sim-detail]') == 1 and 'Ayrıntılı simülasyon' in txt(pg, '[data-testid=cam-sim-detail]'))
+    pg.click('[data-testid=cam-sim-detail]'); time.sleep(0.3)
+    check('WP-22b seçenek açıldı: doc.cam.sim.detail', pg.evaluate('app.doc.cam.sim?.detail === true') and pg.evaluate("document.querySelector('[data-testid=cam-sim-detail-cb]').checked"))
+    r1 = pg.evaluate(q)
+    check('WP-22b açıkken sim tamamlanır, sim_lateral_tol yok, sim hatası yok', r1 is not None and 'cam.gate.sim_lateral_tol' not in r1['codes'] and 'cam.gate.sim_failed' not in r1['codes'] and 'cam.gate.sim_not_run' not in r1['codes'] and 'cam.gate.sim_no_model' not in r1['codes'], json.dumps(r1)[:300])
+    check('WP-22b açıkken engeller kapalı kiple aynı (bu örnekte oyma yok)', r1 is not None and sorted(r1['blocks']) == sorted(r0['blocks']), json.dumps([r0['blocks'], r1 and r1['blocks']]))
+    ca = pg.evaluate("""async () => { const p = app.cam.ops.prepare(); for (let i = 0; i < 400 && !app.cam.ops.simAbort; i++) await new Promise((res) => setTimeout(res, 5)); const had = !!app.cam.ops.simAbort; app.cam.ops.simAbort?.abort(); const r = await p; return { had, r: r === null }; }""")
+    check("WP-22b iptal: ayrıntılı sim worker'da iptal edilir (sonuç yok)", ca['r'] and ca['had'], json.dumps(ca))
+    pg.evaluate("document.querySelector('[data-testid=cam-sim-detail]').click()"); time.sleep(0.2)  # bildirim balonu üstte olabilir
+    check('WP-22b seçenek kapatılır', pg.evaluate('app.doc.cam.sim?.detail === false'))
+    check('WP-22b: sayfa hatası yok', not [e for e in pg.errs if 'Failed to load resource' not in e], pg.errs[:3])
     ctx.close()
 
     br.close()

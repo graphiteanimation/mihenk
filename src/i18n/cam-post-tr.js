@@ -70,7 +70,7 @@ export default {
   "err.cam.gcode.comp_left_on": "NC satırı {line}: yarıçap telafisi (G41/G42) kapatılmadan bölüm bitiyor.",
   "err.cam.gcode.no_position": "NC satırı {line}: konum bilinmiyor (önce mutlak X Y Z verilmeli).",
   "err.cam.gcode.missing_word": "NC satırı {line}: '{word}' kelimesi eksik.",
-  "err.cam.gcode.a_simultaneous": "NC satırı {line}: A ekseni başka eksenlerle birlikte hareket ediyor (eş zamanlı 4 eksen desteklenmiyor; yalnız 3+1 indeksleme).",
+  "err.cam.gcode.a_simultaneous": "NC satırı {line}: A ekseni başka eksenlerle birlikte hareket ediyor (eş zamanlı 4 eksen yalnız iş koordinatı bir sarma setup'ıyla eşleşince okunur; aksi hâlde yalnız 3+1 indeksleme).",
   "err.cam.gcode.cycle_in_comp": "NC satırı {line}: yarıçap telafisi açıkken delik çevrimi.",
   "err.cam.gcode.cycle_heights": "NC satırı {line}: çevrim yükseklikleri geçersiz (Z < R <= başlangıç olmalı).",
   "err.cam.gcode.comp_no_move": "NC satırı {line}: G41/G42/G40 hareketsiz blokta.",
