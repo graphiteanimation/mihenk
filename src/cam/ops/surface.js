@@ -438,7 +438,7 @@ export function computeAdaptive3d(op, ctx) {
   if (!stats.passes && !stats.entries) throw cerr('cam.adaptive.nothing');
   const warnings = []; if (stats.noEntry) warnings.push(warn('cam.adaptive.no_entry_left', { area: r3(stats.noEntry) }));
   return finishToolpath(op, tool, E.cut, { ...E.h, zBot }, b, { warnings, passDepth, rapidFeed: ctx.machine?.feed?.rapid ?? undefined,
-    meta: { belowStock: belowStockAllow(op, S, zBot), surf: { kind: 'adaptive3d', tol: E.tol, meshTol: E.mtol, levels: main.length, fillLevels: ex.length }, adaptive: { load: ae, passes: stats.passes, links: stats.links, lifts: stats.lifts, entries: stats.entries, cell: r3(stats.g), maxTheta: r3((stats.maxTheta * 180) / Math.PI) } } });
+    meta: { belowStock: belowStockAllow(op, S, zBot), surf: { kind: 'adaptive3d', tol: E.tol, meshTol: E.mtol, levels: main.length, fillLevels: ex.length }, adaptive: { load: ae, passes: stats.passes, links: stats.links, lifts: stats.lifts, entries: stats.entries, zaps: stats.zaps || 0, cell: r3(stats.g), maxTheta: r3((stats.maxTheta * 180) / Math.PI) } } });
 }
 
 export function computeSurface(op, ctx) {

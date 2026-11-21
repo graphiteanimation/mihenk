@@ -162,7 +162,7 @@ function excessHemi(remain, x0, y0) { // kalan stok yuzeye dik kalinligi (yarim 
     const x = remain.x0 + (i + 0.5) * res, y = remain.y0 + (j + 0.5) * res; if (Math.abs(x) > 23 || Math.abs(y) > 23) continue;
     const z = remain.data[j * nx + i]; const r = Math.hypot(x, y);
     const dS = Math.hypot(r, z) - Rs; const dP = z; // kure ya da plaka (en yakin)
-    out.push({ x, y, z, d: r <= Rs ? Math.min(dS, dP) : Math.min(dP, Math.hypot(r - Rs, Math.max(0, z)) ) });
+    out.push({ x, y, z, d: r < Rs ? dS : Math.min(dS, dP) }); // kure ustunde yalniz kure; disinda kure (radyal izdusum) ya da plaka
   }
   return out;
 }
@@ -173,7 +173,8 @@ if (sec('rough')) {
   ok(tp.meta.surf.levels >= 4 && tp.meta.surf.fillLevels >= 8, `3D kaba seviyeler: ana ${tp.meta.surf.levels}, ara ${tp.meta.surf.fillLevels}`);
   const r = simulate(tp, { res: RES_R, stockBox: S.stockBox, modelHeightmap: heightmapFromFn([S.stockBox.min[0], S.stockBox.min[1]], [S.stockBox.max[0], S.stockBox.max[1]], RES_R, (x, y) => Math.max(0, PARTS.hemi.f(x, y))), gougeTol: 0.01, freePieces: false });
   ok(!r.issues.some((x) => x.code === 'cam.sim.gouge'), '3D kaba sim: modele oyma yok');
-  const ex = excessHemi(r.remainHeightmap); let mn = Infinity, mx = -Infinity; for (const e of ex) { if (e.d < mn) mn = e.d; if (e.d > mx) mx = e.d; }
+  const ex = excessHemi(r.remainHeightmap); let mn = Infinity, mx = -Infinity, at = null; for (const e of ex) { if (e.d < mn) mn = e.d; if (e.d > mx) { mx = e.d; at = e; } }
+  if (process.env.WP15_V) { const hist = {}; for (const e of ex) { const b = Math.round(e.d * 4) / 4; hist[b] = (hist[b] || 0) + 1; } console.log('kalan', JSON.stringify(at), JSON.stringify(hist)); }
   // ust sinir: pay + ara seviye adimi (kademe tepesi, dusey) + takim kenarindaki izgara/kuantalama payi (0,25 sim hucresi)
   ok(mn >= leave - 0.03, `3D kaba: kalan stok >= bitirme payi (en az ${mn.toFixed(3)}, pay ${leave})`);
   ok(mx <= leave + fill + RES_R, `3D kaba: kalan stok <= pay + kademe tepesi (en cok ${mx.toFixed(3)} <= ${(leave + fill + RES_R).toFixed(2)})`);
