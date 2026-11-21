@@ -70,7 +70,7 @@ Mihenk: devam
 Mihenk: devam
 ```
 
-## İE-003 — CAD test parçalarının otomatik regresyonu · **Hazır** (O-056; ekransız, paralel açılabilir)
+## İE-003 — CAD test parçalarının otomatik regresyonu · **Sürüyor** (oturum 2026-11-21f) (O-056; ekransız, paralel açılabilir)
 - Ön koşul: yok. Alan yalnız `test/` (kaynak koda dokunmaz). Girdi: bilgisayarda `Documents\Mihenk\Mihenk\cad-test\Tnn\*.mhnk` (T01–T10; klasör erişimi istenir) → depoda `test/cad-bench/mhnk/`.
 - Biten her `cad-test/Tnn.mhnk` depoya `test/cad-bench/mhnk/` altına alınır; yeni test adımı her belgeyi çekirdekte yeniden hesaplar, hacim ve kutuyu `ref/` ile karşılaştırır (±%0,1).
 - KISMEN parçalar (T03, T04, T05, T09) bugünkü hacimleriyle "bilinen eksik" olarak kaydedilir; İE-005/006 düzeltmelerinden sonra hedef referans hacme çekilir.
