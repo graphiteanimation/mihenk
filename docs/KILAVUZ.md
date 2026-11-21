@@ -1,6 +1,6 @@
 # Mihenk CAD/CAM Kullanım Kılavuzu
 
-Sürüm 0.3.0 · Türkçe · İngilizce karşılığı: `docs/MANUAL.md` (içerik aynıdır)
+Sürüm 0.6.0 · Türkçe · İngilizce karşılığı: `docs/MANUAL.md` (içerik aynıdır)
 
 Bu kılavuz, CNC fason işleme yapan ve alüminyum/çelik parça işleyen atölyeler içindir. Mihenk makineden bağımsızdır: kendi tezgâhınızın profilini siz eklersiniz (5.2). CAD/CAM'e yeni olmadığınızı, ama yazılımcı olmadığınızı varsayar. Komut adları, programdaki adlarla birebir aynıdır.
 
@@ -9,7 +9,7 @@ Bu kılavuz, CNC fason işleme yapan ve alüminyum/çelik parça işleyen atöly
 > Mihenk'in ürettiği NC kodu **DOĞRULANMADI** başlığı taşır. Hiçbir NC dosyası, tezgâhta denenmeden güvenilir sayılmaz.
 > Program bir yardımcıdır. Tezgâhtaki kontrol ve sorumluluk sizdedir.
 > Tezgâhta ilk çalıştırma adımları bu programın işi değildir; makine projesinde yapılır.
-> A ekseni yönü tezgâhta işaretli bir parçayla **teyit edilmeden** 4. eksenli (3+1) NC çalıştırılmamalıdır.
+> A ekseni yönü tezgâhta işaretli bir parçayla **teyit edilmeden** 4. eksenli (3+1, 3+2 ya da sarma) NC çalıştırılmamalıdır.
 > Simülasyon her şeyi göremez. Neleri göremediği için **Bölüm 7**'yi okuyun.
 
 ## İçindekiler
@@ -23,6 +23,7 @@ Bu kılavuz, CNC fason işleme yapan ve alüminyum/çelik parça işleyen atöly
 7. GÜVENLİK
 8. Sorun giderme
 9. Kısayollar
+10. 0.6'da yeni
 
 ---
 
@@ -32,20 +33,20 @@ Bu kılavuz, CNC fason işleme yapan ve alüminyum/çelik parça işleyen atöly
 
 Sürümle birlikte iki dosya verilir:
 
-- `Mihenk-Kurulum-0.3.0.exe` (kurulum dosyası)
+- `Mihenk-Kurulum-0.6.0.exe` (kurulum dosyası)
 - `SHA256SUMS.txt` (dosyanın SHA-256 özeti; her satır: `özet  dosya adı`)
 
 Kurmadan önce özeti karşılaştırın:
 
 1. Dosyaların bulunduğu klasörde Windows PowerShell açın.
-2. Şunu yazın: `Get-FileHash .\Mihenk-Kurulum-0.3.0.exe -Algorithm SHA256`
-   (Olmazsa: `certutil -hashfile Mihenk-Kurulum-0.3.0.exe SHA256`)
+2. Şunu yazın: `Get-FileHash .\Mihenk-Kurulum-0.6.0.exe -Algorithm SHA256`
+   (Olmazsa: `certutil -hashfile Mihenk-Kurulum-0.6.0.exe SHA256`)
 3. Çıkan uzun harf-rakam dizisini `SHA256SUMS.txt` içindeki satırla karşılaştırın.
 4. Harfi harfine aynı olmalı. **Bir karakter bile farklıysa kurmayın**; dosyayı yeniden alın.
 
 ### 1.2 Kurulum
 
-1. `Mihenk-Kurulum-0.3.0.exe` dosyasını çalıştırın.
+1. `Mihenk-Kurulum-0.6.0.exe` dosyasını çalıştırın.
 2. Yönetici izni istemez. Program `%LOCALAPPDATA%\Programs\Mihenk` klasörüne kurulur.
 3. Masaüstüne ve Başlat menüsüne kısayol konur. Kaldırmak için Başlat menüsündeki kaldırıcıyı (`Kaldir.exe`) kullanın.
 4. Dosya imzasız olduğu için Windows SmartScreen "Windows kişisel bilgisayarınızı korudu" diyebilir. **Ek bilgi** → **Yine de çalıştır**. Bunu yalnız 1.1'deki özet doğruysa yapın.
@@ -87,7 +88,7 @@ Program ağ bağlantısı kurmaz. Çevrimdışı çalışır; dosyalarınız bu 
 Ekran yukarıdan aşağıya şöyledir:
 
 1. **Başlık şeridi**: logo, **Dosya** menüsü, Geri Al / Yinele / Kaydet, belge adı (kaydedilmemiş değişiklik göstergesiyle), **Komut ara** (Ctrl+K), İmalat kipinde seçili **tezgâh** etiketi, Ayarlar, Yardım.
-2. **Çalışma alanı sekmeleri**: **Tasarım**, **İmalat**, **Teknik resim** (Teknik resim "Yakında", henüz yok).
+2. **Çalışma alanı sekmeleri**: **Tasarım**, **İmalat**, **Teknik resim**.
 3. **Şerit**: komut grupları. Sığmayan komutlar » menüsünde, ilgili grubun ▾ listesinde ya da Ctrl+K aramasındadır. "Son kullanılan komutlar" kısa yol olarak görünür.
 4. **Tarayıcı** (solda): Parametreler, Orijin, Gövdeler, Sketch'ler. İmalat sekmesinde: Tezgâhlar, Takımlar, Setup ve işlemler.
 5. **3B görünüm** (ortada) ve **görünüm küpü**: Ön, Üst, Sağ, İzo, Sığdır.
@@ -308,9 +309,11 @@ Modelleme komutları **Tasarım** sekmesinin şeridindedir: **Oluştur**, **Düz
 | Grup | Komutlar |
 |---|---|
 | Kurulum | **Yeni setup**, **Stok**, **Tezgâh**, **Takımlar** |
-| 2B | **Yüzey**, **Kontur**, **Cep**, **Uyarlanır** (yok, "Bu işlem türü sonraki sürümde") |
+| 2B | **Yüzey**, **Kontur**, **Cep**, **Uyarlanır**, **Yatay** (Yatay taşma menüsünde) |
 | Delme ve diş | **Delik delme**, **Diş** |
-| 3B | **Yüzey işleme** (yok, sonraki sürümde) |
+| 3B | **3B kaba**, **Z-seviye** (**Paralel**, **Sabit tepe**, **Kalem** taşma menüsünde) |
+| Sarma (4. eksen) | **Sarılmış kontur**, **Sarılmış cep** |
+| İş akışı | **Şablonlar**, **Delik sırası**, **Çoklu parça**, **Birim (mm/inç)**, **Teklif** |
 | Eylemler | **Yolu hesapla**, **Simüle et**, **Post işle**, **NC kodu** |
 
 ### 5.1 Genel akış
@@ -562,7 +565,7 @@ Cep köşeleri takım yarıçapından keskin olamaz: **köşede malzeme kalır**
 
 Eksenleri takım eksenine paralel olmayan delikler o setup'ta atlanır (uyarı). Delik çapı takım çapından farklıysa uyarı çıkar. Aynı üst/dip yüksekliğindeki delikler tek çevrimde yazılır.
 
-Tamamen delip geçen delikte takım model tabanının altına iner. Programda **tabla ya da fikstür modellenmediği** için altına bir fedakâr levha (ya da boşluk) koymak sizin sorumluluğunuzdadır (Bölüm 7.4).
+Tamamen delip geçen delikte takım model tabanının altına iner. Programda **tabla modellenmediği** için altına bir fedakâr levha (ya da boşluk) koymak sizin sorumluluğunuzdadır (Bölüm 7.4).
 
 #### Diş
 
@@ -589,7 +592,7 @@ Modelinizde pah yoksa (düz blok, keskin köşe) pah işleminin panelinde **Kesk
 
 #### Yok olanlar
 
-**Uyarlanır** (adaptif) boşaltma ve **3B yüzey işleme** bu sürümde yoktur; şeritte pasif görünür.
+Eşzamanlı 4 ve 5 eksen işleme yoktur; 3+1, 3+2 ve 4. eksen sarma vardır (bkz. 10.3, 10.4).
 
 ### 5.7 Yol üretme
 
@@ -746,22 +749,22 @@ Teyit (kısa özet; ayrıntılı prosedür makine projesindedir):
 1. Bir parçanın bir yüzünü işaretleyin (örnek: boyayla, belirgin bir çentik).
 2. Parçayı bağlayın, takım uzakken elle küçük bir pozitif A hareketi verin ve işaretli yüzün hangi yöne döndüğünü gözleyin.
 3. Mihenk'teki **Dönüş yönü** ayarıyla karşılaştırın. Uyuşmuyorsa profili düzeltin ve NC'yi yeniden üretin.
-4. 3+1 NC'yi ilk kez her zaman işaretli parçayla ve kuru çalıştırarak deneyin.
+4. 3+1, 3+2 ve sarma NC'lerini ilk kez her zaman işaretli parçayla ve kuru çalıştırarak deneyin.
 
 Ayrıca: WCS sıfırınız tezgâhta **A ekseni üzerinde** olmalıdır (Bölüm 5.5). Program bunu denetlemez.
 
 ### 7.4 Simülasyonun göremedikleri
 
-Simülasyon **yalnız Z'nin üstünden** bakan tek değerli bir yükseklik haritasıdır. Şunları **görmez** ya da sınırlı görür:
+Varsayılan simülasyon **yalnız Z'nin üstünden** bakan tek değerli bir yükseklik haritasıdır; isteğe bağlı üç yönlü ayrıntılı simülasyon varsayılan olarak kapalıdır. Şunları **görmez** ya da sınırlı görür:
 
 | Konu | Durum |
 |---|---|
 | **Çözünürlük altı yan oyma** | Hücre aralığının yarısından küçük yanal oymalar görülmez (0,5 mm çözünürlükte 0,05–0,2 mm, 1,3 mm çözünürlükte 1 mm'ye kadar kaçırılmıştır). Her simülasyonda bu uyarı yazılır. Duvar doğruluğu simülasyondan değil takım yolu hesabından gelir. Bu sınır **ertelenmiştir**, kapatılmamıştır. |
 | **Alt kesme / yan yönden kesme** | Yok. Altı oyuk parça, eğik duvarlı gövdeler simülasyonda doğru görünmez. |
 | **A≠0 iken aynı setup içinde yan kesme** | Yok. |
-| **Fikstür, mengene, tabla, punta** | **Modellenmez.** Takımın bunlara çarpmasını simülasyon göremez. Stok tabanının altına iniş engel sayılır, ancak mengene çenesi, bağlama ayağı gibi stok dışı cisimler yoktur. |
-| **Tutucu** | Yalnız silindir olarak modellenir. |
-| **Silindir stok** | Simülasyonda kutu olarak yaklaşıklanır. |
+| **Bağlama gövdeleri ve tutucu** | Kutu, silindir ve STEP mengene çarpışma denetimine girer; tutucu profili (kademeli silindir ya da koni) denetlenir. **Tabla ve punta modellenmez.** Tablaya bağlı fikstür A ile birlikte döner kabul edilir. |
+| **Tutucu üstü** | Fener mili (tutucunun üst kısmı) modellenmez. |
+| **Silindir stok** | Sarma işlemlerinde silindirik olarak simüle edilir; diğer işlemlerde kutu olarak yaklaşıklanır. |
 | **Hızlı hareketler** | Hücre merkezi örnekleme ile denetlenir. |
 | **Stok görünümü** | Yalnız üst yüzey gösterilir (yan duvar yok). |
 | **Takım boyu / kesici boyu** | Yalnız girdiğiniz değerler kadar bilinir; değerler yanlışsa denetim de yanlıştır. |
@@ -785,30 +788,32 @@ Aşağıdakiler yazılımla sınanamaz; makine projesinde işaretli parçayla te
 - G05 P10000 çıktısı
 - Soğutma kodları: sis, hava, mil içi
 - Aşınma telafisinde D'ye yarıçap mı yoksa yalnız aşınma mı yazılacağı
+- 3+2 eğik düzlem çıktısı (G68.2 + G53.1 ve açılmış çıkış) ile 4. eksen sarmada G93 ters zaman ilerleme ve A kelimesi tezgâhta doğrulanmadı.
 
 ### 7.6 Bilinen sınırlar ve eksikler
 
 Dürüst liste. Bu sürümde **yok ya da eksik** olanlar:
 
 **CAM**
-- Uyarlanır (adaptif) boşaltma ve 3B yüzey işleme yok (şeritte "yakında").
-- 4. / 5. eksen tezgâhlar yok ("yakında"). Yalnız **3+1** vardır; **eşzamanlı 4 eksen yok**, TCP/G68.2/G07.1 yok.
-- Setup panelinde eksen yönü için "yüzden seçim" yok (yalnız ana eksenler ±X, ±Y, ±Z); çekirdek destekler.
+- 3B kaba büyük parçada bir dakikayı aşabilir (ölçümde 87 sn); hesap iptal edilebilir. Uyarlanır yol dar geçitlere girmeyebilir; uyarı verilir.
+- **Eşzamanlı 4 ve 5 eksen yok.** 3+1, 3+2 (eğik setup, G68.2 + G53.1) ve 4. eksen sarma vardır; RTCP ve G07.1 yoktur. Sarma yalnız X'e paralel silindirde çalışır.
+- Eğik olmayan setup'ta eksen yönü yalnız ana eksenlerdir (±X, ±Y, ±Z); yüzden yön seçimi yalnız 3+2 eğim setup'ında vardır.
 - Delik noktalarını eskizden vermek (`points`) ve açık zincir kontur seçimi arayüzde yok. (Delikler yalnız Delik özelliğinden gelir.)
-- Kontur için helis dalma yok; cepte "önceden delme" girişi yok.
 - Açık zincir kontur yalnız "Üzerinde"; giriş/çıkış, köprü, aşınma yok. Aşınma telafisinde kaba yanal paso, rampa, bölünen kontur yok.
 - Gövde dış sınırı yalnız prizmatik gövdede çalışır.
 - Eskiz profillerinde yalnız çizgi/yay/daire kullanılır. Elips ve spline profili takım yolunda hata verir ("Bu eğri türü … takım yolunda kullanılamıyor").
 - Sketch seçimi takım eksenine dik düzlemde olmalıdır.
 - Tezgâh üzerindeki parça konumu girilmediği için mutlak kurs denetimi yapılamaz.
-- Fikstür/mengene/tabla çarpışması yok.
+- Tabla ve punta çarpışması denetlenmez; bağlama gövdeleri ve tutucu profili denetlenir.
 - Stok ağı yalnız üst yüzeyi gösterir.
-- Simülasyon ana iş parçacığında çalışır; büyük programda arayüz kısa süre donabilir (ölçülmedi).
+- Simülasyon ayrı işçide çalışır ve iptal edilebilir. Electron paketinde işçi ayrıca denenmedi.
 - Gerçek Electron penceresinde NC kaydı elle denenmedi.
-- Teknik resim, montaj yok.
 
 **CAD**
-- Sweep, loft, draft, modellenmiş diş yok. Montaj yok.
+- Kaburga yalnız düz çizgi boyunca; taslakta ayrım çizgisi yok; diş kökü yuvarlatmasız ve diş verisi CAM'e aktarılmaz; diş hesabı yavaştır.
+- IGES: B-rep katı (186) ile 141 ve 143 okunmaz; gerçek CAD dışa aktarımlarıyla sınanmadı.
+- Teknik resim: GD&T yok; kesit yalnız düz düzlemde; PDF'te yazı tipi gömülü değildir.
+- Montaj yok.
 - Kabuk, yuvarlatılmış kenarlı gövdede başarısız olabilir.
 - Pah (Sketch) ölçü kısıtı eklemez. Spline teğeti ve elips–daire teğeti yok.
 - İçe aktarılan STEP/STL düzenlenemez.
@@ -975,3 +980,70 @@ Araç ipucunda (fareyi tutunca) kısayol da yazar.
 ### İmalat
 
 İmalat komutlarının tuş kısayolu yoktur. Ctrl+K ile adını yazarak çalıştırabilirsiniz (örnek: "Post işle"). NC listesinde Yukarı/Aşağı ok tuşları satır gezdirir.
+
+---
+
+## 10. 0.6'da yeni
+
+Bu bölüm 0.6'da eklenen özelliklerin temel kullanımını anlatır. Her özelliğin sınırları için 7.6'ya bakın. Tezgâhta doğrulanmamış çıktılar için 7. bölümü okuyun.
+
+### 10.1 2B uyarlanır kaba ve yatay temizleme
+- İmalat, **2B** grubu: **Uyarlanır** (kaba) ve **Yatay**. Yatay komutu taşma menüsünde ve Ctrl+K paletindedir.
+- **Uyarlanır**: geometri (cep ya da eskiz), takım, derinlik ve paso. Kalan malzeme (rest) kaynağı **Stok** (önceki işlemler hesaba girer) ya da **Takım** olarak seçilir.
+- **Yatay**: seçili yatay yüzleri kendi yüksekliklerinde tek derinlikte temizler. Giriş yüksekliği 1 mm'dir (varsayılan).
+- Dar bir geçide takımın girmediği durumda uyarı çıkar ve alan bildirilir. O bölgeyi simülasyonda kontrol edin.
+
+### 10.2 3B kaba ve bitirme
+- İmalat, **3B** grubu: **3B kaba** ve **Z-seviye** görünür. **Paralel**, **Sabit tepe** ve **Kalem** taşma menüsündedir.
+- Model yükseklik haritası olarak okunur. Sınır, model ya da stok kutusu artı ofsettir. Eğim aralığında yalnız o aralıktaki yüzeyler işlenir (yatay 0°, dik duvar 90°).
+- Takım: düz, köşe radüslü ya da küre.
+- **Kalem**: iç köşelerdeki artık malzemeyi temizler. Keskin iç köşe yoksa işlem üretilmez ve uyarı çıkar.
+- Büyük parçada 3B kaba hesabı bir dakikayı aşabilir (ölçümde 87 sn); hesap iptal edilebilir.
+
+### 10.3 4. eksen sarma
+- Setup panelinde **Sarma kipi (4. eksen, eşzamanlı X/A)** açılır. Stok silindir olur, A indeksleme kapanır. **Sarma çapı** elle girilir ya da silindirik yüzden alınır ("Çapı ve ekseni yüzden al"). Eksen X'e paralel değilse uyarı çıkar.
+- **Sarma (4. eksen)** grubunda **Sarılmış kontur**, **Sarılmış cep** ve radyal delme bulunur. Eskiz açılmış düzlemde çizilir: X eksen boyunca, Y çevre üzerindeki yay uzunluğudur.
+- Post profilinde **Sarma ilerleme biçimi** (varsayılan G93) ve **Sarmada A kelimesi** (varsayılan otomatik) seçilir. Çıktı tezgâhta önce havada denenmelidir.
+
+### 10.4 3+2 eğik düzlem
+- Tezgâh düzenleyicide **Kinematik** sekmesi: döner eksenlerin (B, C) tabla mı kafa mı olduğu, dönme yönü, sınırları, merkezi (XYZ) ve zincir sırası.
+- Setup panelinde **3+2 eğim** bölümünde **Eğik setup (3+2)** açılır. Kaynak olarak yüz (gerekirse ters çevrilir), vektör ya da açılar seçilir. Açılmış çıkış için iş sıfırının makine konumu girilir.
+- Özette 3+2 açıları, geçerli çözüm sayısı ve çıkış biçimi görünür. Sınır dışı açı ya da eksik konum programı engeller.
+
+### 10.5 Teknik resim
+- Çalışma alanı sekmelerinden **Teknik resim**. Ana görünüş (ön, arka, üst, alt, sağ, sol, izometrik) seçilir; izdüşüm görünüşleri birinci ya da üçüncü açıyla eklenir. Ölçek, gizli çizgi ve merkez işareti ayarlanır.
+- **Kesit** (kesme çizgisi, tarama) ve **detay** görünüşü eklenir. Ölçü türleri: doğrusal, çap ve yarıçap, açı, koordinat, tolerans (± ya da ISO 286 geçme) ve pürüzlülük.
+- Çıktılar: PDF (tüm sayfalar), DXF (geçerli sayfa) ve ilk parça kontrol formu (PDF ya da CSV). Sayfa boyutu A4 ile A0 arasındadır.
+- Model değişince ölçüler yeniden eşlenir. Eşlenemeyen ölçü kırmızı "kopuk" olarak işaretlenir; **Yeni kenara bağla** ile elle yeniden bağlanır.
+
+### 10.6 Form: tarama, loft, kaburga, helis, koniklik, diş, IGES
+- Oluştur grubunda **Form** menüsü: tarama (sweep), loft, kaburga, helis, koniklik (draft), değişken yuvarlatma ve diş.
+- **Tarama**: profil ve yol eskizi seçilir. Yol kopuk ya da dallanmışsa hata verilir. Yönlendirme: yol, sabit ya da Frenet.
+- **Loft**: en az iki kapalı ve deliksiz kesit eskizi seçilir. Düz (ruled) ya da kılavuz eğrili kesim yapılabilir.
+- **Diş**: silindirik yüz seçilir. Dış ya da iç olduğu yüzden anlaşılır. ISO kaba ya da ince tablosundan seçilir. Diş hesabı yavaştır.
+- **IGES**: **Dosya** menüsünde **IGES İçe Aktar…** ve **IGES Dışa Aktar…** bulunur.
+
+### 10.7 Bağlama gövdeleri ve tutucu
+- Setup panelinde fikstür eklenir: kutu, silindir ya da içe aktarılmış STEP gövdesi (mengene). Koordinatlar setup'ın taban çerçevesinde iş sıfırına göre girilir. A açılı setup'ta fikstür parçayla birlikte döner.
+- Takım, sap ya da tutucu fikstüre girerse simülasyon çarpışma engeli verir.
+- Takım panelinde **Tutucu profili** ile tutucunun kademeli silindir ya da koni biçimi girilir.
+
+### 10.8 Şablonlar ve delik sırası
+- **Şablonlar** penceresinde seçili işlem kaydedilir ve **Şablondan ekle** ile başka kurulumda kullanılır. Şablon takım, geometri ve kimlik taşımaz; takım çapı ve türüne göre eşleşir. Dosyaya aktarılıp içe alınabilir.
+- **Delik sırası** penceresi delikleri çap, kör ya da boydan ve diş durumuna göre sınıflandırır. Kurallar (punta, matkap, pah, kılavuz, raybalama) düzenlenir ve önizleme tablosundan işlem eklenir. Varsayılan kurallar genel ölçülerdir; tezgâh ya da malzeme verisi içermez.
+- Delme işleminde çevrim **fineBore** (G76) ya da **backBore** (G87) seçilir. Kaydırma miktarı zorunludur; G87'de arka derinlik de girilir.
+
+### 10.9 Teklif ve inç birimi
+- **Teklif** komutu süre, takım değişimi, kurulum, ham malzeme hacmi ve girdiğiniz birim fiyatlardan teklif hesaplar. **Teklifi kaydet (HTML)** ile kaydedilir. Girdi eksikse kalem "eksik" işaretlenir; değer uydurulmaz.
+- **Birim (mm/inç)** komutu CAM panellerini ve NC çıktısını inç (G20) yapar. Eskiz ölçüleri, kurulum föyü ve teklif mm olarak kalır. Sarma işlemi inç çıktısında desteklenmez.
+
+### 10.10 PDF altlık
+- Eskiz şeridinde **Altlık** menüsü: **Ekle** (PNG, JPEG ya da PDF; çok sayfalı PDF'te sayfa sorulur), **Ölçekle** (altlıkta iki nokta tıklanır ve gerçek mesafe yazılır), **Oturt** (altlıkta ve eskizde ikişer nokta seçilir), **Özellikler** (saydamlık, görünür, kilit, kaldır).
+- Kilitli altlık değiştirilemez. Her değişiklik geri alınabilir.
+- Şifreli PDF açılmaz; parola sorulmaz.
+
+### 10.11 Çoklu parça (mengene)
+- İmalat, **İş akışı** grubunda **Çoklu parça** (komut kimliği `cam-parts`).
+- Parça sayısı ve sıra seçilir: her işlem tüm parçalara birlikte yazılır (takım değişimi azalır) ya da her parça ardışık yazılır. Her kopya kendi iş sıfırına (G54–G59 ya da G54.1 Pn) kaydırılır.
+- Korumalı iş sıfırı, parça çakışması, G59 sınırı aşımı ve G54/G54.1 karışımı hata verir. Kopyalar NC üretiminde uygulanır; simülasyon ve güvenlik kapıları tek parçayı görür.
+
