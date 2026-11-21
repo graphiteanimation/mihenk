@@ -38,7 +38,8 @@ export const UNDERLAY_METHODS = {
       const g = new THREE.PlaneGeometry(1, 1); g.translate(0.5, 0.5, 0);
       const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: u.opacity, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
       m.scale.set(u.wPx * u.mmPerPx, u.hPx * u.mmPerPx, 1); m.position.set(u.origin[0], u.origin[1], 0); m.rotation.z = u.angle * DEG; m.renderOrder = -10; m.userData.underlay = true;
-      this._ulMesh = m; this.gUnder.add(m); this.vp.dirty = true; this._ulReady = (this._ulReady || 0) + 1;
+      this._ulMesh = m; this.gUnder.add(m); this.vp.dirty = true;
+      if (this._ulFitPending) { this._ulFitPending = false; this.gUnder.updateMatrixWorld(true); this.vp.fit(); } // yeni altlık: görünüm altlığa sığdırılır
     };
     if (this._ulTex && this._ulTex.data === u.data) { place(this._ulTex.tex); return; }
     const img = new Image();
@@ -89,14 +90,7 @@ export const UNDERLAY_METHODS = {
       st.pts.push([loc[0], loc[1]]);
       if (st.pts.length === 1) { this.setHint(tk('ul.hint.scale2')); this._renderPreview(); return; }
       const [a, b] = st.pts; if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-9) { st.pts.pop(); this._status(() => t('err.underlay.same_point')); return; }
-      this.setHint(tk('ul.hint.scale3')); this._renderPreview();
-      this._openInput({ anchor: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], text: String(+Math.hypot(b[0] - a[0], b[1] - a[1]).toFixed(3)), label: t('ul.dist'),
-        submit: async (txt) => {
-          let d; try { d = Number(evalExpr(String(txt), this.getVars())); } catch (e) { return errText(e); }
-          if (!(d > 0) || !Number.isFinite(d)) return t('err.underlay.bad_distance');
-          try { this.underlayScale(a, b, d); } catch (e) { return errText(e); }
-          this._ul = null; this.setHint(tk('ul.hint.scale1')); this._renderPreview(); return null;
-        } });
+      this.setHint(tk('ul.hint.scale3')); st.ask = true; this._renderPreview(); // giriş kutusu fare BIRAKILINCA açılır (basışın varsayılan odak değişimi onu kapatmasın)
       return;
     }
     // ulfit: sıra pA (altlık), qA (hedef, yakalanır), pB, qB
@@ -105,6 +99,16 @@ export const UNDERLAY_METHODS = {
     const [pA, qA, pB, qB] = st.pts; this._ul = null;
     try { this.underlayFit(pA, pB, qA, qB); this.setHint(tk('ul.hint.fit1')); } catch (e) { this._status(() => errText(e)); this.setHint(tk('ul.hint.fit1')); }
     this._renderPreview();
+  },
+  _ulUp() {
+    const st = this._ul; if (!st || !st.ask || this._input) return; st.ask = false; const [a, b] = st.pts;
+    this._openInput({ anchor: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], text: String(+Math.hypot(b[0] - a[0], b[1] - a[1]).toFixed(3)), label: t('ul.dist'),
+      submit: async (txt) => {
+        let d; try { d = Number(evalExpr(String(txt), this.getVars())); } catch (e) { return errText(e); }
+        if (!(d > 0) || !Number.isFinite(d)) return t('err.underlay.bad_distance');
+        try { this.underlayScale(a, b, d); } catch (e) { return errText(e); }
+        this._ul = null; this.setHint(tk('ul.hint.scale1')); this._renderPreview(); return null;
+      } });
   },
   _ulPreview(cur) {
     const st = this._ul; const B = COL.cons;
@@ -151,7 +155,8 @@ export async function ulAdd(app) {
   try { u = await readImageOrPdf(app, f); } catch (e) { toast(t('ul.add_failed', { msg: errText(e) }), true); return; }
   if (!u) return;
   if (sk.underlay) { u.opacity = sk.underlay.opacity; u.origin = sk.underlay.origin.slice(); } // değiştirme: konum/saydamlık korunur
-  if (sk.setUnderlay(u)) { toast(t('ul.added', { name: u.name })); sk.vp.fit(); app.onSketchChange(); }
+  sk._ulFitPending = true;
+  if (sk.setUnderlay(u)) { toast(t('ul.added', { name: u.name })); app.onSketchChange(); } else sk._ulFitPending = false;
 }
 export async function ulProps(app) {
   const sk = app.sketcher; if (!app.sketchSession || !sk) { toast(t('ul.need_sketch')); return; }

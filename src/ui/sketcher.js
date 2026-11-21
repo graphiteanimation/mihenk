@@ -389,6 +389,7 @@ export class Sketcher {
       this._renderGL(); this.onChange(); return;
     }
     if (EDIT_TOOLS.includes(this.tool)) return this._editUp(loc, ev);
+    if (UL_TOOLS.includes(this.tool)) return this._ulUp();
     if (this.tool !== 'select') return;
     if (this._box) return this._boxUp(loc, ev);
     const pr = this._press, d = this._drag; this._press = null; this._drag = null;
