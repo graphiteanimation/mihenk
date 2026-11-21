@@ -36,6 +36,7 @@ const STEPS = [
   py('test/modelleme2-ui.test.py', { needsBuild: true }), // WP-19
   py('test/wp22a-ui.test.py', { needsBuild: true }), // WP-22a
   py('test/c14-panel-deger.test.py', { needsBuild: true }), // İE-002 C-14
+  py('test/ie006-fillet-secim.test.py', { needsBuild: true }), // İE-006 C-47
   py('test/cam-ui.test.py', { needsBuild: true }),
   py('test/iptal.test.py', { needsBuild: true }),
   node('test/electron.test.mjs'),
