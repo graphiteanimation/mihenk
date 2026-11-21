@@ -25,7 +25,9 @@ Bu liste otomatik sürüm kapısının (Actions Windows koşucusu: sessiz kur, a
 | 15 | Başlat menüsü > "Mihenk CAD/CAM Kaldır" (ya da Ayarlar > Uygulamalar > Mihenk). Sessiz değil, sihirbazla. | Kaldırıcı açılır, biter; `%LOCALAPPDATA%\Programs\Mihenk` kalmaz; Başlat menüsü klasörü ve Masaüstü "Mihenk" kısayolu kalkar; Belgelerim'deki `deneme.mhnk` ve `deneme.nc` **silinmez**. `%APPDATA%\Mihenk` (ayarlar `settings.json`, `recovery`, `logs`) kaldırıcı tarafından **silinmez**, kalır (kaldırıcı yalnız kurulumun yazdığı dosyaları ve `HKCU\Software\Mihenk` anahtarını siler); bu klasör yoksa ya da silinmişse sorun değil. | |
 
 ## Sonuç
-- Tarih, Windows sürümü, kurulan sürüm, SHA-256 (adım 0): 
-- Geçen / kalan adım sayısı: 
-- Kalan adımlar ve ekran görüntüsü yolları: 
-- Karar: tümü G ise `Mihenk\surumler\` klasörüne kurulum + SHA-256 konur (CALISMA-DUZENI §6 madde 4); bir adım K ise sürüm yayımlanmaz, WP olarak kaydedilir.
+- 2026-11-21 (ilk deneme, Claude ekran kontrolüyle): Windows 10, kurulan 0.6.0 (commit affd531 + entegrasyon düzeltmesi), SHA-256 `906c5afa…a9a1` — cihazda `sha256sum -c` ile G.
+- Geçen: 0, 1 (yönetici izni yok, varsayılan klasör), 3, 3a, 4 (Dosya → Örnekler menüsünden; kurulu `resources/ornekler` okunuyor), 5, 6, 7 (302 satır, 0 BLOCK / 10 uyarı), 8 (ASCII, bozulma yok), 9, 11, 12, 13 (Hakkında 0.6.0). Ek: NC'den simülasyon (241/241 hareket), teknik resim yeni sayfa (birinci açı yerleşimi doğru).
+- Kalan: 10 — eskizde Dikdörtgen ikinci köşe tıklaması kayboldu (kök neden: görünüm köşe kaplarının saydam alanı fareyi yutuyordu; düzeltme `fix-rect`, master'da). Adım 10 kutu Primitives → Box ile yapıldı (hacim 48 cm³).
+- Yapılmayan: 2 (Başlat menüsü kısayolları ekranda bakılmadı), 14 (günlük klasörü erişimi otomatik reddedildi), 15 (kaldırma: düzeltilmiş kurulumla birlikte yapılacak).
+- Gözlemler (düzeltildi, `fix-06`): Tezgâhlar penceresinde "null", "4/5 eksen Yakında" satırları, NC başlığında "·" → "?", İngilizce arayüzde varsayılan ad "Belge.mhnk", Hakkında'da pdf.js yok. Arayüz dili kullanıcı ayarıyla İngilizce açıldı (ayar korunuyor).
+- Karar: sürüm yayımlanmadı; düzeltilmiş 0.6.0 kurulum dosyası üretilip 10, 12, 15 yeniden denenecek (K-044 ile beklemede).
