@@ -79,4 +79,4 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | WP | İş | Kaynak | Durum |
 |---|---|---|---|
 | WP-CAD0 | CAD kabiliyet testi T01–T10 (arayüzden çizim, ölçüm, bulgu listesi) | K-048 | ◐ |
-| WP-CAD1 | Test bulgularının düzeltilmesi; C-13 kapanış penceresi (tasarım sistemi, Kaydet seçeneği, tek dil), C-14 Extrude mesafe alanı görünen/uygulanan farkı, C-15 son dosyalar, C-16…C-19, C-20 çakışan doğruların birleşmesi/toplu budama, C-21 budamada dairenin kayması (önce yeniden üretme testi) (pm/test/sonuc/T01.md) | K-048, C-13 | ☐ |
+| WP-CAD1 | Test bulgularının düzeltilmesi; C-13 kapanış penceresi (tasarım sistemi, Kaydet seçeneği, tek dil), C-14 Extrude mesafe alanı görünen/uygulanan farkı (İE-002: savunmacı düzeltme, gerçek akışta yeniden üretilemedi), C-15 son dosyalar, C-16…C-19, C-20 çakışan doğruların birleşmesi/toplu budama, C-21 budamada dairenin kayması (İE-002'de düzeltildi; kalan: budamada üst üste binen varlıktan yanlışının seçilmesi, uzatmada orta nokta kayması) (pm/test/sonuc/T01.md) | K-048, C-13 | ☐ |

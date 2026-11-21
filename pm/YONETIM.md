@@ -51,7 +51,7 @@
 | # | Konu | Önerim | Durum |
 |---|---|---|---|
 | G-1 | CAD testi T02–T10 (İE-001) | Sürsün; T04 sonrası ara rapor yönetimde değerlendirilsin | Açık |
-| G-2 | CAD düzeltmeleri (WP-CAD1): C-14 ve C-21 İE-002 olarak Hazır (O-054, ekransız, paralel açılabilir); kalanlar test bitince | İE-002 İE-001 sürerken ayrı oturumda açılsın | Açık (oturumu kullanıcı açar) |
+| G-2 | CAD düzeltmeleri (WP-CAD1): İE-002 C-14, C-21 ve CI-1'i kapattı (C-14 gerçek akışta yeniden üretilemedi, soru SORULAR'da); kalanlar test bitince | C-21 yan bulguları (budamada üst üste binen varlıktan yanlışının seçilmesi, uzatmada orta nokta kayması) WP-CAD1'e | Açık |
 | G-3 | 1.0 yapım sırası (BACKLOG "1.0 ve sonrası") | CAD testi ve WP-CAD1 bitince planlansın | Karar bekliyor |
 | G-4 | Fusion karşılaştırması: K-051 ile İE-004 (P1–P4, CAD + CAM), İE-001'den sonra. P1–P4'ün Fusion çıktıları bilgisayarda hazır; lisans yalnız sarma ve 3+2 referansı için gerekli (23 Kasım 2026) | İE-001 22 Kasım akşamına dek bitmezse araya yalnız İE-004 Adım A alınsın (kısa) | İzleniyor |
 | G-5 | Ana dal testi: belge gönderimleri artık koşuyu iptal etmiyor (O-052 çalışıyor). İlk tam koşu (`e685ffc`) KALDI: 40/41, yalnız `resim.test` pdftotext denetimi (Windows koşucusu) | İE-002'nin ilk maddesi (CI-1); yeşil görülene dek kod emri Bitti sayılmaz | Açık |
@@ -59,3 +59,4 @@
 | G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kapandı (Y-02: kullanıcı onayladı) |
 | G-8 | Test parçalarının otomatik regresyona alınması (İE-003 taslak) | T04 ara raporundan sonra Hazır yapılsın | Karar bekliyor |
 | G-9 | 0.6.1 düzeltme sürümü (WP-CAD1 bulguları) ve kullanıcı deneme listesi | İE-002 bitince | Karar bekliyor |
+| G-10 | GitHub'da geçici tanı dalı `tani-ie002` kaldı (oturum proxy'si dal silmeye izin vermedi) | Kullanıcı GitHub'da silsin (Branches → tani-ie002 → sil) | Açık |
