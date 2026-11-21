@@ -6,6 +6,7 @@ import * as G from '../src/shared/geom2d.js';
 import { validateToolpath } from '../src/cam/ir.js';
 import { builtinMachines, copyMachine } from '../src/cam/machines/builtin.js';
 import { postProgram } from '../src/cam/post/index.js';
+import { simulate, sampleHeightmap } from '../src/cam/sim/index.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  FAIL:', m); } };
@@ -67,6 +68,25 @@ if (sec('2c')) {
   const e2 = errOf(() => CAM.computeOp(adBase, { setup: S0, tool: flat(10), geom: { faces: [{ z: -6, normalOk: true, outer: sq(40, 40, 49, 70), inners: [] }] } }));
   ok(e2 && e2.code === 'cam.pocket.rest_material' && e2.params.area > 200 && e2.params.area <= 271, 'takimdan dar cep (9x30, D10): hata cam.pocket.rest_material, alan ~270: ' + (e2 && e2.code + JSON.stringify(e2.params)));
   console.log(`   (${el()})`);
+}
+
+// ---------------------------------------------------------------- 2a. rest: ince artik icin havadan helis yok
+if (sec('2a')) {
+  console.log('2a. rest (onceki islem stogu): ince kose artigi icin helis acilmaz, yandan girilir');
+  const S0 = setupOf([0, 0, -30], [100, 60, 0]);
+  const face3 = { z: -8, normalOk: true, outer: sq(20, 15, 80, 45), inners: [] };
+  const pk16 = CAM.computeOp({ ...adBase, id: 'p16', type: 'pocket', stepover: 6, stepdown: 8, entry: { kind: 'helix', angle: 3, helixDia: 8 } }, { setup: S0, tool: { ...flat(16), number: 7, lengthOffset: 7, diaOffset: 7 }, geom: { faces: [face3] } });
+  const s1 = simulate(pk16, { res: 0.5, stockBox: S0.stockBox });
+  const rs = CAM.computeOp({ ...adBase, id: 'r2', optimalLoad: 0.8, stepdown: 8, entry: { kind: 'helix', angle: 3, helixDia: 3 }, rest: { source: 'stock' } }, { setup: S0, tool: { ...flat(4), number: 6, lengthOffset: 6, diaOffset: 6 }, geom: { faces: [face3] }, stockMap: s1.remainHeightmap });
+  const ramps = rs.moves.filter((m) => m.kind === 'ramp').length;
+  ok(rs.meta.adaptive.entries === 0 && ramps === 0, `helis girisi yok (giris ${rs.meta.adaptive.entries}, ramp ${ramps}; WP-12'de 1 helis, 0 mm'den 8 mm havada)`);
+  ok(rs.stats.cutLen < 620, `kesme yolu ${rs.stats.cutLen.toFixed(0)} mm (WP-12: 653 mm)`);
+  const s25 = simulate(pk16, { res: 0.25, stockBox: S0.stockBox }).remainHeightmap;
+  const s2 = simulate(rs, { res: 0.25, stockBox: S0.stockBox, stockHeightmap: s25 });
+  ok(!s2.issues.some((i) => i.level === 'error'), 'rest sim hatasiz');
+  const corners = [[21.5, 16.5], [78.5, 16.5], [21.5, 43.5], [78.5, 43.5]].map(([x, y]) => sampleHeightmap(s2.remainHeightmap, x, y));
+  ok(corners.every((v) => v <= -8 + 0.01), 'dort kose tabanda: ' + corners.map((v) => v.toFixed(2)).join(' '));
+  console.log(`   kesme ${rs.stats.cutLen.toFixed(0)} mm, paso ${rs.meta.adaptive.passes}, kalkis ${rs.meta.adaptive.lifts} (${el()})`);
 }
 
 console.log(`\n${pass} gecti, ${fail} kaldi (${el()})`);

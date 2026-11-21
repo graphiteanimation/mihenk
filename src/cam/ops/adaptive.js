@@ -244,16 +244,16 @@ export function clearRegion(A) {
     return null;
   };
   // kuru kosu: st'den en cok kmax adim (degisiklikler geri alinir); donus: adim sayisi
-  const dryRun = (st, kmax, z) => {
+  const dryRun = (st, kmax, z, idle = 25) => {
     undo = []; const rem0 = removed; let p = st.p, head = st.head, n = 0;
-    for (let k = 0; n < kmax && k < kmax + 25; k++) { const stp = bestStep(p, head); if (!stp) break; const rb = removed; clearCapsule(p, stp.q, rClr, z); p = stp.q; head = stp.a; if (removed > rb) n++; }
+    for (let k = 0; n < kmax && k < kmax + idle && (n > 0 || k < (idle >= 25 ? kmax + idle : idle)); k++) { const stp = bestStep(p, head); if (!stp) break; const rb = removed; clearCapsule(p, stp.q, rClr, z); p = stp.q; head = stp.a; if (removed > rb) n++; }
     for (let k = undo.length - 3; k >= 0; k -= 3) { hg[undo[k]] = undo[k + 1]; mat[undo[k]] = undo[k + 2] & 1; rch[undo[k]] = undo[k + 2] >> 1; }
     undo = null; removed = rem0; return n;
   };
   // pasonun baslangici: bos (malzemeye > r + g) ve malzeme cephesine yakin izinli hucre; konuma yakin olanlardan uzun
   // paso verebilen (kuru kosu KMAX adim) ilki, yoksa en uzun kuru kosulu
-  const KMAX = 10;
-  const findStart = (pos, z) => {
+  const KMAX = 10; const MAXTRY = 400;
+  const findStart = (pos, z, ext = false) => {
     const cand = [];
     for (let c = 0; c < N; c++) { if (!allowC[c] || bad[c]) continue; if (dmR[c] > r + g && dmR[c] <= r + 3 * g) cand.push(c); }
     if (!cand.length) return null;
@@ -261,12 +261,14 @@ export function clearRegion(A) {
     const dd = (c) => (cx(c % nx) - px) ** 2 + (cy((c / nx) | 0) - py) ** 2;
     cand.sort((u, v) => dd(u) - dd(v));
     let best = null, tried = 0;
-    for (let k = 0; k < cand.length && tried < 16; k++) {
+    // WP-22c (ext): yakin adaylarin hepsi verimsizse (sikismis kose) aramaya devam (aday basina en cok bir kuru kosu: verimsiz = bad).
+    // Yalniz helis yeri cogunlukla havadaysa cagrilir (rest kipi: ince artik); kapali cepte yeni cephe acan helis tercih edilir.
+    for (let k = 0; k < cand.length && (tried < 16 || (ext && !best && tried < 16 + MAXTRY)); k++) {
       const c = cand[k]; const p = [cx(c % nx), cy((c / nx) | 0)];
       if (best && dd(c) > (best.d2 + 1) * 16 && tried >= 8) break;
       if (!allowedExact(p[0], p[1])) { bad[c] = 1; continue; }
       const st = startAt(p); if (!st) { bad[c] = 1; continue; }
-      tried++; const n = dryRun(st, KMAX, z);
+      tried++; const n = dryRun(st, KMAX, z, tried > 16 ? 6 : 25); // uzatilmis aramada bos yuruyus kisa
       if (n >= KMAX) return { ...st, c };
       if (n > 0 && (!best || n > best.n)) best = { ...st, c, n, d2: dd(c) }; else if (!n) bad[c] = 1;
     }
@@ -327,6 +329,11 @@ export function clearRegion(A) {
         if (bc < 0) { stats.noEntry = (stats.noEntry || 0) + leftNow * g * g; break; }
         const c0 = [cx(bc % nx), cy((bc / nx) | 0)];
         if (!allowedExact(c0[0], c0[1])) { allowC[bc] = 0; continue; }
+        // WP-22c: helis halkasi (helixR + r) cogunlukla bu seviyede zaten bos (hava) ise helis gereksiz: artiga havadan, malzemeye
+        // yakin yandan girilebilir mi (uzatilmis paso baslangic aramasi)? Bulunursa helis acilmaz.
+        { let nAir = 0, nAll = 0; const RA = helixR + r;
+          for (let j = Math.max(0, Math.floor((c0[1] - RA - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RA - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RA - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RA - G.x0) / g)); i++) { const c = j * nx + i; if (!inRv[c] || Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) > RA) continue; nAll++; if (!mat[c]) nAir++; }
+          if (nAll && nAir >= 0.25 * nAll) { const sx = findStart(pos, z, true); if (sx) { forced = sx; stats.sideEntries = (stats.sideEntries || 0) + 1; continue; } } }
         // kucuk artik (ince serit): helis acilmaz, artik sayilir
         let near = 0; const RR = helixR + r;
         for (let j = Math.max(0, Math.floor((c0[1] - RR - G.y0) / g)); j <= Math.min(ny - 1, Math.floor((c0[1] + RR - G.y0) / g)); j++) for (let i = Math.max(0, Math.floor((c0[0] - RR - G.x0) / g)); i <= Math.min(nx - 1, Math.floor((c0[0] + RR - G.x0) / g)); i++) { const c = j * nx + i; if (rch[c] && Math.hypot(cx(i) - c0[0], cy(j) - c0[1]) <= RR) near++; }
