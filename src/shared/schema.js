@@ -97,10 +97,10 @@ const camTool = obj({
 const axisSpec = obj({ kind: oneOf(['base', 'face', 'edge']), dir: oneOf(['+X', '-X', '+Y', '-Y', '+Z', '-Z']), ref: obj(), flip: bool(), auto: bool() });
 const heightRef = obj({ from: oneOf(['stockTop', 'stockBottom', 'modelTop', 'modelBottom', 'selection', 'abs']), off: camNum() });
 const camOp = obj({
-  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer', 'circular', 'threadmill', 'slot', 'trace', 'adaptive', 'flat']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
+  id: idStr, type: oneOf(['face', 'contour', 'pocket', 'drill', 'chamfer', 'circular', 'threadmill', 'slot', 'trace', 'adaptive', 'flat', 'adaptive3d', 'zlevel', 'parallel', 'scallop', 'pencil']), name: str(LIMITS.shortStr), toolId: idStr, preset: str(LIMITS.shortStr),
   rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), coolant: oneOf(COOL), suppressed: bool(),
   heights: obj({ clearance: camNum(), retract: camNum(), top: heightRef, bottom: heightRef }),
-  geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr, ents: strArr(), reverse: bool() }), CAM_LIMITS.geom),
+  geom: arrOf(obj({ kind: oneOf(['face', 'sketch', 'silhouette', 'chain']), ref: obj(), loops: oneOf(['outer', 'inner', 'all']), sketch: idStr, profiles: profilesChk, body: idStr, ents: strArr(), reverse: bool(), z: camNum() }), CAM_LIMITS.geom),
   stepover: camNum(0), stepdown: camNum(0), finishStepdown: camNum(0), finishStock: camNum(0), direction: camNum(), extend: camNum(0),
   side: oneOf(['outside', 'inside', 'on', 'left', 'right']), extendStart: camNum(0), extendEnd: camNum(0), width: camNum(0), tipClearance: camNum(0), dir: oneOf(['climb', 'conv']), comp: oneOf(['computer', 'wear']), finishPass: bool(),
   cycle: oneOf(['drill', 'spot', 'peck', 'chipbreak', 'tap', 'ream', 'bore', 'fineBore', 'backBore']), order: oneOf(['asis', 'shortest']), peck: camNum(0), dwell: camNum(0),
@@ -119,9 +119,13 @@ const camOp = obj({
   radialPasses: posInt(20), springPasses: camNum(0, 5), radialAdjust: camNum(-0.2, 0.2), feedAtEdge: bool(), length: camNum(0),
   // WP-12: uyarlanir kaba, kalan malzeme, yatay temizleme, asagida kal, ilerleme iyilestirme, ince duvar
   optimalLoad: camNum(0), stayDown: bool(), flatTop: camNum(0),
-  rest: obj({ source: oneOf(['stock', 'tool']), toolDia: camNum(0) }),
+  rest: obj({ source: oneOf(['stock', 'tool']), toolDia: camNum(0), cornerR: camNum(0), threshold: camNum(0) }),
   feedOpt: obj({ corner: obj({ angle: camNum(0, 180), dist: camNum(0), factor: camNum(0, 1), maxR: camNum(0) }), exit: obj({ dist: camNum(0), factor: camNum(0, 1) }) }),
   thinWall: obj({ enabled: bool(), axialStep: camNum(0) }),
+  // WP-15: 3D islemler
+  tolerance: camNum(0, 1), slope: obj({ min: camNum(0, 90), max: camNum(0, 90) }), boundary: obj({ kind: oneOf(['model', 'stock']), offset: camNum() }),
+  angle: camNum(-360, 360), pattern: oneOf(['zigzag', 'oneway']), sampling: camNum(0), scallopHeight: camNum(0), minAngle: camNum(0, 90), minLength: camNum(0),
+  fillStepdown: camNum(0), flatLevels: bool(), arcFit: obj({ tol: camNum(0, 1), arcs: bool() }),
 });
 const camSetup = obj({
   id: idStr, name: str(LIMITS.shortStr), bodies: strArr(),

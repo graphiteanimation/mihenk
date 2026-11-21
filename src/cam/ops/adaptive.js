@@ -111,7 +111,9 @@ export function computeAdaptive(op, ctx) {
     meta: { belowStock: belowStockAllow(op, S, zBot), adaptive: { load: ae, thetaMax: r3((thMax * 180) / Math.PI), maxTheta: r3((stats.maxTheta * 180) / Math.PI), passes: stats.passes, links: stats.links, lifts: stats.lifts, entries: stats.entries, cell: r3(stats.g) } } });
 }
 
-function clearRegion(A) {
+// WP-15: A.surf (3D kaba) verilirse izinli merkez maskesi her seviyede yeniden kurulur: surf.allowAt(z, G, cx, cy) -> Uint8Array
+// (hucre merkezi izinli mi), surf.exact(x, y, z) -> bool (kesin denetim: model + bitirme payi). Bolge (Rv) yine dis sinirdir.
+export function clearRegion(A) {
   const { Rv, S, r, stR, ae, thMax, levels, zTop, dir, stayDown, entry, ang, helixR, rest, restR, stockMap, b, cut, stats } = A;
   const sgn = dir === 'climb' ? -1 : 1; // malzeme tarafi: tirmanmada sag (negatif phi)
   const walls = P.regionSegs(Rv); const dAllow = r + stR + 0.005;
@@ -125,13 +127,21 @@ function clearRegion(A) {
   const cellOf = (x, y) => { const i = Math.floor((x - G.x0) / g), j = Math.floor((y - G.y0) / g); return i < 0 || j < 0 || i >= nx || j >= ny ? -1 : j * nx + i; };
   const inRv = rasterize([Rv.outer, ...Rv.holes], G, Math.min(1e-3, g / 20));
   const sg = new SegGrid(walls, Math.max(r, g * 4));
-  const allowedExact = (x, y) => { const c = cellOf(x, y); if (c < 0 || !inRv[c]) return false; return sg.nearest([x, y], dAllow) >= dAllow; };
-  // izinli hucre (merkez) maskesi
-  const allowC = new Uint8Array(N);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = j * nx + i; if (inRv[c] && allowedExact(cx(i), cy(j))) allowC[c] = 1; }
-  const dAllowed = edt((c) => allowC[c] === 1, nx, ny, g); // hucreden en yakin izinli merkeze uzaklik
+  const surf = A.surf || null; let zNow = Infinity;
+  const allowed2 = (x, y) => { const c = cellOf(x, y); if (c < 0 || !inRv[c]) return false; return sg.nearest([x, y], dAllow) >= dAllow; };
+  // 3D: izinli merkezlerden >= 3g icerdeki nokta kesin izinlidir (R - rc >= g iken: aradaki her temas komsu merkezlerden birinde de olurdu)
+  const allowedExact = surf ? (x, y) => { if (!allowed2(x, y)) return false; if (surf.flatR >= g) { const c = cellOf(x, y); if (c >= 0 && allowC[c] && dToWallNA[c] >= 3 * g) return true; } return surf.exact(x, y, zNow); } : allowed2;
+  // izinli hucre (merkez) maskesi (3D: seviyeye gore)
+  const allow0 = new Uint8Array(N);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = j * nx + i; if (inRv[c] && allowed2(cx(i), cy(j))) allow0[c] = 1; }
+  let allowC = allow0, dAllowed = null, dToWallNA = null;
+  const setMask = (z) => {
+    if (surf) { const m = surf.allowAt(z, G, cx, cy); allowC = new Uint8Array(N); for (let c = 0; c < N; c++) allowC[c] = allow0[c] & m[c]; }
+    dAllowed = edt((c) => allowC[c] === 1, nx, ny, g); // hucreden en yakin izinli merkeze uzaklik
+    dToWallNA = edt((c) => allowC[c] === 0, nx, ny, g); // izinli hucrenin izinsiz bolgeye uzakligi (giris yeri secimi)
+  };
+  if (!surf) setMask(Infinity);
   const reach = (c) => dAllowed[c] <= r - 0.75 * g;
-  const dToWallNA = edt((c) => allowC[c] === 0, nx, ny, g); // izinli hucrenin izinsiz bolgeye uzakligi (giris yeri secimi)
   // malzeme ust z (hg): stok haritasi (rest) ya da kurulum stogu; bolge disi -inf
   const smap = rest?.source === 'stock' ? stockMap : stockHeightmap(S.stockBox, Math.min(0.5, Math.max(g, 0.1)), S.stockCyl ?? null);
   const hg = new Float32Array(N).fill(-Infinity);
@@ -289,10 +299,12 @@ function clearRegion(A) {
   let pos = null; let guard = 0;
   for (let li = 0; li < levels.length; li++) {
     const z = levels[li];
+    if (surf) { zNow = z; setMask(z); if (A.onLevel) A.onLevel(li, z); }
     let left = 0, unreach = 0;
     // mat: 1 = malzeme (temas olcumu ve bosluk icin HEPSI), rch: takimin erisebildigi malzeme (ilerleme/cephe/giris icin)
-    for (let c = 0; c < N; c++) { mat[c] = 0; rch[c] = 0; bad[c] = 0; if (inRv[c] && hg[c] > z + EPSZ) { mat[c] = 1; if (reach(c)) { rch[c] = 1; left++; } else unreach++; } }
-    if (li === levels.length - 1) stats.restArea += unreach * g * g;
+    const pt = surf ? surf.partTop(G, cx, cy) : null; // 3D: parcanin kendisi malzeme sayilmaz (duvar gibi)
+    for (let c = 0; c < N; c++) { mat[c] = 0; rch[c] = 0; bad[c] = 0; if (inRv[c] && hg[c] > z + EPSZ && !(pt && pt[c] > z + EPSZ)) { mat[c] = 1; if (reach(c)) { rch[c] = 1; left++; } else unreach++; } }
+    if (li === levels.length - 1 && !surf) stats.restArea += unreach * g * g;
     let down = false; // takim bu seviyede asagida mi
     let forced = null; // giristen hemen sonra: paso takimin bulundugu yerden baslar
     for (;;) {
@@ -349,5 +361,7 @@ function clearRegion(A) {
       if (removed === r0) { if (st.c != null) bad[st.c] = 1; if (pts.length === 1) { pos = st.p; continue; } }
       emit(simplify(pts), z); stats.passes++; pos = p;
     }
+    if (surf && A.afterLevel) { A.afterLevel({ z, hg, G, cx, cy, N, inRv }); pos = b.pos ? b.pos.slice(0, 2) : pos; }
   }
+  return { hg, G };
 }

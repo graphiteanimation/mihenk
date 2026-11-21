@@ -4,6 +4,10 @@ import { gates as runGates, blocked } from './gates.js';
 import { validateProgram } from './ir.js';
 import { sketchFaces, sketchChain, silhouetteFaces, midLevels } from './geom/select.js';
 import { simulate, createHeightmap, stockHeightmap, stockFromPrevious, chainSources } from './sim/index.js';
+import { surfaceForSetup } from './surf/source.js'; // WP-15
+import { islandFaces } from './surf/zmap.js'; // WP-15 (T-20)
+import { computeOpAsync } from './surf/async.js'; // WP-15
+const SURF3D = ['adaptive3d', 'zlevel', 'parallel', 'scallop', 'pencil']; // WP-15: 3D islemler (ops/surface.js)
 
 // buildProgram({name, number?, machine, sections:[{setup: resolveSetup sonucu, toolpaths:[Toolpath]}]}) -> Program
 export function buildProgram({ name, number = null, machine, sections }) {
@@ -36,12 +40,28 @@ export async function resolveGeom(op, S, { rebuild, doc, query }) {
       sels.push(sel); faces.push(sketchChain(sel, sk, plane, S.frame));
     } else if (sel.kind === 'silhouette') {
       if (!S.bodies.includes(sel.body)) throw cerr('cam.setup.body_missing', { body: String(sel.body) });
-      const zl = await query('camZLevels', { body: sel.body, frame: S.frame });
-      const secs = []; for (const z of midLevels(zl.levels)) secs.push(await query('camSection', { body: sel.body, frame: S.frame, z }));
-      for (const f of silhouetteFaces(zl, secs)) { sels.push({ ...sel, kind: 'face', loops: sel.loops ?? 'outer' }); faces.push(f); } // T-19: her bolge ayri yuz, ayri islenir
+      // WP-15 (T-20): sel.z verilirse o seviyede ya da ustunde malzeme olan her yer ada (yukseklik haritasi); prizmatik olmayan
+      // govdede (kesitler tutarsiz) siluet de yukseklik haritasindan (catili oyuk/tunel yarik gorunmez)
+      let fs = null;
+      if (!Number.isFinite(sel.z)) {
+        const zl = await query('camZLevels', { body: sel.body, frame: S.frame });
+        try { const secs = []; for (const z of midLevels(zl.levels)) secs.push(await query('camSection', { body: sel.body, frame: S.frame, z })); fs = silhouetteFaces(zl, secs); }
+        catch (e) { if (e?.code !== 'cam.silhouette.not_prismatic' && e?.code !== 'cam.silhouette.not_nested') throw e; fs = await zmapFaces(sel, S, query, -Infinity, zl.levels?.[0] ?? S.modelBBox.min[2]); }
+      } else fs = await zmapFaces(sel, S, query, sel.z, sel.z);
+      for (const f of fs) { sels.push({ ...sel, kind: 'face', loops: sel.loops ?? 'outer' }); faces.push(f); } // T-19: her bolge ayri yuz, ayri islenir
     } else throw cerr('cam.geom.sel_unsupported', { kind: String(sel.kind) });
   }
   return { sels, faces };
+}
+
+// WP-15 (T-20): govdenin ust yukseklik haritasindan ada yuzleri. Cozunurluk modele oranli (0,05 mm'den ince degil, en cok 3 M hucre).
+async function zmapFaces(sel, S, query, z, zFace) {
+  const b = S.modelBBox; const W = b.max[0] - b.min[0], H = b.max[1] - b.min[1];
+  const res = Math.max(0.05, Math.sqrt((W * H) / 3e6)); const m = 3 * res;
+  const hm = await query('camHeightmap', { bodies: [sel.body], frame: S.frame, res, bbox: [b.min[0] - m, b.min[1] - m, b.max[0] + m, b.max[1] + m] });
+  const fs = islandFaces(hm, z, zFace);
+  if (!fs.length) throw cerr('cam.silhouette.empty', { z: Number.isFinite(z) ? Math.round(z * 1000) / 1000 : null });
+  return fs;
 }
 
 // T-05a: holes.kind 'points' -> sketch noktalari (model uzayi) [{p:[x,y,z]}]. sel = {kind:'points', sketch, ents?}.
@@ -196,7 +216,7 @@ export function expandAngles(setups) {
   return out;
 }
 
-export async function generateProgram(cam, { rebuild, machine, query, doc = null, name, number = null, sim = null, onlyOps = null }) {
+export async function generateProgram(cam, { rebuild, machine, query, doc = null, name, number = null, sim = null, onlyOps = null, signal = null }) {
   const { resolveSetup, computeOp } = await import('./index.js');
   const ops = []; const sections = []; const pre = [];
   const tools = cam?.tools || [];
@@ -228,9 +248,11 @@ export async function generateProgram(cam, { rebuild, machine, query, doc = null
         let maps = holeOp || preOp ? await drillMaps(stk, tps, S, { res: mres, query }) : {};
         if (op.type === 'chamfer') maps = await chamferMap(op, S, query);
         if (op.type === 'adaptive' && op.rest?.source === 'stock') maps = restStockMap(recs, ri, mres); // WP-12: islem basi stok (O-039 zinciri + onceki islemler)
-        const tp = computeOp(opx, { setup: S, tool, geom, machine, ...maps });
+        const s3 = SURF3D.includes(op.type); // WP-15: 3D islem: yuzey modeli + worker'da (iptal edilebilir) hesap
+        if (s3) { geom.surface = await surfaceForSetup(S, { rebuild, query }); if (op.rest?.source === 'stock') maps = restStockMap(recs, ri, mres); }
+        const tp = s3 ? await computeOpAsync(opx, { setup: S, tool, geom, machine, ...maps }, { signal }) : computeOp(opx, { setup: S, tool, geom, machine, ...maps });
         tps.push(tp); ops.push({ opId: op.id, setupId: setup.id, ok: true, toolpath: tp });
-      } catch (e) { ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }
+      } catch (e) { if (e?.code === 'cam.op.cancelled') throw e; ops.push({ opId: op.id, setupId: setup.id, ok: false, error: { code: e.code || 'internal', params: e.params || { message: String(e?.message ?? e) } } }); pre.push(issue('cam.gate.op_failed', { op: op.name || op.id, code: e.code || 'internal' }, { level: 'block', opId: op.id })); }
     }
     if (tps.length) sections.push({ setup: S, toolpaths: tps });
   }

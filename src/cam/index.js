@@ -16,6 +16,10 @@ export { gcodeToProgram } from './sim/gcode.js';
 import { computeAdaptive } from './ops/adaptive.js'; // WP-12
 import { computeFlat } from './ops/flat.js'; // WP-12
 import { applyFeedOpt } from './ops/feedopt.js'; // WP-12
+import { computeSurface } from './ops/surface.js'; // WP-15
+import { applyArcFit } from './ops/arcfit.js'; // WP-15
+export { SURF3D_TYPES } from './ops/surface.js';
+export { computeOpAsync } from './surf/async.js'; // WP-15
 export { buildProgram, generateProgram, expandAngles, axisPlane, freePiecePolicy, resolveGeom, annotateHoleExits, sketchPoints, drillMaps, advanceStock, chainStock } from './program.js';
 export { CamErr } from './geom/err.js';
 
@@ -129,7 +133,8 @@ export function computeOp(op, ctx) {
   if (!ctx.tool) throw cerr('cam.op.no_tool', { op: op.name || op.id });
   const tool = normalizeTool(ctx.tool);
   const c = { ...ctx, tool };
-  const tp = runOp(op, c);
+  let tp = runOp(op, c);
+  if (op.arcFit) tp = applyArcFit(tp, op, ctx.machine); // WP-15: yay uydurma / dogru azaltma (IR duzeyi)
   return op.feedOpt ? applyFeedOpt(tp, op, ctx.machine) : tp; // WP-12: koseda / cikista ilerleme dusurme
 }
 function runOp(op, c) {
@@ -145,6 +150,7 @@ function runOp(op, c) {
     case 'threadmill': return computeThread(op, c);
     case 'adaptive': return computeAdaptive(op, c);
     case 'flat': return computeFlat(op, c);
+    case 'adaptive3d': case 'zlevel': case 'parallel': case 'scallop': case 'pencil': return computeSurface(op, c); // WP-15
     default: throw cerr('cam.op.unsupported', { what: String(op.type) });
   }
 }
