@@ -50,7 +50,7 @@ Mihenk: devam
 Mihenk: devam
 ```
 
-## İE-007 — Açılı yapı düzlemi (C-37) · **Hazır** (K-052; ekransız, paralel açılabilir)
+## İE-007 — Açılı yapı düzlemi (C-37) · **Sürüyor** (oturum 2026-11-21e) (K-052; ekransız, paralel açılabilir)
 - Ön koşul: yok. Ekran kullanmaz (arayüz testleri tarayıcı testleriyle bulutta koşar). Alan: yapı düzlemi tanımı (`src/kernel` özellik/eskiz düzlemi çözümü, `src/ui/features.js`, `panels.js`, görünüm seçimi); `naming.js` ve fillet/boolean koduna (İE-005, İE-006) dokunmaz. Aynı dosyada çakışma çıkarsa ana dala yeniden temellenir.
 - Amaç: eskiz ve özellikler için orijin düzlemi/düz yüz dışında yapı düzlemi. En az: (1) bir düzlem ya da düz yüzden, seçilen doğrusal kenar/eksen etrafında **açıyla** düzlem; (2) **üç noktadan** düzlem; (3) mevcut ofset düzlemi korunur. Düzlem geçmişte (ağaçta) bir özelliktir, parametriktir (açı düzenlenince bağlı eskiz ve özellikler güncellenir), eskiz düzlemi ve ayna düzlemi olarak seçilebilir, belgeye kaydedilir (şema sürümü + eski belge uyumu), TR + EN.
 - Kaynak: `pm/test/sonuc/T04.md` (45° destek Move/Copy ile dolanıldı). Kabul parçası: T04 (ppp0109 Corner Tie) 45° eskizi açılı düzleme çizilerek çekirdek testinde üretilir.
