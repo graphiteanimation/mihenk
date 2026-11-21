@@ -1,5 +1,6 @@
 /* WP-09 dilim 5: görüntü modu düğmeleri ve adlandırılmış görünüşler */
-.vp-disp { position: absolute; right: 10px; bottom: 10px; z-index: var(--z-viewport-overlay); display: flex; gap: var(--sp-3, 8px); align-items: flex-end; font-size: var(--fs-sm); }
+.vp-disp { position: absolute; right: 10px; bottom: 10px; z-index: var(--z-viewport-overlay); display: flex; gap: var(--sp-3, 8px); align-items: flex-end; font-size: var(--fs-sm); pointer-events: none; }
+.vp-disp > * { pointer-events: auto; } /* kap saydam: düğmeler arası boşluk tuvale tıklamayı yutmaz */
 .vp-disp button { height: var(--ctl-h, 28px); padding: 0 var(--sp-4, 10px); border: var(--bw, 1px) solid var(--line-strong); border-radius: var(--r-sm, 4px); background: var(--bg-surface); color: var(--text); cursor: pointer; }
 .vp-disp button:hover { background: var(--accent-tint); }
 .vp-disp button[aria-pressed="true"], .vp-disp button[aria-expanded="true"] { background: var(--accent-tint); border-color: var(--accent); }

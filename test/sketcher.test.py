@@ -1,4 +1,4 @@
-# Sketcher testi: gerçek fare/klavye olaylarıyla (Playwright, chrome). Çalıştır: python3 test/sketcher.test.py
+# Sketcher testi: gerçek fare/klavye olaylarıyla (Playwright, chrome). Önce `npx vite build` (son bölüm derlenmiş uygulamayı açar); çalıştır: python3 test/sketcher.test.py
 import json, os, socket, subprocess, sys, time
 from playwright.sync_api import sync_playwright
 
@@ -1028,10 +1028,80 @@ try:
     ev("(id) => sk.toggleReference(id)", ref['id']); idle(); page.wait_for_timeout(150); idle(); s = S(); c3 = [c for c in s['cons'] if c['id'] == ref['id']][0]
     check('[referans] sürücüye çevrilince o anki geometri değeri kullanılır (bayat 60 değil)', not c3.get('ref') and c3['expr'] == '50', c3)
 
+    # ---------------------------------------------------------------- gerçek uygulama sayfasında gerçekçi fare akışı (0.6.0 hata kaydı)
+    # Kurulu 0.6.0'da (Windows) dikdörtgenin ikinci köşe tıklaması kayboluyordu: görünümün sağ üst köşe kabı (.vp-overlay-tr) saydam ama
+    # fareyi alıyordu; kap en geniş çocuğu (görünüm düğmeleri) kadar yer kapladığından görünüm küpünün solundaki görünmez alan tıklamayı ve
+    # fare hareketlerini yutuyor, ön izleme son tuval konumunda donuyordu. Akış: Yeni → Sketch → XZ → araç şeritten → orijin → seyrek hareket → tık.
+    print('Gerçek uygulama: gerçekçi fare akışı (dikdörtgen/daire/yay)')
+    ctx.add_init_script("try { localStorage.setItem('mihenk.recoveryMs', '0'); } catch (e) {}")
+    ap = ctx.new_page()
+    ap.on('pageerror', lambda e: errs.append('app: ' + str(e)))
+    ap.on('console', lambda m: errs.append('app: ' + m.text) if m.type == 'error' and 'Failed to load resource' not in m.text else None)
+    # uygulama derlenmiş haliyle (vite preview; önce `npx vite build`) açılır: geliştirme sunucusunun satır içi stilleri sıkı CSP'ye takılır
+    PORT2, server2 = _srv.start(ROOT, ['preview'])
+    ap.goto(f'http://127.0.0.1:{PORT2}/'); ap.wait_for_function('() => window.app && window.app.ready', timeout=90000); ap.evaluate('app.ready')
+    if ap.locator('[data-testid=w-new]').is_visible(): ap.click('[data-testid=w-new]')
+    ap.wait_for_timeout(300)
+    A = ap.evaluate
+    def a_idle(): A('app.sketcher && app.sketcher.idle()'); ap.wait_for_timeout(80); A('app.sketcher && app.sketcher.idle()')
+    ap.click('#toolbar button[data-cmd="sketch"]'); ap.wait_for_timeout(300)
+    wx, wy = A('(w) => { const [x, y] = app.viewport.project(w); const r = app.viewport.renderer.domElement.getBoundingClientRect(); return [r.left + x, r.top + y]; }', [30, 0, 30])
+    ap.mouse.move(wx, wy); ap.wait_for_timeout(120); ap.mouse.click(wx, wy)
+    ap.wait_for_function('() => app.sketchSession', timeout=15000); a_idle(); ap.wait_for_timeout(300)
+    check('[gerçek] XZ düzleminde eskiz açıldı', A('app.sketchSession.draft.plane.name') == 'XZ', A('app.sketchSession.draft.plane.name'))
+    def a_px(u, v): return A('([u, v]) => { const V = app.sketcher.plane; const w = [0, 1, 2].map((i) => V.o[i] + V.x[i] * u + V.y[i] * v); const [x, y] = app.viewport.project(w); const r = app.viewport.renderer.domElement.getBoundingClientRect(); return [r.left + x, r.top + y]; }', [u, v])
+    def a_uv(x, y): return A('([x, y]) => app.sketcher._loc({ clientX: x, clientY: y })', [x, y])
+    def a_ents(t=None): return A('(t) => app.sketcher.sk.ents.filter((e) => !t || e.type === t).length', t)
+    def a_tool(cmd): ap.keyboard.press('Escape'); ap.keyboard.press('Escape'); ap.click(f'#toolbar button[data-cmd="{cmd}"]'); a_idle()
+    def a_press(x, y, moves_from=None, n=3):  # seyrek hareket (n ara nokta) + ayrı basma/bırakma
+        if moves_from:
+            for i in range(1, n + 1): ap.mouse.move(moves_from[0] + (x - moves_from[0]) * i / (n + 1), moves_from[1] + (y - moves_from[1]) * i / (n + 1)); ap.wait_for_timeout(40)
+        ap.mouse.move(x, y); ap.mouse.down(); ap.wait_for_timeout(30); ap.mouse.up(); a_idle()
+    # eskiden ölü olan nokta: sağ üst kabın içinde, ama hiçbir denetimin üstünde değil (görünüm küpünün solu)
+    dead = A("""() => { const tr = document.querySelector('.vp-overlay-tr').getBoundingClientRect(); const kids = [...document.querySelectorAll('.vp-overlay-tr > *')].map((k) => k.getBoundingClientRect());
+      for (let y = tr.top + 6; y < tr.bottom - 6; y += 4) for (let x = tr.left + 6; x < tr.right - 6; x += 4) if (!kids.some((r) => x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 4 && y <= r.bottom + 4)) return [x, y]; return null; }""")
+    check('[gerçek] sağ üst kapta denetim dışı boşluk var (sınama noktası)', dead is not None)
+    hit_dead = A('([x, y]) => { const e = document.elementFromPoint(x, y); return e ? e.tagName : null; }', dead) if dead else None
+    check('[gerçek] sağ üst kabın saydam boşluğu tuvali örtmez', hit_dead == 'CANVAS', hit_dead)
+    holes = A("""() => { const cv = app.viewport.renderer.domElement, c = cv.getBoundingClientRect(), out = new Set();
+      for (let y = c.top + 2; y < c.bottom; y += 6) for (let x = c.left + 2; x < c.right; x += 6) { const e = document.elementFromPoint(x, y); if (e && e !== cv && e.matches('.vp-overlay-tl, .vp-overlay-tr, .vp-overlay-bl, .vp-overlay-br, .vp-disp, #overlay, .sk-ovl')) out.add(e.className || e.id); }
+      return [...out]; }""")
+    check('[gerçek] hiçbir saydam kap tuval üstünde fareyi yutmaz', not holes, holes)
+    # 1) dikdörtgen: orijin → seyrek hareket → eski ölü bölgede ikinci köşe
+    a_tool('rect'); o = a_px(0, 0)
+    tool_lbl = A("() => document.querySelector('[data-testid=st-tool] b').textContent"); rect_lbl = A("() => document.querySelector('#toolbar button[data-cmd=rect]').dataset.tipName")
+    check('[gerçek] durum çubuğu "Araç" şeritteki etkin aracı gösterir (Seç değil)', tool_lbl == rect_lbl, (tool_lbl, rect_lbl))
+    a_press(*o); check('[gerçek] dikdörtgen: ilk köşe orijinde', A('!!(app.sketcher._rc && app.sketcher._rc.c1.pid === "O")'))
+    a_press(*dead, moves_from=o, n=3)
+    uv = a_uv(*dead)
+    check('[gerçek] dikdörtgen: seyrek hareketten sonra ikinci tık (sağ üst köşe yakını) 4 çizgi oluşturur', a_ents('line') == 4 and A('app.sketcher._rc') is None, (a_ents('line'), uv, A('document.querySelector("#st-left").textContent')))
+    # 2) ilk tıktan sonra ara hareket olmadan doğrudan ikinci noktaya tık
+    a_tool('rect'); p1 = a_px(-40, 10); p2 = a_px(-15, 30); a_press(*p1); a_press(*p2)
+    check('[gerçek] dikdörtgen: ara hareket olmadan ikinci tık', a_ents('line') == 8, a_ents('line'))
+    # 3) ikinci köşe başka bir noktayla dikey/yatay hizada (hiza izi): dikdörtgen oluşur, köşe hizaya oturur
+    a_tool('rect'); p1 = a_px(-55, -20); px2 = a_px(-15, -5); a_press(*p1); a_press(px2[0] + 4, px2[1], moves_from=p1, n=4)
+    s_ = A('JSON.parse(JSON.stringify(app.sketcher.sk))'); xs_ = sorted({round(p['x'], 6) for p in s_['points'].values()})
+    check('[gerçek] dikdörtgen: hizalı ikinci köşe (x = -15 noktasıyla dikey hiza) kabul edilir', a_ents('line') == 12 and -15 in xs_, (a_ents('line'), xs_))
+    # 4) ikinci köşe ilk köşeyle yatay hizada (sıfır yükseklik): sessiz kalmaz, açık ileti verir
+    a_tool('rect'); a_press(*o); q = a_px(25, 0.4); a_press(*q, moves_from=o)
+    msg_ = A('document.querySelector("#st-left").textContent') or ''
+    check('[gerçek] dikdörtgen: ilk köşeyle aynı yatay hizada ikinci köşe sessiz kalmaz, açık ileti verir (sk.rect_zero)', a_ents('line') == 12 and 'sıfırdan büyük' in msg_ and A('!!app.sketcher._rc'), msg_)
+    # 5) daire ve yay aynı gerçekçi akışla (eski ölü bölgeye doğru da)
+    a_tool('circle'); c0 = a_px(40, 10); a_press(*c0); a_press(*dead, moves_from=c0, n=3)
+    check('[gerçek] daire: merkez + seyrek hareket + tık (sağ üst köşe yakını)', a_ents('circle') == 1, a_ents('circle'))
+    a_tool('circle'); c0 = a_px(-45, 45); c1 = a_px(-38, 45); a_press(*c0); a_press(*c1)
+    check('[gerçek] daire: ara hareket olmadan ikinci tık', a_ents('circle') == 2, a_ents('circle'))
+    a_tool('arc'); r0, r1, r2 = a_px(20, -15), a_px(35, -15), a_px(28, -5); a_press(*r0); a_press(*r1, moves_from=r0); a_press(*r2, moves_from=r1)
+    check('[gerçek] yay: üç tık, seyrek hareket', a_ents('arc') == 1, a_ents('arc'))
+    a_tool('line'); l0, l1 = a_px(-30, -30), a_px(0, -30); a_press(*l0); a_press(*l1, moves_from=l0); ap.keyboard.press('Escape'); a_idle()
+    check('[gerçek] çizgi: iki tık, otomatik yatay', a_ents('line') == 13, a_ents('line'))
+    ap.close(); _srv.stop(server2); server2 = None
+
     real_errs = [e for e in errs if 'favicon' not in e]
     check('konsolda hata yok', not real_errs, real_errs[:3])
     br.close()
 finally:
     _srv.stop(server)
+    if globals().get('server2'): _srv.stop(server2)
 print(f'\n{passed} geçti, {failed} kaldı')
 sys.exit(1 if failed else 0)
