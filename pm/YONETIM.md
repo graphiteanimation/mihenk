@@ -51,10 +51,10 @@
 | # | Konu | Önerim | Durum |
 |---|---|---|---|
 | G-1 | CAD testi T02–T10 (İE-001) | Bitti 2026-11-21; sonuç raporu `pm/test/CAD-TEST.md` | Kapandı |
-| G-2 | CAD düzeltmeleri (WP-CAD1): İE-002 C-14, C-21 ve CI-1'i kapattı (C-14 gerçek akışta yeniden üretilemedi, soru SORULAR'da); kalanlar test bitince | C-21 yan bulguları (budamada üst üste binen varlıktan yanlışının seçilmesi, uzatmada orta nokta kayması) WP-CAD1'e | Açık |
+| G-2 | İE-002 Bitti: CI-1 ve C-21 düzeltildi; C-14 yeniden üretilemedi, olası neden kapatıldı (soru `SORULAR`'da). C-21 yan bulguları WP-CAD1'de | 0.6.1 kullanıcı denemesinde C-14'e özellikle bakılsın | İzleniyor |
 | G-3 | 1.0 yapım sırası (BACKLOG "1.0 ve sonrası") | CAD testi ve WP-CAD1 bitince planlansın | Karar bekliyor |
 | G-4 | Fusion karşılaştırması İE-004: **Beklemede** (K-053, ekran kullanıcıda). Fusion lisansı 23 Kasım 2026'da bitiyor; Adım A (sarma, 3+2 referansı) lisansa bağlı | Kullanıcı bilgisayarı bırakınca hemen Hazır yapılsın; en geç 22 Kasım | Açık (kullanıcı "bilgisayar boş" diyecek) |
-| G-5 | Ana dal testi: belge gönderimleri artık koşuyu iptal etmiyor (O-052 çalışıyor). İlk tam koşu (`e685ffc`) KALDI: 40/41, yalnız `resim.test` pdftotext denetimi (Windows koşucusu) | İE-002'nin ilk maddesi (CI-1); yeşil görülene dek kod emri Bitti sayılmaz | Açık |
+| G-5 | Ana dal testi | İlk yeşil koşu 2026-11-21 14:29 UTC (`9dc2867`, 43/43 adım; İE-002 CI-1: Windows'taki xpdf metni farklı satıra koyuyordu, ürün hatası değil) | Kapandı (Y-02) |
 | G-6 | Bazı iş oturumları GitHub'a gönderemedi (O-047), iş yedek depoda kaldı | İş oturumu kapanışta GitHub'a gönderimi doğrular; gönderemezse `DURUM`'un ilk satırına yazar; yönetim oturumu eşitler | İzleniyor |
 | G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kapandı (Y-02: kullanıcı onayladı) |
 | G-8 | Test parçalarının otomatik regresyonu (İE-003) | Hazır yapıldı (O-056) | Kapandı (Y-02) |
