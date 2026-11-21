@@ -43,6 +43,7 @@ Kaynak: Too Tall Toby "Party Pack" ve yarışma çizimleri; build123d belgelerin
 | T04 | KISMEN | −0,00003 % | C-37…C-44 | eğik düzlem yok, R16 fillet ve birleştirme olmadı (iki gövde); `pm/test/sonuc/T04.md` |
 | T05 | KISMEN | −0,054 % | C-45 (+C-31) | R1 sap fillet'i yapılamadı (C-31); `pm/test/sonuc/T05.md` |
 | T06 | GEÇTİ | 0 | C-46 | loft (ekle + kes); `pm/test/sonuc/T06.md` |
+| T07 | GEÇTİ | 0 | C-47…C-49 | revolve + ayna + R8 fillet zinciri; teğet/ofset hesapla verildi; `pm/test/sonuc/T07.md` |
 
 ## Ara rapor (prizmatik faz, T01–T04, 2026-11-21)
 - Puan: GEÇTİ 2 (T01, T02) · KISMEN 2 (T03, T04) · KALDI 0. Dört parçada da son geometri referansla aynı (hacim farkı ≤ %0,0001, kutu aynı) — eksikler ancak dolanarak kapatılabildi.
