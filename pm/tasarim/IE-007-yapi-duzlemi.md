@@ -41,3 +41,10 @@ Kullanım yerleri: eskiz `plane: {kind:'plane', id}` · ayna `plane: 'plane', pl
 - `test/yapi-duzlemi.test.mjs` (test-all zincirinde): açı düzlemi (eksen: orijin ekseni ve kenar), üç nokta (üç nokta türü), ofset; açı değişince bağlı eskiz+extrude güncellenir; düzlem üzerinde eskiz → extrude hacmi analitik değerle; ayna; kaydet/aç (sürüm 2, düzlemsiz belge sürüm 1); hata kodları; zincir (düzlemden düzlem).
 - T04 (ppp0109): `test/fixtures/ie007/T04-arayuz.mhnk` arayüz testindeki belgedir (Move/Copy dolanması). Aynı parça, 45° destek eskizi açılı yapı düzlemine çizilerek (Move/Copy olmadan) üretilir; gövdelerin toplam hacmi `test/cad-bench/ref/ppp0109.step` hacmine ±%0,1, kutu ±0,05 mm. (C-39/C-42 İE-005'tedir: R16 kesiti ayrı gövde kalabilir.)
 - `test/yapi-duzlemi-ui.test.py` (test-all zincirinde, needsBuild): düzlem oluştur → üzerine eskiz → extrude; açı düzenlenince gövde güncellenir.
+
+## Uygulamada netleşenler (çekirdek, 2b115bf)
+- Bilinmeyen kip ya da nokta türü → `sketch.plane_unknown`; eskiz noktası yok / eskiz sonra geliyor → `sketch.not_found`; eksen verilmemiş → `pattern.no_axis`; eksen adı bilinmiyor → `prim.axis_unknown`.
+- Orijin eksenleri dünya orijininden geçer. Eksen tabana paralel olmalı, taban düzleminin içinde olması gerekmez; o = taban orijininin eksene dik izdüşümü.
+- `hint` yoksa köşe noktası kenarın ilk ucudur.
+- `docFileVersion(doc)`: `type:'plane'`, ayna `plane:'plane'` ya da `f.plane` / `f.tool` / `f.base` içinde `kind:'plane'` varsa 2, yoksa 1.
+- Arayüz etiket anahtarları `plane.` öneki yerine `cpl.` kullanır (i18n testi `plane.` önekini hata ad alanı sayar).
