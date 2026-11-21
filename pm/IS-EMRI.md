@@ -26,7 +26,7 @@ Mihenk: devam
 Mihenk: devam
 ```
 
-## İE-002 — CI'yı yeşile çıkarma + C-14 ve C-21 düzeltmesi · **Sürüyor** (oturum 2026-11-21b) (O-054; ekransız, İE-001 ya da İE-004 sürerken ayrı oturumda açılabilir)
+## İE-002 — CI'yı yeşile çıkarma + C-14 ve C-21 düzeltmesi · **Bitti** (2026-11-21b; master `ci` 44911498632 yeşil, 43/43 adım, 7088 denetim; C-14 gerçek akışta yeniden üretilemedi, savunmacı düzeltme + SORULAR) (O-054; ekransız, İE-001 ya da İE-004 sürerken ayrı oturumda açılabilir)
 - Ön koşul: yok. Ekran kullanmaz. Kurulu sürüme dokunmaz; düzeltme 0.6.1 ile çıkar (G-9).
 - CI-1 (önce bu; ana dal yeşil değil): GitHub Actions koşusu 44901932629 (`e685ffc`, Windows) 41 adımdan 40'ını geçti, yalnız `test/resim.test.mjs` "pdftotext metni okur (O20 H7, antet)" kaldı (109 geçti, 1 kaldı). Windows koşucusunda bir `pdftotext` bulunuyor (büyük olasılıkla Git for Windows'la gelen eski sürüm; doğrulanmadı) ve çıktısında `Ø20 H7` ya da antet başlığı eşleşmiyor; Linux'ta geçiyor. Neden bulunur: PDF metni gerçekten bozuksa ürün hatasıdır ve düzeltilir; yalnız araç/kodlama farkıysa denetim araca dayanıklı yapılır (ör. PDF içerik akışını doğrudan okuyan kendi denetimi), sessizce atlanmaz.
 - C-14: Extrude panelinde görünen mesafe ile uygulanan mesafe farkı; yeniden üret, düzelt, test.
@@ -70,7 +70,7 @@ Mihenk: devam
 Mihenk: devam
 ```
 
-## İE-003 — CAD test parçalarının otomatik regresyonu · **Hazır** (O-056; ekransız, paralel açılabilir)
+## İE-003 — CAD test parçalarının otomatik regresyonu · **Sürüyor** (oturum 2026-11-21f) (O-056; ekransız, paralel açılabilir)
 - Ön koşul: yok. Alan yalnız `test/` (kaynak koda dokunmaz). Girdi: bilgisayarda `Documents\Mihenk\Mihenk\cad-test\Tnn\*.mhnk` (T01–T10; klasör erişimi istenir) → depoda `test/cad-bench/mhnk/`.
 - Biten her `cad-test/Tnn.mhnk` depoya `test/cad-bench/mhnk/` altına alınır; yeni test adımı her belgeyi çekirdekte yeniden hesaplar, hacim ve kutuyu `ref/` ile karşılaştırır (±%0,1).
 - KISMEN parçalar (T03, T04, T05, T09) bugünkü hacimleriyle "bilinen eksik" olarak kaydedilir; İE-005/006 düzeltmelerinden sonra hedef referans hacme çekilir.
