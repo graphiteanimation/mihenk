@@ -23,7 +23,7 @@ import { CAM_RIBBON } from './ribbon.js';
 import { CamView } from './view.js';
 import { CamOps } from './ops.js';
 
-const OP_ICON = { face: 'op-face', contour: 'op-contour', pocket: 'op-pocket', drill: 'op-drill', chamfer: 'chamfer', circular: 'op-drill', threadmill: 'op-thread', slot: 'op-contour', trace: 'op-contour', adaptive: 'op-adaptive', flat: 'op-face' };
+const OP_ICON = { face: 'op-face', contour: 'op-contour', pocket: 'op-pocket', drill: 'op-drill', chamfer: 'chamfer', circular: 'op-drill', threadmill: 'op-thread', slot: 'op-contour', trace: 'op-contour', adaptive: 'op-adaptive', flat: 'op-face', adaptive3d: 'op-adaptive', zlevel: 'op-surface', parallel: 'op-surface', scallop: 'op-surface', pencil: 'op-surface' };
 
 export function hashStr(s) { let x = 2166136261; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 16777619); return (x >>> 0).toString(36); }
 function hashArr(a, seed = 2166136261) { let x = seed; for (let i = 0; i < a.length; i++) x = Math.imul(x ^ ((a[i] * 1000) | 0), 16777619); return x >>> 0; }
@@ -152,7 +152,8 @@ export class CamCtl {
     opcmd('cam-op-adaptive', 'cam.cmd.adaptive', 'op-adaptive', 'adaptive'); opcmd('cam-op-flat', 'cam.cmd.flat', 'op-face', 'flat'); // WP-12
     opcmd('cam-op-drill', 'cam.cmd.drill', 'op-drill', 'drill', 'drill'); opcmd('cam-op-thread', 'cam.cmd.thread', 'op-thread', 'drill', 'tap'); opcmd('cam-op-circular', 'cam.cmd.circular', 'op-pocket', 'circular'); opcmd('cam-op-threadmill', 'cam.cmd.threadmill', 'op-thread', 'threadmill');
     opcmd('cam-op-slot', 'cam.cmd.slot', 'op-contour', 'slot'); opcmd('cam-op-trace', 'cam.cmd.trace', 'op-contour', 'trace');
-    reg('cam-op-surface', 'cam.cmd.surface', 'op-surface', () => {}, { off: () => t('cam.soon_op') });
+    opcmd('cam-op-adaptive3d', 'cam.cmd.adaptive3d', 'op-adaptive', 'adaptive3d'); opcmd('cam-op-zlevel', 'cam.cmd.zlevel', 'op-surface', 'zlevel'); opcmd('cam-op-parallel', 'cam.cmd.parallel', 'op-surface', 'parallel'); // WP-15
+    opcmd('cam-op-scallop', 'cam.cmd.scallop', 'op-surface', 'scallop'); opcmd('cam-op-pencil', 'cam.cmd.pencil', 'op-surface', 'pencil');
     reg('cam-compute', 'cam.cmd.compute', 'cam-compute', () => this.ops.computeAll(), { off: needOps });
     reg('cam-sim', 'cam.cmd.sim', 'simulate', () => this.ops.simulate(), { off: needOps });
     reg('cam-post', 'cam.cmd.post', 'post', () => this.ops.post(), { off: needOps });

@@ -11,9 +11,10 @@ import { clone, getP, setP, numField, textField, selField, checkField, sec, call
 import { protectedHits, toolLabel, openToolManager } from './toolui.js';
 import { openCutData } from './cutdata.js';
 import { WP12_TOOL_KINDS, WP12_GEOM_TYPES, FEEDOPT_TYPES, wp12Default, adaptiveRows, flatRows, feedOptRows, thinWallRows } from './oppanel-wp12.js'; // WP-12
+import { WP15_TYPES, WP15_TOOL_KINDS, wp15Default, surfGeomRows, surfPassRows } from './oppanel-wp15.js'; // WP-15
 
 const TABS = [['tool', 'cam.op.tab_tool'], ['geom', 'cam.op.tab_geom'], ['heights', 'cam.op.tab_heights'], ['passes', 'cam.op.tab_passes']];
-const TOOL_KINDS = { face: ['face', 'flat', 'bullnose'], contour: ['flat', 'bullnose', 'ball'], pocket: ['flat', 'bullnose', 'ball'], chamfer: ['chamfer', 'spot'], circular: ['flat', 'bullnose'], threadmill: ['threadmill'], slot: ['flat', 'bullnose'], trace: ['flat', 'bullnose', 'ball', 'chamfer', 'spot', 'drill', 'face'], ...WP12_TOOL_KINDS };
+const TOOL_KINDS = { face: ['face', 'flat', 'bullnose'], contour: ['flat', 'bullnose', 'ball'], pocket: ['flat', 'bullnose', 'ball'], chamfer: ['chamfer', 'spot'], circular: ['flat', 'bullnose'], threadmill: ['threadmill'], slot: ['flat', 'bullnose'], trace: ['flat', 'bullnose', 'ball', 'chamfer', 'spot', 'drill', 'face'], ...WP12_TOOL_KINDS, ...WP15_TOOL_KINDS };
 const COOLANT = ['flood', 'mist', 'air', 'through', 'off'];
 const TOP_FROM = ['stockTop', 'modelTop', 'selection', 'abs'];
 const BOT_FROM = ['selection', 'modelBottom', 'stockBottom', 'modelTop', 'abs'];
@@ -52,6 +53,7 @@ export function defaultOp(type, cycle, id, name, tools) {
   else if (type === 'threadmill') Object.assign(op, { holes: { kind: 'feature' }, external: false, hand: 'right', dir: 'climb', major: null, pitch: null, length: null, radialPasses: 1, springPasses: 0, depth: { from: 'hole' } });
   else if (type === 'drill') Object.assign(op, { cycle: cycle || 'drill', holes: { kind: 'feature' }, depth: { from: 'hole', tipComp: true, breakThrough: 1 }, order: 'shortest' });
   else if (WP12_GEOM_TYPES.includes(type)) wp12Default(type, op);
+  else if (WP15_TYPES.includes(type)) wp15Default(type, op); // WP-15
   if (op.side === undefined) delete op.side;
   const tl = compatibleTools(tools, type, op.cycle)[0];
   if (tl) { op.toolId = tl.id; if (tl.presets?.length) { try { Object.assign(op, applyPreset(op, tl, tl.presets[0].name)); } catch (e) { /* ön ayar yoksa boş kalır */ } } }
@@ -180,7 +182,7 @@ export class OpPanel {
       this.num(t('cam.op.feed_cut'), 'feedCut', { unit: t('cam.u.mm_min'), min: 0.001, f: 'feedCut', warn: () => { manual(); return null; } }),
       this.num(t('cam.op.feed_plunge'), 'feedPlunge', { unit: t('cam.u.mm_min'), min: 0.001, f: 'feedPlunge' }));
     if (tl) rows.push(h('button', { class: 'btn ghost sm', type: 'button', 'data-testid': 'op-cutdata', onclick: () => openCutData(this.cam, { tool: tl, apply: (rpm, feed) => { delete d.preset; d.rpm = rpm; d.feedCut = feed; this.invalidate(); this.render(); this.showResult(); } }) }, t('cam.cd.open')));
-    if (d.type === 'contour' || d.type === 'pocket' || WP12_GEOM_TYPES.includes(d.type)) rows.push(this.num(t('cam.op.feed_ramp'), 'feedRamp', { unit: t('cam.u.mm_min'), min: 0.001, nullable: true, f: 'feedRamp', hint: t('cam.op.feed_ramp_hint') }));
+    if (d.type === 'contour' || d.type === 'pocket' || WP12_GEOM_TYPES.includes(d.type) || d.type === 'adaptive3d') rows.push(this.num(t('cam.op.feed_ramp'), 'feedRamp', { unit: t('cam.u.mm_min'), min: 0.001, nullable: true, f: 'feedRamp', hint: t('cam.op.feed_ramp_hint') }));
     if (d.cycle === 'tap') rows.push(h('div', { class: 'note', text: t('cam.op.tap_feed') }));
     rows.push(this.sel(t('cam.op.coolant'), 'coolant', COOLANT.map((c) => [c, t('cam.cool.' + c)]), { f: 'coolant' }));
     return rows;
@@ -199,6 +201,7 @@ export class OpPanel {
       return rows;
     }
     if (d.type === 'drill' || d.type === 'circular' || d.type === 'threadmill') return this.holesRows();
+    if (WP15_TYPES.includes(d.type)) return surfGeomRows(this); // WP-15: model = setup gövdeleri
     // kontur, cep ve pah: seçim listesi
     const mode = this.pickMode; const sk = this.app.doc.features.filter((f) => f.type === 'sketch');
     rows.push(selField({ label: t('cam.op.pick_what'), value: mode, f: 'op-pickmode', hint: t('cam.op.pickhint.' + mode), opts: [['face', t('cam.op.pm_face')], ['sketch', t('cam.op.pm_sketch')], ['chain', t('cam.op.pm_chain')], ['silhouette', t('cam.op.pm_sil')]].filter((o) => (d.type === 'slot' || d.type === 'trace' ? o[0] === 'chain' : d.type === 'contour' || d.type === 'chamfer' || o[0] !== 'chain')), set: (v) => { this.pickMode = v; this.render(); this.showResult(); this.pickView(); } }));
@@ -419,6 +422,7 @@ export class OpPanel {
         callout('info', null, t('cam.op.th_sim_note')));
     } else if (d.type === 'adaptive') rows.push(...adaptiveRows(this));
     else if (d.type === 'flat') rows.push(...flatRows(this));
+    else if (WP15_TYPES.includes(d.type)) rows.push(...surfPassRows(this)); // WP-15
     else if (d.type === 'drill') {
       if (d.cycle === 'peck' || d.cycle === 'chipbreak') rows.push(this.num(t('cam.op.peck'), 'peck', { min: 0.001, f: 'peck', hint: t('cam.op.peck_hint') }));
       if (d.cycle === 'fineBore' || d.cycle === 'backBore') rows.push(this.num(t('cam.op.shift'), 'shift', { min: 0.001, f: 'shift', hint: t('cam.op.shift_hint') }), this.num(t('cam.op.shift_dir'), 'shiftDir', { unit: '°', min: -360, max: 360, nullable: true, f: 'shift-dir', hint: t('cam.op.shift_dir_hint') }));

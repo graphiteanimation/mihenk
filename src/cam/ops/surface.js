@@ -98,8 +98,8 @@ const sampleNode = (Gd, A, x, y) => { const i = Math.round((x - Gd.x0) / Gd.g), 
 // kadar genisletilmis). Uint8Array (Gd dugumleri)
 function restMask(E, op, Gd) {
   const nm = E.nm; const d1 = need(op, 'rest.toolDia');
-  const t1 = { type: op.rest.cornerR == null ? 'ball' : (op.rest.cornerR > 0 ? 'bullnose' : 'flat'), dia: d1, cornerR: op.rest.cornerR ?? d1 / 2 };
-  if (t1.type === 'ball') t1.cornerR = d1 / 2;
+  const cr1 = op.rest.cornerR; // yoksa kure uclu
+  const t1 = cr1 == null || cr1 >= d1 / 2 ? { type: 'ball', dia: d1 } : cr1 > 0 ? { type: 'bullnose', dia: d1, cornerR: cr1 } : { type: 'flat', dia: d1 };
   if (!(d1 > E.tool.dia)) throw cerr('cam.surf.rest_tool_small', { prev: r3(d1), dia: E.tool.dia, op: nm });
   const thr = opt(op, 'rest.threshold', posNum, 'number > 0', Math.max(0.02, E.tol * 2));
   const C1 = makeCutter(t1, E.st.radial + E.mtol); const dr1 = makeDropper(E.IX, C1);
@@ -165,7 +165,7 @@ export function computeParallel(op, ctx) {
   const ang = (opt(op, 'angle', isNum, 'number', 0) * Math.PI) / 180; const ca = Math.cos(ang), sa = Math.sin(ang);
   const ds = opt(op, 'sampling', posNum, 'number > 0', Math.min(R / 2, 1));
   const zig = (op.pattern ?? 'zigzag') === 'zigzag';
-  const useSlope = E.smin > 0 || E.smax < 90; const rest = op.rest?.toolDia ? true : false;
+  const useSlope = E.smin > 0 || E.smax < 90; const rest = !!op.rest;
   let Gd = null, SG = null, RM = null;
   if (useSlope || rest) { Gd = gridOver(E, Math.min(so / 2, 0.5, R / 3)); if (useSlope) SG = slopeGrid(Gd); if (rest) RM = restMask(E, op, Gd); }
   const keep = (q) => { if (SG) { const s = sampleNode(Gd, SG, q[0], q[1]); if (s < E.smin - 1e-9 || s > E.smax + 1e-9) return false; } if (RM && !sampleNode(Gd, RM, q[0], q[1])) return false; return true; };
@@ -244,7 +244,7 @@ export function computeZLevel(op, ctx) {
   const zTop = Math.min(E.h.zTop, hmax); const levels = [];
   for (let k = 1; ; k++) { const z = zTop - k * sd; if (z <= E.zFloor + 1e-6) break; levels.push(z); }
   if (!levels.length) throw cerr('cam.surf.nothing', { op: E.nm });
-  const RM = op.rest?.toolDia ? restMask(E, op, Gd) : null;
+  const RM = op.rest ? restMask(E, op, Gd) : null;
   const all = []; let nCont = 0;
   for (const z of levels) {
     E.shouldStop();
@@ -286,7 +286,7 @@ export function computeScallop(op, ctx) {
   const w = scallopWidth(E.tool, hs);
   const g = opt(op, 'sampling', posNum, 'number > 0', Math.max(0.03, Math.min(w / 4, R / 6, 0.5)));
   const Gd = gridOver(E, g); const { H, nx, ny, x0, y0 } = Gd; const gg = Gd.g; const N = nx * ny;
-  const SG = slopeGrid(Gd); const RM = op.rest?.toolDia ? restMask(E, op, Gd) : null;
+  const SG = slopeGrid(Gd); const RM = op.rest ? restMask(E, op, Gd) : null;
   const ok = new Uint8Array(N); for (let k = 0; k < N; k++) ok[k] = SG[k] >= E.smin - 1e-9 && SG[k] <= E.smax + 1e-9 && (!RM || RM[k]) ? 1 : 0;
   // komsuluk (16): (1,0) (1,1) (2,1) ve simetrikleri
   const NB = []; for (const [a, c] of [[1, 0], [1, 1], [2, 1], [1, 2]]) for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { const di = sx * a, dj = sy * c; if (!NB.some((q) => q[0] === di && q[1] === dj)) NB.push([di, dj]); if (!NB.some((q) => q[0] === dj && q[1] === di)) NB.push([dj, di]); }

@@ -6,6 +6,7 @@ import camUi2 from './cam-ui2-en.js';
 import hist from './hist-en.js';
 import drawing from './drawing-en.js'; // WP-17
 import camWp12 from './cam-wp12-en.js';
+import camWp15 from './cam-wp15-en.js'; // WP-15
 
 const base = {
   // Ortak
@@ -1042,4 +1043,5 @@ import model from './model-en.js';
 Object.assign(base, sketchCf); Object.assign(base, model); // WP-09: çizim konforu metinleri
 
 Object.assign(base, camWp12); // WP-12
+Object.assign(base, camWp15); // WP-15
 export default { ...base, ...camCore, ...camPost, ...camUi, ...camUi2, ...hist, ...drawing };
