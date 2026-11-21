@@ -1221,6 +1221,32 @@ try:
     check('WP-22b: sayfa hatası yok', not [e for e in pg.errs if 'Failed to load resource' not in e], pg.errs[:3])
     ctx.close()
 
+    print('WP-22d: NC penceresinden "Kodu simüle et" (G-code -> sim + kapılar)')
+    ctx, pg = prep(DOC4)
+    pg.evaluate("""() => { const c = app.cam; c.ops.create('contour'); c.closePanel(); c.mut((x) => { x.setups[0].ops[0].geom = [{ kind: 'silhouette', body: app.result.bodies[0].id }]; }); }""")
+    pg.click('[data-cmd=cam-post]'); pg.wait_for_selector('[data-testid=nc-text], [data-testid=issue-list]', timeout=40000)
+    check('WP-22d NC penceresi açıldı ve "Kodu simüle et" düğmesi var', count(pg, '[data-testid=nc-text]') == 1 and count(pg, '[data-testid=nc-simulate]') == 1, txt(pg, '#modal')[:200])
+    if count(pg, '[data-testid=nc-simulate]') == 1:
+        pg.click('[data-testid=nc-simulate]'); pg.wait_for_selector('[data-testid=sim-slider], [data-testid=issue-list]', timeout=60000)
+        check('WP-22d NC simülasyonu başladı: sim çubuğu (hata listesi değil)', count(pg, '[data-testid=sim-slider]') == 1, txt(pg, '#modal')[:300])
+        tot = int(pg.get_attribute('[data-testid=sim-slider]', 'max')) if count(pg, '[data-testid=sim-slider]') else 0
+        pg.fill('[data-testid=sim-slider]', str(tot)); pg.dispatch_event('[data-testid=sim-slider]', 'input'); time.sleep(0.5)
+        check('WP-22d hareket sayısı > 0 ve işlem adı NC satırından', tot > 10 and 'NC T' in txt(pg, '[data-testid=sim-op]'), [tot, txt(pg, '[data-testid=sim-op]')])
+        check('WP-22d sim tamamlandı (sayaç = toplam), kaldırılan hacim > 0', f'{tot} /' in txt(pg, '[data-testid=sim-pos]') and pg.evaluate('app.cam.ops.sim.stepper.state().removedVolume') > 0, txt(pg, '[data-testid=sim-pos]'))
+        check('WP-22d kapı listesi dolu: sorun listesi düğmesi + sayaç', count(pg, '[data-testid=sim-issues]') == 1 and pg.evaluate('app.cam.ops.sim.r.gates.length') > 0, pg.evaluate('app.cam.ops.sim.r.gates.map(g => g.code)'))
+        pg.click('[data-testid=sim-issues]'); pg.wait_for_selector('[data-testid=issue-list]', timeout=5000)
+        check('WP-22d sorun listesi açıldı ve satırlar var', count(pg, '[data-testid=issue-row]') > 0)
+        pg.click('[data-testid=issues-close]'); time.sleep(0.2)
+    # bozuk NC: Türkçe, satır numaralı hata (sim çubuğu açılmaz)
+    pg.evaluate("() => app.cam.ops.stopSim()")
+    pg.evaluate("""() => { const t = app.cam.ops.nc.text.split('\\n'); t.splice(12, 0, 'G1 X1 $'); app.cam.ops.simulateNcText(t.join('\\n'), 'BOZUK'); }""")  # hata listesi modal: beklenmez
+    pg.wait_for_selector('[data-testid=issue-list]', timeout=10000)
+    et = txt(pg, '[data-testid=issue-list]')
+    check('WP-22d bozuk satır: Türkçe hata, satır numarası 13, sim yok', not pg.evaluate('!!app.cam.ops.sim') and 'NC satırı 13' in et and 'okunamayan kelime' in et, et)
+    pg.click('[data-testid=issues-close]')
+    check('WP-22d: sayfa hatası yok', not [e for e in pg.errs if 'Failed to load resource' not in e], pg.errs[:3])
+    ctx.close()
+
     br.close()
 finally:
     _srv.stop(server)

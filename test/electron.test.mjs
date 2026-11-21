@@ -237,6 +237,17 @@ check('DXF dosya türü: açma diyaloğu .dxf kabul eder', dxfIn === 'cizim.dxf'
 const htmlOut = path.join(TMP, 'foy.html'); await stubDialogs(app, { save: htmlOut });
 const htmlRes = await page.evaluate(async () => { try { return await window.native.saveFile({ saveAs: true, data: new TextEncoder().encode('<!DOCTYPE html><p>x</p>'), defaultName: 'PROG-foy.html', kind: 'html' }); } catch (e) { return 'ERR ' + e.message; } });
 check('html dosya türü (kurulum föyü): kayıt diyaloğu .html yazar', typeof htmlRes === 'string' && !htmlRes.startsWith('ERR') && fs.existsSync(htmlOut) && fs.readFileSync(htmlOut, 'utf8').startsWith('<!DOCTYPE html>'), String(htmlRes));
+// WP-22d: ncread (NC dosyası simülasyonu) yalnız okunur: açılır, yazma reddedilir, yanlış uzantı reddedilir
+const ncIn = path.join(TMP, 'oku.nc'); fs.writeFileSync(ncIn, 'G0 X0 Y0\nM30\n');
+await stubDialogs(app, { open: ncIn });
+const ncOpen = await page.evaluate(async () => { try { const r = await window.native.openFile('ncread'); return r ? r.name + ':' + r.data.length : 'null'; } catch (e) { return 'ERR'; } });
+check('ncread: .nc dosyası okunur', ncOpen === 'oku.nc:13', String(ncOpen));
+const ncOut = path.join(TMP, 'yaz.nc'); await stubDialogs(app, { save: ncOut });
+const ncSave = await page.evaluate(async () => { try { await window.native.saveFile({ saveAs: true, data: new Uint8Array([1]), defaultName: 'yaz.nc', kind: 'ncread' }); return 'yazildi'; } catch (e) { return 'ERR'; } });
+check('ncread: kaydetme reddedilir, dosya oluşmaz', ncSave === 'ERR' && !fs.existsSync(ncOut), String(ncSave));
+const exeIn = path.join(TMP, 'oku.exe'); fs.writeFileSync(exeIn, 'x'); await stubDialogs(app, { open: exeIn });
+const ncBad = await page.evaluate(async () => { try { const r = await window.native.openFile('ncread'); return r ? 'opened' : 'null'; } catch (e) { return 'ERR'; } });
+check('ncread: .exe uzantısı reddedilir', ncBad === 'ERR', String(ncBad));
 await stubDialogs(app, { open: htmlOut });
 const htmlOpen = await page.evaluate(async () => { try { const r = await window.native.openFile('html'); return r ? 'opened' : 'null'; } catch (e) { return 'ERR'; } });
 check('html dosya türü: açma reddedilir (yalnız yazılır)', htmlOpen !== 'opened', htmlOpen);
