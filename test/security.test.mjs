@@ -103,6 +103,22 @@ ok(!/'unsafe-eval'|'unsafe-inline'/.test(CSP), 'ana belge CSP: unsafe-eval / uns
 ok(/'unsafe-eval'/.test(WORKER_CSP) && !/'unsafe-inline'/.test(WORKER_CSP), 'yalnız işçi yanıtı unsafe-eval alır');
 ok(isWorkerScript('/assets/worker-CHepCBmu.js') && !isWorkerScript('/assets/index-abc.js') && !isWorkerScript('/index.html'), 'işçi betiği ayrımı');
 ok(!isWorkerScript('/assets/simworker-DA-b6Gn8.js'), 'sim işçisi unsafe-eval almaz (yalnız çekirdek işçisi)');
+// WP-22a (O-049): pdf.js işçisi (pdfworker-*.js) ve tembel ana parçası (pdf-*.js) 'unsafe-eval' ALMAZ; paketlenmiş kodda eval / new Function yok.
+ok(!isWorkerScript('/assets/pdfworker-D9ZZTwKt.js') && !isWorkerScript('/assets/pdf-YwugTw7Y.js'), 'pdf işçisi unsafe-eval almaz (işçi CSP’si yalnız worker-*.js)');
+ok(fs.existsSync(path.join(ROOT, 'src/shared/pdfworker.js')) && !/worker-/.test(path.basename('src/shared/pdfworker.js').replace('pdfworker', '')), 'pdf işçi girişi adı worker-* kuralına girmez');
+{
+  const ad = path.join(ROOT, 'dist/assets');
+  if (!fs.existsSync(ad)) skipped++;
+  else {
+    const pf = fs.readdirSync(ad).filter((f) => /^pdf(worker)?-[\w-]+\.js$/.test(f));
+    ok(pf.some((f) => f.startsWith('pdfworker-')) && pf.some((f) => /^pdf-/.test(f)), 'dist: pdf işçisi ve pdf parçası var (' + pf.join(', ') + ')');
+    for (const f of pf) {
+      const code = fs.readFileSync(path.join(ad, f), 'utf8');
+      ok(!isWorkerScript('/assets/' + f), 'dist: ' + f + ' çekirdek işçi kuralına girmez (WORKER_CSP almaz)');
+      ok(!/new Function\s*\(|[^\w$.]eval\s*\(/.test(code), 'dist: ' + f + ' içinde eval / new Function yok');
+    }
+  }
+}
 
 console.log('5. kurulum betiği (statik)');
 const nsi = fs.readFileSync(path.join(ROOT, 'build/installer.nsi'), 'utf8');
