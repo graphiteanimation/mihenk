@@ -121,7 +121,7 @@ A sketch is a 2D drawing on a plane. Solids are made from it.
 ### 3.1 Starting and finishing a sketch
 
 1. Click **Sketch**.
-2. The hint says "Select a plane or a planar face". Click an origin plane (XY Top, XZ Front, YZ Right) or a flat face of a body.
+2. The hint says "Select a plane or a planar face". Click an origin plane (XY Top, XZ Front, YZ Right) or a flat face of a body. A construction plane you made can also be selected (see 4.1).
 3. Draw, dimension, constrain.
 4. Save with **Finish Sketch** (green button). **Cancel** discards the changes.
 5. When you finish with problems you see "Sketch saved, but:": open profile, no closed profile, duplicate overlapping objects, not fully defined.
@@ -269,6 +269,22 @@ Modeling commands are in the ribbon of the **Design** tab: **Create**, **Modify*
 > The **Drill** and **Thread** operations in the Manufacture tab read holes from this **Hole** feature. If you make holes by an Extrude with **Cut**, CAM does not see them as holes.
 
 **Box**, **Cylinder**, **Sphere**: add a basic shape by entering position and size.
+
+#### Construction plane
+
+**Construction plane** is in the **Form ▾** menu (Create group). It has three modes:
+
+| Mode | Fields |
+|---|---|
+| Plane at Angle | **Base plane**: an origin plane, a planar face or another construction plane. **Rotation axis**: X, Y or Z axis, or **Straight edge…**. The axis must be parallel to the base plane; the plane passes through the axis. **Angle**: degrees (an expression is allowed). |
+| Plane Through Three Points | **Point 1, 2, 3**: click an edge for each point in turn. The end nearest to your click is taken; on a circular edge the center can be picked too. The three points cannot be collinear or coincident. |
+| Offset Plane | **Base plane** and **Offset** (mm), measured along the base normal. |
+
+- **Flip** reverses the plane normal.
+- A construction plane is a feature in the history. When you change its angle or offset, the sketches on it and the features that depend on them are recomputed.
+- Use it as a sketch plane (click the plane in the view), as the **Mirror plane**, for **Split body** and **Split face**, and as the **Neutral plane** of **Draft**.
+- In the view it is a translucent rectangle in a color different from the origin planes. The eye button in the **Origin** section (*Show / hide origin planes*) also hides construction planes.
+- A document with a construction plane is saved with file version 2. Mihenk 0.6.0 opens such a file with the "File from a newer version" warning and does not know the construction plane feature. Documents without planes are not affected.
 
 ### 4.2 Modify
 
