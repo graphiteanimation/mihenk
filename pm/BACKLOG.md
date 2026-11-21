@@ -14,7 +14,7 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | T-05b delik tanıma = O-025 "delik tanıma + sıra şablonu" (tanıma kısmı) | WP-05 (sıra şablonu WP-14) |
 | T-04 önceki setup stoğu = O-025 "in-process stock" = P1 S2/S3 hayalet stok | WP-05 (0.5'ten 0.4'e çekildi: NC'yi engelliyor) |
 | T-09 adaptif = O-025 adaptif kaba = envanter kritik açık 2 | WP-12 · ☑ (bağımsız doğrulandı; verim bulguları WP-22) |
-| T-13 + T-20 3D = O-026 3D kaba/bitirme = envanter kritik açık 1 | WP-15 |
+| T-13 + T-20 3D = O-026 3D kaba/bitirme = envanter kritik açık 1 | WP-15 · ☑ (bağımsız doğrulandı; açıklar WP-22c) |
 | T-19 + T-20 + M-01 silüet/tek kesit sorunu | WP-06 (T-19), WP-15 (T-20 kökten) |
 | T-21 A işareti = V-01 = O-019'daki "A yönü teyidi" | WP-01 (profil alanı; K-026, O-032) + WP-03 (T-21b yazım biçimi) |
 | C-05 görünüm küpü = envanter §5 "arka/alt/sol tıklanamaz" | WP-04 |
@@ -62,6 +62,7 @@ Durum: ☐ Hazır · ◐ Sürüyor · ◑ Doğrulamada · ☑ Bitti. Model: O Op
 | WP-18 | Çok eksen altyapısı: genel kinematik zincirli tezgâh profili, IR'de takım ekseni, setup yönü serbest yüz normali, **3+2 konumlu işleme**, post'ta eğik düzlem (G68.2 sınıfı) seçeneği | K-029 | O · ☑ (bağımsız doğrulandı) |
 | WP-19 | Modelleme ikinci tur: sweep, loft, draft, rib, değişken fillet, helis/diş, IGES | envanter §6–§7 | O · ☑ (bağımsız doğrulandı, bulgular düzeltildi) |
 | WP-22 | 0.6 devirleri. **22a ☑** (bağımsız doğrulandı): PDF altlık arayüzü + vektör PDF (O-049), DXF kesme çizgisi katmanı, kopuk resim ölçüsünü bağlama. **22b**: tri-dexel kipinde oyma ve tutucu yan çarpışması + görünüm (WP-13), G87 yukarı kesimde oyma denetimi; WP-12 verimi: rest kipinde havada helis girişi, `rest_material` uyarısının abartılı alanı, dar halkada `no_entry_left` uyarısının kaybolması, temas açısı tepe aşımı (ızgara), paso sonu "çıkış" ilerleme düşürmesi, büyük ceplerde hesap süresi | WP-13/14/17 raporları | O, S |
+| WP-22c | 0.6 son devirler: arcFit sarma/döner eksenli hareketlerde atlanır (WP-15 bulgusu), WP-12 verim maddeleri (22b satırındaki liste), 3D kaba süresi, node aynı iş parçacığında iptal | WP-12/15 doğrulamaları | O |
 | — | **Sürüm 0.6** | | |
 
 ## 1.0 ve sonrası
