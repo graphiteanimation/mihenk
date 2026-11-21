@@ -50,6 +50,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 - **K-044** (2026-11-21) — "Şu an devam eden işler bitince bir dur" Anlam: süren işler (dikdörtgen hatası düzeltmesi, kabul bulguları düzeltmesi, `test:all`) bitirilip birleştirilir; yeni kurulum dosyası, yeniden kurulum, kaldırma adımı ve yeni paket başlatılmaz; kendi kendini uyandırma kurulmaz. Kullanıcı `Mihenk: devam` yazınca sürer (K-043 askıda).
 - **K-045** (2026-11-21) — "Mihenk: devam" Anlam: K-044 durdurması kalkar; K-044 öncesi sıradaki işe (0.6.0 düzeltilmiş kurulum, kabul adımları 15/10/12/2, `v0.6.0`) devam edilir. Yerine geçer: K-044.
 
+- **K-046** (2026-11-21) — "tezgah denemesi şimdi yapmıyoruz. kıyaslamayı diğer programların kullanımıyla yapıyoruz. fusion ile yaptığımız test gibi" Anlam: Mihenk'in doğruluk ölçütü tezgâh denemesi değil, aynı parçanın Fusion (ve benzeri programlar) ile programlanıp sonuçların karşılaştırılmasıdır (P1–P4 yöntemi). `pm/SORULAR.md`'deki üç varsayıma itiraz edilmedi; yürürlükte.
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|

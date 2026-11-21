@@ -15,7 +15,7 @@ K-035 hedefi (0.6 dahil bitene kadar) tamamlandı: kendi kendini uyandırma kuru
 - Bu çalışma alanında ilk koşuda Electron ikilisi indirilememişti (ortam); yeniden kurulunca geçti.
 
 ## Açık (1.0 öncesi değerlendirilecek)
-- Tezgâhta doğrulanmayanlar: tüm NC (3+2 G68.2, sarma G93, G76/G87 dahil).
+- Tezgâh denemesi şimdilik yapılmaz (K-046); doğruluk ölçütü Fusion karşılaştırması. 0.5–0.6 işlemleri (3D, sarma, 3+2, adaptif) Fusion ile henüz karşılaştırılmadı.
 - Uyarlanır kabada temas açısı tepe aşımı (WP-22c 2d); tri-dexel isteğe bağlı (O-050).
 - Kabul listesi tam: 14. adım da 2026-11-21'de geçti.
 - Bilgisayarda `%APPDATA%\AtolyeCAD` klasörü duruyor (eski adın kalıntısı; alt klasörü yok, dosyaları görülmedi; kullanıcı Dosya Gezgini'nden silebilir).
