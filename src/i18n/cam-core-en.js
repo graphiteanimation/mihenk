@@ -227,4 +227,5 @@ export default {
   "err.cam.wrap.move_unsupported": "Wrap: the '{t}' move cannot be wrapped onto the cylinder.",
   "err.cam.wrap.no_wear_comp": "{op}: wrap operations have no cutter compensation (G41/G42); set compensation to 'computer'.",
   "err.cam.wrap.predrill_unsupported": "Predrill entry is not supported in a wrapped pocket; choose helix, ramp or plunge.",
+  "err.cam.gate.wrap_sim_limits": "{op}: the wrap simulation removes material from the cylinder stock and checks tool/shank/holder collisions; gouge against the model and fixture collisions are not checked.",
 };

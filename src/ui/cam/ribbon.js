@@ -1,4 +1,5 @@
 // İmalat şeridi yerleşimi (saf veri; node testli). [grup kimliği, etiket anahtarı, komutlar, seçenekler]
+// WP-16: "Sarma" grubu (4. eksen) is akisi ile Kutuphane arasinda: taşmada Kutuphane'den hemen sonra gider.
 // WP-21: "Kesme verisi" (cam-cutdata) kendi "Kütüphane" grubunda, eylemlerden hemen önce. Şerit dar kalınca taşma menüsüne (») ilk o
 // gider (fitRibbon sağdan sola gizler): 1440 piksel genişlikte delik grubu görünür kalır, kesme verisi » menüsünden açılır.
 export const CAM_RIBBON = [
@@ -7,6 +8,7 @@ export const CAM_RIBBON = [
   ['cam-drill', 'cam.grp.drill', ['cam-op-drill', 'cam-op-thread', 'cam-op-circular', 'cam-op-threadmill']],
   ['cam-3d', 'cam.grp.3d', ['cam-op-surface']],
   ['cam-flow', 'cam.grp.flow', ['cam-tpl', 'cam-holeseq', 'cam-parts', 'cam-units', 'cam-quote']], // WP-14 iş akışı; dar şeritte Kütüphane'den sonra taşar
+  ['cam-wrap', 'cam.grp.wrap', ['cam-op-wrapcontour', 'cam-op-wrappocket', 'cam-op-wrapdrill']], // WP-16 4. eksen sarma; dar seritte Kutuphane'den sonra tasar
   ['cam-lib', 'cam.grp.library', ['cam-cutdata']],
   ['cam-act', 'cam.grp.actions', ['cam-compute', 'cam-sim', 'cam-post', 'cam-nc'], { cls: 'end' }],
 ];
