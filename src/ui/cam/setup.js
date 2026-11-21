@@ -31,7 +31,7 @@ export class SetupPanel {
   ok() {
     const bad = this.problems(); if (bad) { this.cam.app.toastInfo(bad); return; }
     const d = clone(this.draft); this.endPick(); this.close();
-    this.cam.mut((c) => { const i = c.setups.findIndex((s) => s.id === d.id); if (i >= 0) { const nx = { ...c.setups[i], ...d, ops: c.setups[i].ops }; for (const k of ['stockFrom', 'freePieceBlock']) if (!(k in d)) delete nx[k]; c.setups[i] = nx; } });
+    this.cam.mut((c) => { const i = c.setups.findIndex((s) => s.id === d.id); if (i >= 0) { const nx = { ...c.setups[i], ...d, ops: c.setups[i].ops }; for (const k of ['stockFrom', 'freePieceBlock', 'fixtures']) if (!(k in d)) delete nx[k]; c.setups[i] = nx; } });
   }
   problems() {
     if (!this.draft.bodies.length) return t('cam.su.no_bodies');
@@ -77,7 +77,7 @@ export class SetupPanel {
     if (err) { body.append(callout('err', t('cam.su.unresolved'), errText(err))); this.cam.view?.showSetup(null); return; }
     const sz = S.stockBox.max.map((v, i) => v - S.stockBox.min[i]);
     body.append(callout('info', t('cam.su.resolved'), t('cam.su.summary', { stock: sz.map((v) => fmtNum(v, 3)).join(' × '), top: fmtNum(S.stockTop, 3) })));
-    this.cam.view?.showSetup(S);
+    this.lastS = S; this.cam.view?.showSetup(S);
   }
   render() {
     const d = this.draft, cam = this.cam, app = this.app, m = cam.machine();
@@ -145,6 +145,28 @@ export class SetupPanel {
       if (d.rotary.enabled) rows.push(h('div', { class: 'help', 'data-testid': 'su-a-origin-note', text: t('cam.su.a_origin_note') }));
       if (d.rotary.enabled) rows.push(numField({ label: t('cam.su.a_angle'), value: d.rotary.aAngle, unit: '°', nullable: false, min: -1e5, f: 'su-a-angle', warn: (v) => (v !== null && A.limits && (v < A.limits[0] || v > A.limits[1]) ? t('cam.su.a_limits', { min: A.limits[0], max: A.limits[1] }) : null), set: (v) => { d.rotary.aAngle = v; upd(); } }));
     }
+    // WP-13: bağlama gövdeleri (mengene, fikstür, divizör aynası): taban setup çerçevesinde kutu/silindir ya da işlenmeyen belge gövdesi
+    rows.push(sec(t('cam.su.fixtures')), h('div', { class: 'help', text: t('cam.su.fx_hint') }));
+    const fxs = d.fixtures || [];
+    const others = (this.app.result?.bodies || []).filter((b) => !d.bodies.includes(b.id));
+    fxs.forEach((f, n) => {
+      const F = `su-fx${n}-`; const re = () => { this.render(); upd(); };
+      rows.push(h('div', { class: 'op-grow', 'data-testid': F + 'row' },
+        h('strong', { text: t('cam.su.fx_n', { n: n + 1, kind: t({ box: 'cam.su.fx_k_box', cyl: 'cam.su.fx_k_cyl', body: 'cam.su.fx_k_body' }[f.kind]) }) }),
+        h('button', { class: 'btn sm', type: 'button', 'data-testid': F + 'del', onclick: () => { fxs.splice(n, 1); if (!fxs.length) delete d.fixtures; re(); } }, t('cam.su.fx_del'))));
+      rows.push(textField({ label: t('cam.su.fx_name'), value: f.name || '', f: F + 'name', max: 120, set: (v) => { if (v.trim()) f.name = v; else delete f.name; } }));
+      const v3 = (k, nm) => ['X', 'Y', 'Z'].forEach((ax, i) => rows.push(numField({ label: t(nm, { axis: ax }), value: f[k][i], unit: 'mm', nullable: false, min: -1e6, f: F + k + ax, set: (v) => { f[k][i] = v; upd(); } })));
+      if (f.kind === 'box') { v3('min', 'cam.su.s_min'); v3('max', 'cam.su.s_max'); }
+      else if (f.kind === 'cyl') {
+        rows.push(selField({ label: t('cam.su.fx_axis'), value: f.axis || 'Z', f: F + 'axis', opts: [['X', 'X'], ['Y', 'Y'], ['Z', 'Z']], set: (v) => { f.axis = v; upd(); } }));
+        v3('center', 'cam.su.fx_center');
+        for (const [k, lk] of [['dia', 'cam.su.s_dia'], ['len', 'cam.su.s_len']]) rows.push(numField({ label: t(lk), value: f[k], unit: 'mm', nullable: false, min: 0.001, f: F + k, set: (v) => { f[k] = v; upd(); } }));
+      } else rows.push(selField({ label: t('cam.su.fx_body'), value: f.body || '', f: F + 'body', opts: [['', t('cam.su.fx_body_none')], ...others.map((b) => [b.id, b.name || b.id])], set: (v) => { f.body = v; upd(); } }));
+    });
+    const addFx = (kind) => { const sb = this.lastS?.stockBox; const z0 = sb ? sb.min[2] : -20;
+      const f = kind === 'box' ? { kind, min: [sb ? sb.min[0] : 0, sb ? sb.min[1] - 20 : -20, z0 - 30], max: [sb ? sb.max[0] : 100, sb ? sb.min[1] : 0, z0 + 10] } : kind === 'cyl' ? { kind, axis: 'X', center: [sb ? sb.min[0] - 30 : -30, sb ? (sb.min[1] + sb.max[1]) / 2 : 0, sb ? (sb.min[2] + sb.max[2]) / 2 : 0], dia: 100, len: 30 } : { kind, body: others[0]?.id || '' };
+      (d.fixtures = d.fixtures || []).push(f); this.render(); upd(); };
+    rows.push(h('div', { class: 'op-grow' }, ...['box', 'cyl', 'body'].map((k) => h('button', { class: 'btn sm', type: 'button', 'data-testid': 'su-fx-add-' + k, disabled: k === 'body' && !others.length, onclick: () => addFx(k) }, t({ box: 'cam.su.fx_add_box', cyl: 'cam.su.fx_add_cyl', body: 'cam.su.fx_add_body' }[k])))));
     rows.push(sec(t('cam.su.heights')), numField({ label: t('cam.su.clearance'), value: d.clearanceZ ?? 10, unit: 'mm', nullable: false, min: 0, f: 'su-clearance', hint: t('cam.su.clearance_hint'), set: (v) => { d.clearanceZ = v; upd(); } }));
     panelShell(this.isNew ? t('cam.su.title_new') : t('cam.su.title', { name: d.name }), [...rows, this.sumEl], okCancel(() => this.ok(), () => this.cancel()), () => this.cancel(), 'cam-setup');
     if (this.focus) { const el = document.querySelector(`#panel [data-f="${this.focus}"]`); el?.scrollIntoView?.({ block: 'center' }); el?.focus?.(); this.focus = null; }

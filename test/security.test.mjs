@@ -102,6 +102,7 @@ for (const d of ["default-src 'none'", "script-src 'self' 'wasm-unsafe-eval'", "
 ok(!/'unsafe-eval'|'unsafe-inline'/.test(CSP), 'ana belge CSP: unsafe-eval / unsafe-inline yok');
 ok(/'unsafe-eval'/.test(WORKER_CSP) && !/'unsafe-inline'/.test(WORKER_CSP), 'yalnız işçi yanıtı unsafe-eval alır');
 ok(isWorkerScript('/assets/worker-CHepCBmu.js') && !isWorkerScript('/assets/index-abc.js') && !isWorkerScript('/index.html'), 'işçi betiği ayrımı');
+ok(!isWorkerScript('/assets/simworker-DA-b6Gn8.js'), 'sim işçisi unsafe-eval almaz (yalnız çekirdek işçisi)');
 
 console.log('5. kurulum betiği (statik)');
 const nsi = fs.readFileSync(path.join(ROOT, 'build/installer.nsi'), 'utf8');

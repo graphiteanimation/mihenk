@@ -3,7 +3,7 @@
 import { h, toast } from '../dom.js';
 import { icon } from '../icons.js';
 import { t, tLang, errText } from '../../shared/i18n.js';
-import { resolveSetup, buildProgram, generateProgram, gates as runGates } from '../../cam/index.js';
+import { resolveSetup, buildProgram, generateProgram, gatesAsync } from '../../cam/index.js';
 import { axisPlane } from '../../cam/program.js';
 import { blocked } from '../../cam/gates.js';
 import { postProgram, postPropsMissing } from '../../cam/post/index.js';
@@ -24,7 +24,7 @@ export class CamOps {
   constructor(cam) { this.cam = cam; this.cache = new Map(); this.nc = null; this.sim = null; this.progNo = 1000; this.showPath = true; this.busy = false; this.selOp = null; this.draftPath = null; this._mh = new WeakMap(); this._envFor = undefined; this._pathSig = ''; }
   get app() { return this.cam.app; }
   enter() { this.refreshPaths(this.selOp); }
-  leave() { this.stopSim(true); this.cam.view?.pathsVisible(false); this.cam.view?.hideMove(); }
+  leave() { this.simAbort?.abort(); this.stopSim(true); this.cam.view?.pathsVisible(false); this.cam.view?.hideMove(); }
   reset() { this.cache.clear(); this.nc = null; this.draftPath = null; this.selOp = null; this.stopSim(true); this.cam.view?.clearPaths(); }
   onResult() { if (this.sim) this.stopSim(); }
   relang() { this.app.C.renderTimeline?.(); }
@@ -178,9 +178,13 @@ export class CamOps {
       const machine = this.cam.machine();
       const program = buildProgram({ name: this.progName(), number: this.progNo, machine, sections });
       const so = await this.simOpts(sections.map((x) => x.setup), program);
-      const g = [...so.notes, ...runGates(program, machine, { sim: so.opts })];
+      // WP-13: simulasyon Web Worker'da (arayuz donmaz); ilerleme ve iptal bildiriminde
+      const ac = new AbortController(); this.simAbort = ac; let el = null, last = 0;
+      const prog = ({ index, total }) => { const now = Date.now(); if (now - last < 400) return; last = now; const msg = t('cam.sim.progress', { p: Math.round((index / Math.max(1, total)) * 100) }); if (el?.isConnected) { const tt = el.querySelector('.tt'); if (tt) tt.textContent = msg; } else el = toast(msg, { kind: 'info', ms: 0, action: { label: t('cam.sim.cancel'), run: () => ac.abort() } }); };
+      let gl; try { gl = await gatesAsync(program, machine, { sim: so.opts }, { signal: ac.signal, onProgress: prog }); } finally { this.simAbort = null; if (el?.isConnected) el.querySelector('[data-testid="toast-close"]')?.click(); }
+      const g = [...so.notes, ...gl];
       return { program, items, gates: g, simOpts: so.opts, docSig: this.docSig() };
-    } catch (e) { toast(errText(e), { kind: 'err' }); return null; } finally { this.busy = false; }
+    } catch (e) { toast(errText(e), { kind: e?.code === 'cam.sim.cancelled' ? 'info' : 'err' }); return null; } finally { this.busy = false; }
   }
   // Aynı neden (kod + işlem dışı parametreler) birden çok işlemde tekrarlanırsa tek satır: işlem adları birleşir (U-08).
   gateRows(list) {

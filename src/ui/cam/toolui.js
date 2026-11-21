@@ -68,8 +68,15 @@ export async function editTool(tool, { isNew = false, prot = null, others = [], 
     if (!d.centerCutting) r.push(num(t('cam.tl.max_ramp'), 'maxRampAngle', { unit: '°', min: 0.001, max: 90, nullable: true, hint: t('cam.tl.max_ramp_hint') }));
     r.push(sec(t('cam.tl.holder')));
     const hd = () => d.holder || null;
-    r.push(numField({ label: t('cam.tl.holder_dia'), value: hd()?.dia ?? null, unit: 'mm', nullable: true, min: 0.001, f: 'tl-holder-dia', set: (v) => { d.holder = { dia: v ?? 0, len: hd()?.len ?? 0 }; if (v === null && !(hd()?.len)) delete d.holder; check(); } }));
-    r.push(numField({ label: t('cam.tl.holder_len'), value: hd()?.len ?? null, unit: 'mm', nullable: true, min: 0.001, f: 'tl-holder-len', hint: t('cam.tl.holder_hint'), set: (v) => { d.holder = { dia: hd()?.dia ?? 0, len: v ?? 0 }; if (v === null && !(hd()?.dia)) delete d.holder; check(); } }));
+    // WP-13: gerçek tutucu profili "boy x çap[-çap2]; ..." (takım ucundan bodyLen yukarıdan başlayarak, aşağıdan yukarı); boşsa tek silindir
+    const segTxt = (hd()?.segments || []).map((q) => `${q.len}x${q.d0}${q.d1 != null && q.d1 !== q.d0 ? '-' + q.d1 : ''}`).join('; ');
+    r.push(textField({ label: t('cam.tl.holder_profile'), value: segTxt, f: 'tl-holder-profile', placeholder: '10x20-40; 40x40', set: (v) => {
+      const txt = v.trim(); if (!txt) { if (d.holder?.segments) { const { segments, ...rest } = d.holder; void segments; d.holder = rest.dia > 0 && rest.len > 0 ? rest : undefined; if (!d.holder) delete d.holder; } check(); return; }
+      const segs = txt.split(';').map((p) => /^\s*([\d.]+)\s*[x×*]\s*([\d.]+)\s*(?:-\s*([\d.]+))?\s*$/i.exec(p)).map((m) => (m ? { len: Number(m[1]), d0: Number(m[2]), ...(m[3] ? { d1: Number(m[3]) } : {}) } : null));
+      d.holder = { ...(hd() || {}), segments: segs.every(Boolean) ? segs : [] }; check(); } }));
+    r.push(h('div', { class: 'help', text: t('cam.tl.holder_profile_hint') }));
+    r.push(numField({ label: t('cam.tl.holder_dia'), value: hd()?.dia ?? null, unit: 'mm', nullable: true, min: 0.001, f: 'tl-holder-dia', set: (v) => { d.holder = { ...(hd() || {}), dia: v ?? 0, len: hd()?.len ?? 0 }; if (v === null && !(hd()?.len)) delete d.holder; check(); } }));
+    r.push(numField({ label: t('cam.tl.holder_len'), value: hd()?.len ?? null, unit: 'mm', nullable: true, min: 0.001, f: 'tl-holder-len', hint: t('cam.tl.holder_hint'), set: (v) => { d.holder = { ...(hd() || {}), dia: hd()?.dia ?? 0, len: v ?? 0 }; if (v === null && !(hd()?.dia)) delete d.holder; check(); } }));
     return r;
   };
   const drawPresets = () => {

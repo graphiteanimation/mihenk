@@ -12,6 +12,7 @@ import { postProgram } from '../../../src/cam/post/index.js';
 import { initKernel } from '../../../src/kernel/kernel.js';
 import { validateDoc } from '../../../src/shared/schema.js';
 import { simulate } from '../../../src/cam/sim/index.js';
+import { gcodeSimCompare } from '../gcode-sim.mjs'; // WP-13 (P_GCODE_SIM=1)
 import { airFeed } from '../air-feed.mjs';
 import { findRegions } from '../../../src/shared/profiles.js';
 
@@ -402,14 +403,14 @@ for (const rec of progs) {
     } catch (e) { rec.kalan = { hata: opError(e) }; }
   }
   const tp0 = now(); const base = `P3_${FNAME[rec.id]}_mihenk`;
-  try { const nc = postProgram(program, M, { gates: gl, date: '2026-11-19' }); rec.post = { ok: true, s: r3(now() - tp0), dosya: path.join('out', base + SUF + '.nc') }; fs.writeFileSync(path.join(OUT, base + SUF + '.nc'), nc.text); rec.nc = ncStats(nc.text); rec.post.uyarilar = nc.warnings; }
+  try { const nc = postProgram(program, M, { gates: gl, date: '2026-11-19' }); rec.post = { ok: true, s: r3(now() - tp0), dosya: path.join('out', base + SUF + '.nc') }; fs.writeFileSync(path.join(OUT, base + SUF + '.nc'), nc.text); rec.nc = ncStats(nc.text); rec.post.uyarilar = nc.warnings; rec.ncText = nc.text; }
   catch (e) {
     rec.post = { ok: false, s: r3(now() - tp0), hata: opError(e) };
     try {
       const warnOnly = gl.filter((g) => g.level !== 'block');
       const nc = postProgram(program, M, { gates: warnOnly, date: '2026-11-19' });
       const hdr = ['(*** BLOKLU: kapilar block verdi -> normalde NC URETILMEZ; yalniz yapi karsilastirmasi icin zorla uretildi ***)', ...gl.filter((g) => g.level === 'block').slice(0, 40).map((g) => `(BLOCK ${g.code} ${JSON.stringify(g.params).replace(/[()]/g, '')})`)].join('\n') + '\n';
-      const f = `${base}_BLOKLU${SUF}.nc`; fs.writeFileSync(path.join(OUT, f), hdr + nc.text); rec.nc_bloklu = { dosya: path.join('out', f), ...ncStats(nc.text) };
+      const f = `${base}_BLOKLU${SUF}.nc`; fs.writeFileSync(path.join(OUT, f), hdr + nc.text); rec.ncText = hdr + nc.text; rec.nc_bloklu = { dosya: path.join('out', f), ...ncStats(nc.text) };
     } catch (e2) { rec.nc_bloklu = { hata: opError(e2) }; }
   }
 }
@@ -453,7 +454,11 @@ R.sure_s = r3(now() - t0);
   for (const e of Object.values(g)) { for (const k of ['mihenk_sure_s', 'mihenk_kesme_mm', 'mihenk_hizli_mm', 'mihenk_hesap_s']) e[k] = r3(e[k]); e.fusion = fus[e.fop] || null; }
   R.fop_ozet = Object.values(g).sort((a, b) => a.fop - b.fop);
 }
-for (const rec of R.setups) { delete rec.S; delete rec.tps; delete rec.hm; if (rec.program) { rec.tahmini_sure_s = r3(rec.islemler.filter((o) => o.ok).reduce((a, o) => a + o.sure_s, 0)); } delete rec.program; }
+// WP-13: G-code uzerinden sim (P_GCODE_SIM=1): ayni setup IR sim'i ile NC metninin sim'i (hacim farki < %1 kabul olcutu)
+if (process.env.P_GCODE_SIM && !NOSIM) for (const rec of R.setups) { if (!rec.program || !rec.ncText) continue; const S = rec.S;
+  try { rec.gcode_sim = gcodeSimCompare({ program: rec.program, ncText: rec.ncText, machine: M, irResult: rec.sr || null, simOpts: { res: RES, stockBoxes: { [S.id]: S.stockBox }, modelHeightmaps: rec.hm ? { [S.id]: rec.hm } : undefined, tools: simTools } }); log(`${rec.id} gcode_sim`, JSON.stringify(rec.gcode_sim)); }
+  catch (e) { rec.gcode_sim = { hata: opError(e) }; log(`${rec.id} gcode_sim HATA`, JSON.stringify(rec.gcode_sim)); } }
+for (const rec of R.setups) { delete rec.ncText; delete rec.sr; delete rec.S; delete rec.tps; delete rec.hm; if (rec.program) { rec.tahmini_sure_s = r3(rec.islemler.filter((o) => o.ok).reduce((a, o) => a + o.sure_s, 0)); } delete rec.program; }
 R.fusion = fs.existsSync(FUSION_JSON) ? JSON.parse(fs.readFileSync(FUSION_JSON, 'utf8')) : null;
 if (R.fusion) delete R.fusion.nc;
 fs.writeFileSync(path.join(OUT, 'p3-mihenk-sonuc.json'), JSON.stringify(R, null, 1));

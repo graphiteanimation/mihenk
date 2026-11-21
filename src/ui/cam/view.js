@@ -28,6 +28,18 @@ export class CamView {
     const E = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]]; const pts = []; for (const [a, b] of E) pts.push(c[a], c[b]);
     const box = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: css('--vp-sk-construct'), dashSize: 3, gapSize: 2 }));
     box.computeLineDistances(); this.setupG.add(box);
+    // WP-13: bağlama gövdeleri (setup çerçevesinde çözülmüş katılar: kutu, silindir, ağ)
+    if (S.fixtures?.length) {
+      const g = this.holder(S); const mat = new THREE.MeshStandardMaterial({ color: css('--text-muted'), transparent: true, opacity: 0.35, depthWrite: false });
+      for (const f of S.fixtures) {
+        let m = null;
+        if (f.kind === 'box') { m = new THREE.Mesh(new THREE.BoxGeometry(2 * f.h[0], 2 * f.h[1], 2 * f.h[2]), mat); const b = new THREE.Matrix4().makeBasis(new THREE.Vector3(...f.u[0]), new THREE.Vector3(...f.u[1]), new THREE.Vector3(...f.u[2])); b.setPosition(new THREE.Vector3(...f.c)); m.matrixAutoUpdate = false; m.matrix.copy(b); }
+        else if (f.kind === 'cyl') { const a = new THREE.Vector3(...f.a), b = new THREE.Vector3(...f.b); const L = a.distanceTo(b); m = new THREE.Mesh(new THREE.CylinderGeometry(f.r, f.r, L, 40), mat); m.position.copy(a.clone().add(b).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); }
+        else if (f.kind === 'mesh') { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(f.v), 3)); geo.setIndex(new THREE.BufferAttribute(new Uint32Array(f.t), 1)); geo.computeVertexNormals(); m = new THREE.Mesh(geo, mat); }
+        if (m) { m.userData.fixture = f.name; m.renderOrder = 2; g.add(m); }
+      }
+      this.setupG.add(g);
+    }
     // WCS eksenleri (çerçeve orijininde)
     const len = Math.max(10, Math.min(max[0] - min[0], max[1] - min[1], max[2] - min[2]) * 0.4);
     for (const [dir, col] of [[[1, 0, 0], '--vp-axis-x'], [[0, 1, 0], '--vp-axis-y'], [[0, 0, 1], '--vp-axis-z']]) {
@@ -109,7 +121,10 @@ export class CamView {
     else if (['drill', 'spot', 'chamfer'].includes(T.type) && T.tipAngle) { const tr = Math.min(R * 0.999, (T.tipDia || 0) / 2); const tl = (R - tr) / Math.tan((T.tipAngle * Math.PI) / 360); const c = new THREE.Mesh(tr > 0 ? new THREE.CylinderGeometry(tr, R, tl, 28) : new THREE.ConeGeometry(R, tl, 28), mat); c.rotation.x = -Math.PI / 2; c.position.z = tl / 2; g.add(c); z0 = tl; }
     g.add(cyl(R, fl - z0, z0, mat));
     const sd = T.shaftDia || T.dia; if (bl > fl) g.add(cyl(sd / 2, bl - fl, fl, mat));
-    if (withHolder && T.holder) g.add(cyl(T.holder.dia / 2, T.holder.len, bl, matH));
+    if (withHolder && T.holder) { // WP-13: tutucu profili (kademeli silindir/koni) ya da tek silindir
+      const segs = Array.isArray(T.holder.segments) && T.holder.segments.length ? T.holder.segments : [{ len: T.holder.len, d0: T.holder.dia }]; let u = bl;
+      for (const q of segs) { const c = new THREE.Mesh(new THREE.CylinderGeometry((q.d1 ?? q.d0) / 2, q.d0 / 2, Math.max(q.len, 0.01), 28), matH); c.rotation.x = Math.PI / 2; c.position.z = u + q.len / 2; g.add(c); u += q.len; }
+    }
     this.toolObj = g; this.toolG.add(root); this.vp.dirty = true;
   }
   moveTool(p) { if (this.toolObj && p) { this.toolObj.position.set(p.x, p.y, p.z); this.vp.dirty = true; } }

@@ -14,13 +14,17 @@ import { toolGeom } from './tool.js';
 import { stockFromPrevious, chainSources, prepareSources, columnEmpty } from './chain.js';
 import { freePieces } from './free.js';
 import { lowerForChamfer } from './chamfer.js';
+import { fixtureGrid, fixtureHit } from './fixtures.js';
+import { triFromBox, triFromHeightmap, triFromSources, triHeightmap, triCut, triHit, subRay, rayTop } from './tridexel.js';
 export { stockFromPrevious, chainSources, boxesOverlap } from './chain.js';
 export { createHeightmap, cloneHeightmap, heightmapFromFn, stockHeightmap, sampleHeightmap, volumeBetween, heightmapStats } from './heightmap.js';
-export { toolGeom } from './tool.js';
+export { toolGeom, holderSegments } from './tool.js';
+export { fixtureGrid, fixtureHit, normalizeFixtures, resolveFixtures, normalizeSolids } from './fixtures.js';
+export { triFromBox, triFromHeightmap, triHeightmap, triVolume, triContains, subRay } from './tridexel.js';
 
 const err = (code, params = {}) => new KErr(code, params);
 // below_stock: islemin bildirdigi bilincli pay (toolpath.meta.belowStock, mm; boydan boya delik/kontur) icindeyse 'warn', disindaysa 'error' (V-12)
-const LEVEL = { holder_contact: 'error', comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
+const LEVEL = { fixture_collision: 'error', fixture_shaft: 'error', fixture_holder: 'error', holder_contact: 'error', comp_arc_collapse: 'error', rapid_in_stock: 'error', gouge: 'error', flute_exceeded: 'error', shaft_collision: 'error', holder_collision: 'error', below_stock: 'error' };
 const CODE = (k) => 'cam.sim.' + k;
 
 export function createSim(input, opts = {}) {
@@ -37,6 +41,9 @@ export function createSim(input, opts = {}) {
   // O-035: bosluk <= clrContact = tutucu stoga DEGIYOR -> engel. Varsayilan = dusey oyma toleransi (gougeTol, 0,01 mm): yukseklik
   // haritasi dusey degerleri bu mertebede kayan nokta/ag hatasi tasir; 0,01 mm takim boyu olcme hassasiyetinin de altindadir.
   const clrContact = opts.holderContactTol ?? (opts.gougeTol ?? 0.01);
+  // WP-13: opts.dexel 'tri' = uc yonlu dexel stok (X/Y/Z isin aglari; alt kesme ve yan yuz). Varsayilan 'height' (tek degerli harita).
+  const TRI = opts.dexel === 'tri', latTol = opts.lateralTol ?? 0.01;
+  const fixTol = opts.fixtureTol ?? 0.01; // WP-13: baglama govdesine bu kadardan az (dusey/yanal) giris temas sayilmaz (kayan nokta)
   let setups, cur, idx, issues, suppressed, removedTotal, frames, samples, counts, secStats;
   const reset = () => { setups = new Map(); cur = null; idx = 0; issues = []; suppressed = 0; removedTotal = 0; frames = []; samples = 0; counts = {}; secStats = []; };
   reset();
@@ -49,14 +56,21 @@ export function createSim(input, opts = {}) {
     const init = opts.initialHeightmaps?.[id] ?? (opts.stockHeightmap?.data ? opts.stockHeightmap : null);
     const frame = sset?.frame ?? null; const stockFrom = sset?.stockFrom ?? 'previous', bodies = sset?.bodies ?? null;
     const src = opts.chain !== false && !init ? chainSources([...setups.values()], { frame, box, stockFrom, bodies }) : [];
-    if (init) hm = cloneHeightmap(init);
+    let tri = null;
+    if (init) { hm = cloneHeightmap(init); if (TRI) tri = triFromHeightmap(hm, box.min[2], box.max[2]); }
     else if (src.length) { // T-04: onceki setup'larin son stogu (yalniz malzeme cikarir; B1)
       const sl = src.map((p) => ({ frame: p.frame, hm: p.hm, box: p.box }));
-      hm = stockFromPrevious(sl, { frame, box }, res); chained = prepareSources(sl);
-    } else hm = stockHeightmap(box, res, sset?.stockCyl ?? null);
+      if (TRI && src.every((p) => p.tri)) { // WP-13: uc dexel kaynaklardan (alt kesme/ters yuz korunur)
+        const hm0 = stockHeightmap(box, res); tri = triFromSources(src.map((p) => ({ frame: p.frame, tri: p.tri, box: p.box })), { frame, box, cyl: sset?.stockCyl ?? null }, hm0); hm = triHeightmap(tri, hm0);
+      } else hm = stockFromPrevious(sl, { frame, box }, res);
+      chained = prepareSources(sl);
+    } else { hm = stockHeightmap(box, res, sset?.stockCyl ?? null); if (TRI) tri = triFromBox(box, hm, sset?.stockCyl ?? null); }
     let hmax = -Infinity; for (let k = 0; k < hm.data.length; k++) if (hm.data[k] > hmax) hmax = hm.data[k];
     const mh = opts.modelHeightmaps?.[id] ?? (opts.modelHeightmap?.data ? opts.modelHeightmap : null);
-    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies };
+    // WP-13: baglama govdeleri (setup.fixtures ya da opts.fixtures[setupId]; opts.fixtures === false kapatir)
+    const fxl = opts.fixtures === false ? null : (sset?.fixtures?.length ? sset.fixtures : opts.fixtures?.[id] ?? null);
+    const fix = fxl?.length ? fixtureGrid(fxl, res) : null;
+    const s = { id, hm, hmax, zFloor: box.min[2], mh, removed: 0, frame, box, chained, stockFrom, bodies, fix, tri };
     setups.set(id, s); return s;
   }
 
@@ -133,11 +147,16 @@ export function createSim(input, opts = {}) {
   // WP-07 dis frezeleme: hucre (x,y) bildirilen halkada (r0 <= uzaklik <= r1) ve takim ucu dis z araliginda ise true
   function inZone(zs, x, y, z) { for (const q of zs) { if (z < q.z0 || z > q.z1) continue; const d = Math.hypot(x - q.c[0], y - q.c[1]); if (d >= q.r0 && d <= q.r1) return true; } return false; }
   // mode 0: hizli (yalniz denetle), 1: kesme (stoku kaldir)
-  function touch(px, py, pz, mode) {
+  function touch(px, py, pz, mode, prev = null) {
     samples++;
     const g = cur.geom, S = cur.setup, hm = S.hm, d = hm.data, nx = hm.nx, ny = hm.ny, R = g.R, shaftR = g.shaftR, holderR = g.holderR;
     if (pz < S.zFloor - belowTol) note('below_stock', S.zFloor - pz, px, py, pz);
     if (pz < cur.preMax) { const mi = Math.floor((px - hm.x0) / hm.res), mj = Math.floor((py - hm.y0) / hm.res); if (mi >= 0 && mj >= 0 && mi < nx && mj < ny && !cur.mask[mj * nx + mi]) { cur.mask[mj * nx + mi] = 1; cur.marked++; } }
+    if (S.fix) { // WP-13: takim/sap/tutucu ile baglama govdesi (hizli ve kesme hareketlerinde)
+      const fh = fixtureHit(S.fix, g, px, py, pz, fixTol);
+      // kod parcaya gore: kesici fixture_collision, sap fixture_shaft, tutucu fixture_holder (hepsi engel)
+      if (fh) { const key = fh.part === 'tool' ? 'fixture_collision' : 'fixture_' + fh.part; const a = cur.acc[key] || (cur.acc[key] = { n: 0, depth: -Infinity, x: 0, y: 0, z: 0 }); a.n++; if (mode === 0) a.rapid = true; if (fh.depth > a.depth) { a.depth = fh.depth; a.x = px; a.y = py; a.z = pz; a.part = fh.part; a.fixture = fh.fixture; } }
+    }
     if (pz + tol >= S.hmax) return;
     const Rmax = Math.max(R, shaftR, holderR), Rmax2 = Rmax * Rmax, rs = hm.res;
     const i0 = Math.max(0, Math.floor((px - Rmax - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((px + Rmax - hm.x0) / rs));
@@ -152,9 +171,12 @@ export function createSim(input, opts = {}) {
         const cx = hm.x0 + (i + 0.5) * rs, dx = cx - px, r2 = dx * dx + dy * dy;
         if (r2 > Rmax2) continue;
         const r = Math.sqrt(r2);
-        if (r <= holderR) {
-          if (h > zBody) { note('holder_collision', h - zBody + tol, px, py, pz); cur.hadHolderHit = true; continue; }
-          const cl = pz + g.bodyLen - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
+        if (r <= holderR) { // WP-13: tutucu profili (kademeli silindir/koni): bu yaricapta tutucunun basladigi yukseklik zBody + holderU(r)
+          const u = g.holderU(r);
+          if (u < Infinity) {
+            if (h > zBody + u) { note('holder_collision', h - zBody - u + tol, px, py, pz); cur.hadHolderHit = true; continue; }
+            const cl = pz + g.bodyLen + u - h; if (cl < cur.clr) { cur.clr = cl; cur.clrAt = { x: px, y: py, z: pz, k: cur.move }; }
+          }
         }
         if (cur.zones && r <= R && inZone(cur.zones, cx, cy, pz)) { // WP-07: dis halkasi, yalniz KESICI (flut) boyu icinde kasitli kesimdir; flut boyunu asan malzeme sap yaricapinda engel (flute_exceeded)
           if (h > zFlute && r <= shaftR) note('flute_exceeded', h - zFlute + tol, px, py, pz);
@@ -169,11 +191,17 @@ export function createSim(input, opts = {}) {
         if (h > zb) {
           if (mh) { const m = mhAt(mh, cx, cy); if (m === m && zb < m - gtol) noteGouge(g, r, m, zb, pz, px, py, cx, cy); }
           const nz = zb < S.zFloor ? S.zFloor : zb;
-          if (nz < h) { const dv = (h - nz) * rs * rs; S.removed += dv; removedTotal += dv; d[idx2] = nz; }
+          if (S.tri) { const zr = S.tri.zr[idx2]; const rem = subRay(zr, nz, Infinity); if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; } d[idx2] = rayTop(zr, S.zFloor); }
+          else if (nz < h) { const dv = (h - nz) * rs * rs; S.removed += dv; removedTotal += dv; d[idx2] = nz; }
         }
       }
     }
     if (gc) finishGouge();
+    if (S.tri) { // WP-13: X/Y isinlari (ardisik ornek cifti kapsulu): kesmede cikar, hizlida yanal giris
+      const p1 = { x: px, y: py, z: pz };
+      if (mode === 1) triCut(S.tri, g.rho, prev, p1, S.hmax);
+      else { const o = triHit(S.tri, g.rhoEnv, prev, p1, S.hmax); if (o > latTol) note('rapid_in_stock', o, px, py, pz); }
+    }
   }
   // T-17: oyma miktari = model malzemesinin takim zarfina YUZEYE DIK girme derinligi (yan yuzeye R-r, uca normal uzaklik);
   // dusey fark (m - zb) ayrica 'vertical' olarak tutulur. Engel olcutu degismez (dusey fark > tolerans = oyma).
@@ -221,7 +249,8 @@ export function createSim(input, opts = {}) {
     if (!a) { touch(b.x, b.y, b.z, mode); return; }
     const len = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
     const n = Math.max(1, Math.ceil(len / step));
-    for (let k = 1; k <= n; k++) { const t = k / n; touch(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, mode); }
+    let pv = a;
+    for (let k = 1; k <= n; k++) { const t = k / n; const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t }; touch(q.x, q.y, q.z, mode, pv); pv = q; }
   }
   function rapidTo(to) {
     const parts = rapidSplit ? splitRapid(cur.pos, to) : [to];
@@ -282,16 +311,55 @@ export function createSim(input, opts = {}) {
       m.points.forEach((p, n) => {
         const last = n === m.points.length - 1;
         if (cur.pos.x !== p[0] || cur.pos.y !== p[1]) rapidTo({ x: p[0], y: p[1], z: cur.pos.z });
-        if (cur.pos.z !== m.retract) rapidTo({ x: p[0], y: p[1], z: m.retract });
-        const b = { x: p[0], y: p[1], z: m.bottom }; sweep(cur.pos, b, 1); cur.pos = b;
-        // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
-        if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
-        rapidTo({ x: p[0], y: p[1], z: last || m.retract === m.clearance || m.returnTo === 'clearance' ? m.clearance : m.retract }); // WP-06: returnTo 'clearance' = her nokta G98
+        const ret = { x: p[0], y: p[1], z: last || m.retract === m.clearance || m.returnTo === 'clearance' ? m.clearance : m.retract }; // WP-06: returnTo 'clearance' = her nokta G98
+        if (m.cycle === 'backBore') { // WP-13 (WP-14 G87): yonlendirilmis + kaydirilmis takimla deligin icinden hizli inis, alttan cutTo'ya kesme, kaydirilmis cikis
+          cur.allowNow = Math.max(cur.allowNow, cur.setup.zFloor - m.bottom); // alttan baslama: stok tabani alti kasitli (bu hareket icin uyari)
+          oriented(m.shift, () => rapidTo({ x: p[0], y: p[1], z: m.bottom }));
+          backCut(p[0], p[1], m.bottom, m.cutTo); cur.pos = { x: p[0], y: p[1], z: m.cutTo };
+          oriented(m.shift, () => rapidTo(ret));
+        } else {
+          if (cur.pos.z !== m.retract) rapidTo({ x: p[0], y: p[1], z: m.retract });
+          const b = { x: p[0], y: p[1], z: m.bottom }; sweep(cur.pos, b, 1); cur.pos = b;
+          // kilavuz dipten ILERLEMEYLE (ters donusle) cikar: hizli degil kesme gibi denetlenir (dis bolgesi hizli sayilmaz)
+          if (m.cycle === 'tap') { const up = { x: p[0], y: p[1], z: m.retract }; sweep(cur.pos, up, 1); cur.pos = up; }
+          if (m.cycle === 'fineBore') oriented(m.shift, () => rapidTo(ret)); // G76: dipte yonlendirme + kaydirma, hizli cikis
+          else rapidTo(ret);
+        }
         // T-23: cok noktali cevrimde sorunlar NOKTA basina yazilir (hangi delik; tek noktali cevrimlerle ayni sayim)
         if (m.points.length > 1) { cur.cycFresh.push(...flush(cur.si, cur.move, n)); cur.acc = {}; }
       });
       const lp = m.points[m.points.length - 1]; cur.prog = { x: lp[0], y: lp[1], z: m.clearance };
     }
+  }
+
+  // WP-13: G76/G87 yonlendirilmis (M19) ve shift kadar kaydirilmis takim. Takim modeli eksenel simetrik oldugundan kaydirilmis tek
+  // kesicili bar, DELIK EKSENI etrafinda R - shift yaricapli zarfla temsil edilir (kesici ucu duvardan shift kadar uzak; bar govdesinin
+  // bu zarfin icinde kaldigi VARSAYILIR). Kayma yonu (shiftDir) bu yuzden sonucu degistirmez. Tutucu degismez.
+  function oriented(shift, fn) {
+    const g = cur.geom, Rs = Math.max(1e-3, g.R - (shift > 0 ? shift : 0));
+    const prof = g.profile;
+    cur.geom = { ...g, R: Rs, cutR: Math.min(g.cutR, Rs), shaftR: Math.min(g.shaftR, Rs), profile: (r) => prof(r), rho: (u) => Math.min(g.rho(u), Rs), rhoEnv: (u) => Math.min(g.rhoEnv(u), Rs) };
+    try { fn(); } finally { cur.geom = g; }
+  }
+  // WP-13: alttan yukari kesme (G87): (x, y) ekseninde kesme yaricapli silindir [z0, z1] kaldirilir. Uc dexel: tam; yukseklik haritasi
+  // alttan kesimi temsil edemez: yalniz sutun ustu z1'in altindaysa (ustu acik) kaldirir, degilse malzeme KALIR (muhafazakar).
+  // Model oyma denetimi yapilmaz (model haritasi alttan acilan havsayi gostermez); fikstur denetimi orneklerde yapilir.
+  function backCut(x, y, z0, z1) {
+    const S = cur.setup, hm = S.hm, d = hm.data, g = cur.geom, R = g.cutR, rs = hm.res, nx = hm.nx;
+    if (S.fix) for (let z = z0, n = Math.max(1, Math.ceil((z1 - z0) / step)), k = 0; k <= n; k++, z = z0 + (z1 - z0) * k / n) {
+      samples++; const fh = fixtureHit(S.fix, g, x, y, z, fixTol);
+      if (fh) { const key = fh.part === 'tool' ? 'fixture_collision' : 'fixture_' + fh.part; const a = cur.acc[key] || (cur.acc[key] = { n: 0, depth: -Infinity, x: 0, y: 0, z: 0 }); a.n++; if (fh.depth > a.depth) { a.depth = fh.depth; a.x = x; a.y = y; a.z = z; a.part = fh.part; a.fixture = fh.fixture; } }
+    }
+    const i0 = Math.max(0, Math.floor((x - R - hm.x0) / rs)), i1 = Math.min(nx - 1, Math.floor((x + R - hm.x0) / rs));
+    const j0 = Math.max(0, Math.floor((y - R - hm.y0) / rs)), j1 = Math.min(hm.ny - 1, Math.floor((y + R - hm.y0) / rs));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const cx = hm.x0 + (i + 0.5) * rs, cy = hm.y0 + (j + 0.5) * rs; if (Math.hypot(cx - x, cy - y) > R) continue;
+      const k = j * nx + i; let rem = 0;
+      if (S.tri) { rem = subRay(S.tri.zr[k], z0, z1); d[k] = rayTop(S.tri.zr[k], S.zFloor); }
+      else { const h = d[k], lo = Math.max(z0, S.zFloor); if (h > lo && h <= z1 + tol) { rem = h - lo; d[k] = lo; } }
+      if (rem > 0) { const dv = rem * rs * rs; S.removed += dv; removedTotal += dv; }
+    }
+    if (S.tri) triCut(S.tri, g.rho, null, { x, y, z: z0 }, z1);
   }
 
   function flush(si, k, point = null) {
@@ -305,6 +373,7 @@ export function createSim(input, opts = {}) {
       if (key === 'below_stock') { if (a.depth <= cur.allowNow + belowTol) lvl = 'warn'; else if (cur.allowNow > 0) code2 = CODE('below_stock_excess'); }
       const it = { level: lvl, code: code2, params: { x: a.x, y: a.y, z: a.z, depth: a.depth, cells: a.n, op: sections[si].toolpath.opId }, moveIndex: k, section: si };
       if (a.vertical != null) it.params.vertical = a.vertical;
+      if (key.startsWith('fixture_')) { it.params.part = a.part; it.params.fixture = a.fixture; it.params.rapid = !!a.rapid; it.params.depth = Math.round(a.depth * 1000) / 1000; }
       if (point != null) it.params.point = point;
       if (key === 'below_stock') it.params.allow = Math.round(cur.allowNow * 1000) / 1000;
       issues.push(it); fresh.push(it);
@@ -348,7 +417,7 @@ export function createSim(input, opts = {}) {
     },
     result() {
       const remainBySetup = {}; for (const [id, s] of setups) remainBySetup[id] = s.hm;
-      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => !!x.chained).map((x) => x.id) };
+      const out = { issues: issues.slice(), removedVolume: removedTotal, remainHeightmap: cur ? cur.setup.hm : null, remainBySetup, ...(TRI ? { triBySetup: Object.fromEntries([...setups].map(([id, x]) => [id, x.tri])) } : {}), suppressed, moves: steps.length, samples, sections: secStats.slice(), chainedSetups: [...setups.values()].filter((x) => !!x.chained).map((x) => x.id) };
       if (opts.frames > 0) out.frames = frames;
       return out;
     },

@@ -87,7 +87,7 @@ const camTool = obj({
   id: idStr, number: posInt(), lengthOffset: posInt(), diaOffset: nullable(posInt()),
   type: oneOf(['flat', 'ball', 'bullnose', 'drill', 'spot', 'tap', 'chamfer', 'face', 'reamer', 'bore', 'threadmill']),
   dia: camNum(0, 2000), cornerR: camNum(0, 1000), tipAngle: camNum(0, 180), fluteLen: camNum(0), bodyLen: camNum(0), shaftDia: camNum(0, 2000), tipDia: camNum(0, 2000),
-  flutes: posInt(100), centerCutting: bool(), pitch: camNum(0, 100), holder: nullable(obj({ dia: camNum(0), len: camNum(0) })),
+  flutes: posInt(100), centerCutting: bool(), pitch: camNum(0, 100), holder: nullable(obj({ dia: camNum(0), len: camNum(0), segments: arrOf(obj({ len: camNum(0), d0: camNum(0, 2000), d1: camNum(0, 2000) }), 20) })), // WP-13: tutucu profili
   material: str(LIMITS.shortStr), note: str(), name: str(LIMITS.shortStr),
   presets: arrOf(obj({ name: str(LIMITS.shortStr), rpm: camNum(0), feedCut: camNum(0), feedPlunge: camNum(0), feedRamp: camNum(0), stepdown: camNum(0), stepover: camNum(0), coolant: oneOf(COOL) }), CAM_LIMITS.presets),
 });
@@ -121,6 +121,8 @@ const camSetup = obj({
   workOffset: obj({ kind: oneOf(['G54', 'G55', 'G56', 'G57', 'G58', 'G59', 'G54.1']), p: posInt(9999) }),
   stock: obj({ kind: oneOf(['boxOffset', 'box', 'cyl']), side: camNum(0), top: camNum(0), bottom: camNum(0), min: arrOf(camNum(), 3), max: arrOf(camNum(), 3), dia: camNum(0), len: camNum(0), axis: oneOf(['X']) }),
   clearanceZ: camNum(0), stockFrom: oneOf(['previous', 'blank']), freePieceBlock: bool(), ops: arrOf(camOp, CAM_LIMITS.ops),
+  // WP-13: baglama govdeleri (kutu, silindir, islenmeyen belge govdesi); anlamsal denetim src/cam/sim/fixtures.js
+  fixtures: arrOf(obj({ id: idStr, name: str(LIMITS.shortStr), kind: oneOf(['box', 'cyl', 'body']), min: arrOf(camNum(), 3), max: arrOf(camNum(), 3), axis: oneOf(['X', 'Y', 'Z']), center: arrOf(camNum(), 3), dia: camNum(0), len: camNum(0), body: idStr }), 50),
 });
 const CP = 'cam'; // belge yolu oneki (sozluk anahtari degil)
 export function validateCam(cam) {

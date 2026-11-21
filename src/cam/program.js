@@ -11,7 +11,7 @@ export function buildProgram({ name, number = null, machine, sections }) {
   const out = [];
   for (const sec of sections || []) for (const tp of sec.toolpaths || []) {
     const S = sec.setup;
-    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, stockCyl: S.stockCyl ?? null, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous' }, toolpath: tp });
+    out.push({ setup: { id: S.id, name: S.name, workOffset: { ...S.workOffset }, aAngle: S.aAngle ?? null, stockBox: S.stockBox, stockCyl: S.stockCyl ?? null, machinePos: S.machinePos ?? null, frame: S.frame ?? null, bodies: S.bodies ?? null, stockFrom: S.stockFrom ?? 'previous', ...(S.fixtures?.length ? { fixtures: S.fixtures } : {}) }, toolpath: tp }); // WP-13: baglama govdeleri (setup cercevesinde)
   }
   if (!out.length) throw cerr('cam.program.empty');
   const p = { name, number, machine: machine ? { id: machine.id, name: machine.name, rev: machine.rev ?? null, control: machine.control } : null, units: 'mm', sections: out };
