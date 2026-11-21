@@ -50,6 +50,18 @@ Mihenk: devam
 Mihenk: devam
 ```
 
-## İE-003 — CAD test parçalarının otomatik regresyonu · **Taslak** (G-8)
+## İE-006 — Kabuk sonrası kenarların kalıcı adı (C-50) + fillet/pah kenar seçiminin sessizce kapanması (C-47) · **Hazır** (O-056; ekransız)
+- Ön koşul: İE-005 Bitti (aynı `src/kernel/naming.js` alanı; çakışmasın). Ekran kullanmaz.
+- C-50 (`pm/test/sonuc/T09.md`): Kabuk (Shell) sonrası üst kenar halkasının kenarları, düz kenar dahil, `ref.ambiguous_here` ile reddediliyor; pah/fillet yapılamıyor. Önce çekirdek yeniden üretme testi (`test/cad-bench/ref/t09-kutu.py` modeli), sonra İE-005'in C-31 çözümü bu durumu da kapatıyor mu bakılır; kapatmıyorsa kabuğun iç/dış yüz adları ayrıştırılır. Eski belgeler açılmaya devam eder.
+- C-47 (`pm/test/sonuc/T07.md`, C-35 ile aynı kök): Fillet/Pah panelinde değer alanına yazınca kenar seçimi etkinliğini yitiriyor, tıklamalar sessizce yok sayılıyor. Araç açıkken görünümdeki kenar tıklaması her zaman seçime gider; arayüz testi eklenir.
+- Kabul: yeniden üretme testleri önce kalır sonra geçer; T09 referans modeli çekirdek testinde 0,5 pah ile referans hacme ±%0,1; `test:all` ve GitHub `ci` yeşil.
+- Açılış metni:
+```
+Mihenk: devam
+```
+
+## İE-003 — CAD test parçalarının otomatik regresyonu · **Hazır** (O-056; ekransız, paralel açılabilir)
+- Ön koşul: yok. Alan yalnız `test/` (kaynak koda dokunmaz). Girdi: bilgisayarda `Documents\Mihenk\Mihenk\cad-test\Tnn\*.mhnk` (T01–T10; klasör erişimi istenir) → depoda `test/cad-bench/mhnk/`.
 - Biten her `cad-test/Tnn.mhnk` depoya `test/cad-bench/mhnk/` altına alınır; yeni test adımı her belgeyi çekirdekte yeniden hesaplar, hacim ve kutuyu `ref/` ile karşılaştırır (±%0,1).
-- Kabul: T01 ve o ana dek biten parçalar testte; `npm run test:all` zincirine eklendi; CI yeşil.
+- KISMEN parçalar (T03, T04, T05, T09) bugünkü hacimleriyle "bilinen eksik" olarak kaydedilir; İE-005/006 düzeltmelerinden sonra hedef referans hacme çekilir.
+- Kabul: T01–T10 testte; `npm run test:all` zincirine eklendi; CI yeşil.
