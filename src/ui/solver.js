@@ -8,6 +8,24 @@ let modPromise = null;
 export function initSolver(locate) { if (!modPromise) modPromise = init_planegcs_module(locate ? { locateFile: locate } : undefined); return modPromise; }
 
 const TAU = Math.PI * 2;
+// Ortak uç noktada teğetlik (C-23, C-24). Uzaklık biçimli teğetlik (tangent_la: merkezin doğruya uzaklığı = r) eğrinin ucu
+// zaten çember üstündeyken çözümde türevi sıfır olan bir denklemdir: Jacobian rütbe kaybeder, PlaneGCS kısıtı "gereksiz" sayar
+// ve serbestliği düşürmez (kanal aracı 5 serbestlikte kalıyordu). FreeCAD bu durumda uçlar ortaksa "noktadan açı" kullanır:
+// iki eğrinin o noktadaki normalleri arasındaki açı 0 ya da π. Normaller PlaneGCS (FreeCAD GCS) tanımıyla: doğru (b−a) 90° ccw,
+// çember/yay merkez − nokta. Açı (0 ya da π) mevcut geometriden seçilir; böylece çözüm yerinden sıçramaz.
+function endTangent(sk, A, B) {
+  if (!A || !B) return null;
+  const ends = (e) => (e.type === 'line' || e.type === 'arc' ? [e.a, e.b] : []);
+  if (!((A.type === 'line' && B.type === 'arc') || (A.type === 'arc' && B.type === 'line') || (A.type === 'arc' && B.type === 'arc'))) return null;
+  const p = ends(A).find((id) => id && ends(B).includes(id)); if (!p || !sk.points[p]) return null;
+  const P = sk.points[p];
+  const nrm = (e) => {
+    if (e.type === 'line') { const a = sk.points[e.a], b = sk.points[e.b]; return [-(b.y - a.y), b.x - a.x]; }
+    const c = sk.points[e.c]; return [c.x - P.x, c.y - P.y];
+  };
+  const n1 = nrm(A), n2 = nrm(B); const dot = n1[0] * n2[0] + n1[1] * n2[1];
+  return { p, angle: dot >= 0 ? 0 : Math.PI };
+}
 // sk: {points:{id:{x,y,fixed}}, ents:[], cons:[]}
 // Döner: {ok, dof, conflicting:[ids], redundant:[ids], errors:[{id?, code, params}]}
 // Sketch modelini PlaneGCS ilkellerine çevirir. Döner {prims, entById, errs}
@@ -66,6 +84,8 @@ function buildPrims(sk, vars) {
           else if (T(c.a) === 'ellipse' && T(c.b) === 'ellipse') prims.push({ ...base, type: 'difference', param1: { o_id: c.a, prop: 'radmin' }, param2: { o_id: c.b, prop: 'radmin' }, difference: 0 });
           break;
         case 'tangent': {
+          const ev = endTangent(sk, entById[c.a], entById[c.b]); // C-23/C-24: ortak uçta teğetlik (FreeCAD gibi "noktadan açı")
+          if (ev) { prims.push({ ...base, type: 'angle_via_point', crv1_id: c.a, crv2_id: c.b, p_id: ev.p, angle: ev.angle }); break; }
           let l = c.a, o = c.b; if (T(l) !== 'line') { l = c.b; o = c.a; }
           if (T(l) === 'line' && T(o) === 'circle') prims.push({ ...base, type: 'tangent_lc', l_id: l, c_id: o });
           else if (T(l) === 'line' && T(o) === 'arc') prims.push({ ...base, type: 'tangent_la', l_id: l, a_id: o });
