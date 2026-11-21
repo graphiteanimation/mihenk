@@ -9,6 +9,7 @@ import { EDIT_METHODS, EDIT_TOOLS } from './sketch/edit.js';
 import { boxSelect } from './sketch/ops.js';
 import { COMFORT_METHODS } from './sketch/comfort.js';
 import { TEXT_METHODS, pruneTexts } from './sketch/text.js';
+import { UNDERLAY_METHODS, UL_TOOLS, UL_HINT } from './sketch/underlay.js'; // WP-22a: eskiz altlığı
 import { selOn, selClass, autoOn, SKO } from './sketch/opts.js';
 import { alignTraceCons, hvSame, autoHvRedundantAfterFix, autoYield } from './sketch/autoalign.js';
 import { dropEditedLinks, syncRefs } from './sketch/ops.js';
@@ -21,7 +22,7 @@ import * as V from '../shared/vec.js';
 
 const SNAP_PX = 8, ANG_TOL = 3, TAU = Math.PI * 2, DEG = Math.PI / 180;
 const DIM_TOOLS = ['dim', 'hdim', 'vdim', 'rdim', 'ddim'];
-const TOOLS = ['select', 'line', 'rect', 'circle', 'arc', 'point', ...DIM_TOOLS, ...DRAW_TOOLS, ...EDIT_TOOLS];
+const TOOLS = ['select', 'line', 'rect', 'circle', 'arc', 'point', ...DIM_TOOLS, ...DRAW_TOOLS, ...EDIT_TOOLS, ...UL_TOOLS];
 const DIM_TYPES = DIMS;
 // Kısıt adları sözlük anahtarıdır (con.<tip>); metin t() ile üretilir.
 const NAME_KEY = {
@@ -37,7 +38,7 @@ const HINT_KEY = {
   dim: tk('hint.dim'), hdim: tk('hint.hdim'), vdim: tk('hint.vdim'), rdim: tk('hint.rdim'), ddim: tk('hint.ddim'), spline: tk('hint.spline'),
   rectc: tk('hint.rectc'), rect3: tk('hint.rect3'), circle2: tk('hint.circle2'), circle3: tk('hint.circle3'), arc3: tk('hint.arc3'), arct: tk('hint.arct'), polygon: tk('hint.polygon'), slot: tk('hint.slot'), ellipse: tk('hint.ellipse'),
   trim: tk('hint.trim'), extend: tk('hint.extend'), break: tk('hint.break'), offset: tk('hint.offset'), fillet: tk('hint.fillet'), chamfer: tk('hint.chamfer'), mirror: tk('hint.mirror'),
-  patrect: tk('hint.patrect'), patcirc: tk('hint.patcirc'), move: tk('hint.move'), copy: tk('hint.copy'), rotate: tk('hint.rotate'), scale: tk('hint.scale'), project: tk('hint.project'),
+  ...UL_HINT, patrect: tk('hint.patrect'), patcirc: tk('hint.patcirc'), move: tk('hint.move'), copy: tk('hint.copy'), rotate: tk('hint.rotate'), scale: tk('hint.scale'), project: tk('hint.project'),
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const getEntS = (sk, id) => sk.ents.find((e) => e.id === id);
@@ -104,7 +105,7 @@ export class Sketcher {
     this.sk = sk; this._undo = []; this._redo = []; this.selection = []; this.hover = null; this.cursor = null; this.consMode = false; this.free = null; this._focusCons = new Set();
     this.root = new THREE.Group(); this.root.matrixAutoUpdate = false; this.root.matrix.copy(planeMatrix(plane));
     this.gMain = new THREE.Group(); this.gPrev = new THREE.Group(); this.root.add(this.gMain, this.gPrev);
-    this.vp.editGroup.add(this.root);
+    this.vp.editGroup.add(this.root); this._ulInit();
     this.ovl = document.createElement('div'); this.ovl.className = 'sk-ovl'; this.ovl.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
     this.overlayEl.appendChild(this.ovl); this._cfInit();
     this._prevPtr = this.vp.onPointer; this._prevCam = this.vp.onCamera; this.vp.leftLock++; // eskizde sol tuş çizime ayrılır (sol tuşla döndürme kapalı)
@@ -128,6 +129,7 @@ export class Sketcher {
     pruneTexts(this.sk);
     const out = { ...this.feature, points: clone(this.sk.points), ents: clone(this.sk.ents), cons: clone(this.sk.cons), seq: seqOf(this.sk) };
     if (this.sk.texts) out.texts = clone(this.sk.texts); else delete out.texts;
+    if (this.underlay) out.underlay = clone(this.underlay); else delete out.underlay; // WP-22a
     this._teardown(); return out;
   }
   cancel() { if (this.active) this._teardown(); }
@@ -135,6 +137,7 @@ export class Sketcher {
     this._closeInput(); this._closeDialog(); this._hideCtx(); clearTimeout(this._probeT); this._sid++;
     this.active = false;
     for (const g of [this.gMain, this.gPrev]) this._clearGroup(g);
+    this._ulDispose();
     this._cfDispose(); this.vp.editGroup.remove(this.root); this.ovl.remove();
     this.vp.onPointer = this._prevPtr || null; this.vp.onCamera = this._prevCam || null; this.vp.leftLock = Math.max(0, this.vp.leftLock - 1);
     this.vp.renderer.domElement.style.cursor = '';
@@ -155,7 +158,7 @@ export class Sketcher {
     this._renderGL(); this._buildOverlay(); this._renderPreview(); this.onChange();
     if (EDIT_TOOLS.includes(name)) this._editEnter(name, prevSel);
   }
-  _resetDraw() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._box = null; this._press = null; this._drag = null; this._dragTarget = null; this._rdown = null; this._trimming = false; this._trimHot = null; this._hideSnap(); if (this.gPrev) { this._clearGroup(this.gPrev); this._hideTip(); } }
+  _resetDraw() { this._ul = null; this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._box = null; this._press = null; this._drag = null; this._dragTarget = null; this._rdown = null; this._trimming = false; this._trimHot = null; this._hideSnap(); if (this.gPrev) { this._clearGroup(this.gPrev); this._hideTip(); } }
 
   // ---------- kimlik / durum ----------
   _id(prefix) { // kalıcı sayaç: silinen kimlik yeniden verilmez
@@ -256,11 +259,13 @@ export class Sketcher {
   }
   undo() {
     if (!this.active) return; if (!this._undo.length) return this._status('msg.nothing_undo');
-    this._redo.push({ s: this._snapStr() }); this._restore(this._undo.pop().s); this._resetDraw(); this._refresh(); this._resolveOnly();
+    const e = this._undo.pop(); if ('u' in e) { this._redo.push({ u: this.underlay }); this._ulRestore(e.u); this._resetDraw(); this._refresh(); return; } // WP-22a: altlık adımı
+    this._redo.push({ s: this._snapStr() }); this._restore(e.s); this._resetDraw(); this._refresh(); this._resolveOnly();
   }
   redo() {
     if (!this.active) return; if (!this._redo.length) return this._status('msg.nothing_redo');
-    this._undo.push({ s: this._snapStr() }); this._restore(this._redo.pop().s); this._resetDraw(); this._refresh(); this._resolveOnly();
+    const e = this._redo.pop(); if ('u' in e) { this._undo.push({ u: this.underlay }); this._ulRestore(e.u); this._resetDraw(); this._refresh(); return; }
+    this._undo.push({ s: this._snapStr() }); this._restore(e.s); this._resetDraw(); this._refresh(); this._resolveOnly();
   }
 
   // ---------- çizim yardımcıları ----------
@@ -335,20 +340,21 @@ export class Sketcher {
     if (type === 'down') { this._closeInput(); this._hideCtx(); this._down(loc, ev); } else if (type === 'up') this._up(loc, ev);
     return true;
   }
-  _hasStage() { return !!(this._ln || this._rc || this._ci || this._ar || this._ds || this._sp || this._off || this._mir || this._cornerFirst); }
+  _hasStage() { return !!(this._ln || this._rc || this._ci || this._ar || this._ds || this._sp || this._off || this._mir || this._cornerFirst || (this._ul && this._ul.pts.length)); }
   _rightClick(ev) {
     if (this.tool === 'line' && this._ln) return this._endChain();
     if (this.tool === 'spline' && this._sp) return this._finishSpline();
     if (this._hasStage()) return this._cancelStage();
     this._contextMenu(ev);
   }
-  _cancelStage() { this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._closeDialog(); this.setHint(HINT_KEY[this.tool]); this._renderPreview(); }
+  _cancelStage() { this._ul = null; this._ln = null; this._rc = null; this._ci = null; this._ar = null; this._ds = null; this._sp = null; this._off = null; this._mir = null; this._cornerFirst = null; this._closeDialog(); this.setHint(HINT_KEY[this.tool]); this._renderPreview(); }
 
   _down(loc, ev) {
     const t = this.tool;
     if (t === 'select') return this._selDown(loc, ev);
     if (DIM_TOOLS.includes(t)) return this._dimDown(loc, ev);
     if (EDIT_TOOLS.includes(t)) return this._editDown(loc, ev);
+    if (UL_TOOLS.includes(t)) return this._ulDown(loc, ev);
     const s = this._snapAt(loc, ev);
     this._clickWith(s);
     this._renderPreview();
@@ -373,6 +379,7 @@ export class Sketcher {
     }
     if (DIM_TOOLS.includes(t)) return this._setHover(this._hit(loc));
     if (EDIT_TOOLS.includes(t)) return this._editMove(loc, ev);
+    if (UL_TOOLS.includes(t)) { this.cursor = { ...this._snapAt(loc, ev), loc }; this._renderPreview(); return; }
     this.cursor = { ...this._snapAt(loc, ev), loc }; this._renderPreview();
   }
   _up(loc, ev) {
@@ -934,6 +941,7 @@ export class Sketcher {
     if (!this.active) return; this._clearGroup(this.gPrev);
     const cur = this.cursor, tool = this.tool; let tip = '';
     if (EDIT_TOOLS.includes(tool)) { this._editPreview(cur); this.vp.dirty = true; return; }
+    if (UL_TOOLS.includes(tool)) { this._ulPreview(cur); this.vp.dirty = true; return; }
     if (!cur || tool === 'select' || DIM_TOOLS.includes(tool)) { this._hideTip(); this._hideSnap(); this.vp.dirty = true; return; }
     let s = cur; const B = COL.sketch;
     if (DEFS[tool] && this._ds) {
@@ -1082,4 +1090,4 @@ export class Sketcher {
   }
 }
 
-Object.assign(Sketcher.prototype, EDIT_METHODS, COMFORT_METHODS, TEXT_METHODS);
+Object.assign(Sketcher.prototype, EDIT_METHODS, COMFORT_METHODS, TEXT_METHODS, UNDERLAY_METHODS);
