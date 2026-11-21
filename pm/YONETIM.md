@@ -61,4 +61,4 @@
 | G-10 | CAD testi ara raporu (T01–T06: 3 GEÇTİ, 3 KISMEN). Yüksek çekirdek hataları C-31, C-33, C-39, C-42 → İE-005 Hazır. C-37 (açılı yapı düzlemi yok) özellik eksiği: WP-CAD1'de, 0.6.1 kapsamına alınıp alınmayacağı test bitince | İE-005 hemen açılsın | Açık |
 | G-11 | İE-001 ilk oturumu T06'dan sonra kapandı (bağlam, kural 7); emir Hazır, T07'den devam | Yeni sohbette `Mihenk: devam` | Açık (oturumu kullanıcı açar) |
 | G-9 | 0.6.1 düzeltme sürümü (WP-CAD1 bulguları) ve kullanıcı deneme listesi | İE-002 bitince | Karar bekliyor |
-| G-10 | GitHub'da geçici tanı dalı `tani-ie002` kaldı (oturum proxy'si dal silmeye izin vermedi) | Kullanıcı GitHub'da silsin (Branches → tani-ie002 → sil) | Açık |
+| G-12 | GitHub'da geçici tanı dalı `tani-ie002` kaldı (oturum proxy'si dal silmeye izin vermedi) | Kullanıcı GitHub'da silsin (Branches → tani-ie002 → sil) | Açık |
