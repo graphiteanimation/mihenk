@@ -1,12 +1,16 @@
 // Geri okuyucu: motorun uretti lehceyi IR hareketlerine geri cozer. Tanimadigi kelimede HATA verir (sessiz atlama yok).
 // Dil: G0/1/2/3/4, G17, G21, G28 (G91 ile), G40/41/42, G43/49, G53, G54-59/G54.1 Pn, G73/74/80-85/89, G90/G91, G94, G98/99, G05/G05.1 (olay),
 // A, M0/1/3/4/5/6/8/9/30 (+ ozellik tablosundaki sogutma kodlari, makine A kilidi, senkron kilavuz M kodu), T S F H D X Y Z I J R Q P, ",R1", N, O.
+// WP-22b (WP-18 acigi): G68.2 X Y Z I J K (egik duzlem; I J K = Euler ZXZ, derece), G53.1 (olay), G69 (iptal; bolum sonu), B/C
+// doner indeks kelimeleri (A ile birlikte tek basina satir: "G0 A45. C45."). Egik bolumun setup'i: tilt {mode:'plane', euler,
+// origin} + rot (son indeks); B/C sifir degilse ve G68.2 yoksa tilt {mode:'unwound'} (XYZ makineye acilmis: yerel cerceveye geri
+// cevrilmez, karsilastirma setup.tilt.shift ile cagirana kalir).
 // NC'de karsiligi olmayan alanlar (kind, cycle.top, opName...) geri okunamaz: ir.js compareToolpaths bunlari yok sayar.
 import { perr, resolveProps, resolveRotary, wrapAMode } from './engine.js';
 import { getPost } from './registry.js';
 import { computeStats, wrapMoveLen } from '../ir.js';
 
-const LETTERS = 'NOGMXYZAIJRQPFSTHD';
+const LETTERS = 'NOGMXYZABCIJKRQPFSTHD'; // WP-22b: B/C (doner indeks), K (G68.2)
 
 function tokenize(src, lineNo) {
   const words = [];
@@ -40,13 +44,15 @@ export function readNC(text, opts = {}) {
   const sections = [];
   const S = {
     motion: null, x: null, y: null, z: null, f: null, rpm: null, dir: null, tool: null, pendingT: null, H: null, D: null,
-    wcs: { kind: 'G54' }, aCur: 0, aCont: 0, inverse: false, inc: false, comp: null, coolant: 'off', cycle: null, retrMode: null, end: false, program: { name: null, number: null }, opComment: null,
+    wcs: { kind: 'G54' }, aCur: 0, aCont: 0, inverse: false, tilt: null, rot: { B: 0, C: 0 }, inc: false, comp: null, coolant: 'off', cycle: null, retrMode: null, end: false, program: { name: null, number: null }, opComment: null,
   };
   let cur = null; let pending = null; // pending: {x,y,line}
   const mcodeEq = (v, code) => code != null && String(code).toUpperCase() === 'M' + v;
   const norm360 = (a) => ((a % 360) + 360) % 360;
 
-  const makeSection = () => ({ setup: { id: null, name: null, workOffset: { ...S.wcs }, aAngle: S.aCur, aOut: S.aCur }, comp: 'computer', compSide: null, moves: [], tool: S.tool, H: S.H, D: null, lineIdx: [] });
+  const tiltOf = () => (S.tilt ? { rot: { A: S.aCur, ...S.rot }, tilt: { mode: 'plane', euler: S.tilt.e.slice(), origin: S.tilt.o.slice() } }
+    : (Math.abs(S.rot.B) > 1e-9 || Math.abs(S.rot.C) > 1e-9) ? { rot: { A: S.aCur, ...S.rot }, tilt: { mode: 'unwound' } } : {});
+  const makeSection = () => ({ setup: { id: null, name: null, workOffset: { ...S.wcs }, aAngle: S.aCur, aOut: S.aCur, ...tiltOf() }, comp: 'computer', compSide: null, moves: [], tool: S.tool, H: S.H, D: null, lineIdx: [] });
   const ensureSection = (ln) => { if (!cur) { cur = makeSection(); cur.opName = S.opComment; } return cur; };
   const emit = (mv, ln) => { const c = ensureSection(ln); c.moves.push(mv); const k = c.moves.length - 1; lineMap[ln - 1] = { section: sections.length, move: k }; return k; };
   const finalize = () => {
@@ -108,9 +114,12 @@ export function readNC(text, opts = {}) {
     const isCycleCode = (g) => [73, 74, 76, 81, 82, 83, 84, 85, 87, 89].includes(g);
 
     // ---- G kodlari
-    let retractEv = false, dwell = false, machineCoord = false, wantCycle = null, compReq = undefined, retrMode = null, newMotion = null;
+    let retractEv = false, dwell = false, machineCoord = false, wantCycle = null, compReq = undefined, retrMode = null, newMotion = null, tiltReq = false, tiltOff = false;
     for (const g of Gs) {
-      if (g === 0 || g === 1 || g === 2 || g === 3) newMotion = g;
+      if (g === 68.2) tiltReq = true; // WP-22b
+      else if (g === 53.1) events.push({ line: ln, ev: 'toolAxis' });
+      else if (g === 69) tiltOff = true;
+      else if (g === 0 || g === 1 || g === 2 || g === 3) newMotion = g;
       else if (g === 4) dwell = true;
       else if (g === 5 || g === 5.1) { events.push({ line: ln, ev: 'highSpeed', word: 'G' + g, p: W('P')?.v ?? W('Q')?.v }); }
       else if (g === 17 || g === 20 || g === 21) { /* sabit lehce */ }
@@ -156,8 +165,31 @@ export function readNC(text, opts = {}) {
     if (tChange) { if (S.pendingT == null) fail('cam.post.read_missing_word', ln, { word: 'T' }); S.tool = S.pendingT; events.push({ line: ln, ev: 'toolChange', tool: S.tool }); }
     if (S.cycle == null && wantCycle == null && words.some((w) => w.l === ',R')) fail('cam.post.read_unknown_word', ln, { text: ',R' });
 
-    const X = W('X'), Y = W('Y'), Z = W('Z'), A = W('A'), I = W('I'), J = W('J');
+    const X = W('X'), Y = W('Y'), Z = W('Z'), A = W('A'), I = W('I'), J = W('J'), Bw = W('B'), Cw = W('C');
     const hasXYZ = !!(X || Y || Z);
+    // ---- WP-22b: egik duzlem
+    if (tiltReq) {
+      if (S.cycle || S.comp || S.tilt || A || Bw || Cw) fail('cam.post.read_tilt', ln);
+      finalize(); const o = [X?.v ?? 0, Y?.v ?? 0, Z?.v ?? 0], e = [I?.v ?? 0, J?.v ?? 0, W('K')?.v ?? 0];
+      S.tilt = { o, e }; S.x = S.y = S.z = null; S.motion = null; pending = null; events.push({ line: ln, ev: 'tiltPlane', euler: e, origin: o });
+      return;
+    }
+    if (tiltOff) {
+      if (hasXYZ) fail('cam.post.read_tilt', ln);
+      finishCycle(ln); finalize(); if (S.tilt) events.push({ line: ln, ev: 'tiltCancel' }); S.tilt = null; S.x = S.y = S.z = null; S.motion = null; pending = null;
+      return;
+    }
+    if (W('K')) fail('cam.post.read_unknown_word', ln, { text: 'K' });
+    // ---- WP-22b: B/C doner indeks (tek basina; A ile birlikte olabilir)
+    if (Bw || Cw) {
+      if (hasXYZ || S.cycle) fail('cam.post.read_a_with_xyz', ln);
+      if (S.tilt) fail('cam.post.read_tilt', ln);
+      for (const [k, w] of [['B', Bw], ['C', Cw]]) if (w) { if (opts.machine?.axes?.[k]?.kind !== 'rotary') fail('cam.post.read_no_rotary', ln, { axis: k }); S.rot[k] = w.v; events.push({ line: ln, ev: 'rotIndex', axis: k, value: w.v }); }
+      if (A) { if (!R) fail('cam.post.read_no_a_axis', ln); S.aCur = A.v; S.aCont = A.v; S.aWord = A.v; events.push({ line: ln, ev: 'aIndex', a: A.v }); }
+      if (cur && cur.moves.length) fail('cam.post.read_a_inside_section', ln);
+      return;
+    }
+    if (A && S.tilt) fail('cam.post.read_tilt', ln);
     // ---- G28 / G53 guvenli geri cekilme
     if (retractEv) {
       if (!S.inc || !Z || Z.v !== 0 || X || Y) fail('cam.post.read_bad_retract', ln);

@@ -12,6 +12,7 @@
 import { KErr } from '../../shared/errors.js';
 
 const DEDUP = 1e-7;
+const EMPTY = Object.freeze([]); // model isinlari salt okunur: bos isinlar tek nesneyi paylasir (bellek)
 export function normalizeMesh(m) {
   if (!m || !m.v || !m.t || !m.v.length || !m.t.length || m.v.length % 3 || m.t.length % 3) throw new KErr('cam.sim.bad_model_mesh', {});
   const err = Number.isFinite(m.err) && m.err > 0 ? m.err : 0;
@@ -65,7 +66,7 @@ function axisRays(mesh, ax, pa, pb, a0, na, b0, nb, res) {
     }
   }
   const out = new Array(na * nb);
-  for (let q = 0; q < out.length; q++) out[q] = hits[q] ? intervals(hits[q]) : [];
+  for (let q = 0; q < out.length; q++) { const r = hits[q] ? intervals(hits[q]) : EMPTY; out[q] = r.length ? r.slice() : EMPTY; hits[q] = undefined; }
   return out;
 }
 // (pa, pb, ax) sag el sirasi: z isini (x, y) icin (0,1,2); x isini (y, z): (1,2,0); y isini (z, x): (2,0,1). Izgara dizini icin
@@ -140,7 +141,7 @@ export function meshRadialRays(mesh0, W) {
     }
   }
   const out = new Array(W.nx * W.nt);
-  for (let q = 0; q < out.length; q++) out[q] = hits[q] ? intervals(hits[q], 0) : [];
+  for (let q = 0; q < out.length; q++) { const r = hits[q] ? intervals(hits[q], 0) : EMPTY; out[q] = r.length ? r.slice() : EMPTY; hits[q] = undefined; }
   return { rays: out, err: mesh.err };
 }
 function origInTri(ys, zs) {
