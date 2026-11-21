@@ -51,11 +51,11 @@
 | # | Konu | Önerim | Durum |
 |---|---|---|---|
 | G-1 | CAD testi T02–T10 (İE-001) | Sürsün; T04 sonrası ara rapor yönetimde değerlendirilsin | Açık |
-| G-2 | CAD düzeltmeleri (WP-CAD1) ne zaman? C-14 (Extrude görünen/uygulanan mesafe farkı) ve C-21 (budamada daire kayması) testin sonucunu da bozabilir | C-14 ve C-21 hemen ayrı iş emri (İE-002), kalanlar test bitince | Karar bekliyor |
+| G-2 | CAD düzeltmeleri (WP-CAD1): C-14 ve C-21 İE-002 olarak Hazır (O-054, ekransız, paralel açılabilir); kalanlar test bitince | İE-002 İE-001 sürerken ayrı oturumda açılsın | Açık (oturumu kullanıcı açar) |
 | G-3 | 1.0 yapım sırası (BACKLOG "1.0 ve sonrası") | CAD testi ve WP-CAD1 bitince planlansın | Karar bekliyor |
-| G-4 | 0.5–0.6 işlemlerinin Fusion karşılaştırması (K-046); Fusion deneme lisansı 23 Kasım 2026'da bitiyor | Lisans bitmeden yapılmayacaksa ileride başka programla; yapılacaksa İE-003 | Karar bekliyor |
+| G-4 | Fusion karşılaştırması: K-051 ile İE-004 (P1–P4, CAD + CAM), İE-001'den sonra. P1–P4'ün Fusion çıktıları bilgisayarda hazır; lisans yalnız sarma ve 3+2 referansı için gerekli (23 Kasım 2026) | İE-001 22 Kasım akşamına dek bitmezse araya yalnız İE-004 Adım A alınsın (kısa) | İzleniyor |
 | G-5 | Ana dal testleri belge değişikliklerinde iptal ediliyordu | CI'da `pm/**`, `*.md`, `docs/**` yolları test başlatmaz (bu oturumda yapıldı); ilk yeşil sonuç kontrol edilecek | İzleniyor |
 | G-6 | Bazı iş oturumları GitHub'a gönderemedi (O-047), iş yedek depoda kaldı | İş oturumu kapanışta GitHub'a gönderimi doğrular; gönderemezse `DURUM`'un ilk satırına yazar; yönetim oturumu eşitler | İzleniyor |
-| G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kullanıcıda |
+| G-7 | Skill güncellemeleri (izinlerin toplu istenmesi, yeni klasör yolu, yönetim/iş ayrımı) kullanıcı tarafından kaydedilmeli | Kartlar kaydedilsin | Kapandı (Y-02: kullanıcı onayladı) |
 | G-8 | Test parçalarının otomatik regresyona alınması (İE-003 taslak) | T04 ara raporundan sonra Hazır yapılsın | Karar bekliyor |
 | G-9 | 0.6.1 düzeltme sürümü (WP-CAD1 bulguları) ve kullanıcı deneme listesi | İE-002 bitince | Karar bekliyor |

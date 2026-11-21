@@ -60,6 +60,8 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 
 - **K-050** (2026-11-21) — "bundan sonraki devam oturumlarının ve yönetim oturumlarının isimlendirmelerini de kafa karıştırmayacak şekilde düzenlesek?" + eski oturumların yönetimi + sürecin gözden geçirilmesi. Uygulama: `pm/YONETIM.md` "Oturum adları" ve "Çalışma ilkeleri" (O-053), `pm/arsiv/SOHBETLER.md`. `fusion-klon-spec` skill'i silindi; yerine `mihenk-gelistirme`.
 
+- **K-051** (2026-11-21) — "önce İE-001 deki cad testleri yapmak istiyorum. sonra ise en az şu belirlediğin 4 parça ile cad ve cam kıyaslaması yapmak istiyorum." Sıra: İE-001 (CAD testi T02–T10), ardından İE-004 (P1–P4 ile Fusion'a karşı CAD ve CAM kıyaslaması; "4 parça" = `test/compare` P1–P4 seti olarak yorumlandı, 3D, uyarlanır, sarma ve 3+2 işlemleri bu parçalar üzerinde kapsanır). G-4 bu kararla kapanır. Skill güncelleme kartları kullanıcı tarafından onaylandı (G-7 kapandı).
+
 ## Öneriler
 | No | Öneri | Durum |
 |---|---|---|
@@ -97,6 +99,7 @@ K-001…K-015 ve O-001…O-018'in tam metni Claude Docs spesifikasyonunun 0. bö
 | O-049 | PDF altlık: vektör PDF için `pdfjs-dist` (Apache-2.0) eklenir; yalnız kullanılan modüller paketlenir (vite), işçi `self` kaynağından, `isEvalSupported:false`, ana belge CSP'si gevşetilmez; sayfa görüntüye çizilip altlık olur. WP-14'ün gömülü JPEG yolu yedek kalır | WP-22a |
 | O-050 | Tri-dexel + model ağıyla 3B oyma denetimi arayüzde isteğe bağlı "Ayrıntılı simülasyon" seçeneği; varsayılan kapalı (altın taban ve bellek korunur, ölçü: tri+ağ ≈ 2× bellek). 1.0'da varsayılanın açılması yeniden değerlendirilir. WP-15 3D kaba süresi (büyük parçada > 60 sn) 0.6'da açık kalır; işçide ve iptal edilebilir olduğu için engel sayılmaz, WP-22c'de iyileştirilir | Uygulanıyor |
 | O-051 | Başlat menüsü kaldırma kısayolu `Mihenk Kaldır` / `Uninstall Mihenk` (APP adı). Kısayol adı dosya adıdır; APPFULL içindeki "/" yüzünden 0.6.0 adayında Türkçe kısayol hiç oluşmuyordu (kabul adımı 2). Kurulum ve kaldırma eski sürümlerden kalan `Uninstall Mihenk CADCAM.lnk` ve `Mihenk CADCAM Kaldır.lnk` adlarını da siler | Uygulandı (fix-lnk) |
+| O-054 | İş emri sırası ve ön koşul (K-051): `IS-EMRI.md`'de emirler yürütme sırasıyla durur; "Ön koşul" satırı sağlanmayan emir alınmaz, sıradaki Hazır emre geçilir. İE-004 Fusion karşılaştırmasında P1–P4 için 2026-11-19 tarihli Fusion çıktıları (`Mihenk\test-fusion-karsilastirma\sonuclar`, işlem başına süre ve yol boyu; 2D, 3D uyarlanır, yatay, 3D kontur dahil) referans alınır; Fusion lisansı yalnız bu çıktılarda olmayan sarma ve 3+2 için gerekir, lisans yetmezse o iki satır "karşılaştırılamadı" yazılır. İE-002 ekran kullanmadığından Hazır yapıldı; düzeltmeler 0.6.1 ile çıkacağından kurulu 0.6.0 üzerindeki CAD testini etkilemez | Uygulanıyor (Y-02) |
 
 ## Mihenk dışında kalan (bilgi; Mihenk'i bekletmez)
 Kullanıcının Neway profilindeki boş alanlar (maxRpm, ilerleme sınırı, safeRetract, G04 adresi/birimi, G54.1 aralığı), A+ dönüş yönü, O/N sınırları: kullanıcı kendi profil dosyasında doldurur. P1 STEP'indeki Ø4 çubuk sorusu yalnız karşılaştırma testinin yorumunu etkiler.
